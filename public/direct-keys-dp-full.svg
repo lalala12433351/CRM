@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080">
+  <!-- 1:1 Instagram DP Canvas: Deep Navy Background -->
+  <rect width="1080" height="1080" fill="#061224"/>
+  
+  <!-- Complete Emblem & Text within 860px Circular Safe Zone (Radius 430px from center 540,540) -->
+  <g transform="translate(540, 420) scale(0.85)">
+    <!-- Monogram Centered -->
+    <g transform="translate(-400, -320)">
+      <!-- Outer D Frame -->
+      <path d="M 270,60 H 460 C 580,60 670,150 670,270 C 670,390 580,480 460,480 H 270 Z" fill="none" stroke="#FFFFFF" stroke-width="72" stroke-linejoin="miter" stroke-linecap="square"/>
+      <!-- K Lower Diagonal Legs -->
+      <path d="M 400,340 L 170,570" stroke="#FFFFFF" stroke-width="72" stroke-linecap="square"/>
+      <path d="M 440,290 L 220,510" stroke="#FFFFFF" stroke-width="72" stroke-linecap="square"/>
+      <!-- Keyhole Silhouette -->
+      <circle cx="490" cy="245" r="38" fill="#FFFFFF"/>
+      <polygon points="468,260 512,260 530,350 450,350" fill="#FFFFFF"/>
+    </g>
+  </g>
+
+  <!-- Typography Block: DIRECT KEYS -->
+  <g transform="translate(540, 780)" text-anchor="middle">
+    <text font-family="'Montserrat', 'Arial Black', sans-serif" font-weight="900" font-size="62" letter-spacing="14">
+      <tspan fill="#FFFFFF" x="-135">DIRECT</tspan>
+      <tspan fill="#C59B4A" x="155">KEYS</tspan>
+    </text>
+  </g>
+
+  <!-- Tagline with Accent Bars: UNLOCKING YOUR NEXT ADDRESS -->
+  <g transform="translate(540, 845)" text-anchor="middle">
+    <!-- Left Gold Line -->
+    <line x1="-340" y1="-5" x2="-280" y2="-5" stroke="#C59B4A" stroke-width="3"/>
+    
+    <!-- Tagline Text -->
+    <text x="0" y="0" fill="#FFFFFF" font-family="'Montserrat', 'Arial', sans-serif" font-weight="600" font-size="21" letter-spacing="6">
+      UNLOCKING YOUR NEXT ADDRESS
+    </text>
+    
+    <!-- Right Gold Line -->
+    <line x1="280" y1="-5" x2="340" y2="-5" stroke="#C59B4A" stroke-width="3"/>
+  </g>
+</svg>

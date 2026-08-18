@@ -1,0 +1,779 @@
+import React, { useState, useEffect } from 'react';
+import { useSyncState } from './lib/hooks';
+import { seedDatabase } from './lib/db';
+import { Navbar } from './components/Navbar';
+import { Sidebar } from './components/Sidebar';
+import { MobileBottomNav } from './components/MobileBottomNav';
+import { DashboardView } from './components/DashboardView';
+import { LeadsView } from './components/LeadsView';
+import { OmnichannelInboxView } from './components/OmnichannelInboxView';
+import { PipelineView } from './components/PipelineView';
+import { WhatsAppCrmView } from './components/WhatsAppCrmView';
+import { WorkflowsView, AutomationsSubTab } from './components/WorkflowsView';
+import { CallingLogsView } from './components/CallingLogsView';
+import { AnalyticsView } from './components/AnalyticsView';
+import { TeamView } from './components/TeamView';
+import { MarketingView } from './components/MarketingView';
+import { DocsAndSignView } from './components/DocsAndSignView';
+import { AddLeadView } from './components/AddLeadView';
+import { FollowUpsView } from './components/FollowUpsView';
+import { ReportsView, ReportsSubTab } from './components/ReportsView';
+import { IntegrationsView } from './components/IntegrationsView';
+import { SettingsView } from './components/SettingsView';
+import { CampaignsView } from './components/CampaignsView';
+import { FieldsSettingsView } from './components/FieldsSettingsView';
+import { TasksView } from './components/TasksView';
+
+import { LeadDetailModal } from './components/LeadDetailModal';
+import { AiVoiceBotModal } from './components/AiVoiceBotModal';
+import { GoogleSheetsIntegrationModal } from './components/GoogleSheetsIntegrationModal';
+import { CommandPalette } from './components/CommandPalette';
+import { AiCopilotModal } from './components/AiCopilotModal';
+import { PowerDialerQueueModal } from './components/PowerDialerQueueModal';
+
+import { 
+  INITIAL_LEADS, 
+  INITIAL_AGENTS, 
+  INITIAL_ACTIVITIES, 
+  INITIAL_MESSAGES, 
+  INITIAL_CALL_RECORDS, 
+  INITIAL_TEMPLATES, 
+  INITIAL_CAMPAIGNS, 
+  INITIAL_WORKFLOWS, 
+  INITIAL_CUSTOM_FIELDS, 
+  INITIAL_STAGES, 
+  HOURLY_METRICS 
+} from './data/mockData';
+
+import { Lead, Agent, PipelineStage, ActivityLog, WhatsAppMessage, CallRecord, WhatsAppTemplate, WhatsAppCampaign, WorkflowRule, CustomFieldDef, LeadStatus } from './types';
+
+export const StagesContext = React.createContext<PipelineStage[]>(INITIAL_STAGES);
+
+export function App() {
+  // Navigation & Active View State (defaulting to 'leads' to match screenshot view)
+  const [currentView, setCurrentView] = useState<string>('leads');
+  const [reportsSubTab, setReportsSubTab] = useState<ReportsSubTab>('call_logs');
+  const [automationsSubTab, setAutomationsSubTab] = useState<AutomationsSubTab>('workflows');
+  const [activeAgentId, setActiveAgentId] = useState<string>('agent-ms');
+  const [selectedCampaignHandle, setSelectedCampaignHandle] = useState<string>('@master-form-iata-cargo');
+  const [activeFilterId, setActiveFilterId] = useState<string>('all_leads');
+
+  // Global filters exactly matching the user's screenshot
+  const globalSavedFilters = [
+    { id: 'active_leads', name: 'All Active Leads', iconType: 'arrow' },
+    { id: 'all_leads', name: 'All Leads', iconType: 'arrow' },
+    { id: 'assigned_to_me', name: 'Leads Assigned To Me', iconType: 'arrow' },
+    { id: 'my_leads', name: 'My Leads', iconType: 'arrow' },
+    { id: 'all_leads_copy_1', name: 'All Leads copy', iconType: 'filter' },
+    { id: 'incoming_whatsapp', name: 'All Incoming Whatsapp Leads', iconType: 'arrow' },
+    { id: 'all_leads_copy_2', name: 'All Leads Copy', iconType: 'filter' },
+    { id: 'all_leads_copy_3', name: 'All Leads Copy', iconType: 'filter' },
+    { id: 'all_leads_copy_4', name: 'All Leads Copy', iconType: 'filter' },
+  ];
+
+  // Core CRM Collections State synchronized with Firebase
+  const [leads, setLeads] = useSyncState<Lead>('leads');
+  const [agents, setAgents] = useSyncState<Agent>('agents');
+  const [stages, setStages] = useSyncState<PipelineStage>('stages');
+  const [activities, setActivities] = useSyncState<ActivityLog>('activities');
+  const [messages, setMessages] = useSyncState<WhatsAppMessage>('messages');
+  const [callRecords, setCallRecords] = useSyncState<CallRecord>('callRecords');
+  const [templates, setTemplates] = useSyncState<WhatsAppTemplate>('templates');
+  const [campaigns, setCampaigns] = useSyncState<WhatsAppCampaign>('campaigns');
+  const [workflows, setWorkflows] = useSyncState<WorkflowRule>('workflows');
+  const [customFields, setCustomFields] = useSyncState<CustomFieldDef>('customFields');
+
+  useEffect(() => {
+    seedDatabase();
+  }, []);
+
+  // Modals & Overlay Drawers State
+  const [detailLead, setDetailLead] = useState<Lead | null>(null);
+  const [voiceBotLead, setVoiceBotLead] = useState<Lead | null>(null);
+  const [isGoogleSheetsModalOpen, setIsGoogleSheetsModalOpen] = useState<boolean>(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
+  const [isAiCopilotOpen, setIsAiCopilotOpen] = useState<boolean>(false);
+  const [isPowerDialerQueueOpen, setIsPowerDialerQueueOpen] = useState<boolean>(false);
+
+  // Toast alert banner state
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  // Active Agent details
+  const activeAgent = agents.find((a) => a.id === activeAgentId) || agents[0] || INITIAL_AGENTS[0];
+
+  // 1. Handlers for Leads
+  const handleAddNewLead = () => {
+    const newLead: Lead = {
+      id: `lead-${Date.now()}`,
+      name: 'Ananya Deshmukh',
+      phone: '+91 98765 00112',
+      email: 'ananya@puneventures.in',
+      company: 'Pune Ventures Pvt Ltd',
+      city: 'Pune',
+      state: 'Maharashtra',
+      source: 'Facebook Ads',
+      status: 'New Lead',
+      pipelineStageId: 'stage-1',
+      dealValue: 120000,
+      aiScore: 88,
+      aiRating: 'Hot',
+      aiReasoning: 'High engagement on Facebook ad for 3BHK penthouse. Immediate buy intent.',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      ownerAgentId: activeAgent.id,
+      ownerAgentName: activeAgent.name,
+      customFields: {},
+      tags: ['Facebook Ads', 'High Value'],
+      notes: ''
+    };
+
+    setLeads((prev) => [newLead, ...prev]);
+    showToast(`New Lead Captured: ${newLead.name} via ${newLead.source}`);
+  };
+
+  const handleImportCsv = (importedLeads: Partial<Lead>[]) => {
+    const formatted: Lead[] = importedLeads.map((imp, idx) => ({
+      id: `imported-${Date.now()}-${idx}`,
+      name: imp.name || 'Bulk Lead',
+      phone: imp.phone || '+91 90000 00000',
+      email: imp.email || '',
+      company: imp.company || 'Inbound Company',
+      city: imp.city || 'Mumbai',
+      state: 'Maharashtra',
+      source: imp.source || 'Manual / Bulk CSV',
+      status: 'New Lead',
+      pipelineStageId: 'stage-1',
+      dealValue: imp.dealValue || 75000,
+      aiScore: 75,
+      aiRating: 'Warm',
+      aiReasoning: 'Bulk CSV imported lead file.',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      ownerAgentId: activeAgent.id,
+      ownerAgentName: activeAgent.name,
+      customFields: {},
+      tags: ['Bulk CSV'],
+      notes: ''
+    }));
+
+    setLeads((prev) => [...formatted, ...prev]);
+    showToast(`Successfully imported ${formatted.length} contacts from CSV!`);
+  };
+
+  const handleMergeLeads = (primaryId: string, duplicateId: string) => {
+    const primary = leads.find((l) => l.id === primaryId);
+    if (!primary) return;
+
+    setLeads((prev) => prev.filter((l) => l.id !== duplicateId));
+    showToast(`Merged duplicate lead into ${primary.name}`);
+  };
+
+  const handleAddCustomField = (field: CustomFieldDef) => {
+    setCustomFields((prev) => [...prev, field]);
+    showToast(`Custom lead field '${field.label}' saved!`);
+  };
+
+  // Automatic Offline Conversion Dispatch Helper
+  const triggerConversionDispatch = async (leadId: string, stage: LeadStatus, leadData?: Lead) => {
+    try {
+      const targetLead = leadData || leads.find((l) => l.id === leadId);
+      if (!targetLead) return;
+      
+      const res = await fetch('/api/conversions/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leadId,
+          stage,
+          leadData: { ...targetLead, status: stage }
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.dispatchedEvents && data.dispatchedEvents.length > 0) {
+        console.log(`[Auto-Conversion] Dispatched ${data.dispatchedEvents.length} event(s) to ad networks for stage "${stage}"`);
+      }
+    } catch (err) {
+      console.error('[Auto-Conversion] Error triggering offline conversion:', err);
+    }
+  };
+
+  const handleUpdateLead = (updated: Lead) => {
+    const existing = leads.find((l) => l.id === updated.id);
+    const stageChanged = existing && existing.status !== updated.status;
+    
+    setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+    if (detailLead?.id === updated.id) setDetailLead(updated);
+    
+    if (stageChanged) {
+      triggerConversionDispatch(updated.id, updated.status, updated);
+    }
+  };
+
+  const handlePartialUpdateLead = (leadId: string, updates: Partial<Lead>) => {
+    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, ...updates, updatedAt: new Date().toISOString() } : l)));
+    if (detailLead?.id === leadId) setDetailLead((prev) => prev ? { ...prev, ...updates } : null);
+    showToast('Lead follow-up / details updated');
+    
+    if (updates.status) {
+      triggerConversionDispatch(leadId, updates.status);
+    }
+  };
+
+  const handleUpdateLeadStage = (leadId: string, newStage: LeadStatus) => {
+    setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, status: newStage } : l));
+    showToast(`Updated lead stage to '${newStage}'`);
+    triggerConversionDispatch(leadId, newStage);
+  };
+
+  const handleDeleteLead = (leadId: string) => {
+    setLeads((prev) => prev.filter((l) => l.id !== leadId));
+    if (detailLead?.id === leadId) setDetailLead(null);
+    showToast('Lead deleted successfully');
+  };
+
+  const handleSaveCallLog = (log: Partial<CallRecord>, followUpAt?: string) => {
+    const newCall: CallRecord = {
+      id: `call-${Date.now()}`,
+      leadId: log.leadId || '',
+      leadName: log.leadName || 'Lead',
+      leadPhone: log.leadPhone || '',
+      agentId: activeAgent.id,
+      agentName: activeAgent.name,
+      type: 'outgoing',
+      durationSeconds: log.durationSeconds || 30,
+      disposition: log.disposition || 'Interested',
+      notes: log.notes || 'Call completed.',
+      transcript: log.transcript,
+      aiSummary: log.aiSummary,
+      sentiment: log.sentiment || 'Positive',
+      timestamp: new Date().toISOString()
+    };
+
+    setCallRecords((prev) => [newCall, ...prev]);
+
+    // Log activity
+    const newAct: ActivityLog = {
+      id: `act-${Date.now()}`,
+      leadId: newCall.leadId,
+      agentId: activeAgent.id,
+      agentName: activeAgent.name,
+      type: 'call',
+      title: `Outgoing Call - ${newCall.disposition}`,
+      description: `Talk time: ${newCall.durationSeconds}s. Note: ${newCall.notes}`,
+      timestamp: new Date().toISOString()
+    };
+    setActivities((prev) => [newAct, ...prev]);
+
+    // Update agent stats
+    setAgents((prev) => prev.map((a) => a.id === activeAgent.id ? { ...a, totalCallsToday: a.totalCallsToday + 1 } : a));
+    showToast(`Call log saved for ${newCall.leadName}`);
+  };
+
+  const handleUpdateCallRecord = (callId: string, updates: Partial<CallRecord>) => {
+    setCallRecords((prev) => prev.map((c) => (c.id === callId ? { ...c, ...updates, assigneeUpdatedAt: new Date().toISOString() } : c)));
+    showToast('Call log remarks saved!');
+  };
+
+  // 3. WhatsApp Messages
+  const handleSendMessage = (leadId: string, text: string) => {
+    const newMsg: WhatsAppMessage = {
+      id: `msg-${Date.now()}`,
+      leadId,
+      direction: 'outbound',
+      channel: 'whatsapp',
+      content: text,
+      timestamp: new Date().toISOString(),
+      status: 'delivered'
+    };
+    setMessages((prev) => [...prev, newMsg]);
+
+    const newAct: ActivityLog = {
+      id: `act-${Date.now()}`,
+      leadId,
+      agentId: activeAgent.id,
+      agentName: activeAgent.name,
+      type: 'whatsapp',
+      title: 'Outbound WhatsApp Sent',
+      description: text,
+      timestamp: new Date().toISOString()
+    };
+    setActivities((prev) => [newAct, ...prev]);
+    showToast('WhatsApp message delivered!');
+  };
+
+  // 4. Simulate Real-Time Webhook Lead Push (IndiaMart, JustDial, 99acres)
+  const handlePushTestLead = async (source: string = 'IndiaMart') => {
+    const sources = ['IndiaMart', 'JustDial', '99acres', 'Facebook Ads', 'Google Ads', 'Sulekha'];
+    const chosenSource = sources.includes(source) ? source : sources[Math.floor(Math.random() * sources.length)];
+    
+    showToast(`🔄 Pushing simulated webhook from ${chosenSource}...`);
+    
+    try {
+      const res = await fetch('/api/webhooks/lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `Vikramaditya Rao (${chosenSource})`,
+          phone: `+91 ${Math.floor(9000000000 + Math.random() * 999999999)}`,
+          email: 'vikram.rao@enterprise.in',
+          company: 'Rao Logistics & Real Estate',
+          city: 'Bengaluru',
+          state: 'Karnataka',
+          source: chosenSource,
+          dealValue: 250000,
+          ownerAgentId: activeAgent.id,
+          ownerAgentName: activeAgent.name
+        })
+      });
+      
+      const data = await res.json();
+      if (data.status === 'success') {
+        showToast(`⚡ Real-Time Webhook Lead Pushed from ${chosenSource}!`);
+      } else {
+        showToast(`❌ Failed: ${data.error}`);
+      }
+    } catch (err) {
+      console.error('Webhook error:', err);
+      showToast(`❌ Failed to push webhook lead`);
+    }
+  };
+
+  // Global keyboard shortcuts for Cmd+K and Cmd+J
+  React.useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen(prev => !prev);
+      } else if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
+        e.preventDefault();
+        setIsAiCopilotOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
+  const handlePowerDialerSaveCallLog = (leadId: string, disposition: LeadStatus, notes: string, durationSec: number) => {
+    const targetLead = leads.find(l => l.id === leadId);
+    const newRecord: CallRecord = {
+      id: `call-${Date.now()}`,
+      leadId: leadId,
+      leadName: targetLead?.name || 'Prospect',
+      leadPhone: targetLead?.phone || '+91 90000 00000',
+      agentId: activeAgent.id,
+      agentName: activeAgent.name,
+      type: 'outgoing',
+      durationSeconds: durationSec || 45,
+      timestamp: new Date().toISOString(),
+      disposition: disposition,
+      recordingUrl: 'https://actions.google.com/sounds/v1/telecom/phone_dial_tone.ogg',
+      callNotes: notes || `Call logged via Power Dialer queue.`,
+      tags: [disposition]
+    };
+
+    setCallRecords(prev => [newRecord, ...prev]);
+
+    // Update lead status and activity
+    setLeads(prev => prev.map(l => l.id === leadId ? {
+      ...l,
+      status: disposition,
+      updatedAt: new Date().toISOString(),
+      notes: notes ? `${notes}\n---\n${l.notes || ''}` : l.notes
+    } : l));
+
+    setActivities(prev => [{
+      id: `act-${Date.now()}`,
+      leadId: leadId,
+      agentId: activeAgent.id,
+      agentName: activeAgent.name,
+      type: 'call',
+      title: `Outbound Call (${disposition})`,
+      description: `${notes || 'Call completed'} - Duration: ${durationSec}s`,
+      timestamp: new Date().toISOString()
+    }, ...prev]);
+
+    triggerConversionDispatch(leadId, disposition);
+    showToast(`Call logged: ${targetLead?.name || 'Lead'} marked as ${disposition}`);
+  };
+
+  return (
+    <StagesContext.Provider value={stages}>
+    <div className="min-h-screen bg-[#F3F4F7] text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
+      {/* Toast Alert Banner */}
+      {toastMessage && (
+        <div className="fixed top-16 right-6 z-50 bg-[#161B22] text-white px-3.5 py-2 rounded-lg shadow-2xl border border-indigo-500/40 text-xs font-mono font-semibold flex items-center space-x-2">
+          <span className="text-indigo-400">⚡</span>
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Top Navbar */}
+      <Navbar
+        activeAgent={activeAgent}
+        agents={agents}
+        onSelectAgent={(agentId) => setActiveAgentId(agentId)}
+        onOpenLeadModal={() => setCurrentView('add_lead')}
+        onAddNewLead={() => setCurrentView('add_lead')}
+        onPushTestLead={() => handlePushTestLead('IndiaMart')}
+        onOpenVoiceBot={() => setVoiceBotLead(leads[0])}
+        onOpenPowerDialer={() => setIsPowerDialerQueueOpen(true)}
+        onOpenAiCopilot={() => setIsAiCopilotOpen(true)}
+        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+        pendingFollowUpsCount={leads.filter((l) => l.followUpAt || l.status === 'Follow Up').length}
+        onNavigateToFollowUps={() => setCurrentView('followups')}
+        onNavigateToSettings={() => setCurrentView('settings')}
+        onNavigateToTab={(tab) => setCurrentView(tab)}
+        currentView={currentView}
+        onShowToast={(msg) => showToast(msg)}
+      />
+
+      {/* Main Layout */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Sidebar */}
+        <Sidebar 
+          activeTab={currentView as any} 
+          setActiveTab={(tab, subTab) => {
+            setCurrentView(tab);
+            if (subTab) {
+              if (tab === 'reports') setReportsSubTab(subTab as ReportsSubTab);
+              if (tab === 'workflows') setAutomationsSubTab(subTab as AutomationsSubTab);
+            }
+          }} 
+          unassignedLeadsCount={leads.filter((l) => !l.ownerAgentId).length}
+          pendingFollowUpsCount={leads.filter((l) => l.followUpAt || l.status === 'Follow Up').length}
+          globalSavedFilters={globalSavedFilters}
+          activeFilterId={activeFilterId}
+          setActiveFilterId={setActiveFilterId}
+        />
+
+        {/* View Router */}
+        <main className="flex-1 overflow-y-auto bg-[#F3F4F7] p-3 md:p-5 pb-20 md:pb-5 ios-scroll">
+          {currentView === 'add_lead' && (
+            <AddLeadView
+              leads={leads}
+              agents={agents}
+              customFields={customFields}
+              onSaveLead={(newLead) => {
+                setLeads((prev) => [newLead, ...prev]);
+                showToast(`New Lead Ingested: ${newLead.name}`);
+                setCurrentView('leads');
+              }}
+              onSaveAndCall={(newLead) => {
+                setLeads((prev) => [newLead, ...prev]);
+                showToast(`Saved Lead & Calling ${newLead.name}`);
+                setCurrentView('leads');
+                window.location.href = `tel:${newLead.phone}`;
+              }}
+              onImportBulkLeads={(bulkLeads) => {
+                handleImportCsv(bulkLeads);
+                setCurrentView('leads');
+              }}
+              onCancel={() => setCurrentView('leads')}
+              onNavigateToTab={(tab) => setCurrentView(tab)}
+            />
+          )}
+
+          {currentView === 'campaigns' && (
+            <CampaignsView
+              leads={leads}
+              agents={agents}
+              initialCampaignHandle={selectedCampaignHandle}
+              onOpenLeadDetail={(lead) => setDetailLead(lead)}
+              onUpdateLead={handleUpdateLead}
+            />
+          )}
+
+          {currentView === 'dashboard' && (
+            <DashboardView
+              leads={leads}
+              agents={agents}
+              stages={stages}
+              hourlyMetrics={HOURLY_METRICS}
+              activeAgent={activeAgent}
+              onOpenLeadDetail={(lead) => setDetailLead(lead)}
+              onNavigateToTab={(tab) => setCurrentView(tab)}
+              onDeleteLead={handleDeleteLead}
+            />
+          )}
+
+          {currentView === 'pipeline' && (
+            <PipelineView
+              leads={leads}
+              stages={stages}
+              onOpenLeadDetail={(lead) => setDetailLead(lead)}
+              onUpdateLeadStage={(leadId, newStageStatus) => {
+                setLeads((prev) =>
+                  prev.map((l) => (l.id === leadId ? { ...l, status: newStageStatus, updatedAt: 'Just Now' } : l))
+                );
+                showToast(`Updated lead stage to ${newStageStatus}`);
+              }}
+              onUpdateStages={(updatedStages) => {
+                setStages(updatedStages);
+                showToast('Pipeline stages updated!');
+              }}
+            />
+          )}
+
+          {currentView === 'leads' && (
+            <LeadsView
+              leads={leads}
+              agents={agents}
+              customFields={customFields}
+              activeAgent={activeAgent}
+              onOpenLeadDetail={(lead) => setDetailLead(lead)}
+              onAddNewLead={handleAddNewLead}
+              onImportCsv={handleImportCsv}
+              onMergeLeads={handleMergeLeads}
+              onAddCustomField={handleAddCustomField}
+              onPushTestLead={handlePushTestLead}
+              onDeleteLead={handleDeleteLead}
+              onUpdateLead={handlePartialUpdateLead}
+              onOpenGoogleSheets={() => setIsGoogleSheetsModalOpen(true)}
+              globalSavedFilters={globalSavedFilters}
+              activeFilterId={activeFilterId}
+              setActiveFilterId={setActiveFilterId}
+            />
+          )}
+
+          {currentView === 'followups' && (
+            <FollowUpsView
+              leads={leads}
+              agents={agents}
+              callRecords={callRecords}
+              onUpdateLead={handlePartialUpdateLead}
+              onOpenLeadDetail={(lead) => setDetailLead(lead)}
+              onCallLead={(lead) => { window.location.href = `tel:${lead.phone}`; }}
+              onSendMessage={handleSendMessage}
+            />
+          )}
+
+          {currentView === 'tasks' && (
+            <TasksView
+              leads={leads.filter((l) => l.followUpAt || l.status === 'Follow Up')}
+              agents={agents}
+              onOpenLeadDetail={(lead) => setDetailLead(lead)}
+              onCallLead={(lead) => { window.location.href = `tel:${lead.phone}`; }}
+            />
+          )}
+
+          {currentView === 'inbox' && (
+            <OmnichannelInboxView
+              leads={leads}
+              messages={messages}
+              onSendMessage={handleSendMessage}
+              onOpenLeadDetail={(lead) => setDetailLead(lead)}
+              onCallLead={(lead) => { window.location.href = `tel:${lead.phone}`; }}
+            />
+          )}
+
+          {currentView === 'whatsapp' && (
+            <WhatsAppCrmView
+              templates={templates}
+              campaigns={campaigns}
+              leads={leads}
+              onAddTemplate={(tmpl) => setTemplates((prev) => [tmpl, ...prev])}
+              onCreateCampaign={(camp) => setCampaigns((prev) => [camp, ...prev])}
+            />
+          )}
+
+          {currentView === 'workflows' && (
+            <WorkflowsView
+              workflows={workflows}
+              initialSubTab={automationsSubTab}
+              onToggleWorkflow={(id) => setWorkflows((prev) => prev.map((w) => w.id === id ? { ...w, isActive: !w.isActive } : w))}
+              onAddWorkflow={(wf) => setWorkflows((prev) => [wf, ...prev])}
+              onShowToast={(msg) => showToast(msg)}
+            />
+          )}
+
+          {currentView === 'calling_logs' && (
+            <CallingLogsView callRecords={callRecords} onUpdateCallRecord={handleUpdateCallRecord} />
+          )}
+
+          {currentView === 'reports' && (
+            <ReportsView
+              initialSubTab={reportsSubTab}
+              callRecords={callRecords}
+              agents={agents}
+              leads={leads}
+              activities={activities}
+              onOpenLeadDetail={(lead) => setDetailLead(lead)}
+              onUpdateCallRecord={handleUpdateCallRecord}
+            />
+          )}
+
+          {currentView === 'analytics' && (
+            <AnalyticsView leads={leads} hourlyMetrics={HOURLY_METRICS} />
+          )}
+
+          {currentView === 'team' && (
+            <TeamView
+              agents={agents}
+              onToggleAgentStatus={(id, st) => setAgents((prev) => prev.map((a) => a.id === id ? { ...a, status: st } : a))}
+            />
+          )}
+
+          {currentView === 'marketing' && (
+            <MarketingView onSimulateWebhookLead={(src) => handlePushTestLead(src)} />
+          )}
+
+          {currentView === 'integrations' && (
+            <IntegrationsView 
+              onNavigateToCampaign={(handle) => {
+                setSelectedCampaignHandle(handle);
+                setCurrentView('campaigns');
+              }}
+            />
+          )}
+
+          {currentView === 'docs_sign' && (
+            <DocsAndSignView leads={leads} />
+          )}
+
+          {currentView === 'fields' && (
+            <FieldsSettingsView
+              customFields={customFields}
+              onUpdateFields={(updatedFields) => {
+                setCustomFields(updatedFields);
+                showToast('Custom fields database updated successfully!');
+              }}
+              onShowToast={(msg) => showToast(msg)}
+            />
+          )}
+
+          {currentView === 'settings' && (
+            <SettingsView 
+              stages={stages}
+              onUpdateStages={(updatedStages) => {
+                setStages(updatedStages);
+              }}
+              agents={agents}
+              onUpdateAgents={(updatedAgents) => {
+                setAgents(updatedAgents);
+              }}
+              customFields={customFields}
+              onUpdateFields={(updatedFields) => {
+                setCustomFields(updatedFields);
+              }}
+              onShowToast={(msg) => showToast(msg)} 
+            />
+          )}
+        </main>
+      </div>
+
+      {/* MODAL 1: Lead Details Drawer */}
+      {detailLead && (
+        <LeadDetailModal
+          lead={detailLead}
+          allLeads={leads}
+          agents={agents}
+          activities={activities}
+          messages={messages}
+          callRecords={callRecords}
+          onClose={() => setDetailLead(null)}
+          onSelectLead={(nextLead) => setDetailLead(nextLead)}
+          onUpdateLead={handleUpdateLead}
+          onAddActivity={(act) => setActivities((prev) => [{
+            id: `act-${Date.now()}`,
+            leadId: detailLead.id,
+            agentId: activeAgent.id,
+            agentName: activeAgent.name,
+            type: act.type || 'note',
+            title: act.title || 'Note',
+            description: act.description || '',
+            timestamp: new Date().toISOString()
+          }, ...prev])}
+          onSendMessage={handleSendMessage}
+          onDeleteLead={handleDeleteLead}
+          onUpdateCallRecord={handleUpdateCallRecord}
+        />
+      )}
+
+      {/* MODAL 2: AI Voice Calling Bot Interview Simulator */}
+      {voiceBotLead && (
+        <AiVoiceBotModal
+          lead={voiceBotLead}
+          onClose={() => setVoiceBotLead(null)}
+        />
+      )}
+
+      {/* MODAL 3: Google Sheets Two-Way Auto-Sync Modal */}
+      {isGoogleSheetsModalOpen && (
+        <GoogleSheetsIntegrationModal
+          leads={leads}
+          onImportLeads={(importedLeads) => {
+            setLeads((prev) => [...importedLeads, ...prev]);
+            showToast(`Imported ${importedLeads.length} leads from Google Sheets!`);
+          }}
+          onClose={() => setIsGoogleSheetsModalOpen(false)}
+        />
+      )}
+
+      {/* MODAL 4: Global Quick Command Palette (Cmd + K) */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        leads={leads}
+        agents={agents}
+        onSelectLead={(lead) => setDetailLead(lead)}
+        onNavigate={(view) => setCurrentView(view)}
+        onAddNewLead={() => setCurrentView('add_lead')}
+        onOpenPowerDialer={() => setIsPowerDialerQueueOpen(true)}
+        onOpenAiCopilot={() => setIsAiCopilotOpen(true)}
+        onOpenVoiceBot={() => setVoiceBotLead(leads[0])}
+        onOpenGoogleSheets={() => setIsGoogleSheetsModalOpen(true)}
+      />
+
+      {/* MODAL 5: AI Sales Copilot & Objection Buster (Cmd + J) */}
+      <AiCopilotModal
+        isOpen={isAiCopilotOpen}
+        onClose={() => setIsAiCopilotOpen(false)}
+        lead={detailLead || leads[0]}
+        leads={leads}
+        activeAgent={activeAgent}
+        onSendMessage={handleSendMessage}
+        onOpenLeadDetail={(lead) => setDetailLead(lead)}
+      />
+
+      {/* MODAL 6: Auto-Advancing Power Dialer Queue */}
+      <PowerDialerQueueModal
+        isOpen={isPowerDialerQueueOpen}
+        onClose={() => setIsPowerDialerQueueOpen(false)}
+        leads={leads}
+        activeAgent={activeAgent}
+        onSaveCallLog={handlePowerDialerSaveCallLog}
+        onSendMessage={handleSendMessage}
+        onUpdateLeadStatus={(leadId, status) => {
+          setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status, updatedAt: new Date().toISOString() } : l));
+        }}
+      />
+
+      {/* iOS & Mobile Bottom Navigation Bar & Slide-up Drawer Menu */}
+      <MobileBottomNav
+        activeTab={currentView as any}
+        setActiveTab={(tab, subTab) => {
+          setCurrentView(tab);
+          if (subTab) {
+            if (tab === 'reports') setReportsSubTab(subTab as ReportsSubTab);
+            if (tab === 'workflows') setAutomationsSubTab(subTab as AutomationsSubTab);
+          }
+        }}
+        unassignedLeadsCount={leads.filter((l) => !l.ownerAgentId).length}
+        pendingFollowUpsCount={leads.filter((l) => l.followUpAt || l.status === 'Follow Up').length}
+        activeAgent={activeAgent}
+        agents={agents}
+        onSelectAgent={(agentId) => setActiveAgentId(agentId)}
+        onOpenAddLeadModal={handleAddNewLead}
+        onOpenGoogleSheets={() => setIsGoogleSheetsModalOpen(true)}
+      />
+    </div>
+    </StagesContext.Provider>
+  );
+}
+
+export default App;

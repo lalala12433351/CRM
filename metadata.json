@@ -1,0 +1,6 @@
+{
+  "name": "ARCLE CRM",
+  "description": "Next-gen AI-first performance CRM with TeleCRM feature parity, power dialer, WhatsApp Cloud API, visual workflows, Google Ads Enhanced Conversions for Leads & Meta CAPI offline conversion tracking.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

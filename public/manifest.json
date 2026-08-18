@@ -1,0 +1,22 @@
+{
+  "short_name": "ARCLE CRM",
+  "name": "ARCLE CRM & TeleSales Management",
+  "icons": [
+    {
+      "src": "pwa-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "pwa-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "display": "standalone",
+  "orientation": "portrait",
+  "description": "ARCLE Enterprise CRM & TeleSales Mobile App"
+}

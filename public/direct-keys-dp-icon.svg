@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080">
+  <!-- 1:1 Instagram DP Canvas: Deep Navy Background -->
+  <rect width="1080" height="1080" fill="#061224"/>
+  
+  <!-- Direct Keys Centered DK Monogram with Keyhole cutout (Circular Crop Safe Zone) -->
+  <g transform="translate(190, 190)">
+    <!-- Outer D Frame & K Arm -->
+    <path d="M 230,60 H 460 C 600,60 700,160 700,300 C 700,440 600,540 460,540 H 230 Z" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linejoin="miter" stroke-linecap="square"/>
+    
+    <!-- K Diagonal Lower Leg -->
+    <path d="M 400,380 L 140,640" stroke="#FFFFFF" stroke-width="82" stroke-linecap="square"/>
+    
+    <!-- K Diagonal Upper Leg -->
+    <path d="M 440,320 L 200,560" stroke="#FFFFFF" stroke-width="82" stroke-linecap="square"/>
+    
+    <!-- Keyhole Silhouette in Center of D -->
+    <!-- Keyhole Head (Circle) -->
+    <circle cx="500" cy="270" r="44" fill="#FFFFFF"/>
+    <!-- Keyhole Body (Trapezoid) -->
+    <polygon points="475,290 525,290 545,390 455,390" fill="#FFFFFF"/>
+  </g>
+</svg>
