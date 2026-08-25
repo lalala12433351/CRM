@@ -1879,10 +1879,10 @@ Return JSON:
     });
   });
 
-  // Serve static files or Vite middleware
+  // Serve static files in production or Vite middleware in development
   const distPath = path.join(process.cwd(), "dist");
 
-  if (process.env.NODE_ENV !== "development") {
+  if (process.env.NODE_ENV === "production") {
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
       const indexPath = path.join(distPath, "index.html");
