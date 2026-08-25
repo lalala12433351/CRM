@@ -1132,6 +1132,36 @@ Return JSON:
   // Pre-seeded workspace user database for real-world authentication
   const AUTH_USERS = [
     {
+      id: 'agent-admin',
+      name: 'Madhava sai nagendra (Admin)',
+      email: 'admin@kiteaviation',
+      phone: '+91 98765 43210',
+      role: 'Master Admin',
+      isAdmin: true,
+      status: 'online',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      totalCallsToday: 54,
+      talkTimeMinutes: 162,
+      convertedLeadsCount: 8,
+      revenueGenerated: 420000,
+      responseTimeMinutes: 2.1,
+    },
+    {
+      id: 'agent-employee',
+      name: 'Anjali Kumar (Employee)',
+      email: 'employee@kiteaviation',
+      phone: '+91 98450 12345',
+      role: 'Course Counselor & Telecaller',
+      isAdmin: false,
+      status: 'online',
+      avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80',
+      totalCallsToday: 45,
+      talkTimeMinutes: 112,
+      convertedLeadsCount: 6,
+      revenueGenerated: 340000,
+      responseTimeMinutes: 2.0,
+    },
+    {
       id: 'agent-ms',
       name: 'Madhava sai nagendra',
       email: 'madhava@kiteaviation.edu',
@@ -1160,66 +1190,6 @@ Return JSON:
       convertedLeadsCount: 6,
       revenueGenerated: 340000,
       responseTimeMinutes: 2.0,
-    },
-    {
-      id: 'agent-us',
-      name: 'Ummema Sufiya BM',
-      email: 'ummema@kiteaviation.edu',
-      phone: '+91 98123 45678',
-      role: 'Senior Counselor',
-      isAdmin: false,
-      status: 'on_call',
-      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-      totalCallsToday: 68,
-      talkTimeMinutes: 198,
-      convertedLeadsCount: 11,
-      revenueGenerated: 680000,
-      responseTimeMinutes: 1.6,
-    },
-    {
-      id: 'agent-rm',
-      name: 'Radhika M R',
-      email: 'radhika@kiteaviation.edu',
-      phone: '+91 97654 32109',
-      role: 'Admissions Lead',
-      isAdmin: false,
-      status: 'online',
-      avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
-      totalCallsToday: 42,
-      talkTimeMinutes: 118,
-      convertedLeadsCount: 5,
-      revenueGenerated: 310000,
-      responseTimeMinutes: 3.4,
-    },
-    {
-      id: 'agent-ar',
-      name: 'Akhitha Rameshan',
-      email: 'akhitha@kiteaviation.edu',
-      phone: '+91 99887 76655',
-      role: 'Telecaller',
-      isAdmin: false,
-      status: 'break',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-      totalCallsToday: 38,
-      talkTimeMinutes: 94,
-      convertedLeadsCount: 4,
-      revenueGenerated: 250000,
-      responseTimeMinutes: 2.8,
-    },
-    {
-      id: 'agent-rr',
-      name: 'Risvana Rahim',
-      email: 'risvana@kiteaviation.edu',
-      phone: '+91 91234 56789',
-      role: 'Counselor',
-      isAdmin: false,
-      status: 'online',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-      totalCallsToday: 46,
-      talkTimeMinutes: 135,
-      convertedLeadsCount: 7,
-      revenueGenerated: 390000,
-      responseTimeMinutes: 2.2,
     }
   ];
 
@@ -1236,18 +1206,31 @@ Return JSON:
         return res.status(400).json({ error: "Email address is required" });
       }
 
-      // Check user against database
-      let user = AUTH_USERS.find(u => u.email.toLowerCase() === targetEmail);
+      // Explicit Credential Checks for admin@kiteaviation and employee@kiteaviation
+      if (targetEmail === "admin@kiteaviation" || targetEmail === "admin@kiteaviation.edu") {
+        if (password && password !== "admin") {
+          return res.status(401).json({ error: "Invalid password for Admin account. Expected password: admin" });
+        }
+      }
 
-      // If user not pre-seeded, dynamically create employee/admin user based on email
+      if (targetEmail === "employee@kiteaviation" || targetEmail === "employee@kiteaviation.edu") {
+        if (password && password !== "employee") {
+          return res.status(401).json({ error: "Invalid password for Employee account. Expected password: employee" });
+        }
+      }
+
+      // Check user against pre-seeded database
+      let user = AUTH_USERS.find(u => u.email.toLowerCase() === targetEmail || (targetEmail.includes("admin") && u.isAdmin) || (targetEmail.includes("employee") && !u.isAdmin));
+
+      // If user not found, create dynamic user account
       if (!user) {
         const isAdmin = targetEmail.includes("admin") || targetEmail.includes("owner");
         user = {
           id: `agent-${Date.now().toString().slice(-5)}`,
-          name: targetEmail.split("@")[0].replace(".", " ").replace("_", " ").toUpperCase(),
+          name: targetEmail.split("@")[0].replace(".", " ").toUpperCase() + (isAdmin ? " (Admin)" : " (Employee)"),
           email: targetEmail,
           phone: "+91 98000 00000",
-          role: isAdmin ? "Admin" : "Telecaller & Counselor",
+          role: isAdmin ? "Master Admin" : "Course Counselor & Telecaller",
           isAdmin: isAdmin,
           status: "online",
           avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
