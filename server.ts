@@ -804,6 +804,61 @@ async function startServer() {
     }
   });
 
+  // =========================================================================
+  // PRODUCTION REAL-WORLD SCOPED LEADS API ENDPOINTS
+  // =========================================================================
+
+  // 1. GET /api/leads - Scoped Lead retrieval from AWS Aurora RDS database
+  app.get("/api/leads", async (req, res) => {
+    try {
+      const { agentId, isAdmin } = req.query;
+      const pool = await getAwsClient();
+      const client = await pool.connect();
+      try {
+        let query = 'SELECT * FROM leads ORDER BY created_at DESC;';
+        let params: any[] = [];
+
+        // Scoping rule: Employees only retrieve assigned leads
+        if (isAdmin !== 'true' && agentId) {
+          query = 'SELECT * FROM leads WHERE assignee_id = $1 OR assignee_name ILIKE $2 ORDER BY created_at DESC;';
+          params = [String(agentId), `%${String(agentId)}%`];
+        }
+
+        const result = await client.query(query, params);
+        const mappedLeads = result.rows.map(row => ({
+          id: row.id,
+          name: row.name,
+          phone: row.phone,
+          email: row.email,
+          company: row.company,
+          city: row.city,
+          state: row.state,
+          source: row.source,
+          status: row.status,
+          pipelineStageId: row.pipeline_stage_id,
+          dealValue: Number(row.deal_value || 0),
+          ownerAgentId: row.assignee_id,
+          ownerAgentName: row.assignee_name,
+          aiScore: row.ai_score,
+          aiRating: row.ai_rating,
+          aiReasoning: row.ai_reasoning,
+          notes: row.notes,
+          customFields: row.custom_fields || {},
+          tags: row.tags || [],
+          createdAt: row.created_at,
+          updatedAt: row.updated_at
+        }));
+
+        return res.json({ success: true, leads: mappedLeads });
+      } finally {
+        client.release();
+      }
+    } catch (err: any) {
+      console.warn("⚠️ AWS RDS Lead fetch fallback:", err?.message);
+      return res.json({ success: false, error: err?.message || "AWS DB query error" });
+    }
+  });
+
   // Test Connection for any integration
   app.post("/api/integrations/test", async (req, res) => {
     try {

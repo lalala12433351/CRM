@@ -422,9 +422,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider font-sans">Active User Account</p>
                 <div className="flex items-center justify-between mt-1">
                   <span className="font-medium text-slate-900 truncate">{activeAgent.name}</span>
-                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-medium uppercase ${
-                    isAgentAdmin(activeAgent) ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-700'
-                  }`}>
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-medium uppercase tracking-wide bg-slate-100 border border-slate-200 text-slate-700">
                     {isAgentAdmin(activeAgent) ? 'Admin' : 'Employee'}
                   </span>
                 </div>
@@ -449,7 +447,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       }}
                       className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition-all cursor-pointer ${
                         isSelected 
-                          ? 'bg-indigo-50/90 border border-indigo-200 text-indigo-950 font-medium' 
+                          ? 'bg-slate-100/80 border border-slate-250 text-slate-900 font-medium' 
                           : 'hover:bg-slate-50 text-slate-700 font-normal'
                       }`}
                     >
@@ -460,9 +458,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           <div className="text-[10px] text-slate-500 truncate">{ag.role || (agIsAdmin ? 'Admin' : 'Employee')}</div>
                         </div>
                       </div>
-                      <span className={`px-2 py-0.5 rounded text-[9px] font-medium shrink-0 ml-1 ${
-                        agIsAdmin ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'
-                      }`}>
+                      <span className="px-2 py-0.5 rounded text-[9px] font-medium shrink-0 ml-1 bg-slate-100 border border-slate-200 text-slate-700">
                         {agIsAdmin ? 'Admin' : 'Employee'}
                       </span>
                     </button>

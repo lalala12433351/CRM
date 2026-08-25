@@ -123,11 +123,7 @@ export const TeamView: React.FC<TeamViewProps> = ({
                   </div>
 
                   {/* Role Badge */}
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wide border shrink-0 ${
-                    agIsAdmin 
-                      ? 'bg-indigo-50 border-indigo-200 text-indigo-700' 
-                      : 'bg-slate-100 border-slate-200 text-slate-700'
-                  }`}>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wide border border-slate-200 bg-slate-100 text-slate-700 shrink-0">
                     {agIsAdmin ? 'Admin' : 'Employee'}
                   </span>
                 </div>
