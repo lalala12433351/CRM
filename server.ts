@@ -1657,12 +1657,16 @@ Return JSON:
 
   // Serve static files or Vite middleware
   const distPath = path.join(process.cwd(), "dist");
-  const hasBuiltDist = fs.existsSync(path.join(distPath, "index.html"));
 
-  if (process.env.NODE_ENV === "production" || hasBuiltDist) {
+  if (process.env.NODE_ENV !== "development") {
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+      const indexPath = path.join(distPath, "index.html");
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        res.status(404).send("Application dist/index.html not found.");
+      }
     });
   } else {
     try {
