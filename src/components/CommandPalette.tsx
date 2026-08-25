@@ -282,12 +282,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         </div>
 
         {/* Footer shortcuts helper */}
-        <div className="px-4 py-2 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-          <div className="flex items-center space-x-3">
-            <span>Use <kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200 font-mono text-[10px]">↑</kbd> <kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200 font-mono text-[10px]">↓</kbd> to navigate</span>
-            <span><kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200 font-mono text-[10px]">↵</kbd> to select</span>
+        <div className="px-4 py-2 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[11px] font-sans text-slate-500">
+          <div className="flex items-center space-x-3 font-sans">
+            <span>Use <kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200 font-sans text-[10px]">↑</kbd> <kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200 font-sans text-[10px]">↓</kbd> to navigate</span>
+            <span><kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200 font-sans text-[10px]">↵</kbd> to select</span>
           </div>
-          <span className="font-semibold text-indigo-600">ARCLE CRM Command Center</span>
+          <span className="font-semibold font-sans text-indigo-600">ARCLE CRM Command Center</span>
         </div>
       </div>
     </div>

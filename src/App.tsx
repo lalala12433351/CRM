@@ -451,8 +451,7 @@ export function App() {
     <div className="min-h-screen bg-[#F3F4F7] text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
       {/* Toast Alert Banner */}
       {toastMessage && (
-        <div className="fixed top-16 right-6 z-50 bg-[#161B22] text-white px-3.5 py-2 rounded-lg shadow-2xl border border-indigo-500/40 text-xs font-mono font-semibold flex items-center space-x-2">
-          <span className="text-indigo-400">⚡</span>
+        <div className="fixed top-16 right-6 z-50 bg-white text-slate-800 px-4 py-2.5 rounded-xl shadow-xl shadow-slate-200/60 border border-slate-200 text-xs font-sans font-semibold flex items-center">
           <span>{toastMessage}</span>
         </div>
       )}

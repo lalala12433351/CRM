@@ -182,7 +182,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {isAccountMenuOpen && (
             <div className="absolute left-0 top-full mt-1.5 w-72 bg-white border border-slate-200 rounded-xl shadow-xl p-2 z-50 animate-in fade-in">
               <div className="px-2.5 py-1.5 border-b border-slate-100 mb-1">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Select Workspace</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-sans">Select Workspace</p>
               </div>
               <div className="space-y-1">
                 {workAccounts.map((account) => (
@@ -221,7 +221,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="absolute left-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in text-xs font-sans">
               
               {/* WORKSPACE SECTION */}
-              <div className="px-2.5 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
+              <div className="px-2.5 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider font-sans">
                 WORKSPACE
               </div>
               <div className="space-y-0.5 mb-2">
@@ -271,7 +271,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
 
               {/* TEAM SECTION */}
-              <div className="px-2.5 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono border-t border-slate-100 pt-2">
+              <div className="px-2.5 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider font-sans border-t border-slate-100 pt-2">
                 TEAM
               </div>
               <div className="space-y-0.5 mb-2">
@@ -293,7 +293,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
 
               {/* BILLING SECTION */}
-              <div className="px-2.5 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono border-t border-slate-100 pt-2">
+              <div className="px-2.5 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider font-sans border-t border-slate-100 pt-2">
                 BILLING
               </div>
               <div className="space-y-0.5">
