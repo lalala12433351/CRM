@@ -94,12 +94,17 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     }
   ];
 
+  const isAdmin = isAgentAdmin(activeAgent);
+
   const filteredCategories = navigationCategories.map(cat => ({
     ...cat,
-    items: cat.items.filter(item => 
-      item.label.toLowerCase().includes(mobileSearchQuery.toLowerCase()) ||
-      item.desc.toLowerCase().includes(mobileSearchQuery.toLowerCase())
-    )
+    items: cat.items.filter(item => {
+      if (item.id === 'integrations' && !isAdmin) return false;
+      return (
+        item.label.toLowerCase().includes(mobileSearchQuery.toLowerCase()) ||
+        item.desc.toLowerCase().includes(mobileSearchQuery.toLowerCase())
+      );
+    })
   })).filter(cat => cat.items.length > 0);
 
   const handleSelectNavTab = (tab: TabType, subTab?: ReportsSubTab | AutomationsSubTab) => {

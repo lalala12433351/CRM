@@ -66,6 +66,7 @@ interface SidebarProps {
   globalSavedFilters?: { id: string; name: string; iconType: string }[];
   activeFilterId?: string;
   setActiveFilterId?: (id: string) => void;
+  isAdmin?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
@@ -78,7 +79,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenVoiceBot,
   globalSavedFilters = [],
   activeFilterId = '',
-  setActiveFilterId
+  setActiveFilterId,
+  isAdmin = false
 }) => {
   const [internalIsCollapsed, setInternalIsCollapsed] = useState(true);
   const isCollapsed = externalIsCollapsed !== undefined ? externalIsCollapsed : internalIsCollapsed;
@@ -111,7 +113,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'campaigns' as TabType, label: 'Campaigns & Tags', icon: Tag, tooltip: 'Campaigns' },
     { id: 'reports' as TabType, label: 'Performance Reports', icon: TrendingUp, tooltip: 'Reports & Leaderboard', hasReportsMenu: true },
     { id: 'workflows' as TabType, label: 'AI Automations', icon: Bot, tooltip: 'Automations & Workflows', hasAutomationsMenu: true },
-    { id: 'integrations' as TabType, label: 'Integrations', icon: Link2, tooltip: 'Integrations & Webhooks' },
+    ...(isAdmin ? [{ id: 'integrations' as TabType, label: 'Integrations', icon: Link2, tooltip: 'Integrations & Webhooks' }] : []),
   ];
 
   return (

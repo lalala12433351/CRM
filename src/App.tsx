@@ -599,6 +599,7 @@ export function App() {
           globalSavedFilters={globalSavedFilters}
           activeFilterId={activeFilterId}
           setActiveFilterId={setActiveFilterId}
+          isAdmin={isAdmin}
         />
 
         {/* View Router */}
