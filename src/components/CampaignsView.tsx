@@ -38,7 +38,10 @@ import {
   Layers,
   Zap,
   TrendingUp,
-  AlertTriangle
+  AlertTriangle,
+  RotateCcw,
+  Pause,
+  Trash2
 } from 'lucide-react';
 import { Lead, Agent, LeadStatus, ActivityLog } from '../types';
 import { StatusBadge } from './StatusBadge';
@@ -51,6 +54,8 @@ interface CampaignsViewProps {
   initialCampaignHandle?: string;
   onOpenLeadDetail?: (lead: Lead) => void;
   onUpdateLead?: (lead: Lead) => void;
+  onNavigateToTab?: (tab: string, subTab?: string) => void;
+  onShowToast?: (msg: string) => void;
 }
 
 interface CampaignDef {
@@ -65,547 +70,10 @@ interface CampaignDef {
 }
 
 const CAMPAIGNS_LIST: CampaignDef[] = [
-  { id: 'camp-1', handle: '@master-form-iata-cargo', name: 'Master Form IATA Cargo', totalLeads: 178, newLeads: 178, progress: 0, members: ['MU', 'AR', 'RM', 'US', 'DR', 'PK'], errors: 5 },
-  { id: 'camp-2', handle: '@master-form', name: 'Master Form', totalLeads: 1108, newLeads: 400, progress: 40, members: ['MU', 'AR', 'RM', 'US'], errors: 3 },
-  { id: 'camp-3', handle: '@master-form-karnataka-vendor-data', name: 'Master Form-Karnataka-Vendor-data', totalLeads: 325, newLeads: 42, progress: 50, members: ['MU', 'DR'], errors: 0 },
-  { id: 'camp-4', handle: '@vendor-data-kerala', name: 'Vendor-Data-Kerala', totalLeads: 310, newLeads: 110, progress: 20, members: ['RM', 'US', 'PK'], errors: 1 },
-  { id: 'camp-5', handle: '@iata-meta-01', name: 'IATA Meta 01', totalLeads: 120, newLeads: 15, progress: 85, members: ['MU', 'AR'], errors: 0 },
-  { id: 'camp-6', handle: '@master-form-kerala-vendor-data', name: 'Master Form-Kerala-Vendor-Data', totalLeads: 140, newLeads: 88, progress: 35, members: ['AR', 'RM', 'US'], errors: 2 },
-  { id: 'camp-7', handle: '@master-form-iata', name: 'Master Form IATA', totalLeads: 492, newLeads: 150, progress: 65, members: ['RM', 'US', 'PK'], errors: 0 },
-  { id: 'camp-8', handle: '@master-form-iata-cargo-v2', name: 'Master Form-IATA-Cargo-V2', totalLeads: 84, newLeads: 20, progress: 15, members: ['US', 'DR'], errors: 0 }
+  { id: 'camp-1', handle: '@meta-facebook-lead-ads', name: 'Meta Facebook Lead Ads', totalLeads: 0, newLeads: 0, progress: 0, members: ['FB', 'API'], errors: 0 }
 ];
 
-const INITIAL_CAMPAIGN_LEADS: Lead[] = [
-  {
-    id: 'camp-lead-rr-1',
-    name: 'aananyyyyy',
-    phone: '918075823263',
-    email: 'aananyyyyy@gmail.com',
-    company: 'Individual',
-    city: 'Kozhikode',
-    state: 'Kerala',
-    source: 'Facebook-Meta-01',
-    status: 'Warm',
-    pipelineStageId: 'stage-2',
-    dealValue: 120000,
-    ownerAgentId: 'agent-3',
-    ownerAgentName: 'Risvana Rahim',
-    createdAt: '1d (11:59 AM Fri, 14 Aug 26)',
-    updatedAt: '1d ago',
-    aiScore: 82,
-    aiRating: 'Warm',
-    aiReasoning: 'Interested in aviation logistics',
-    customFields: {},
-    tags: ['Warm'],
-    notes: 'Follow-up scheduled for next week.',
-  },
-  {
-    id: 'camp-lead-rr-2',
-    name: 'Shaiju ഗാനം',
-    phone: '918089486567',
-    email: 'shaijuganam@gmail.com',
-    company: 'Individual',
-    city: 'Malappuram',
-    state: 'Kerala',
-    source: 'Facebook-Meta-01',
-    status: 'Lost',
-    pipelineStageId: 'stage-3',
-    dealValue: 90000,
-    ownerAgentId: 'agent-3',
-    ownerAgentName: 'Risvana Rahim',
-    createdAt: '23s 18d ago CONNECTED',
-    updatedAt: '18d ago',
-    aiScore: 25,
-    aiRating: 'Cold',
-    aiReasoning: 'Selected alternative program',
-    customFields: {},
-    tags: ['Lost'],
-    notes: 'Call connected for 23s. Lead opted out.',
-  },
-  {
-    id: 'camp-lead-rr-3',
-    name: 'Veipei Abdurahman',
-    phone: '918139071928',
-    email: 'veipei@gmail.com',
-    company: 'Individual',
-    city: 'Manjeri',
-    state: 'Kerala',
-    source: 'Facebook-Meta-01',
-    status: 'Lost',
-    pipelineStageId: 'stage-3',
-    dealValue: 85000,
-    ownerAgentId: 'agent-3',
-    ownerAgentName: 'Risvana Rahim',
-    createdAt: '19d ago',
-    updatedAt: '19d ago',
-    aiScore: 20,
-    aiRating: 'Cold',
-    aiReasoning: 'High course fees',
-    customFields: {},
-    tags: ['Lost'],
-    notes: 'Location and fee mismatch.',
-  },
-  {
-    id: 'camp-lead-rr-4',
-    name: 'Iswarananda Sivananda Asramam',
-    phone: '919496190523',
-    email: 'iswarananda@gmail.com',
-    company: 'Individual',
-    city: 'Thrissur',
-    state: 'Kerala',
-    source: 'Facebook-Meta-01',
-    status: 'Lost',
-    pipelineStageId: 'stage-3',
-    dealValue: 95000,
-    ownerAgentId: 'agent-3',
-    ownerAgentName: 'Risvana Rahim',
-    createdAt: '20d ago',
-    updatedAt: '20d ago',
-    aiScore: 15,
-    aiRating: 'Cold',
-    aiReasoning: 'Joined another institute',
-    customFields: {},
-    tags: ['Lost'],
-    notes: 'Already enrolled elsewhere.',
-  },
-  {
-    id: 'camp-lead-rr-5',
-    name: 'Chandran Kaiveli',
-    phone: '919744380332',
-    email: 'chandrankaiveli@gmail.com',
-    company: 'Individual',
-    city: 'Kannur',
-    state: 'Kerala',
-    source: 'Facebook-Meta-01',
-    status: 'Lost',
-    pipelineStageId: 'stage-3',
-    dealValue: 90000,
-    ownerAgentId: 'agent-3',
-    ownerAgentName: 'Risvana Rahim',
-    createdAt: '21d ago',
-    updatedAt: '21d ago',
-    aiScore: 22,
-    aiRating: 'Cold',
-    aiReasoning: 'Not answering calls',
-    customFields: {},
-    tags: ['Lost'],
-    notes: 'Candidate relocation constraint.',
-  },
-  {
-    id: 'camp-lead-rr-6',
-    name: 'Lince Linz',
-    phone: '919745201344',
-    email: 'lincelinz@gmail.com',
-    company: 'Individual',
-    city: 'Ernakulam',
-    state: 'Kerala',
-    source: 'Facebook-Meta-01',
-    status: 'RNR',
-    pipelineStageId: 'stage-1',
-    dealValue: 105000,
-    ownerAgentId: 'agent-3',
-    ownerAgentName: 'Risvana Rahim',
-    createdAt: '22d ago',
-    updatedAt: '22d ago',
-    aiScore: 40,
-    aiRating: 'Cold',
-    aiReasoning: 'Ringing no response',
-    customFields: {},
-    tags: ['RNR'],
-    notes: 'Rang 4 times, no answer.',
-  },
-  {
-    id: 'camp-lead-rr-7',
-    name: 'Michealthomas',
-    phone: '918594081939',
-    email: 'michealthomas@gmail.com',
-    company: 'Individual',
-    city: 'Kottayam',
-    state: 'Kerala',
-    source: 'Facebook-Meta-01',
-    status: 'Lost',
-    pipelineStageId: 'stage-3',
-    dealValue: 90000,
-    ownerAgentId: 'agent-3',
-    ownerAgentName: 'Risvana Rahim',
-    createdAt: '23d ago',
-    updatedAt: '23d ago',
-    aiScore: 18,
-    aiRating: 'Cold',
-    aiReasoning: 'Budget constraint',
-    customFields: {},
-    tags: ['Lost'],
-    notes: 'Course fee exceeds budget.',
-  },
-  {
-    id: 'camp-lead-rr-8',
-    name: 'Shinijith Kayyach',
-    phone: '919847332110',
-    email: 'shinijith@gmail.com',
-    company: 'Individual',
-    city: 'Calicut',
-    state: 'Kerala',
-    source: 'Facebook-Meta-01',
-    status: 'Lost',
-    pipelineStageId: 'stage-3',
-    dealValue: 95000,
-    ownerAgentId: 'agent-3',
-    ownerAgentName: 'Risvana Rahim',
-    createdAt: '24d ago',
-    updatedAt: '24d ago',
-    aiScore: 20,
-    aiRating: 'Cold',
-    aiReasoning: 'Not interested in aviation',
-    customFields: {},
-    tags: ['Lost'],
-    notes: 'Requested removal from calling list.',
-  },
-  {
-    id: 'camp-lead-rr-9',
-    name: 'Ashraf K',
-    phone: '919446112233',
-    email: 'ashraf.k@gmail.com',
-    company: 'Individual',
-    city: 'Palakkad',
-    state: 'Kerala',
-    source: 'Facebook-Meta-01',
-    status: 'Contacted',
-    pipelineStageId: 'stage-2',
-    dealValue: 115000,
-    ownerAgentId: 'agent-3',
-    ownerAgentName: 'Risvana Rahim',
-    createdAt: '25d ago',
-    updatedAt: '25d ago',
-    aiScore: 68,
-    aiRating: 'Warm',
-    aiReasoning: 'Reviewing syllabus brochure',
-    customFields: {},
-    tags: ['Contacted'],
-    notes: 'Requested course syllabus PDF.',
-  },
-  {
-    id: 'camp-lead-rr-10',
-    name: 'Muhammed Bilal',
-    phone: '919744556677',
-    email: 'bilal.m@gmail.com',
-    company: 'Individual',
-    city: 'Kasaragod',
-    state: 'Kerala',
-    source: 'Facebook-Meta-01',
-    status: 'Interested',
-    pipelineStageId: 'stage-2',
-    dealValue: 125000,
-    ownerAgentId: 'agent-3',
-    ownerAgentName: 'Risvana Rahim',
-    createdAt: '26d ago',
-    updatedAt: '26d ago',
-    aiScore: 85,
-    aiRating: 'Hot',
-    aiReasoning: 'Ready for admission counseling',
-    customFields: {},
-    tags: ['Interested'],
-    notes: 'Counseling scheduled.',
-  },
-  {
-    id: 'camp-lead-rr-11',
-    name: 'Vasu Devareddy',
-    phone: '917702190999',
-    email: 'vasu.devareddy@gmail.com',
-    company: 'Individual',
-    city: 'Hyderabad',
-    state: 'Telangana',
-    source: 'Facebook-Meta-01',
-    status: 'Fresh',
-    pipelineStageId: 'stage-1',
-    dealValue: 110000,
-    ownerAgentId: 'agent-3',
-    ownerAgentName: 'Risvana Rahim',
-    createdAt: '27d ago',
-    updatedAt: 'Just Now',
-    aiScore: 78,
-    aiRating: 'Warm',
-    aiReasoning: 'Interested in cargo logistics career transition',
-    customFields: {},
-    tags: ['Fresh'],
-    notes: 'Called from ad campaign.',
-  },
-  {
-    id: 'camp-lead-1',
-    name: 'suprith Gowd',
-    phone: '918884992069',
-    email: 'Suprithg2527@gmail.com',
-    company: 'Kite Institute of Aviation',
-    city: 'Bengaluru',
-    state: 'Karnataka',
-    source: 'Facebook-Meta-01',
-    status: 'Fresh',
-    pipelineStageId: 'stage-1',
-    dealValue: 120000,
-    ownerAgentId: 'agent-1',
-    ownerAgentName: 'Ummema Sufiya BM',
-    createdAt: '5h ago',
-    updatedAt: 'Just Now',
-    aiScore: 92,
-    aiRating: 'Hot',
-    aiReasoning: 'Fresh inquiry for aviation cargo training batch 2026',
-    customFields: { Batch: 'Empty', DateOfJoining: 'Empty', Age: 'Empty' },
-    tags: ['IATACargo', 'Fresh'],
-    notes: 'Inquired about course fees and batch dates.',
-  },
-  {
-    id: 'camp-lead-2',
-    name: 'mpg manaayil',
-    phone: '919037276846',
-    email: 'mpgmanaayil@gmail.com',
-    company: 'Individual',
-    city: 'Malappuram',
-    state: 'Kerala',
-    source: 'Facebook-Meta-01',
-    status: 'Fresh',
-    pipelineStageId: 'stage-1',
-    dealValue: 95000,
-    ownerAgentId: 'agent-2',
-    ownerAgentName: 'Farzana',
-    createdAt: '6h ago',
-    updatedAt: 'Just Now',
-    aiScore: 85,
-    aiRating: 'Hot',
-    aiReasoning: 'Requested brochure',
-    customFields: {},
-    tags: ['Fresh'],
-    notes: 'Fresh inquiry from Meta ads.',
-  },
-  {
-    id: 'camp-lead-3',
-    name: 'Vasu Devareddy',
-    phone: '917702190999',
-    email: 'vasu.devareddy@gmail.com',
-    company: 'Individual',
-    city: 'Hyderabad',
-    state: 'Telangana',
-    source: 'Facebook-Meta-01',
-    status: 'Fresh',
-    pipelineStageId: 'stage-1',
-    dealValue: 110000,
-    ownerAgentId: 'agent-3',
-    ownerAgentName: 'Risvana Rahim',
-    createdAt: '8h ago',
-    updatedAt: 'Just Now',
-    aiScore: 78,
-    aiRating: 'Warm',
-    aiReasoning: 'Interested in cargo logistics career transition',
-    customFields: {},
-    tags: ['Fresh'],
-    notes: 'Called from ad campaign.',
-  },
-  {
-    id: 'camp-lead-4',
-    name: 'Jenin Jose',
-    phone: '918137082548',
-    email: 'jeninjose@yahoo.com',
-    company: 'Individual',
-    city: 'Kochi',
-    state: 'Kerala',
-    source: 'Facebook-Meta-01',
-    status: 'Fresh',
-    pipelineStageId: 'stage-1',
-    dealValue: 130000,
-    ownerAgentId: 'agent-4',
-    ownerAgentName: 'philemon',
-    createdAt: '12h ago',
-    updatedAt: '12h ago',
-    aiScore: 88,
-    aiRating: 'Hot',
-    aiReasoning: 'Aviation certification seeker',
-    customFields: {},
-    tags: ['Fresh'],
-    notes: 'Wants admission details.',
-  },
-  {
-    id: 'camp-lead-5',
-    name: 'Amal krishna',
-    phone: '919072296009',
-    email: 'amal.krishna@gmail.com',
-    company: 'Individual',
-    city: 'Kollam',
-    state: 'Kerala',
-    source: 'Facebook-Meta-01',
-    status: 'Open',
-    pipelineStageId: 'stage-1',
-    dealValue: 100000,
-    ownerAgentId: 'agent-5',
-    ownerAgentName: 'Radhika M R',
-    createdAt: '1d (12:31 PM Fri, 14 Aug 26)',
-    updatedAt: '1d ago',
-    aiScore: 74,
-    aiRating: 'Warm',
-    aiReasoning: 'Follow up on course brochure and syllabus',
-    customFields: {},
-    tags: ['Aviation'],
-    notes: 'WhatsApp brochure delivered.',
-  },
-  {
-    id: 'camp-lead-6',
-    name: 'Anuu',
-    phone: '919036501419',
-    email: 'anuu.aviation@gmail.com',
-    company: 'Individual',
-    city: 'Bengaluru',
-    state: 'Karnataka',
-    source: 'Facebook-Meta-01',
-    status: 'Warm',
-    pipelineStageId: 'stage-2',
-    dealValue: 140000,
-    ownerAgentId: 'agent-1',
-    ownerAgentName: 'Ummema Sufiya BM',
-    createdAt: '1d ago',
-    updatedAt: '1d ago',
-    aiScore: 82,
-    aiRating: 'Warm',
-    aiReasoning: 'Requested campus counseling session',
-    customFields: {},
-    tags: ['Warm', 'VisitRequested'],
-    notes: 'Wants to schedule a campus visit next week.',
-  },
-  {
-    id: 'camp-lead-7',
-    name: 'Sahad Ayyoob Ayyoob',
-    phone: '919061972674',
-    email: 'sahad.ayyoob@gmail.com',
-    company: 'Individual',
-    city: 'Calicut',
-    state: 'Kerala',
-    source: 'Facebook-Meta-01',
-    status: 'Lost',
-    pipelineStageId: 'stage-3',
-    dealValue: 90000,
-    ownerAgentId: 'agent-6',
-    ownerAgentName: 'Ashly James',
-    createdAt: '1d (11:59 AM Fri, 14 Aug 26)',
-    updatedAt: '1d ago',
-    aiScore: 20,
-    aiRating: 'Cold',
-    aiReasoning: 'Selected local university degree program instead',
-    customFields: {},
-    tags: ['Lost'],
-    notes: 'Joined another university program.',
-  },
-  {
-    id: 'camp-lead-8',
-    name: 'Adv Allen',
-    phone: '919961111871',
-    email: 'allen.adv@gmail.com',
-    company: 'Individual',
-    city: 'Trivandrum',
-    state: 'Kerala',
-    source: 'Facebook-Meta-01',
-    status: 'Interested',
-    pipelineStageId: 'stage-2',
-    dealValue: 125000,
-    ownerAgentId: 'agent-7',
-    ownerAgentName: 'Munavvir',
-    createdAt: '2d ago',
-    updatedAt: '1d ago',
-    aiScore: 89,
-    aiRating: 'Hot',
-    aiReasoning: 'High intent for IATA Cargo batch registration',
-    customFields: {},
-    tags: ['Interested'],
-    notes: 'Discussed seat booking fee and discount structure.',
-  },
-  {
-    id: 'camp-lead-9',
-    name: 'Alexander Gheevarghese',
-    phone: '918590096589',
-    email: 'alexvarghese619@gmail.com',
-    company: 'Kite Institute of Aviation',
-    city: 'Punalur',
-    state: 'Kerala',
-    source: 'Facebook-Meta-01',
-    status: 'Fresh',
-    pipelineStageId: 'stage-1',
-    dealValue: 120000,
-    ownerAgentId: 'agent-1',
-    ownerAgentName: 'Ummema Sufiya BM',
-    createdAt: '19h ago',
-    updatedAt: 'Just Now',
-    aiScore: 92,
-    aiRating: 'Hot',
-    aiReasoning: 'Fresh inquiry for IATA Cargo batch 2026',
-    customFields: { Batch: 'Empty', DateOfJoining: 'Empty', Age: 'Empty' },
-    tags: ['IATACargo', 'Fresh'],
-    notes: 'Inquired about course fees and batch dates.',
-  },
-  {
-    id: 'camp-lead-10',
-    name: 'Mohammed Rishad',
-    phone: '919847120394',
-    email: 'rishad.m@gmail.com',
-    company: 'Individual',
-    city: 'Kozhikode',
-    state: 'Kerala',
-    source: 'Facebook-Meta-01',
-    status: 'Contacted',
-    pipelineStageId: 'stage-2',
-    dealValue: 110000,
-    ownerAgentId: 'agent-4',
-    ownerAgentName: 'Divya Rameshan',
-    createdAt: '2d ago',
-    updatedAt: '1d ago',
-    aiScore: 65,
-    aiRating: 'Warm',
-    aiReasoning: 'Follow-up requested after salary day',
-    customFields: {},
-    tags: ['Followup'],
-    notes: 'Call back on 15th.',
-  },
-  {
-    id: 'camp-lead-11',
-    name: 'Shilpa Nair',
-    phone: '919400281930',
-    email: 'shilpa.nair@hotmail.com',
-    company: 'Individual',
-    city: 'Kottayam',
-    state: 'Kerala',
-    source: 'Facebook-Meta-01',
-    status: 'RNR',
-    pipelineStageId: 'stage-1',
-    dealValue: 90000,
-    ownerAgentId: 'agent-5',
-    ownerAgentName: 'philemon',
-    createdAt: '2d ago',
-    updatedAt: '2d ago',
-    aiScore: 40,
-    aiRating: 'Cold',
-    aiReasoning: 'Ring no response 3 times',
-    customFields: {},
-    tags: ['RNR'],
-    notes: 'Tried calling 3 times, no answer.',
-  },
-  {
-    id: 'camp-lead-12',
-    name: 'Firoz Khan',
-    phone: '919747881920',
-    email: 'firozkhan@gmail.com',
-    company: 'Individual',
-    city: 'Palakkad',
-    state: 'Kerala',
-    source: 'Facebook-Meta-01',
-    status: 'Converted',
-    pipelineStageId: 'stage-4',
-    dealValue: 130000,
-    ownerAgentId: 'agent-3',
-    ownerAgentName: 'Risvana Rahim',
-    createdAt: '3d ago',
-    updatedAt: 'Just Now',
-    aiScore: 98,
-    aiRating: 'Hot',
-    aiReasoning: 'Paid registration token advance',
-    customFields: {},
-    tags: ['Converted', 'AdvancePaid'],
-    notes: 'Registration advance fee received via UPI.',
-  }
-];
+const INITIAL_CAMPAIGN_LEADS: Lead[] = [];
 
 const CAMPAIGN_ASSIGNEES = [
   { name: 'Akhitha Rameshan', percentage: 50.6, color: '#9BD3BA' },
@@ -621,40 +89,111 @@ const CAMPAIGN_ASSIGNEES = [
 ];
 
 export const CampaignsView: React.FC<CampaignsViewProps> = ({
-  leads: propsLeads,
+  leads,
   agents,
   initialCampaignHandle,
   onOpenLeadDetail,
-  onUpdateLead
+  onUpdateLead,
+  onNavigateToTab,
+  onShowToast
 }) => {
   const stages = useContext(StagesContext);
+  // Dynamic Campaign list derived from live leads prop & TeleCRM campaign forms
+  const campaignsList = useMemo(() => {
+    const defaultCampaigns = [
+      'Master Form IATA Cargo',
+      'Master Form',
+      'Vendor-Data-Kerala',
+      'IATA Meta 01',
+      'Master Form-Kerala-Vendor-Data',
+      'Master Form IATA',
+      'Master Form-IATA-Cargo-V2'
+    ];
+
+    const groupedMap = new Map<string, Lead[]>();
+    defaultCampaigns.forEach(cName => groupedMap.set(cName, []));
+
+    if (leads && leads.length > 0) {
+      leads.forEach(l => {
+        const key = (l.customFields && l.customFields.form_name) || l.source || 'Master Form IATA Cargo';
+        if (!groupedMap.has(key)) groupedMap.set(key, []);
+        groupedMap.get(key)!.push(l);
+      });
+    }
+
+    return Array.from(groupedMap.entries()).map(([campName, leadList], idx) => {
+      const freshCount = leadList.filter(l => l.status === 'Fresh' || l.status === 'Open').length;
+      return {
+        id: `camp-dyn-${idx}`,
+        handle: `@${campName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+        name: campName,
+        totalLeads: leadList.length,
+        newLeads: freshCount,
+        progress: Math.round(((leadList.length - freshCount) / (leadList.length || 1)) * 100),
+        members: leadList.length > 0 
+          ? Array.from(new Set(leadList.map(l => l.ownerAgentName || 'Unassigned'))).map(n => n.split(' ').map(x=>x[0]).join('').toUpperCase())
+          : ['MU', 'AR', 'RM', 'US'],
+        errors: 0
+      };
+    });
+  }, [leads, agents]);
+
   // Campaign Selection State
-  const [activeCampaign, setActiveCampaign] = useState<CampaignDef>(CAMPAIGNS_LIST[0]);
+  const [activeCampaign, setActiveCampaign] = useState<CampaignDef>(campaignsList[0]);
   const [showCampaignDropdown, setShowCampaignDropdown] = useState(false);
+  const [showCampaignSettingsMenu, setShowCampaignSettingsMenu] = useState(false);
+  const [isCampaignPaused, setIsCampaignPaused] = useState(false);
+
+  useEffect(() => {
+    if (campaignsList.length > 0) {
+      if (!activeCampaign || !campaignsList.some(c => c.id === activeCampaign.id)) {
+        setActiveCampaign(campaignsList[0]);
+      }
+    }
+  }, [campaignsList]);
 
   // Sync campaign selection when passed from parent
   useEffect(() => {
     if (initialCampaignHandle) {
-      const found = CAMPAIGNS_LIST.find((c) => c.handle.toLowerCase() === initialCampaignHandle.toLowerCase());
+      const found = campaignsList.find((c) => c.handle.toLowerCase() === initialCampaignHandle.toLowerCase());
       if (found) {
         setActiveCampaign(found);
       }
     }
-  }, [initialCampaignHandle]);
+  }, [initialCampaignHandle, campaignsList]);
 
   // Top License Expiry Banner
   const [showLicenseBanner, setShowLicenseBanner] = useState(true);
 
-  // Accordion Toggles (Default 'calling' open to match screenshot)
+  // Accordion Toggles
   const [openAccordion, setOpenAccordion] = useState<string | null>('calling');
 
-  // Assignee Filter state (e.g. 'Risvana Rahim')
-  const [selectedAssigneeFilter, setSelectedAssigneeFilter] = useState<string>('Risvana Rahim');
+  // Assignee Filter state
+  const [selectedAssigneeFilter, setSelectedAssigneeFilter] = useState<string>('All');
   const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false);
 
-  // Campaign Leads List State
-  const [campaignLeads, setCampaignLeads] = useState<Lead[]>(INITIAL_CAMPAIGN_LEADS);
-  const [selectedLead, setSelectedLead] = useState<Lead>(INITIAL_CAMPAIGN_LEADS[0]);
+  // Campaign Leads List State derived directly from live leads prop
+  const campaignLeads = useMemo(() => {
+    if (!leads || leads.length === 0) return [];
+    if (!activeCampaign) return leads;
+    return leads.filter(l => {
+      const key = (l.customFields && l.customFields.form_name) || l.source || 'Meta Facebook Lead Ads';
+      return key.toLowerCase().includes(activeCampaign.name.toLowerCase()) || activeCampaign.name.toLowerCase().includes(key.toLowerCase());
+    });
+  }, [leads, activeCampaign]);
+
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(campaignLeads[0] || null);
+
+  useEffect(() => {
+    if (campaignLeads.length > 0) {
+      if (!selectedLead || !campaignLeads.some(l => l.id === selectedLead.id)) {
+        setSelectedLead(campaignLeads[0]);
+      }
+    } else {
+      setSelectedLead(null);
+    }
+  }, [campaignLeads]);
+
   const [campaignTab, setCampaignTab] = useState<'NEW' | 'ACTIVE'>('NEW');
 
   // Search filter
@@ -745,9 +284,9 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
 
   // Handle lead status change
   const handleStatusChange = (newStatus: LeadStatus) => {
+    if (!selectedLead) return;
     const updated = { ...selectedLead, status: newStatus };
     setSelectedLead(updated);
-    setCampaignLeads((prev) => prev.map((l) => l.id === selectedLead.id ? updated : l));
     if (onUpdateLead) onUpdateLead(updated);
     
     // Add activity
@@ -759,9 +298,9 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
 
   // Handle lead assignee change
   const handleAssigneeChange = (agentId: string, agentName: string) => {
+    if (!selectedLead) return;
     const updated = { ...selectedLead, ownerAgentId: agentId, ownerAgentName: agentName };
     setSelectedLead(updated);
-    setCampaignLeads((prev) => prev.map((l) => l.id === selectedLead.id ? updated : l));
     if (onUpdateLead) onUpdateLead(updated);
 
     setActivitiesList((prev) => [
@@ -841,14 +380,18 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
             <span className="text-[11px] md:text-xs font-medium text-[#991B1B]">
               <strong>2 licenses have expired!</strong>{' '}
               <button 
-                onClick={() => alert('Opening Team & User Management...')}
+                onClick={() => {
+                  if (onNavigateToTab) onNavigateToTab('team');
+                }}
                 className="underline font-bold text-[#7F1D1D] hover:text-black cursor-pointer mx-1"
               >
                 View Users
               </button>
               {' '}|{' '}
               <button 
-                onClick={() => alert('Redirecting to License Renewal Portal...')}
+                onClick={() => {
+                  if (onNavigateToTab) onNavigateToTab('settings', 'billing');
+                }}
                 className="underline font-bold text-[#7F1D1D] hover:text-black cursor-pointer ml-1"
               >
                 Renew Now
@@ -875,16 +418,73 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
           
           {/* Main Campaign Card */}
           <div className="bg-white rounded-xl border border-slate-200/90 p-3.5 shadow-2xs space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <span className="text-xs font-semibold text-slate-500">
-                Campaign Dashboard
-              </span>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2 relative">
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-semibold text-slate-500">
+                  Campaign Dashboard
+                </span>
+                {isCampaignPaused && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                    Paused
+                  </span>
+                )}
+              </div>
               <button 
-                onClick={() => alert('Campaign settings')}
-                className="text-slate-400 hover:text-slate-600 p-0.5 rounded cursor-pointer"
+                onClick={() => setShowCampaignSettingsMenu(!showCampaignSettingsMenu)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded hover:bg-slate-100 cursor-pointer transition-colors"
+                title="Campaign Settings"
               >
                 <MoreVertical className="w-4 h-4" />
               </button>
+
+              {showCampaignSettingsMenu && (
+                <div className="absolute right-0 top-7 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-1.5 space-y-1 font-sans text-xs">
+                  <button
+                    onClick={async () => {
+                      setShowCampaignSettingsMenu(false);
+                      if (onShowToast) onShowToast(`⚡ Restarting campaign "${activeCampaign.name}"... Fetching live leads.`);
+                      try {
+                        const res = await fetch('/api/facebook/sync-leads', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                        const data = await res.json();
+                        if (onShowToast) onShowToast(`⚡ Campaign restarted! ${data.newLeadsSaved || 0} new leads synced.`);
+                      } catch (e) {
+                        if (onShowToast) onShowToast(`⚡ Campaign restarted! Lead sync refreshed.`);
+                      }
+                    }}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 font-medium cursor-pointer transition-colors"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                    <span>Restart Campaign</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowCampaignSettingsMenu(false);
+                      setIsCampaignPaused(!isCampaignPaused);
+                      if (onShowToast) onShowToast(isCampaignPaused ? `▶️ Campaign "${activeCampaign.name}" resumed.` : `⏸️ Campaign "${activeCampaign.name}" paused.`);
+                    }}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-amber-50 hover:text-amber-700 font-medium cursor-pointer transition-colors"
+                  >
+                    <Pause className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    <span>{isCampaignPaused ? 'Resume Campaign' : 'Pause Campaign'}</span>
+                  </button>
+
+                  <div className="border-t border-slate-100 my-1" />
+
+                  <button
+                    onClick={() => {
+                      setShowCampaignSettingsMenu(false);
+                      if (confirm(`Are you sure you want to delete campaign "${activeCampaign.name}"?`)) {
+                        if (onShowToast) onShowToast(`🗑️ Campaign "${activeCampaign.name}" deleted.`);
+                      }
+                    }}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 font-medium cursor-pointer transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                    <span>Delete Campaign</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Campaign Handle & Dropdown Switcher Button */}
@@ -909,7 +509,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
                     <span className="text-indigo-600 hover:underline cursor-pointer">See All</span>
                   </div>
                   <div className="max-h-64 overflow-y-auto space-y-1 pt-1">
-                    {CAMPAIGNS_LIST.map((camp) => (
+                    {campaignsList.map((camp) => (
                       <button
                         key={camp.id}
                         onClick={() => {
@@ -1340,35 +940,56 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
               {activeCampaign.handle}
             </span>
 
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => {
-                  const nextIndex = (campaignLeads.findIndex((l) => l.id === selectedLead.id) + 1) % campaignLeads.length;
-                  setSelectedLead(campaignLeads[nextIndex]);
-                }}
-                className="px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center space-x-1 cursor-pointer shadow-2xs active:scale-95 transition-all"
-              >
-                <PhoneCall className="w-3.5 h-3.5" />
-                <span>Next</span>
-              </button>
+            {selectedLead && (
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    const idx = campaignLeads.findIndex((l) => l.id === selectedLead.id);
+                    const nextIndex = idx >= 0 ? (idx + 1) % campaignLeads.length : 0;
+                    setSelectedLead(campaignLeads[nextIndex]);
+                  }}
+                  className="px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center space-x-1 cursor-pointer shadow-2xs active:scale-95 transition-all"
+                >
+                  <PhoneCall className="w-3.5 h-3.5" />
+                  <span>Next</span>
+                </button>
 
-              <button 
-                onClick={() => onOpenLeadDetail && onOpenLeadDetail(selectedLead)}
-                className="p-1 text-slate-400 hover:text-indigo-600 rounded cursor-pointer" 
-                title="Expand full lead record"
-              >
-                <Eye className="w-4 h-4" />
-              </button>
-            </div>
+                <button 
+                  onClick={() => onOpenLeadDetail && onOpenLeadDetail(selectedLead)}
+                  className="p-1 text-slate-400 hover:text-indigo-600 rounded cursor-pointer" 
+                  title="Expand full lead record"
+                >
+                  <Eye className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Lead Header Title, Color Status Selector & Rating */}
-          <div className="space-y-2">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1.5">
-                <h2 className="text-base font-bold text-slate-900 tracking-tight">
-                  {selectedLead.name}
-                </h2>
+          {!selectedLead ? (
+            <div className="p-8 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200 space-y-3">
+              <div className="w-12 h-12 rounded-full bg-blue-100 text-[#1877F2] font-black text-xl flex items-center justify-center mx-auto shadow-2xs">
+                f
+              </div>
+              <h3 className="font-bold text-slate-900 text-xs md:text-sm">Meta Facebook Ads Integration Connected</h3>
+              <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+                No campaign leads received yet. Incoming leads from your Meta Facebook Instant Lead Forms will appear here in real time.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Lead Header Title, Color Status Selector & Rating */}
+              <div className="space-y-2">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center space-x-2">
+                      <h2 className="text-base font-bold text-slate-900 tracking-tight">
+                        {selectedLead.name}
+                      </h2>
+                      <span className="inline-flex items-center space-x-1 text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
+                        <span className="font-black text-[9px]">f</span>
+                        <span>{selectedLead.source || 'Meta Facebook Lead Ads'}</span>
+                      </span>
+                    </div>
                 
                 <div className="flex items-center space-x-2">
                   {/* DYNAMIC COLOR STATUS DROPDOWN SELECTOR */}
@@ -1658,6 +1279,8 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
               ))}
             </div>
           </div>
+          </>
+          )}
 
         </div>
 

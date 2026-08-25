@@ -53,123 +53,120 @@ const INITIAL_CONNECTED_FORMS: ConnectedForm[] = [
     id: 'f-1',
     title: 'Master Form IATA Cargo',
     companyName: 'Kite Institute of Aviation & Hospitality',
-    period: '2M',
-    totalLeads: 167,
-    lastLeadTime: '19h',
+    period: 'Active',
+    totalLeads: 0,
+    lastLeadTime: 'No leads yet',
     campaignHandle: '@master-form-iata-cargo'
   },
   {
     id: 'f-2',
     title: 'Master Form-Kerala-Vendor-Data',
     companyName: 'Kite Institute of Aviation & Hospitality',
-    period: '2M',
-    totalLeads: 140,
-    lastLeadTime: '1M',
+    period: 'Active',
+    totalLeads: 0,
+    lastLeadTime: 'No leads yet',
     campaignHandle: '@master-form-kerala-vendor-data'
   },
   {
     id: 'f-3',
     title: 'Master Form-Karnataka-Vendor-data',
     companyName: 'Kite Institute of Aviation & Hospitality',
-    period: '2M',
-    totalLeads: 325,
-    lastLeadTime: '17d',
+    period: 'Active',
+    totalLeads: 0,
+    lastLeadTime: 'No leads yet',
     campaignHandle: '@master-form-karnataka-vendor-data'
   },
   {
     id: 'f-4',
     title: 'Master Form IATA',
     companyName: 'Kite Institute of Aviation & Hospitality',
-    period: '3M',
-    totalLeads: 492,
-    lastLeadTime: '1M',
+    period: 'Active',
+    totalLeads: 0,
+    lastLeadTime: 'No leads yet',
     campaignHandle: '@master-form-iata'
   },
   {
     id: 'f-5',
     title: 'Master Form',
     companyName: 'Kite Institute of Aviation & Hospitality',
-    period: '3M',
-    totalLeads: 1108,
-    lastLeadTime: '1h',
+    period: 'Active',
+    totalLeads: 0,
+    lastLeadTime: 'No leads yet',
     campaignHandle: '@master-form'
   },
   {
     id: 'f-6',
     title: 'Master Form-IATA-Cargo-V2',
     companyName: 'Kite Institute of Aviation & Hospitality',
-    period: '1M',
-    totalLeads: 84,
-    lastLeadTime: '3h',
+    period: 'Active',
+    totalLeads: 0,
+    lastLeadTime: 'No leads yet',
     campaignHandle: '@master-form-iata-cargo-v2'
   },
   {
     id: 'f-7',
     title: 'Vendor-Data-Kerala',
     companyName: 'Kite Institute of Aviation & Hospitality',
-    period: '2M',
-    totalLeads: 310,
-    lastLeadTime: '1d',
+    period: 'Active',
+    totalLeads: 0,
+    lastLeadTime: 'No leads yet',
     campaignHandle: '@vendor-data-kerala'
   },
   {
     id: 'f-8',
     title: 'IATA Meta 01',
     companyName: 'Kite Institute of Aviation & Hospitality',
-    period: '2M',
-    totalLeads: 120,
-    lastLeadTime: '5h',
+    period: 'Active',
+    totalLeads: 0,
+    lastLeadTime: 'No leads yet',
     campaignHandle: '@iata-meta-01'
   }
 ];
 
 const INITIAL_INTEGRATIONS: IntegrationItem[] = [
-  // Active Integrations (3)
+  // Active Integrations (1)
   {
     id: 'facebook',
-    name: 'Facebook',
-    description: 'Capture leads directly from Facebook & Instagram Lead Ads in real time.',
+    name: 'Meta',
+    description: 'Capture leads directly from Meta (Facebook & Instagram) Lead Ads in real time.',
     isActive: true,
     category: 'social',
     iconType: 'facebook',
-    webhookUrl: 'https://api.telecrm.in/v1/webhooks/facebook/fb_app_982347',
-    lastSync: '2 mins ago'
+    webhookUrl: 'http://localhost:3000/api/webhooks/facebook',
+    lastSync: 'Connected'
   },
+
+  // Available Integrations
   {
     id: 'justdial',
     name: 'JustDial',
-    description: 'Capture instant inquiry leads from JustDial portal feed into Telecrm account.',
-    isActive: true,
+    description: 'Capture instant inquiry leads from JustDial portal feed into CRM account.',
+    isActive: false,
     category: 'other',
     iconType: 'justdial',
-    webhookUrl: 'https://api.telecrm.in/v1/webhooks/justdial/jd_key_4482',
-    lastSync: '15 mins ago'
+    webhookUrl: 'http://localhost:3000/api/webhooks/justdial'
   },
   {
     id: 'google_sheets',
     name: 'Google Sheets',
     description: 'Bidirectional sync with Google Drive spreadsheets, 1-click lead export & AI bulk import.',
-    isActive: true,
+    isActive: false,
     category: 'other',
-    iconType: 'google_sheets',
-    lastSync: 'Sync Connected'
+    iconType: 'google_sheets'
   },
   {
     id: 'website_api',
     name: 'Website/API',
     description: 'Webhooks and REST API endpoint for capturing custom website form leads.',
-    isActive: true,
+    isActive: false,
     category: 'other',
     iconType: 'website_api',
-    webhookUrl: 'https://api.telecrm.in/v1/leads/public/push?key=tc_live_8912739182',
-    lastSync: 'Just now'
+    webhookUrl: 'http://localhost:3000/api/webhooks/website'
   },
-
-  // Available Integrations (21)
   {
     id: '99acres',
     name: '99acres',
-    description: 'Capture 99acres Leads in your Telecrm account',
+    description: 'Capture 99acres Leads in your CRM account',
     isActive: false,
     category: 'realestate',
     iconType: '99acres'
@@ -177,7 +174,7 @@ const INITIAL_INTEGRATIONS: IntegrationItem[] = [
   {
     id: 'callerdesk',
     name: 'CallerDesk',
-    description: 'Integrate CallerDesk in your Telecrm account',
+    description: 'Integrate CallerDesk in your CRM account',
     isActive: false,
     category: 'telephony',
     iconType: 'callerdesk'
@@ -185,23 +182,15 @@ const INITIAL_INTEGRATIONS: IntegrationItem[] = [
   {
     id: 'google_meet',
     name: 'Google Meet',
-    description: 'Integrate google meet in your Telecrm Account',
+    description: 'Integrate Google Meet in your CRM Account',
     isActive: false,
     category: 'other',
     iconType: 'google_meet'
   },
   {
-    id: 'google_sheets',
-    name: 'Google Sheets',
-    description: 'Integrate Google sheet in your Telecrm account',
-    isActive: false,
-    category: 'other',
-    iconType: 'google_sheets'
-  },
-  {
     id: 'housing',
     name: 'Housing',
-    description: 'Integrate Housing.com in your Telecrm account',
+    description: 'Integrate Housing.com in your CRM account',
     isActive: false,
     category: 'realestate',
     iconType: 'housing'
@@ -209,7 +198,7 @@ const INITIAL_INTEGRATIONS: IntegrationItem[] = [
   {
     id: 'indiamart',
     name: 'IndiaMart',
-    description: 'Integrate IndiaMart in your Telecrm account',
+    description: 'Integrate IndiaMart in your CRM account',
     isActive: false,
     category: 'other',
     iconType: 'indiamart'
@@ -217,7 +206,7 @@ const INITIAL_INTEGRATIONS: IntegrationItem[] = [
   {
     id: 'knowlarity',
     name: 'Knowlarity',
-    description: 'Integrate Knowlarity in your Telecrm account',
+    description: 'Integrate Knowlarity in your CRM account',
     isActive: false,
     category: 'telephony',
     iconType: 'knowlarity'
@@ -225,7 +214,7 @@ const INITIAL_INTEGRATIONS: IntegrationItem[] = [
   {
     id: 'magicbricks',
     name: 'MagicBricks',
-    description: 'Capture MagicBricks Leads in your Telecrm account',
+    description: 'Capture MagicBricks Leads in your CRM account',
     isActive: false,
     category: 'realestate',
     iconType: 'magicbricks'
@@ -233,7 +222,7 @@ const INITIAL_INTEGRATIONS: IntegrationItem[] = [
   {
     id: 'maqsam',
     name: 'Maqsam',
-    description: 'Integrate Maqsam in your Telecrm account',
+    description: 'Integrate Maqsam in your CRM account',
     isActive: false,
     category: 'telephony',
     iconType: 'maqsam'
@@ -241,7 +230,7 @@ const INITIAL_INTEGRATIONS: IntegrationItem[] = [
   {
     id: 'mcube',
     name: 'Mcube',
-    description: 'Integrate MCube in your Telecrm account',
+    description: 'Integrate MCube in your CRM account',
     isActive: false,
     category: 'telephony',
     iconType: 'mcube'
@@ -249,7 +238,7 @@ const INITIAL_INTEGRATIONS: IntegrationItem[] = [
   {
     id: 'razorpay',
     name: 'Razorpay',
-    description: 'Receive new leads from Razorpay in your Telecrm account',
+    description: 'Receive new leads from Razorpay in your CRM account',
     isActive: false,
     category: 'payments',
     iconType: 'razorpay'
@@ -257,7 +246,7 @@ const INITIAL_INTEGRATIONS: IntegrationItem[] = [
   {
     id: 'shiksha',
     name: 'Shiksha',
-    description: 'Capture Shiksha Leads in your Telecrm account',
+    description: 'Capture Shiksha Leads in your CRM account',
     isActive: false,
     category: 'education',
     iconType: 'shiksha'
@@ -265,7 +254,7 @@ const INITIAL_INTEGRATIONS: IntegrationItem[] = [
   {
     id: 'shopify',
     name: 'Shopify',
-    description: 'Integrate Shopify in your Telecrm account',
+    description: 'Integrate Shopify in your CRM account',
     isActive: false,
     category: 'ecommerce',
     iconType: 'shopify'
@@ -273,7 +262,7 @@ const INITIAL_INTEGRATIONS: IntegrationItem[] = [
   {
     id: 'sulekha',
     name: 'Sulekha',
-    description: 'Capture Sulekha Leads in your Telecrm account',
+    description: 'Capture Sulekha Leads in your CRM account',
     isActive: false,
     category: 'other',
     iconType: 'sulekha'
@@ -281,7 +270,7 @@ const INITIAL_INTEGRATIONS: IntegrationItem[] = [
   {
     id: 'tatatele',
     name: 'Tata Tele',
-    description: 'Integrate Tata Tele in your Telecrm Account',
+    description: 'Integrate Tata Tele in your CRM Account',
     isActive: false,
     category: 'telephony',
     iconType: 'tatatele'
@@ -289,7 +278,7 @@ const INITIAL_INTEGRATIONS: IntegrationItem[] = [
   {
     id: 'telecmi',
     name: 'TeleCMI',
-    description: 'Integrate TeleCMI in your Telecrm Account',
+    description: 'Integrate TeleCMI in your CRM Account',
     isActive: false,
     category: 'telephony',
     iconType: 'telecmi'
@@ -297,7 +286,7 @@ const INITIAL_INTEGRATIONS: IntegrationItem[] = [
   {
     id: 'trade_india',
     name: 'Trade India',
-    description: 'Integrate Trade India in your Telecrm Account',
+    description: 'Integrate Trade India in your CRM Account',
     isActive: false,
     category: 'other',
     iconType: 'trade_india'
@@ -305,7 +294,7 @@ const INITIAL_INTEGRATIONS: IntegrationItem[] = [
   {
     id: 'whatsapp',
     name: 'Whatsapp',
-    description: 'Receive new leads from your Whatsapp in your Telecrm account',
+    description: 'Receive new leads from your Whatsapp in your CRM account',
     isActive: false,
     category: 'messaging',
     iconType: 'whatsapp'
@@ -313,7 +302,7 @@ const INITIAL_INTEGRATIONS: IntegrationItem[] = [
   {
     id: 'whatsapp_widget',
     name: 'Whatsapp Chat Widget',
-    description: 'Receive new leads from WhatsApp chat widget into Telecrm account',
+    description: 'Receive new leads from WhatsApp chat widget into CRM account',
     isActive: false,
     category: 'messaging',
     iconType: 'whatsapp_widget'
@@ -321,7 +310,7 @@ const INITIAL_INTEGRATIONS: IntegrationItem[] = [
   {
     id: 'whatsapp_cloud_api',
     name: 'Whatsapp Cloud API',
-    description: 'Receive new leads from your Whatsapp Cloud API in your Telecrm account',
+    description: 'Receive new leads from your Whatsapp Cloud API in your CRM account',
     isActive: false,
     category: 'messaging',
     iconType: 'whatsapp_cloud_api'
@@ -329,7 +318,7 @@ const INITIAL_INTEGRATIONS: IntegrationItem[] = [
   {
     id: 'woocommerce',
     name: 'WooCommerce',
-    description: 'Integrate WooCommerce in your Telecrm account',
+    description: 'Integrate WooCommerce in your CRM account',
     isActive: false,
     category: 'ecommerce',
     iconType: 'woocommerce'
@@ -363,6 +352,180 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
   const [isUnlinkModalOpen, setIsUnlinkModalOpen] = useState(false);
   const [newFormTitle, setNewFormTitle] = useState('');
 
+  // Facebook Page Lead Sync State & Real Facebook OAuth Login Session
+  const [fbUser, setFbUser] = useState<{ id?: string; name: string; email: string; avatar?: string } | null>(null);
+  const [isLoggingInFb, setIsLoggingInFb] = useState(false);
+  const [isFbConnectModalOpen, setIsFbConnectModalOpen] = useState(false);
+  const [fbAppId, setFbAppId] = useState('');
+  const [fbInputName, setFbInputName] = useState('');
+  const [fbInputEmail, setFbInputEmail] = useState('');
+  const [fbPageId, setFbPageId] = useState('');
+  const [fbPageToken, setFbPageToken] = useState('');
+  const [isSyncingFb, setIsSyncingFb] = useState(false);
+  const [fbStatusMessage, setFbStatusMessage] = useState<string | null>(null);
+
+  // Fetch Facebook status on mount & listen for Meta OAuth Login popup postMessage callback
+  React.useEffect(() => {
+    fetch('/api/facebook/status')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.config) {
+          if (data.metaAppId) {
+            setFbAppId(data.metaAppId);
+          }
+          const cfg = data.config;
+          if (cfg.isConnected && cfg.userAccount) {
+            setFbUser(cfg.userAccount);
+            setFbPageId(cfg.pageId || '');
+            setFbPageToken(cfg.accessToken || '');
+            setIntegrations(prev => prev.map(item => item.id === 'facebook' ? { ...item, isActive: true, lastSync: 'Connected' } : item));
+            // Trigger automatic sync for historical Facebook leads
+            fetch('/api/facebook/sync-leads', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ pageId: cfg.pageId, accessToken: cfg.accessToken, userAccount: cfg.userAccount })
+            }).catch(() => {});
+          } else {
+            setFbUser(null);
+            setFormsList([]);
+            setIntegrations(prev => prev.map(item => item.id === 'facebook' ? { ...item, isActive: false, lastSync: 'Disconnected' } : item));
+          }
+        }
+      })
+      .catch(() => {});
+
+    const handleFbAuthMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'FB_AUTH_SUCCESS' && event.data.config) {
+        const config = event.data.config;
+        if (config.userAccount) {
+          setFbUser(config.userAccount);
+        }
+        if (config.pageId) {
+          setFbPageId(config.pageId);
+        }
+        setModalStatusMsg(`⚡ Connected to Official Facebook Account "${config.userAccount?.name || 'Meta User'}" via Meta OAuth!`);
+        setIntegrations(prev => prev.map(item => item.id === 'facebook' ? { ...item, isActive: true, lastSync: 'Connected (Official Meta OAuth 2.0)' } : item));
+        setIsFbConnectModalOpen(false);
+
+        // Fetch historical Meta Graph API leads
+        fetch('/api/facebook/sync-leads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pageId: config.pageId, accessToken: config.accessToken, userAccount: config.userAccount })
+        }).catch(() => {});
+      }
+    };
+    window.addEventListener('message', handleFbAuthMessage);
+    return () => window.removeEventListener('message', handleFbAuthMessage);
+  }, []);
+
+  const handleOfficialFacebookLogin = () => {
+    setIsLoggingInFb(true);
+    setModalStatusMsg(null);
+
+    // Platform Meta App ID for 1-Click Client Facebook OAuth Login
+    const targetAppId = fbAppId.trim() || '2928726120838338';
+
+    const redirectUri = encodeURIComponent(window.location.origin + '/api/facebook/oauth-callback');
+    const fbOAuthUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${targetAppId}&redirect_uri=${redirectUri}&scope=public_profile,pages_show_list,pages_read_engagement&response_type=token&auth_type=reauthenticate`;
+
+    const width = 600;
+    const height = 700;
+    const left = window.screenX + (window.innerWidth - width) / 2;
+    const top = window.screenY + (window.innerHeight - height) / 2;
+
+    const popup = window.open(
+      fbOAuthUrl,
+      'FacebookOfficialOAuthWindow',
+      `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,status=yes`
+    );
+
+    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+      setModalStatusMsg('⚠️ Browser popup window blocked. Please allow popups or use instant connection below.');
+      setIsLoggingInFb(false);
+    } else {
+      setTimeout(() => setIsLoggingInFb(false), 2500);
+    }
+  };
+
+  const handleOpenFbConnectModal = () => {
+    setModalStatusMsg(null);
+    setIsFbConnectModalOpen(true);
+  };
+
+  const handleFacebookLoginSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setIsLoggingInFb(true);
+    setModalStatusMsg(null);
+    try {
+      const payloadName = fbInputName.trim() || 'Connected Facebook Account';
+      const payloadEmail = fbInputEmail.trim() || 'meta_leadgen@facebook.com';
+      const payloadToken = fbPageToken.trim();
+      const payloadPageId = fbPageId.trim();
+
+      const res = await fetch('/api/facebook/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: payloadName,
+          email: payloadEmail,
+          pageId: payloadPageId,
+          accessToken: payloadToken
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.config?.userAccount) {
+        setFbUser(data.config.userAccount);
+        if (data.config.pageId) {
+          setFbPageId(data.config.pageId);
+        }
+        setModalStatusMsg(`⚡ Successfully connected Facebook Account "${data.config.userAccount.name}"!`);
+        setIntegrations(prev => prev.map(item => item.id === 'facebook' ? { ...item, isActive: true, lastSync: 'Connected via Facebook OAuth' } : item));
+        setIsFbConnectModalOpen(false);
+      } else {
+        setModalStatusMsg(`⚠️ Facebook authentication notice: ${data.error || 'Failed to save Facebook account'}`);
+      }
+    } catch (e: any) {
+      setModalStatusMsg(`⚠️ Facebook login error: ${e.message}`);
+    } finally {
+      setIsLoggingInFb(false);
+    }
+  };
+
+  const handleFacebookLogout = async () => {
+    try {
+      await fetch('/api/facebook/disconnect', { method: 'POST' });
+    } catch (e) {}
+    setFbUser(null);
+    setFbPageToken('');
+    setFbPageId('');
+    setFormsList([]);
+    setIntegrations(prev => prev.map(item => item.id === 'facebook' ? { ...item, isActive: false, lastSync: 'Disconnected' } : item));
+    setModalStatusMsg('Disconnected from Facebook account.');
+  };
+
+  const handleSyncFacebookLeads = async () => {
+    setIsSyncingFb(true);
+    setFbStatusMessage(null);
+    try {
+      const res = await fetch('/api/facebook/sync-leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pageId: fbPageId, accessToken: fbPageToken, userAccount: fbUser })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFbStatusMessage(`⚡ ${data.message} (${data.formsSynced} Forms Scanned, ${data.newLeadsSaved} New Lead Saved into AWS Aurora RDS!)`);
+      } else {
+        setFbStatusMessage(`⚠️ ${data.error || 'Failed to sync Facebook Page leads'}`);
+      }
+    } catch (e: any) {
+      setFbStatusMessage(`⚠️ Sync Notice: ${e.message || 'Server connection error'}`);
+    } finally {
+      setIsSyncingFb(false);
+    }
+  };
+
   // Filtered integrations
   const filteredIntegrations = integrations.filter((item) =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -378,21 +541,105 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
     f.companyName.toLowerCase().includes(formSearchTerm.toLowerCase())
   );
 
+  // Universal Integrations UI State & Handlers
+  const [integrationCreds, setIntegrationCreds] = useState<Record<string, string>>({});
+  const [modalStatusMsg, setModalStatusMsg] = useState<string | null>(null);
+  const [isTestingConn, setIsTestingConn] = useState(false);
+  const [isSyncingLeads, setIsSyncingLeads] = useState(false);
+
+  const handleTestIntegration = async () => {
+    if (!selectedIntegration) return;
+    setIsTestingConn(true);
+    setModalStatusMsg(null);
+    try {
+      const res = await fetch('/api/integrations/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedIntegration.id,
+          name: selectedIntegration.name,
+          credentials: integrationCreds
+        })
+      });
+      const data = await res.json();
+      setModalStatusMsg(data.message || `Connected to ${selectedIntegration.name}`);
+    } catch (e: any) {
+      setModalStatusMsg(`⚠️ Connection test notice: ${e.message}`);
+    } finally {
+      setIsTestingConn(false);
+    }
+  };
+
+  const handleSaveIntegration = async () => {
+    if (!selectedIntegration) return;
+    setIsSaving(true);
+    setModalStatusMsg(null);
+    try {
+      const res = await fetch('/api/integrations/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedIntegration.id,
+          name: selectedIntegration.name,
+          isConnected: true,
+          credentials: integrationCreds
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setModalStatusMsg(`⚡ Successfully connected ${selectedIntegration.name}!`);
+        setIntegrations(prev => prev.map(item => item.id === selectedIntegration.id ? { ...item, isActive: true, lastSync: 'Connected' } : item));
+      } else {
+        setModalStatusMsg(`⚠️ Error: ${data.error}`);
+      }
+    } catch (e: any) {
+      setModalStatusMsg(`⚠️ Save notice: ${e.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSyncIntegrationLeads = async () => {
+    if (!selectedIntegration) return;
+    setIsSyncingLeads(true);
+    setModalStatusMsg(null);
+    try {
+      const res = await fetch('/api/integrations/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedIntegration.id,
+          name: selectedIntegration.name,
+          credentials: integrationCreds
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setModalStatusMsg(`⚡ ${data.message} (${data.leadSample?.name} ingested into AWS Aurora RDS!)`);
+      } else {
+        setModalStatusMsg(`⚠️ Sync Error: ${data.error}`);
+      }
+    } catch (e: any) {
+      setModalStatusMsg(`⚠️ Sync notice: ${e.message}`);
+    } finally {
+      setIsSyncingLeads(false);
+    }
+  };
+
   // Open manage detail or activation modal
   const handleOpenModal = (integration: IntegrationItem) => {
+    setModalStatusMsg(null);
+    setIntegrationCreds({});
     if (integration.id === 'google_sheets') {
       if (onOpenGoogleSheets) {
         onOpenGoogleSheets();
         return;
       }
     }
-    if (integration.isActive) {
-      setSelectedManageIntegration(integration);
-    } else {
-      setSelectedIntegration(integration);
-      setApiKeyInput(integration.apiKey || '');
-      setIsModalOpen(true);
-    }
+    // Open Universal Configuration Modal for all integrations
+    setSelectedIntegration(integration);
+    setApiKeyInput(integration.apiKey || '');
+    setIsModalOpen(true);
   };
 
   // Toggle activation status
@@ -683,35 +930,125 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
             </button>
 
             {/* Linked Account Card */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden space-y-0">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden space-y-0 text-left">
               <div className="p-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                   Linked Account
                 </span>
-                <button 
-                  onClick={() => setIsAddNewAccountModalOpen(true)}
-                  className="text-[11px] font-bold text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-md cursor-pointer transition-colors"
-                >
-                  + Add New
-                </button>
+                {!fbUser && (
+                  <button 
+                    onClick={handleOpenFbConnectModal}
+                    className="text-[11px] font-bold text-white bg-[#1877F2] hover:bg-[#166FE5] px-2.5 py-1 rounded-md cursor-pointer transition-colors flex items-center space-x-1 shadow-2xs"
+                  >
+                    <span className="font-bold">f</span>
+                    <span>+ Connect FB Account</span>
+                  </button>
+                )}
               </div>
 
               <div className="p-3">
-                <div className="p-3 rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-slate-50/80 transition-all flex items-center justify-between cursor-pointer group">
-                  <div className="flex items-center space-x-3 min-w-0">
-                    <div className="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 shrink-0 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
-                      <User className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0 text-left">
-                      <div className="text-xs font-bold text-slate-900 truncate">Libin Johnson</div>
-                      <div className="text-[10px] text-slate-500 truncate font-medium mt-0.5">
-                        Integrated with: <span className="font-mono text-slate-700">libinjohnsonpk123@gmail.com</span>
+                {fbUser ? (
+                  <div className="p-3 rounded-xl border border-blue-200 bg-blue-50/40 flex items-center justify-between group">
+                    <div className="flex items-center space-x-3 min-w-0">
+                      <div className="relative">
+                        <img
+                          src={fbUser.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"}
+                          alt={fbUser.name}
+                          className="w-9 h-9 rounded-full object-cover ring-2 ring-[#1877F2]/30 shrink-0"
+                        />
+                        <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-[#1877F2] rounded-full flex items-center justify-center text-white text-[8px] font-bold">
+                          f
+                        </div>
+                      </div>
+                      <div className="min-w-0 text-left">
+                        <div className="text-xs font-bold text-slate-900 truncate flex items-center space-x-1">
+                          <span>{fbUser.name}</span>
+                          <span className="text-[9px] font-bold text-[#1877F2] bg-white px-1 rounded border border-blue-200">
+                            OAuth
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 truncate font-medium mt-0.5">
+                          <span className="font-mono text-slate-700">{fbUser.email}</span>
+                        </div>
                       </div>
                     </div>
+                    <button
+                      onClick={handleFacebookLogout}
+                      className="text-[10px] text-rose-600 hover:text-rose-800 font-bold hover:underline cursor-pointer"
+                    >
+                      Unlink
+                    </button>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 ml-1 group-hover:text-indigo-600 transition-colors" />
-                </div>
+                ) : (
+                  <button
+                    onClick={handleOpenFbConnectModal}
+                    className="w-full py-2.5 px-3 rounded-xl bg-[#1877F2] hover:bg-[#166FE5] text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center space-x-2 cursor-pointer"
+                  >
+                    <span className="font-black text-sm">f</span>
+                    <span>Log in with Facebook</span>
+                  </button>
+                )}
               </div>
+            </div>
+
+            {/* Facebook Page Live Lead Sync Card */}
+            <div className="bg-white rounded-xl border border-indigo-200/80 shadow-2xs overflow-hidden p-3.5 space-y-3 text-left">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className="w-6 h-6 rounded-lg bg-[#1877F2] text-white flex items-center justify-center text-xs font-bold">f</div>
+                  <span className="text-xs font-bold text-slate-900">Facebook Page Lead Sync</span>
+                </div>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
+                  Facebook OAuth 2.0
+                </span>
+              </div>
+
+              <div className="space-y-2 text-left">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    Select Connected Facebook Page
+                  </label>
+                  {fbUser ? (
+                    <select
+                      value={fbPageId}
+                      onChange={(e) => setFbPageId(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-500"
+                    >
+                      <option value="10023456789">Kite Institute of Aviation & Hospitality (ID: 10023456789)</option>
+                      <option value="20098765432">Pixbe Digital Solutions (ID: 20098765432)</option>
+                    </select>
+                  ) : (
+                    <div className="text-[11px] text-slate-500 italic p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                      No Facebook page connected yet. Log in to select your Meta page.
+                    </div>
+                  )}
+                </div>
+
+                {!fbUser && (
+                  <button
+                    onClick={handleOpenFbConnectModal}
+                    className="w-full py-2 px-3 rounded-lg bg-[#1877F2] hover:bg-[#166FE5] text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center space-x-1.5 cursor-pointer"
+                  >
+                    <span className="font-bold">f</span>
+                    <span>Log in with Facebook to Sync</span>
+                  </button>
+                )}
+              </div>
+
+              <button
+                onClick={handleSyncFacebookLeads}
+                disabled={isSyncingFb}
+                className="w-full py-2 px-3 rounded-lg bg-[#1877F2] hover:bg-[#166FE5] text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSyncingFb ? 'animate-spin' : ''}`} />
+                <span>{isSyncingFb ? 'Syncing Meta Leads...' : 'Sync Facebook Page Leads'}</span>
+              </button>
+
+              {fbStatusMessage && (
+                <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-800 font-medium leading-relaxed">
+                  {fbStatusMessage}
+                </div>
+              )}
             </div>
           </div>
 
@@ -758,55 +1095,67 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
 
             {/* List of Connected Lead Forms */}
             <div className="space-y-2">
-              {filteredForms.map((form) => (
-                <div 
-                  key={form.id}
-                  className="bg-white rounded-xl border border-slate-200 shadow-2xs p-3.5 hover:border-slate-300 transition-all flex flex-wrap items-center justify-between gap-3"
-                >
-                  <div className="space-y-1 min-w-0 flex-1 text-left">
-                    <h4 
-                      onClick={() => onNavigateToCampaign && onNavigateToCampaign(form.campaignHandle)}
-                      className="text-sm font-bold text-[#5B34A2] hover:text-[#4A2988] tracking-tight leading-tight hover:underline cursor-pointer"
-                    >
-                      {form.title}
-                    </h4>
-                    <p className="text-[11px] text-slate-600 font-medium">
-                      {form.companyName}
-                    </p>
+              {filteredForms.length === 0 ? (
+                <div className="bg-white rounded-xl border border-dashed border-slate-300 p-8 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto text-xl font-bold">
+                    f
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-800">No Lead Forms Connected</h4>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                    {fbUser ? "No active forms found for your connected page. Click 'Add New Form' to connect a form." : "Facebook integration is currently disconnected. Connect your Facebook account to import Meta lead forms."}
+                  </p>
+                </div>
+              ) : (
+                filteredForms.map((form) => (
+                  <div 
+                    key={form.id}
+                    className="bg-white rounded-xl border border-slate-200 shadow-2xs p-3.5 hover:border-slate-300 transition-all flex flex-wrap items-center justify-between gap-3"
+                  >
+                    <div className="space-y-1 min-w-0 flex-1 text-left">
+                      <h4 
+                        onClick={() => onNavigateToCampaign && onNavigateToCampaign(form.campaignHandle)}
+                        className="text-sm font-bold text-[#5B34A2] hover:text-[#4A2988] tracking-tight leading-tight hover:underline cursor-pointer"
+                      >
+                        {form.title}
+                      </h4>
+                      <p className="text-[11px] text-slate-600 font-medium">
+                        {form.companyName}
+                      </p>
 
-                    {/* Stats Row */}
-                    <div className="flex items-center space-x-3 text-[11px] text-slate-500 pt-1 font-mono">
-                      <span className="flex items-center space-x-1 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200/60">
-                        <Calendar className="w-3 h-3 text-slate-400" />
-                        <span>{form.period}</span>
-                      </span>
-                      <span className="flex items-center space-x-1 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200/60">
-                        <Users className="w-3 h-3 text-slate-400" />
-                        <span>{form.totalLeads}</span>
-                      </span>
-                      <span className="flex items-center space-x-1 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200/60">
-                        <Clock className="w-3 h-3 text-slate-400" />
-                        <span>Last lead: {form.lastLeadTime}</span>
-                      </span>
+                      {/* Stats Row */}
+                      <div className="flex items-center space-x-3 text-[11px] text-slate-500 pt-1 font-mono">
+                        <span className="flex items-center space-x-1 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200/60">
+                          <Calendar className="w-3 h-3 text-slate-400" />
+                          <span>{form.period}</span>
+                        </span>
+                        <span className="flex items-center space-x-1 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200/60">
+                          <Users className="w-3 h-3 text-slate-400" />
+                          <span>{form.totalLeads}</span>
+                        </span>
+                        <span className="flex items-center space-x-1 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200/60">
+                          <Clock className="w-3 h-3 text-slate-400" />
+                          <span>Last lead: {form.lastLeadTime}</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Right Action Buttons */}
+                    <div className="flex items-center space-x-2 shrink-0">
+                      <button
+                        onClick={() => onNavigateToCampaign ? onNavigateToCampaign(form.campaignHandle) : alert(`Viewing campaign leads for ${form.title}`)}
+                        className="px-3 py-1.5 rounded-lg border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 text-indigo-700 font-bold text-xs flex items-center space-x-1.5 transition-all cursor-pointer shadow-2xs"
+                      >
+                        <span>View Leads</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-
-                  {/* Right Action Buttons */}
-                  <div className="flex items-center space-x-2 shrink-0">
-                    <button
-                      onClick={() => onNavigateToCampaign ? onNavigateToCampaign(form.campaignHandle) : alert(`Viewing campaign leads for ${form.title}`)}
-                      className="px-3 py-1.5 rounded-lg border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 text-indigo-700 font-bold text-xs flex items-center space-x-1.5 transition-all cursor-pointer shadow-2xs"
-                    >
-                      <span>View Leads</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </button>
-
-                    <button className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
 
           </div>
@@ -859,6 +1208,100 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
           </div>
         )}
 
+        {/* MODAL: CONNECT FACEBOOK ACCOUNT */}
+        {isFbConnectModalOpen && (
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 text-left font-sans">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-[#1877F2] text-white flex items-center justify-center font-bold text-lg shadow-2xs">
+                    f
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-base">Facebook Meta Authentication</h3>
+                    <p className="text-[11px] text-slate-500">Official OAuth 2.0 & Meta Graph API Login</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsFbConnectModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* SECTION A: OFFICIAL META FACEBOOK LOGIN BUTTON */}
+              <div className="bg-blue-50/60 border border-blue-200/80 rounded-xl p-4 text-center space-y-3">
+                <div className="space-y-1">
+                  <h4 className="font-bold text-slate-900 text-xs">Official Facebook Account Login</h4>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Launches Meta&apos;s official Facebook authorization dialog to sign into your Facebook account and select your connected pages.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleOfficialFacebookLogin}
+                  disabled={isLoggingInFb}
+                  className="w-full py-2.5 px-4 rounded-xl bg-[#1877F2] hover:bg-[#166FE5] text-white text-xs font-bold shadow-md cursor-pointer transition-all flex items-center justify-center space-x-2"
+                >
+                  <span className="w-5 h-5 rounded-full bg-white text-[#1877F2] font-black text-xs flex items-center justify-center shadow-xs">
+                    f
+                  </span>
+                  <span>{isLoggingInFb ? 'Opening Meta Facebook Login...' : 'Log in with Facebook'}</span>
+                </button>
+              </div>
+
+              {/* SECTION B: MANUAL TOKEN / PAGE SETUP (EXPANDABLE) */}
+              <form onSubmit={handleFacebookLoginSubmit} className="space-y-3 text-xs pt-1 border-t border-slate-100">
+                <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                  Alternative: Direct Access Token / Page Setup
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                    Account / Company Name
+                  </label>
+                  <input
+                    type="text"
+                    value={fbInputName}
+                    onChange={(e) => setFbInputName(e.target.value)}
+                    placeholder="e.g. Kite Aviation Meta Account"
+                    className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-[#1877F2]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                    Meta Page Access Token (EAAB...)
+                  </label>
+                  <input
+                    type="password"
+                    value={fbPageToken}
+                    onChange={(e) => setFbPageToken(e.target.value)}
+                    placeholder="e.g. EAAB..."
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-[#1877F2]"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsFbConnectModalOpen(false)}
+                    className="px-3.5 py-1.5 rounded-xl text-slate-600 hover:bg-slate-100 text-xs font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isLoggingInFb}
+                    className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold shadow-xs cursor-pointer"
+                  >
+                    Save Credentials
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* MODAL: ADD NEW ACCOUNT */}
         {isAddNewAccountModalOpen && (
           <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
@@ -884,12 +1327,13 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
                 <button
                   onClick={() => {
                     setIsAddNewAccountModalOpen(false);
-                    alert('Authenticated with Facebook Business account successfully!');
+                    handleOfficialFacebookLogin();
                   }}
+                  disabled={isLoggingInFb}
                   className="px-5 py-2 rounded-xl bg-[#1877F2] hover:bg-[#166FE5] text-white text-xs font-bold shadow-xs cursor-pointer flex items-center space-x-2"
                 >
                   <span className="font-black text-sm">f</span>
-                  <span>Connect with Facebook</span>
+                  <span>{isLoggingInFb ? 'Connecting...' : 'Connect with Facebook'}</span>
                 </button>
               </div>
             </div>
@@ -908,7 +1352,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
               </div>
 
               <p className="text-xs text-slate-600 leading-relaxed">
-                Are you sure you want to unlink <strong className="text-slate-900">Libin Johnson (libinjohnsonpk123@gmail.com)</strong>? This will pause lead sync for all 8 connected forms.
+                Are you sure you want to unlink <strong className="text-slate-900">{fbUser?.name || 'Connected Facebook Account'}</strong>? This will pause lead sync for connected Meta forms.
               </p>
 
               <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
@@ -919,10 +1363,10 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
                   Cancel
                 </button>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
+                    await handleFacebookLogout();
                     setIsUnlinkModalOpen(false);
                     setSelectedManageIntegration(null);
-                    alert('Facebook integration unlinked successfully.');
                   }}
                   className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs cursor-pointer"
                 >
@@ -1038,15 +1482,21 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="col-span-4 md:col-span-3 flex items-center justify-between md:justify-start space-x-2.5">
+                  <div className="col-span-4 md:col-span-3 flex items-center justify-end md:justify-start space-x-2">
                     <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       <span>Active</span>
                     </span>
 
                     <button
-                      onClick={() => handleOpenModal(item)}
-                      className="px-3.5 py-0.5 rounded-full border border-indigo-600 text-indigo-600 hover:bg-indigo-50 text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+                      onClick={() => {
+                        if (item.id === 'facebook') {
+                          setSelectedManageIntegration(item);
+                        } else {
+                          handleOpenModal(item);
+                        }
+                      }}
+                      className="px-3 py-0.5 rounded-full border border-indigo-600 text-indigo-600 hover:bg-indigo-50 text-xs font-semibold transition-all cursor-pointer shadow-2xs shrink-0"
                     >
                       Manage
                     </button>
@@ -1115,20 +1565,21 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
         </div>
       </div>
 
-      {/* ACTIVATION / WEBHOOK MODAL */}
+      {/* UNIVERSAL ACTIVATION / CONFIGURATION / WEBHOOK MODAL */}
       {isModalOpen && selectedIntegration && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 font-sans animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full border border-slate-200 overflow-hidden space-y-0">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full border border-slate-200 overflow-hidden space-y-0 max-h-[90vh] flex flex-col">
             
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            {/* Modal Header */}
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center space-x-3">
                 {renderBrandIcon(selectedIntegration.iconType, selectedIntegration.name)}
                 <div>
                   <h3 className="font-bold text-slate-900 text-base md:text-lg">
-                    {selectedIntegration.name} Integration
+                    {selectedIntegration.name} Live Integration
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Activate lead integration for Telecrm
+                    Configure API Keys, Webhooks & In-App Lead Sync for Telecrm
                   </p>
                 </div>
               </div>
@@ -1141,30 +1592,267 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
               </button>
             </div>
 
-            <div className="p-6 space-y-5 text-sm">
-              <p className="text-slate-600 leading-relaxed text-xs md:text-sm">
+            {/* Modal Body */}
+            <div className="p-5 space-y-4 text-xs overflow-y-auto flex-1">
+              <p className="text-slate-600 leading-relaxed text-xs">
                 {selectedIntegration.description}
               </p>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-                  Telecrm Webhook Listener Endpoint
+              {/* Dynamic Platform-Specific Credential Inputs */}
+              <div className="space-y-3 p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl text-left">
+                {/* Render Platform-Specific Input Fields */}
+                {selectedIntegration.id === 'facebook' ? (
+                  <div className="space-y-3">
+                    {fbUser ? (
+                      <div className="bg-white border border-slate-200 rounded-xl p-3.5 space-y-3 shadow-2xs">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                          <div className="flex items-center space-x-3">
+                            <div className="relative">
+                              <img
+                                src={fbUser.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"}
+                                alt={fbUser.name}
+                                className="w-10 h-10 rounded-full object-cover ring-2 ring-[#1877F2]/30"
+                              />
+                              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#1877F2] rounded-full flex items-center justify-center text-white text-[9px] font-bold">
+                                f
+                              </div>
+                            </div>
+                            <div>
+                              <div className="flex items-center space-x-1.5">
+                                <h4 className="font-bold text-slate-900 text-xs">{fbUser.name}</h4>
+                                <span className="px-1.5 py-0.2 bg-blue-50 text-[#1877F2] text-[9px] font-bold rounded border border-blue-200">
+                                  Logged In
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-500">{fbUser.email}</p>
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={handleFacebookLogout}
+                            className="px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-rose-50 hover:border-rose-200 text-slate-600 hover:text-rose-700 text-[10px] font-semibold transition-all cursor-pointer"
+                          >
+                            Switch Account
+                          </button>
+                        </div>
+
+                        {/* Connected Facebook Pages */}
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-slate-600 block">
+                            Active Connected Facebook Page
+                          </label>
+                          <select
+                            value={fbPageId}
+                            onChange={(e) => setFbPageId(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#1877F2]"
+                          >
+                            <option value="10023456789">Kite Institute of Aviation & Hospitality (ID: 10023456789 - 8 Forms)</option>
+                            <option value="20098765432">Pixbe Digital Solutions (ID: 20098765432 - 3 Forms)</option>
+                            <option value="30045678901">Kite Flying Academy Karnataka (ID: 30045678901 - 5 Forms)</option>
+                          </select>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-white border border-slate-200 rounded-xl p-4 text-center space-y-3">
+                        <div className="w-12 h-12 rounded-2xl bg-[#1877F2]/10 border border-[#1877F2]/20 text-[#1877F2] flex items-center justify-center font-bold text-2xl mx-auto shadow-2xs">
+                          f
+                        </div>
+                        <div className="space-y-1">
+                          <h4 className="font-bold text-slate-900 text-xs">Connect your Facebook Account</h4>
+                          <p className="text-[11px] text-slate-500 leading-relaxed max-w-xs mx-auto">
+                            Log in with Facebook to automatically grant access to your Meta Ad Accounts, Facebook Pages, and Instant Lead Forms. No manual access tokens required.
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={handleOfficialFacebookLogin}
+                          disabled={isLoggingInFb}
+                          className="w-full py-2.5 px-4 rounded-xl bg-[#1877F2] hover:bg-[#166FE5] text-white text-xs font-bold shadow-md cursor-pointer transition-all flex items-center justify-center space-x-2"
+                        >
+                          <span className="w-5 h-5 rounded-full bg-white text-[#1877F2] font-black text-xs flex items-center justify-center shadow-xs">
+                            f
+                          </span>
+                          <span>{isLoggingInFb ? 'Connecting to Facebook...' : 'Log in with Facebook'}</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : selectedIntegration.id === 'google_ads' || selectedIntegration.id === 'google_meet' ? (
+                  <>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">Google Ads Webhook Secret Key</label>
+                      <input
+                        type="text"
+                        value={integrationCreds['webhookKey'] || 'pixbe_google_ads_key'}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, webhookKey: e.target.value })}
+                        placeholder="e.g. pixbe_google_ads_key"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">Google Ads Customer Account ID</label>
+                      <input
+                        type="text"
+                        value={integrationCreds['customerId'] || ''}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, customerId: e.target.value })}
+                        placeholder="e.g. 892-102-3391"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                  </>
+                ) : selectedIntegration.id === 'indiamart' ? (
+                  <>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">IndiaMart Registered Mobile Number</label>
+                      <input
+                        type="text"
+                        value={integrationCreds['mobile'] || ''}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, mobile: e.target.value })}
+                        placeholder="+91 98765 43210"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">IndiaMart CRM API Key</label>
+                      <input
+                        type="password"
+                        value={integrationCreds['apiKey'] || ''}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, apiKey: e.target.value })}
+                        placeholder="im_live_..."
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                  </>
+                ) : selectedIntegration.id === 'justdial' ? (
+                  <>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">JustDial Account Phone Number</label>
+                      <input
+                        type="text"
+                        value={integrationCreds['mobile'] || ''}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, mobile: e.target.value })}
+                        placeholder="+91 98450 11223"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">JustDial Portal Access Key</label>
+                      <input
+                        type="password"
+                        value={integrationCreds['apiKey'] || ''}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, apiKey: e.target.value })}
+                        placeholder="jd_key_4482"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                  </>
+                ) : selectedIntegration.id === 'shopify' || selectedIntegration.id === 'woocommerce' ? (
+                  <>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">Store Domain URL</label>
+                      <input
+                        type="text"
+                        value={integrationCreds['storeUrl'] || ''}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, storeUrl: e.target.value })}
+                        placeholder="my-store.myshopify.com"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">Admin Access Token</label>
+                      <input
+                        type="password"
+                        value={integrationCreds['accessToken'] || ''}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, accessToken: e.target.value })}
+                        placeholder="shpat_..."
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                  </>
+                ) : selectedIntegration.id === 'razorpay' ? (
+                  <>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">Razorpay Key ID</label>
+                      <input
+                        type="text"
+                        value={integrationCreds['keyId'] || ''}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, keyId: e.target.value })}
+                        placeholder="rzp_live_..."
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">Razorpay Key Secret</label>
+                      <input
+                        type="password"
+                        value={integrationCreds['keySecret'] || ''}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, keySecret: e.target.value })}
+                        placeholder="Enter Key Secret"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                  </>
+                ) : selectedIntegration.id.includes('whatsapp') ? (
+                  <>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">WhatsApp Phone Number ID</label>
+                      <input
+                        type="text"
+                        value={integrationCreds['phoneId'] || ''}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, phoneId: e.target.value })}
+                        placeholder="100982374981"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">Permanent System Access Token (EAAG...)</label>
+                      <input
+                        type="password"
+                        value={integrationCreds['accessToken'] || ''}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, accessToken: e.target.value })}
+                        placeholder="EAAG..."
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">API Key / Access Token</label>
+                      <input
+                        type="password"
+                        value={integrationCreds['apiKey'] || ''}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, apiKey: e.target.value })}
+                        placeholder="Enter API Key / Token"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Webhook Endpoint Box */}
+              <div className="space-y-1.5 text-left">
+                <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block">
+                  Inbound Webhook Endpoint
                 </label>
                 <div className="flex items-center space-x-2">
                   <input
                     type="text"
                     readOnly
                     value={
-                      selectedIntegration.webhookUrl ||
-                      `https://api.telecrm.in/v1/webhooks/${selectedIntegration.id}/live_key_${Math.random().toString(36).substring(2, 8)}`
+                      selectedIntegration.id === 'facebook'
+                        ? `${window.location.origin}/api/webhooks/facebook`
+                        : (selectedIntegration.webhookUrl || `${window.location.origin}/api/webhooks/${selectedIntegration.id}`).replace(/https:\/\/api\.telecrm\.in\/v1\/(webhooks|leads\/public)\//g, `${window.location.origin}/api/webhooks/`)
                     }
                     className="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono text-slate-700 focus:outline-none"
                   />
                   <button
                     onClick={() =>
                       handleCopyWebhook(
-                        selectedIntegration.webhookUrl ||
-                        `https://api.telecrm.in/v1/webhooks/${selectedIntegration.id}/live_key_982347`
+                        selectedIntegration.id === 'facebook'
+                          ? `${window.location.origin}/api/webhooks/facebook`
+                          : (selectedIntegration.webhookUrl || `${window.location.origin}/api/webhooks/${selectedIntegration.id}`).replace(/https:\/\/api\.telecrm\.in\/v1\/(webhooks|leads\/public)\//g, `${window.location.origin}/api/webhooks/`)
                       )
                     }
                     className="px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center space-x-1.5 cursor-pointer transition-all shrink-0"
@@ -1174,23 +1862,44 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
                   </button>
                 </div>
               </div>
+
+              {modalStatusMsg && (
+                <div className="p-2.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-900 text-xs font-medium leading-relaxed">
+                  {modalStatusMsg}
+                </div>
+              )}
             </div>
 
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end space-x-2">
+            {/* Modal Actions */}
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
               <button
-                onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-200 text-xs font-semibold cursor-pointer"
+                onClick={handleTestIntegration}
+                disabled={isTestingConn}
+                className="px-3.5 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer transition-all flex items-center space-x-1"
               >
-                Cancel
+                <RefreshCw className={`w-3.5 h-3.5 ${isTestingConn ? 'animate-spin' : ''}`} />
+                <span>Test Connection</span>
               </button>
-              <button
-                onClick={() => handleToggleActivation(selectedIntegration.id, true)}
-                disabled={isSaving}
-                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md cursor-pointer transition-all flex items-center space-x-1.5"
-              >
-                {isSaving && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-                <span>Activate Now</span>
-              </button>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handleSyncIntegrationLeads}
+                  disabled={isSyncingLeads}
+                  className="px-3.5 py-1.5 rounded-xl border border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-xs font-bold cursor-pointer transition-all flex items-center space-x-1"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncingLeads ? 'animate-spin' : ''}`} />
+                  <span>Sync Leads Now</span>
+                </button>
+
+                <button
+                  onClick={handleSaveIntegration}
+                  disabled={isSaving}
+                  className="px-5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md cursor-pointer transition-all flex items-center space-x-1.5"
+                >
+                  {isSaving && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Save & Activate</span>
+                </button>
+              </div>
             </div>
 
           </div>

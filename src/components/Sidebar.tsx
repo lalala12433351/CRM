@@ -59,7 +59,7 @@ interface SidebarProps {
   activeTab: TabType;
   setActiveTab: (tab: TabType, subTab?: ReportsSubTab | AutomationsSubTab) => void;
   unassignedLeadsCount: number;
-  pendingFollowUpsCount?: number;
+  missedCallsCount?: number;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
   onOpenVoiceBot?: () => void;
@@ -72,7 +72,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeTab, 
   setActiveTab,
   unassignedLeadsCount,
-  pendingFollowUpsCount = 0,
+  missedCallsCount = 0,
   isCollapsed: externalIsCollapsed,
   onToggleCollapse: externalOnToggleCollapse,
   onOpenVoiceBot,
@@ -104,7 +104,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'dashboard' as TabType, label: 'Analytics & Pipeline', icon: BarChart3, tooltip: 'Dashboard' },
     { id: 'leads' as TabType, label: 'Search & Leads', icon: Search, tooltip: 'Search Leads' },
     { id: 'add_lead' as TabType, label: 'Add Lead', icon: UserPlus, tooltip: 'Add Lead' },
-    { id: 'followups' as TabType, label: 'Calls & Dialer', icon: Phone, tooltip: 'Dialer & Follow-Ups', badge: pendingFollowUpsCount > 0 ? pendingFollowUpsCount : undefined },
+    { id: 'followups' as TabType, label: 'Calls & Dialer', icon: Phone, tooltip: 'Dialer & Follow-Ups', badge: missedCallsCount > 0 ? missedCallsCount : undefined },
     { id: 'inbox' as TabType, label: 'Messages & Mail', icon: AtSign, tooltip: 'Unified Inbox' },
     { id: 'filters' as any, label: 'Filters', icon: Filter, tooltip: 'Saved Filters', isFilterAction: true },
     { id: 'whatsapp' as TabType, label: 'WhatsApp', icon: MessageSquare, tooltip: 'WhatsApp CRM' },
@@ -117,19 +117,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside className="w-[60px] bg-white border-r border-slate-200 flex flex-col justify-between items-center py-2.5 shrink-0 hidden md:flex min-h-[calc(100vh-3.5rem)] font-sans select-none z-20 shadow-2xs">
       
-      {/* Top Logo Icon & Navigation Rail */}
-      <div className="flex flex-col items-center space-y-2 w-full px-1.5">
-        {/* Brand Purple T Icon as shown in screenshot */}
-        <button 
-          onClick={() => setActiveTab('fields')}
-          className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#5034a8] to-[#3a2088] text-white flex items-center justify-center font-black text-lg shadow-md shadow-indigo-900/15 cursor-pointer hover:scale-105 transition-all mb-1 group"
-          title="ARCLE / TeleCRM Workspace"
-        >
-          <span>T</span>
-        </button>
-
-        <div className="w-full h-px bg-slate-100 my-1"></div>
-
+      {/* Top Navigation Rail */}
+      <div className="flex flex-col items-center space-y-1.5 w-full px-1.5 pt-1">
         {/* Rail Icons */}
         <div className="flex flex-col items-center space-y-1.5 w-full">
           {railItems.map((item) => {
@@ -237,7 +226,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onClick={() => {
                     if (item.isFilterAction) {
                       setIsFiltersPopoverOpen(!isFiltersPopoverOpen);
-                    } else if (item.isAiAction) {
+                    } else if ((item as any).isAiAction) {
                       onOpenVoiceBot && onOpenVoiceBot();
                     } else {
                       setActiveTab(item.id as TabType);

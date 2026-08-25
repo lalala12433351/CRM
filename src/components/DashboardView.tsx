@@ -287,12 +287,56 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </button>
           </div>
 
+          {/* Selected Assignee Details Box (Pure White Background Box) */}
+          {selectedAssigneeId !== 'ALL' && (
+            <div className="bg-white border border-slate-200/90 rounded-xl p-3.5 shadow-2xs flex items-center justify-between flex-wrap gap-3 my-2">
+              <div className="flex items-center space-x-3">
+                {selectedAssigneeId !== 'UNASSIGNED' ? (() => {
+                  const selectedAgent = agents.find(a => a.id === selectedAssigneeId);
+                  if (!selectedAgent) return null;
+                  return (
+                    <>
+                      {selectedAgent.avatar ? (
+                        <img src={selectedAgent.avatar} alt={selectedAgent.name} className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-2xs" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-sm border border-indigo-200">
+                          {selectedAgent.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                        </div>
+                      )}
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <h3 className="text-sm font-bold text-slate-900">{selectedAgent.name}'s Assigned Leads</h3>
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            {filteredDashboardLeads.length} Leads Shown
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5">{selectedAgent.role || 'Telecaller'} • {selectedAgent.email} • {selectedAgent.phone}</p>
+                      </div>
+                    </>
+                  );
+                })() : (
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Unassigned Leads Directory</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">{filteredDashboardLeads.length} leads waiting for sales representative allocation</p>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={() => setSelectedAssigneeId('ALL')}
+                className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer border border-slate-200"
+              >
+                Reset Filter
+              </button>
+            </div>
+          )}
+
           {/* Select Controls */}
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <select
               value={tableSourceFilter}
               onChange={(e) => setTableSourceFilter(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none cursor-pointer"
+              className="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none cursor-pointer shadow-2xs"
             >
               <option value="ALL">All Sources</option>
               <option value="Facebook Ads">Facebook Ads</option>
@@ -307,7 +351,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <select
               value={tableStatusFilter}
               onChange={(e) => setTableStatusFilter(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none cursor-pointer"
+              className="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none cursor-pointer shadow-2xs"
             >
               <option value="ALL">All Stages</option>
               <option value="New Lead">New Lead</option>
@@ -319,17 +363,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </select>
           </div>
 
-          {/* MOBILE DIRECTORY CARDS (Small Screen TeleCRM View) */}
+          {/* MOBILE DIRECTORY CARDS (Small Screen TeleCRM View - Pure White Box) */}
           <div className="block md:hidden space-y-2.5">
             {filteredDashboardLeads.length === 0 ? (
-              <div className="p-6 text-center text-slate-400 text-xs">
+              <div className="p-6 text-center text-slate-400 text-xs bg-white rounded-xl border border-slate-200">
                 No matching leads found in directory.
               </div>
             ) : (
               filteredDashboardLeads.map((lead) => (
                 <div
                   key={lead.id}
-                  className="bg-slate-50/70 rounded-xl border border-slate-200/80 p-3 space-y-2"
+                  className="bg-white rounded-xl border border-slate-200 p-3.5 space-y-2 shadow-2xs hover:border-indigo-300 transition-all"
                 >
                   <div className="flex items-start justify-between gap-2" onClick={() => onOpenLeadDetail(lead)}>
                     <div>

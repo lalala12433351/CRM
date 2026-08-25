@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSyncState } from './lib/hooks';
-import { seedDatabase } from './lib/db';
+import { seedDatabase, clearAllLeadsFromFirestore } from './lib/db';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import { MobileBottomNav } from './components/MobileBottomNav';
@@ -19,7 +19,7 @@ import { AddLeadView } from './components/AddLeadView';
 import { FollowUpsView } from './components/FollowUpsView';
 import { ReportsView, ReportsSubTab } from './components/ReportsView';
 import { IntegrationsView } from './components/IntegrationsView';
-import { SettingsView } from './components/SettingsView';
+import { SettingsView, SettingsTab } from './components/SettingsView';
 import { CampaignsView } from './components/CampaignsView';
 import { FieldsSettingsView } from './components/FieldsSettingsView';
 import { TasksView } from './components/TasksView';
@@ -42,10 +42,27 @@ import {
   INITIAL_WORKFLOWS, 
   INITIAL_CUSTOM_FIELDS, 
   INITIAL_STAGES, 
-  HOURLY_METRICS 
+  HOURLY_METRICS,
+  INITIAL_PERMISSION_TEMPLATES 
 } from './data/mockData';
 
-import { Lead, Agent, PipelineStage, ActivityLog, WhatsAppMessage, CallRecord, WhatsAppTemplate, WhatsAppCampaign, WorkflowRule, CustomFieldDef, LeadStatus } from './types';
+import { 
+  Lead, 
+  Agent, 
+  PipelineStage, 
+  ActivityLog, 
+  WhatsAppMessage, 
+  CallRecord, 
+  WhatsAppTemplate, 
+  WhatsAppCampaign, 
+  WorkflowRule, 
+  CustomFieldDef, 
+  LeadStatus,
+  PermissionTemplate
+} from './types';
+
+import { getAgentPermissionRights } from './utils/permissionUtils';
+import { ShieldCheck } from 'lucide-react';
 
 export const StagesContext = React.createContext<PipelineStage[]>(INITIAL_STAGES);
 
@@ -54,21 +71,21 @@ export function App() {
   const [currentView, setCurrentView] = useState<string>('leads');
   const [reportsSubTab, setReportsSubTab] = useState<ReportsSubTab>('call_logs');
   const [automationsSubTab, setAutomationsSubTab] = useState<AutomationsSubTab>('workflows');
+  const [settingsSubTab, setSettingsSubTab] = useState<SettingsTab>('general');
   const [activeAgentId, setActiveAgentId] = useState<string>('agent-ms');
   const [selectedCampaignHandle, setSelectedCampaignHandle] = useState<string>('@master-form-iata-cargo');
   const [activeFilterId, setActiveFilterId] = useState<string>('all_leads');
 
-  // Global filters exactly matching the user's screenshot
+  // Global filters synchronized with database query logic
   const globalSavedFilters = [
-    { id: 'active_leads', name: 'All Active Leads', iconType: 'arrow' },
     { id: 'all_leads', name: 'All Leads', iconType: 'arrow' },
+    { id: 'active_leads', name: 'All Active Leads', iconType: 'arrow' },
     { id: 'assigned_to_me', name: 'Leads Assigned To Me', iconType: 'arrow' },
     { id: 'my_leads', name: 'My Leads', iconType: 'arrow' },
-    { id: 'all_leads_copy_1', name: 'All Leads copy', iconType: 'filter' },
+    { id: 'fresh_leads', name: 'Fresh / New Leads', iconType: 'filter' },
+    { id: 'followup_leads', name: 'Follow-Up Queue', iconType: 'filter' },
+    { id: 'hot_leads', name: 'Hot Priority Leads', iconType: 'filter' },
     { id: 'incoming_whatsapp', name: 'All Incoming Whatsapp Leads', iconType: 'arrow' },
-    { id: 'all_leads_copy_2', name: 'All Leads Copy', iconType: 'filter' },
-    { id: 'all_leads_copy_3', name: 'All Leads Copy', iconType: 'filter' },
-    { id: 'all_leads_copy_4', name: 'All Leads Copy', iconType: 'filter' },
   ];
 
   // Core CRM Collections State synchronized with Firebase
@@ -82,6 +99,9 @@ export function App() {
   const [campaigns, setCampaigns] = useSyncState<WhatsAppCampaign>('campaigns');
   const [workflows, setWorkflows] = useSyncState<WorkflowRule>('workflows');
   const [customFields, setCustomFields] = useSyncState<CustomFieldDef>('customFields');
+  const [permissionTemplates, setPermissionTemplates] = useSyncState<PermissionTemplate>('permissionTemplates');
+
+  const activeTemplates = permissionTemplates.length > 0 ? permissionTemplates : INITIAL_PERMISSION_TEMPLATES;
 
   useEffect(() => {
     seedDatabase();
@@ -103,8 +123,27 @@ export function App() {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // Active Agent details
+  // Active Agent details & permissions
   const activeAgent = agents.find((a) => a.id === activeAgentId) || agents[0] || INITIAL_AGENTS[0];
+  const activeAgentRights = getAgentPermissionRights(activeAgent, activeTemplates);
+
+  const renderAccessRestricted = (viewTitle: string) => (
+    <div className="p-8 max-w-xl mx-auto my-12 bg-white rounded-2xl border border-slate-200 shadow-xl text-center space-y-4 font-sans animate-in fade-in">
+      <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-2xs">
+        <ShieldCheck className="w-8 h-8" />
+      </div>
+      <div className="space-y-1">
+        <h2 className="text-base font-bold text-slate-900">Access Restricted by Permission Template</h2>
+        <p className="text-xs text-slate-500">
+          Your assigned role permission template restricts access to <span className="font-bold text-slate-800">{viewTitle}</span>.
+        </p>
+      </div>
+      <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-[11px] text-slate-500 text-left space-y-1">
+        <p><strong className="text-slate-700">Active Representative:</strong> {activeAgent?.name || 'Telecaller'} ({activeAgent?.role || 'Caller'})</p>
+        <p><strong className="text-slate-700">Required Security Right:</strong> Enable in Workspace Settings → Permission Templates</p>
+      </div>
+    </div>
+  );
 
   // 1. Handlers for Leads
   const handleAddNewLead = () => {
@@ -234,6 +273,12 @@ export function App() {
     setLeads((prev) => prev.filter((l) => l.id !== leadId));
     if (detailLead?.id === leadId) setDetailLead(null);
     showToast('Lead deleted successfully');
+  };
+
+  const handleClearAllLeads = () => {
+    setLeads([]);
+    clearAllLeadsFromFirestore();
+    showToast('All mock leads cleared! CRM is now clean and ready for real Meta Leads.');
   };
 
   const handleSaveCallLog = (log: Partial<CallRecord>, followUpAt?: string) => {
@@ -427,7 +472,12 @@ export function App() {
         pendingFollowUpsCount={leads.filter((l) => l.followUpAt || l.status === 'Follow Up').length}
         onNavigateToFollowUps={() => setCurrentView('followups')}
         onNavigateToSettings={() => setCurrentView('settings')}
-        onNavigateToTab={(tab) => setCurrentView(tab)}
+        onNavigateToTab={(tab, subTab) => {
+          setCurrentView(tab);
+          if (tab === 'settings' && subTab) {
+            setSettingsSubTab(subTab as any);
+          }
+        }}
         currentView={currentView}
         onShowToast={(msg) => showToast(msg)}
       />
@@ -445,7 +495,7 @@ export function App() {
             }
           }} 
           unassignedLeadsCount={leads.filter((l) => !l.ownerAgentId).length}
-          pendingFollowUpsCount={leads.filter((l) => l.followUpAt || l.status === 'Follow Up').length}
+          missedCallsCount={callRecords.filter((c) => c.type === 'missed').length}
           globalSavedFilters={globalSavedFilters}
           activeFilterId={activeFilterId}
           setActiveFilterId={setActiveFilterId}
@@ -489,16 +539,18 @@ export function App() {
           )}
 
           {currentView === 'dashboard' && (
-            <DashboardView
-              leads={leads}
-              agents={agents}
-              stages={stages}
-              hourlyMetrics={HOURLY_METRICS}
-              activeAgent={activeAgent}
-              onOpenLeadDetail={(lead) => setDetailLead(lead)}
-              onNavigateToTab={(tab) => setCurrentView(tab)}
-              onDeleteLead={handleDeleteLead}
-            />
+            activeAgentRights.dashboardView ? (
+              <DashboardView
+                leads={leads}
+                agents={agents}
+                stages={stages}
+                hourlyMetrics={HOURLY_METRICS}
+                activeAgent={activeAgent}
+                onOpenLeadDetail={(lead) => setDetailLead(lead)}
+                onNavigateToTab={(tab) => setCurrentView(tab)}
+                onDeleteLead={handleDeleteLead}
+              />
+            ) : renderAccessRestricted('Executive Dashboard')
           )}
 
           {currentView === 'pipeline' && (
@@ -532,6 +584,7 @@ export function App() {
               onAddCustomField={handleAddCustomField}
               onPushTestLead={handlePushTestLead}
               onDeleteLead={handleDeleteLead}
+              onClearAllLeads={handleClearAllLeads}
               onUpdateLead={handlePartialUpdateLead}
               onOpenGoogleSheets={() => setIsGoogleSheetsModalOpen(true)}
               globalSavedFilters={globalSavedFilters}
@@ -572,23 +625,27 @@ export function App() {
           )}
 
           {currentView === 'whatsapp' && (
-            <WhatsAppCrmView
-              templates={templates}
-              campaigns={campaigns}
-              leads={leads}
-              onAddTemplate={(tmpl) => setTemplates((prev) => [tmpl, ...prev])}
-              onCreateCampaign={(camp) => setCampaigns((prev) => [camp, ...prev])}
-            />
+            activeAgentRights.whatsappTemplates ? (
+              <WhatsAppCrmView
+                templates={templates}
+                campaigns={campaigns}
+                leads={leads}
+                onAddTemplate={(tmpl) => setTemplates((prev) => [tmpl, ...prev])}
+                onCreateCampaign={(camp) => setCampaigns((prev) => [camp, ...prev])}
+              />
+            ) : renderAccessRestricted('WhatsApp CRM & Messaging Templates')
           )}
 
           {currentView === 'workflows' && (
-            <WorkflowsView
-              workflows={workflows}
-              initialSubTab={automationsSubTab}
-              onToggleWorkflow={(id) => setWorkflows((prev) => prev.map((w) => w.id === id ? { ...w, isActive: !w.isActive } : w))}
-              onAddWorkflow={(wf) => setWorkflows((prev) => [wf, ...prev])}
-              onShowToast={(msg) => showToast(msg)}
-            />
+            activeAgentRights.automations ? (
+              <WorkflowsView
+                workflows={workflows}
+                initialSubTab={automationsSubTab}
+                onToggleWorkflow={(id) => setWorkflows((prev) => prev.map((w) => w.id === id ? { ...w, isActive: !w.isActive } : w))}
+                onAddWorkflow={(wf) => setWorkflows((prev) => [wf, ...prev])}
+                onShowToast={(msg) => showToast(msg)}
+              />
+            ) : renderAccessRestricted('AI Automations & Workflows')
           )}
 
           {currentView === 'calling_logs' && (
@@ -596,15 +653,17 @@ export function App() {
           )}
 
           {currentView === 'reports' && (
-            <ReportsView
-              initialSubTab={reportsSubTab}
-              callRecords={callRecords}
-              agents={agents}
-              leads={leads}
-              activities={activities}
-              onOpenLeadDetail={(lead) => setDetailLead(lead)}
-              onUpdateCallRecord={handleUpdateCallRecord}
-            />
+            activeAgentRights.reports ? (
+              <ReportsView
+                initialSubTab={reportsSubTab}
+                callRecords={callRecords}
+                agents={agents}
+                leads={leads}
+                activities={activities}
+                onOpenLeadDetail={(lead) => setDetailLead(lead)}
+                onUpdateCallRecord={handleUpdateCallRecord}
+              />
+            ) : renderAccessRestricted('Performance Reports & Analytics')
           )}
 
           {currentView === 'analytics' && (
@@ -622,13 +681,31 @@ export function App() {
             <MarketingView onSimulateWebhookLead={(src) => handlePushTestLead(src)} />
           )}
 
-          {currentView === 'integrations' && (
-            <IntegrationsView 
-              onNavigateToCampaign={(handle) => {
-                setSelectedCampaignHandle(handle);
-                setCurrentView('campaigns');
+          {currentView === 'campaigns' && (
+            <CampaignsView
+              leads={leads}
+              agents={agents}
+              initialCampaignHandle={selectedCampaignHandle}
+              onOpenLeadDetail={(lead) => setDetailLead(lead)}
+              onUpdateLead={handlePartialUpdateLead}
+              onNavigateToTab={(tab, subTab) => {
+                setCurrentView(tab);
+                if (tab === 'settings' && subTab) {
+                  setSettingsSubTab(subTab as any);
+                }
               }}
             />
+          )}
+
+          {currentView === 'integrations' && (
+            activeAgentRights.integrations ? (
+              <IntegrationsView 
+                onNavigateToCampaign={(handle) => {
+                  setSelectedCampaignHandle(handle);
+                  setCurrentView('campaigns');
+                }}
+              />
+            ) : renderAccessRestricted('Integrations & Webhooks')
           )}
 
           {currentView === 'docs_sign' && (
@@ -660,6 +737,12 @@ export function App() {
               onUpdateFields={(updatedFields) => {
                 setCustomFields(updatedFields);
               }}
+              permissionTemplates={activeTemplates}
+              onUpdatePermissionTemplates={(updatedTemplates) => {
+                setPermissionTemplates(updatedTemplates);
+                showToast('Permission templates updated successfully!');
+              }}
+              initialTab={settingsSubTab}
               onShowToast={(msg) => showToast(msg)} 
             />
           )}
@@ -770,6 +853,8 @@ export function App() {
         onSelectAgent={(agentId) => setActiveAgentId(agentId)}
         onOpenAddLeadModal={handleAddNewLead}
         onOpenGoogleSheets={() => setIsGoogleSheetsModalOpen(true)}
+        onOpenPowerDialer={() => setIsPowerDialerQueueOpen(true)}
+        onOpenAiCopilot={() => setIsAiCopilotOpen(true)}
       />
     </div>
     </StagesContext.Provider>

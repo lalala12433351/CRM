@@ -34,7 +34,10 @@ import {
   ArrowUpRight, 
   Filter,
   Sparkles,
-  AtSign
+  AtSign,
+  Mail,
+  FileText,
+  Phone
 } from 'lucide-react';
 import { 
   Lead, 
@@ -66,6 +69,7 @@ interface LeadsViewProps {
   onAddCustomField: (field: CustomFieldDef) => void;
   onPushTestLead: () => void;
   onDeleteLead?: (leadId: string) => void;
+  onClearAllLeads?: () => void;
   onUpdateLead?: (leadId: string, updates: Partial<Lead>) => void;
   onOpenGoogleSheets?: () => void;
   globalSavedFilters?: { id: string; name: string; iconType: string }[];
@@ -96,6 +100,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
   onAddCustomField,
   onPushTestLead,
   onDeleteLead,
+  onClearAllLeads,
   onUpdateLead,
   onOpenGoogleSheets,
   globalSavedFilters = [],
@@ -120,8 +125,8 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
   const [isFiltersDropdownOpen, setIsFiltersDropdownOpen] = useState(false);
   const currentViewTitle = globalSavedFilters.find(f => f.id === activeFilterId)?.name || 'All Leads';
 
-  // Search & Filter fields
-  const [searchField, setSearchField] = useState<'name' | 'phone' | 'email' | 'company' | 'all'>('name');
+  // Search & Filter fields (auto | phone | name | email | text | all)
+  const [searchField, setSearchField] = useState<'auto' | 'phone' | 'name' | 'email' | 'text' | 'all'>('auto');
   const [isSearchFieldOpen, setIsSearchFieldOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -254,46 +259,91 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
   // Filtered & Sorted Leads
   const filteredAndSortedLeads = useMemo(() => {
     let result = leads.filter((lead) => {
-      // 1. Text Search Filter based on selected searchField
+      // 1. Text Search Filter based on selected searchField (auto | phone | name | email | text | all)
       const term = searchTerm.toLowerCase().trim();
       if (term) {
-        if (searchField === 'name') {
+        if (searchField === 'phone') {
+          const matchPhone = (lead.phone && lead.phone.includes(term)) || (lead.altPhone && lead.altPhone.includes(term));
+          if (!matchPhone) return false;
+        } else if (searchField === 'name') {
           if (!lead.name?.toLowerCase().includes(term)) return false;
-        } else if (searchField === 'phone') {
-          if (!lead.phone?.includes(term)) return false;
         } else if (searchField === 'email') {
           if (!lead.email?.toLowerCase().includes(term)) return false;
-        } else if (searchField === 'company') {
-          if (!lead.company?.toLowerCase().includes(term)) return false;
+        } else if (searchField === 'text') {
+          const matchNotes = lead.notes?.toLowerCase().includes(term);
+          const matchCompany = lead.company?.toLowerCase().includes(term);
+          const matchCity = lead.city?.toLowerCase().includes(term);
+          const matchAddress = lead.address?.toLowerCase().includes(term);
+          const matchSource = lead.source?.toLowerCase().includes(term);
+          const matchCustom = lead.customFields && Object.values(lead.customFields).some(val => String(val).toLowerCase().includes(term));
+          if (!matchNotes && !matchCompany && !matchCity && !matchAddress && !matchSource && !matchCustom) return false;
+        } else if (searchField === 'auto') {
+          // Auto Smart Mode: Digits -> Phone, @ -> Email, Else -> Name / Notes / Company / All
+          const isNumeric = /^[0-9+\-\s()]+$/.test(term) && term.length >= 3;
+          const isEmailQuery = term.includes('@');
+
+          if (isNumeric) {
+            const matchPhone = (lead.phone && lead.phone.includes(term)) || (lead.altPhone && lead.altPhone.includes(term));
+            if (!matchPhone) return false;
+          } else if (isEmailQuery) {
+            if (!lead.email?.toLowerCase().includes(term)) return false;
+          } else {
+            const matchesText = 
+              (lead.name && lead.name.toLowerCase().includes(term)) ||
+              (lead.company && lead.company.toLowerCase().includes(term)) ||
+              (lead.notes && lead.notes.toLowerCase().includes(term)) ||
+              (lead.source && lead.source.toLowerCase().includes(term)) ||
+              (lead.ownerAgentName && lead.ownerAgentName.toLowerCase().includes(term));
+            if (!matchesText) return false;
+          }
         } else {
+          // All Fields Mode
           const matchesAny = 
             (lead.name && lead.name.toLowerCase().includes(term)) ||
             (lead.phone && lead.phone.includes(term)) ||
+            (lead.altPhone && lead.altPhone.includes(term)) ||
             (lead.email && lead.email.toLowerCase().includes(term)) ||
             (lead.company && lead.company.toLowerCase().includes(term)) ||
+            (lead.notes && lead.notes.toLowerCase().includes(term)) ||
             (lead.source && lead.source.toLowerCase().includes(term)) ||
             (lead.ownerAgentName && lead.ownerAgentName.toLowerCase().includes(term));
           if (!matchesAny) return false;
         }
       }
 
-      // 2. Active View Filter
+      // 2. Active View Filter (Database attribute-driven evaluation)
       if (activeFilterId === 'assigned_to_me' || activeFilterId === 'my_leads') {
-        if (activeAgent && lead.ownerAgentId !== activeAgent.id) return false;
+        if (activeAgent) {
+          const isMine = lead.ownerAgentId === activeAgent.id || 
+                         (lead.ownerAgentName && activeAgent.name && lead.ownerAgentName.toLowerCase() === activeAgent.name.toLowerCase());
+          if (!isMine) return false;
+        }
       } else if (activeFilterId === 'fresh_leads') {
         if (lead.status !== 'Fresh' && lead.status !== 'New Lead') return false;
       } else if (activeFilterId === 'followup_leads') {
-        if (lead.status !== 'Follow Up') return false;
+        if (lead.status !== 'Follow Up' && !lead.followUpAt) return false;
       } else if (activeFilterId === 'hot_leads') {
-        if (lead.aiRating !== 'Hot' && (lead.aiScore || 0) < 80) return false;
+        if (lead.aiRating !== 'Hot' && (lead.aiScore || 0) < 80 && lead.rating !== 5) return false;
       } else if (activeFilterId === 'meta_leads') {
         if (!lead.source?.toLowerCase().includes('meta') && !lead.source?.toLowerCase().includes('facebook')) return false;
       } else if (activeFilterId === 'website_leads') {
         if (!lead.source?.toLowerCase().includes('website')) return false;
       } else if (activeFilterId === 'active_leads') {
-        if (lead.status === 'Lost' || lead.status === 'Converted') return false;
+        // Active lead in database: status is not Lost, not Converted, or is an active stage
+        const isClosed = lead.status === 'Lost' || lead.status === 'Converted';
+        if (isClosed) return false;
       } else if (activeFilterId === 'incoming_whatsapp') {
-        if (!lead.source?.toLowerCase().includes('whatsapp')) return false;
+        if (!lead.source?.toLowerCase().includes('whatsapp') && !lead.phone) return false;
+      } else if (activeFilterId !== 'all_leads') {
+        // Dynamic Stage Filter: Check if activeFilterId corresponds to a stage name or stage ID in DB
+        const matchedStage = stages.find(
+          s => s.id === activeFilterId || 
+          s.name.toLowerCase() === activeFilterId.toLowerCase() ||
+          s.name.toLowerCase().replace(/\s+/g, '_') === activeFilterId.toLowerCase()
+        );
+        if (matchedStage) {
+          if (lead.status !== matchedStage.name && lead.pipelineStageId !== matchedStage.id) return false;
+        }
       }
 
       // 3. Assignee Filter
@@ -686,36 +736,46 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
               <div className="relative shrink-0 pr-2 border-r border-slate-200" ref={searchDropdownRef}>
                 <button
                   onClick={() => setIsSearchFieldOpen(!isSearchFieldOpen)}
-                  className="flex items-center space-x-1.5 text-xs text-slate-700 font-medium hover:text-indigo-600 cursor-pointer"
+                  className="flex items-center space-x-1.5 text-xs text-slate-700 font-semibold hover:text-indigo-600 cursor-pointer"
                 >
-                  <Search className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="capitalize">{searchField === 'all' ? 'All Fields' : searchField}</span>
+                  <Search className="w-3.5 h-3.5 text-indigo-600" />
+                  <span className="capitalize">{searchField === 'auto' ? 'Auto (Smart)' : searchField}</span>
                   <ChevronDown className="w-3 h-3 text-slate-400" />
                 </button>
 
                 {isSearchFieldOpen && (
-                  <div className="absolute left-0 top-full mt-2 w-36 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-1 space-y-0.5 text-xs">
+                  <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-1 space-y-0.5 text-xs font-sans">
+                    <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
+                      Search By Mode
+                    </div>
                     {[
-                      { id: 'name', label: 'Name' },
-                      { id: 'phone', label: 'Phone' },
-                      { id: 'email', label: 'Email' },
-                      { id: 'company', label: 'Company' },
-                      { id: 'all', label: 'All Fields' },
-                    ].map((opt) => (
-                      <button
-                        key={opt.id}
-                        onClick={() => {
-                          setSearchField(opt.id as any);
-                          setIsSearchFieldOpen(false);
-                        }}
-                        className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between cursor-pointer ${
-                          searchField === opt.id ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        <span>{opt.label}</span>
-                        {searchField === opt.id && <Check className="w-3 h-3 text-indigo-600" />}
-                      </button>
-                    ))}
+                      { id: 'auto', label: 'Auto (Smart Detect)', icon: Sparkles },
+                      { id: 'phone', label: 'Phone Number', icon: Phone },
+                      { id: 'name', label: 'Lead Name', icon: User },
+                      { id: 'email', label: 'Email Address', icon: Mail },
+                      { id: 'text', label: 'Text & Notes', icon: FileText },
+                      { id: 'all', label: 'All Fields', icon: Layers },
+                    ].map((opt) => {
+                      const Icon = opt.icon;
+                      return (
+                        <button
+                          key={opt.id}
+                          onClick={() => {
+                            setSearchField(opt.id as any);
+                            setIsSearchFieldOpen(false);
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
+                            searchField === opt.id ? 'bg-indigo-50 text-indigo-900 font-bold' : 'text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <Icon className={`w-3.5 h-3.5 ${searchField === opt.id ? 'text-indigo-600' : 'text-slate-400'}`} />
+                            <span>{opt.label}</span>
+                          </div>
+                          {searchField === opt.id && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -1353,6 +1413,21 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                           </button>
                         )}
 
+                        {onClearAllLeads && (
+                          <button
+                            onClick={() => {
+                              if (window.confirm("Are you sure you want to clear all mock / sample leads? This will empty your CRM dataset to receive live Meta Leads.")) {
+                                onClearAllLeads();
+                              }
+                              setShowMoreMenu(false);
+                            }}
+                            className="w-full px-2.5 py-1.5 text-left font-medium text-rose-600 hover:bg-rose-50 rounded-lg flex items-center space-x-2 cursor-pointer border-t border-slate-100 mt-1"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                            <span>Purge All Mock Leads</span>
+                          </button>
+                        )}
+
                         <button
                           onClick={() => {
                             window.print();
@@ -1697,7 +1772,6 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
               <button
                 onClick={() => {
                   if (newViewName.trim()) {
-                    setCurrentViewTitle(newViewName.trim());
                     setShowNewViewModal(false);
                     setNewViewName('');
                   }

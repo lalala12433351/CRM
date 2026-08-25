@@ -350,6 +350,7 @@ export interface Agent {
   revenueGenerated: number;
   responseTimeMinutes: number;
   currentActiveCallLeadId?: string;
+  permissionTemplateId?: string;
 }
 
 export interface Lead {
@@ -507,4 +508,47 @@ export interface SavedViewDef {
   conditions: FilterCondition[];
   sort: SortConfig;
   isPreset?: boolean;
+}
+
+export interface PermissionRights {
+  // Access Rights
+  leads: boolean;
+  salesform: boolean;
+  team: boolean;
+  permissions: boolean;
+  calling: boolean;
+  reports: boolean;
+  automations: boolean;
+  tasks: boolean;
+  billings: boolean;
+  integrations: boolean;
+  aiAgents: boolean;
+
+  // View Rights
+  leadView: boolean;
+  dashboardView: boolean;
+  leadsTableView: boolean;
+
+  // Templates Rights
+  whatsappTemplates: boolean;
+  smsTemplates: boolean;
+  emailTemplates: boolean;
+
+  // Embedded Apps
+  embeddedApps: boolean;
+}
+
+export interface PermissionTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  isDefault?: boolean;
+  isRoot?: boolean;
+  assignedCount: number;
+  assignedAgents: string[]; // Agent IDs
+  lastModifiedOn: string;
+  lastModifiedBy?: string;
+  createdOn?: string;
+  createdBy?: string;
+  rights: PermissionRights;
 }

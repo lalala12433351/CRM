@@ -33,9 +33,10 @@ import {
   UserCheck,
   SlidersHorizontal
 } from 'lucide-react';
-import { PipelineStage, Agent, CustomFieldDef } from '../types';
-import { INITIAL_STAGES, INITIAL_AGENTS, INITIAL_CUSTOM_FIELDS } from '../data/mockData';
+import { PipelineStage, Agent, CustomFieldDef, PermissionTemplate } from '../types';
+import { INITIAL_STAGES, INITIAL_AGENTS, INITIAL_CUSTOM_FIELDS, INITIAL_PERMISSION_TEMPLATES } from '../data/mockData';
 import { FieldsSettingsView } from './FieldsSettingsView';
+import { PermissionsSettingsView } from './PermissionsSettingsView';
 
 interface SettingsViewProps {
   onShowToast?: (message: string) => void;
@@ -45,11 +46,14 @@ interface SettingsViewProps {
   onUpdateAgents?: (agents: Agent[]) => void;
   customFields?: CustomFieldDef[];
   onUpdateFields?: (fields: CustomFieldDef[]) => void;
+  permissionTemplates?: PermissionTemplate[];
+  onUpdatePermissionTemplates?: (templates: PermissionTemplate[]) => void;
   initialTab?: SettingsTab;
 }
 
 export type SettingsTab = 
   | 'fields'
+  | 'permissions'
   | 'general' 
   | 'pipeline'
   | 'billing'
@@ -133,16 +137,38 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onUpdateAgents,
   customFields,
   onUpdateFields,
+  permissionTemplates,
+  onUpdatePermissionTemplates,
   initialTab = 'general'
 }) => {
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const [localCustomFields, setLocalCustomFields] = useState<CustomFieldDef[]>(customFields || INITIAL_CUSTOM_FIELDS);
+  const [localTemplates, setLocalTemplates] = useState<PermissionTemplate[]>(permissionTemplates || INITIAL_PERMISSION_TEMPLATES);
+
+  React.useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   React.useEffect(() => {
     if (customFields) {
       setLocalCustomFields(customFields);
     }
   }, [customFields]);
+
+  React.useEffect(() => {
+    if (permissionTemplates) {
+      setLocalTemplates(permissionTemplates);
+    }
+  }, [permissionTemplates]);
+
+  const handleTemplatesChange = (updated: PermissionTemplate[]) => {
+    setLocalTemplates(updated);
+    if (onUpdatePermissionTemplates) {
+      onUpdatePermissionTemplates(updated);
+    }
+  };
 
   const handleCustomFieldsChange = (updated: CustomFieldDef[]) => {
     setLocalCustomFields(updated);
@@ -161,12 +187,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [newAssigneePhone, setNewAssigneePhone] = useState('');
   const [newAssigneeRole, setNewAssigneeRole] = useState<'Telecaller' | 'Sales Manager' | 'Admin'>('Telecaller');
   const [newAssigneeStatus, setNewAssigneeStatus] = useState<'online' | 'offline'>('online');
+  const [newAssigneeAvatar, setNewAssigneeAvatar] = useState('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80');
 
   React.useEffect(() => {
     if (agents) {
       setLocalAgents(agents);
     }
   }, [agents]);
+
+  const handleAvatarFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (reader.result) {
+          setNewAssigneeAvatar(reader.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleAddAssignee = (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,7 +230,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       phone: newAssigneePhone.trim() || '+91 98765 00000',
       role: newAssigneeRole,
       status: newAssigneeStatus,
-      avatar: sampleAvatars[Math.floor(Math.random() * sampleAvatars.length)],
+      avatar: newAssigneeAvatar || sampleAvatars[0],
       totalCallsToday: 0,
       talkTimeMinutes: 0,
       convertedLeadsCount: 0,
@@ -208,6 +248,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setNewAssigneePhone('');
     setNewAssigneeRole('Telecaller');
     setNewAssigneeStatus('online');
+    setNewAssigneeAvatar('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80');
     setShowAddAssigneeModal(false);
   };
 
@@ -597,6 +638,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </button>
 
           <button
+            onClick={() => setActiveTab('permissions')}
+            className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              activeTab === 'permissions'
+                ? 'bg-indigo-600 text-white shadow-2xs'
+                : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4 shrink-0" />
+            <span className="flex-1 text-left">Permission Templates</span>
+            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
+              {localTemplates.length}
+            </span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('general')}
             className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               activeTab === 'general'
@@ -707,6 +763,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <FieldsSettingsView
               customFields={localCustomFields}
               onUpdateFields={handleCustomFieldsChange}
+              onShowToast={onShowToast}
+            />
+          )}
+
+          {/* TAB: PERMISSION TEMPLATES */}
+          {activeTab === 'permissions' && (
+            <PermissionsSettingsView
+              permissionTemplates={localTemplates}
+              onUpdateTemplates={handleTemplatesChange}
+              agents={localAgents}
+              onUpdateAgents={(updatedAgents) => {
+                setLocalAgents(updatedAgents);
+                if (onUpdateAgents) onUpdateAgents(updatedAgents);
+              }}
               onShowToast={onShowToast}
             />
           )}
@@ -2251,6 +2321,63 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
 
             <form onSubmit={handleAddAssignee} className="space-y-2.5 text-[10px]">
+              {/* Assignee Profile Picture Slot */}
+              <div className="space-y-1 bg-slate-50 border border-slate-200 p-2.5 rounded-xl">
+                <label className="font-semibold text-slate-700 block">Assignee Profile Picture *</label>
+                <div className="flex items-center space-x-3 pt-0.5">
+                  <img
+                    src={newAssigneeAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+                    alt="Preview"
+                    className="w-11 h-11 rounded-full object-cover border-2 border-indigo-500 shadow-2xs shrink-0 bg-slate-100"
+                  />
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <label className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] cursor-pointer inline-flex items-center space-x-1 shadow-2xs transition-all">
+                        <span>Upload Photo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAvatarFileUpload}
+                          className="hidden"
+                        />
+                      </label>
+                      <span className="text-[9px] text-slate-400">or paste link below</span>
+                    </div>
+
+                    <input
+                      type="url"
+                      placeholder="https://images.unsplash.com/photo-..."
+                      value={newAssigneeAvatar}
+                      onChange={(e) => setNewAssigneeAvatar(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 font-mono text-slate-900 focus:outline-none focus:border-indigo-600 text-[10px]"
+                    />
+                  </div>
+                </div>
+
+                {/* Preset Avatars Bar */}
+                <div className="flex items-center space-x-1.5 pt-1 overflow-x-auto">
+                  <span className="text-[9px] font-semibold text-slate-400 shrink-0">Presets:</span>
+                  {[
+                    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+                    'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+                    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+                    'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
+                    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80'
+                  ].map((presetUrl, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setNewAssigneeAvatar(presetUrl)}
+                      className={`w-5 h-5 rounded-full overflow-hidden border shrink-0 transition-transform cursor-pointer ${
+                        newAssigneeAvatar === presetUrl ? 'ring-2 ring-indigo-600 scale-110 border-indigo-600' : 'border-slate-300 opacity-70 hover:opacity-100'
+                      }`}
+                    >
+                      <img src={presetUrl} alt="Preset" className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="space-y-0.5">
                 <label className="font-semibold text-slate-700">Full Name *</label>
                 <input

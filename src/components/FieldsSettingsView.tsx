@@ -349,7 +349,7 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
             className="px-4 py-2 rounded-xl bg-[#5034a8] hover:bg-[#432993] active:scale-[0.98] text-white text-xs md:text-sm font-bold transition-all cursor-pointer flex items-center space-x-2 shadow-sm shadow-indigo-900/15"
           >
             <Plus className="w-4 h-4 text-white" />
-            <span>+ Add a new Field</span>
+            <span>Add a new Field</span>
           </button>
         </div>
       </div>

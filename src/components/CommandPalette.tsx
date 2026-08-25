@@ -47,6 +47,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   onOpenGoogleSheets,
 }) => {
   const [query, setQuery] = useState('');
+  const [searchMode, setSearchMode] = useState<'auto' | 'phone' | 'name' | 'email' | 'text'>('auto');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -73,14 +74,22 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     { id: 'nav-settings', type: 'nav', title: 'CRM Workspace Settings', subtitle: 'Custom fields, permissions, API keys, and accounts', icon: Settings, action: () => onNavigate('settings') },
   ];
 
-  // Filter leads based on query
+  // Filter leads based on query & search mode (phone, name, email, text, auto)
   const filteredLeads = query.trim()
-    ? leads.filter(l => 
-        l.name.toLowerCase().includes(query.toLowerCase()) ||
-        l.phone.includes(query) ||
-        (l.company && l.company.toLowerCase().includes(query.toLowerCase())) ||
-        (l.email && l.email.toLowerCase().includes(query.toLowerCase()))
-      ).slice(0, 5)
+    ? leads.filter(l => {
+        const q = query.toLowerCase().trim();
+        if (searchMode === 'phone') return l.phone?.includes(q) || l.altPhone?.includes(q);
+        if (searchMode === 'name') return l.name?.toLowerCase().includes(q);
+        if (searchMode === 'email') return l.email?.toLowerCase().includes(q);
+        if (searchMode === 'text') return l.notes?.toLowerCase().includes(q) || l.company?.toLowerCase().includes(q) || l.city?.toLowerCase().includes(q);
+        // Auto mode
+        return (
+          l.name.toLowerCase().includes(q) ||
+          l.phone.includes(q) ||
+          (l.company && l.company.toLowerCase().includes(q)) ||
+          (l.email && l.email.toLowerCase().includes(q))
+        );
+      }).slice(0, 5)
     : [];
 
   const filteredNav = query.trim()
@@ -155,6 +164,30 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             </button>
           )}
           <span className="text-[10px] font-semibold text-slate-400 bg-slate-200/70 px-2 py-0.5 rounded">ESC</span>
+        </div>
+
+        {/* Search Mode Options Bar */}
+        <div className="flex items-center space-x-1.5 px-4 py-2 bg-slate-50 border-b border-slate-100 text-[11px] overflow-x-auto">
+          <span className="text-slate-500 font-semibold text-[10px] uppercase tracking-wider shrink-0 mr-0.5">Search By:</span>
+          {[
+            { id: 'auto', label: 'Auto (Smart)' },
+            { id: 'phone', label: 'Phone' },
+            { id: 'name', label: 'Name' },
+            { id: 'email', label: 'Email' },
+            { id: 'text', label: 'Text & Notes' },
+          ].map((m) => (
+            <button
+              key={m.id}
+              onClick={() => setSearchMode(m.id as any)}
+              className={`px-2.5 py-0.5 rounded-lg text-[11px] font-medium transition-all cursor-pointer shrink-0 ${
+                searchMode === m.id
+                  ? 'bg-indigo-600 text-white font-bold shadow-2xs'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
         </div>
 
         {/* Results List */}

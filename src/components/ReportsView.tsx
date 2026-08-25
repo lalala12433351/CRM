@@ -48,6 +48,13 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<ReportsSubTab>(initialSubTab);
 
+  // Synchronize activeSubTab whenever initialSubTab prop changes
+  React.useEffect(() => {
+    if (initialSubTab) {
+      setActiveSubTab(initialSubTab);
+    }
+  }, [initialSubTab]);
+
   // Global / Shared Date Range Filter State across all components
   type DatePreset = 'ALL' | 'TODAY' | 'YESTERDAY' | 'LAST_7' | 'LAST_30' | 'CUSTOM';
   const [datePreset, setDatePreset] = useState<DatePreset>('ALL');
@@ -66,7 +73,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const [leaderboardSortBy, setLeaderboardSortBy] = useState<LeaderboardSortOption>('deals_desc');
 
   // Individual Telecaller Report State
-  const [selectedAgentId, setSelectedAgentId] = useState<string>(agents[0]?.id || 'agent-1');
+  const [selectedAgentId, setSelectedAgentId] = useState<string>(agents[0]?.id || 'agent-ms');
   const [userReportCallSort, setUserReportCallSort] = useState<'newest' | 'oldest' | 'duration_desc' | 'duration_asc'>('newest');
 
   // Inline Call Remarks Edit State
@@ -112,11 +119,14 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     }
   };
 
-  // Helper function to check if a ISO/date string falls within fromDate & toDate
+  // Safe helper function to check if a timestamp falls within fromDate & toDate
   const isDateInRange = (timestampStr: string) => {
     if (!fromDate && !toDate) return true;
+    if (!timestampStr) return true;
     try {
-      const itemDate = new Date(timestampStr).toISOString().slice(0, 10);
+      const parsedDate = new Date(timestampStr);
+      if (isNaN(parsedDate.getTime())) return true;
+      const itemDate = parsedDate.toISOString().slice(0, 10);
       if (fromDate && itemDate < fromDate) return false;
       if (toDate && itemDate > toDate) return false;
       return true;
@@ -141,7 +151,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         call.notes.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesDisposition = dispositionFilter === 'ALL' || call.disposition === dispositionFilter;
-      const matchesAgent = agentFilter === 'ALL' || call.agentId === agentFilter;
+      const matchesAgent = agentFilter === 'ALL' || call.agentId === agentFilter || call.agentName.toLowerCase() === agents.find(a => a.id === agentFilter)?.name.toLowerCase();
       const matchesType = callTypeFilter === 'ALL' || call.type === callTypeFilter;
 
       return matchesSearch && matchesDisposition && matchesAgent && matchesType;
@@ -207,8 +217,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
   // Calculations for Leaderboard
   const rankedAgents = [...agents].map((agent) => {
-    const agentCalls = dateFilteredCalls.filter(c => c.agentId === agent.id);
-    const agentLeads = dateFilteredLeads.filter(l => l.ownerAgentId === agent.id);
+    const agentCalls = dateFilteredCalls.filter(c => c.agentId === agent.id || c.agentName.toLowerCase() === agent.name.toLowerCase());
+    const agentLeads = dateFilteredLeads.filter(l => l.ownerAgentId === agent.id || l.ownerAgentName?.toLowerCase() === agent.name.toLowerCase());
     
     const hasActiveDateFilter = Boolean(fromDate || toDate);
 
@@ -254,7 +264,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   // Individual Agent Selection & Calls
   const currentAgentReport = rankedAgents.find(a => a.id === selectedAgentId) || rankedAgents[0];
   const selectedAgentCalls = dateFilteredCalls
-    .filter(c => c.agentId === currentAgentReport?.id)
+    .filter(c => c.agentId === currentAgentReport?.id || c.agentName.toLowerCase() === currentAgentReport?.name.toLowerCase())
     .sort((a, b) => {
       if (userReportCallSort === 'newest') return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
       if (userReportCallSort === 'oldest') return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
@@ -285,21 +295,32 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     a.click();
   };
 
-  // Sample hourly chart data for Call Log Report
+  // Dynamic hourly call volume chart data computed from dateFilteredCalls
   const hourlyData = [
-    { hour: '12 AM', calls: 0 },
-    { hour: '02 AM', calls: 0 },
-    { hour: '04 AM', calls: 0 },
-    { hour: '06 AM', calls: 0 },
-    { hour: '08 AM', calls: 3 },
-    { hour: '10 AM', calls: 32 },
-    { hour: '12 PM', calls: 72 },
-    { hour: '02 PM', calls: 69 },
-    { hour: '04 PM', calls: 22 },
-    { hour: '06 PM', calls: 1 },
-    { hour: '08 PM', calls: 0 },
-    { hour: '10 PM', calls: 0 },
-  ];
+    { hour: '12 AM', slot: 0 },
+    { hour: '02 AM', slot: 2 },
+    { hour: '04 AM', slot: 4 },
+    { hour: '06 AM', slot: 6 },
+    { hour: '08 AM', slot: 8 },
+    { hour: '10 AM', slot: 10 },
+    { hour: '12 PM', slot: 12 },
+    { hour: '02 PM', slot: 14 },
+    { hour: '04 PM', slot: 16 },
+    { hour: '06 PM', slot: 18 },
+    { hour: '08 PM', slot: 20 },
+    { hour: '10 PM', slot: 22 },
+  ].map(slotObj => {
+    const callCount = dateFilteredCalls.filter(c => {
+      try {
+        const hour = new Date(c.timestamp).getHours();
+        return hour >= slotObj.slot && hour < slotObj.slot + 2;
+      } catch {
+        return false;
+      }
+    }).length;
+    return { hour: slotObj.hour, calls: callCount };
+  });
+
   const maxBarVal = Math.max(...hourlyData.map(d => d.calls), 1);
 
   // Common Reusable Date Range Control Bar Component

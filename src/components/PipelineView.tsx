@@ -31,6 +31,20 @@ export interface LostReasonItem {
   reason: string;
 }
 
+export const STAGE_COLOR_PALETTE = [
+  { label: 'Pink', bg: 'bg-pink-100/90 border-pink-200', text: 'text-slate-800', hex: '#fce7f3' },
+  { label: 'Emerald', bg: 'bg-emerald-100/70 border-emerald-200', text: 'text-slate-800', hex: '#d1fae5' },
+  { label: 'Green', bg: 'bg-green-100/90 border-green-200', text: 'text-slate-800', hex: '#dcfce7' },
+  { label: 'Purple', bg: 'bg-purple-100/80 border-purple-200', text: 'text-slate-800', hex: '#f3e8ff' },
+  { label: 'Blue', bg: 'bg-blue-100/80 border-blue-200', text: 'text-slate-800', hex: '#dbeafe' },
+  { label: 'Indigo', bg: 'bg-indigo-100/80 border-indigo-200', text: 'text-slate-800', hex: '#e0e7ff' },
+  { label: 'Cyan', bg: 'bg-cyan-100/80 border-cyan-200', text: 'text-slate-800', hex: '#cffafe' },
+  { label: 'Teal', bg: 'bg-teal-100/70 border-teal-200', text: 'text-slate-800', hex: '#ccfbf1' },
+  { label: 'Amber', bg: 'bg-amber-100/80 border-amber-200', text: 'text-slate-800', hex: '#fef3c7' },
+  { label: 'Rose', bg: 'bg-rose-100/80 border-rose-200', text: 'text-slate-800', hex: '#ffe4e6' },
+  { label: 'Slate', bg: 'bg-slate-200/80 border-slate-300', text: 'text-slate-800', hex: '#e2e8f0' },
+];
+
 export const PipelineView: React.FC<PipelineViewProps> = ({
   leads,
   stages,
@@ -74,9 +88,11 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
   // Modal / Inline Edit States
   const [editingStageId, setEditingStageId] = useState<string | null>(null);
   const [editStageName, setEditStageName] = useState<string>('');
+  const [editStageBg, setEditStageBg] = useState<string>('bg-pink-100/90 border-pink-200');
   
   const [showAddStageModal, setShowAddStageModal] = useState<boolean>(false);
   const [newStageName, setNewStageName] = useState<string>('');
+  const [newStageBg, setNewStageBg] = useState<string>(STAGE_COLOR_PALETTE[0].bg);
 
   const [editingReasonId, setEditingReasonId] = useState<string | null>(null);
   const [editReasonText, setEditReasonText] = useState<string>('');
@@ -96,24 +112,13 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
   const [lostStageName, setLostStageName] = useState('Lost');
   const [editingLost, setEditingLost] = useState(false);
 
-  // Helper colors for new active stages
-  const bgPalette = [
-    'bg-purple-100/80 border-purple-200',
-    'bg-blue-100/80 border-blue-200',
-    'bg-emerald-100/80 border-emerald-200',
-    'bg-amber-100/80 border-amber-200',
-    'bg-cyan-100/80 border-cyan-200',
-    'bg-rose-100/80 border-rose-200'
-  ];
-
   // Stage CRUD operations
   const handleAddStage = () => {
     if (!newStageName.trim()) return;
-    const randomBg = bgPalette[Math.floor(Math.random() * bgPalette.length)];
     const newStage = {
       id: `st-${Date.now()}`,
       name: newStageName.trim(),
-      bg: randomBg,
+      bg: newStageBg || STAGE_COLOR_PALETTE[0].bg,
       text: 'text-slate-800'
     };
     setActiveStagesList([...activeStagesList, newStage]);
@@ -123,8 +128,12 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
 
   const handleSaveStageEdit = (id: string) => {
     if (!editStageName.trim()) return;
-    setActiveStagesList(activeStagesList.map(st => st.id === id ? { ...st, name: editStageName.trim() } : st));
+    setActiveStagesList(activeStagesList.map(st => st.id === id ? { ...st, name: editStageName.trim(), bg: editStageBg } : st));
     setEditingStageId(null);
+  };
+
+  const handleChangeStageColor = (id: string, newBg: string) => {
+    setActiveStagesList(activeStagesList.map(st => st.id === id ? { ...st, bg: newBg } : st));
   };
 
   const handleDeleteStage = (id: string) => {
@@ -280,25 +289,45 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                 {activeStagesList.map((stage) => (
                   <div key={stage.id}>
                     {editingStageId === stage.id ? (
-                      <div className="flex items-center space-x-2 bg-slate-100 p-2 rounded-lg border border-slate-300">
-                        <input
-                          type="text"
-                          value={editStageName}
-                          onChange={(e) => setEditStageName(e.target.value)}
-                          className="flex-1 bg-white border border-slate-300 px-2 py-1 rounded text-xs text-slate-900 focus:outline-none"
-                        />
-                        <button
-                          onClick={() => handleSaveStageEdit(stage.id)}
-                          className="p-1 rounded bg-indigo-600 text-white"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setEditingStageId(null)}
-                          className="p-1 rounded bg-slate-300 text-slate-700"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
+                      <div className="flex flex-col space-y-2 bg-slate-100 p-2.5 rounded-lg border border-slate-300">
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="text"
+                            value={editStageName}
+                            onChange={(e) => setEditStageName(e.target.value)}
+                            className="flex-1 bg-white border border-slate-300 px-2 py-1 rounded text-xs text-slate-900 focus:outline-none"
+                          />
+                          <button
+                            onClick={() => handleSaveStageEdit(stage.id)}
+                            className="p-1 rounded bg-indigo-600 text-white cursor-pointer"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setEditingStageId(null)}
+                            className="p-1 rounded bg-slate-300 text-slate-700 cursor-pointer"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        {/* Inline Color Palette Picker */}
+                        <div className="flex items-center space-x-1.5 pt-1 border-t border-slate-200">
+                          <span className="text-[10px] font-semibold text-slate-500">Color:</span>
+                          <div className="flex items-center space-x-1 overflow-x-auto py-0.5">
+                            {STAGE_COLOR_PALETTE.map((col) => (
+                              <button
+                                key={col.label}
+                                type="button"
+                                onClick={() => setEditStageBg(col.bg)}
+                                className={`w-4 h-4 rounded-full border cursor-pointer transition-transform shrink-0 ${
+                                  editStageBg === col.bg ? 'ring-2 ring-indigo-600 scale-110 border-slate-900' : 'border-slate-300 hover:scale-110'
+                                }`}
+                                style={{ backgroundColor: col.hex }}
+                                title={col.label}
+                              />
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     ) : (
                       <div
@@ -309,11 +338,33 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                           <span className={`text-xs font-semibold ${stage.text}`}>{stage.name}</span>
                         </div>
 
-                        <div className="flex items-center space-x-1">
+                        <div className="flex items-center space-x-1.5">
+                          {/* Quick Stage Color Palette Hover Swatches */}
+                          <div className="relative group/color">
+                            <div
+                              className="w-3.5 h-3.5 rounded-full border border-slate-400/80 shadow-2xs cursor-pointer hover:scale-110 transition-transform"
+                              style={{ backgroundColor: STAGE_COLOR_PALETTE.find(c => c.bg === stage.bg)?.hex || '#e2e8f0' }}
+                              title="Click pencil or hover to change color"
+                            />
+                            <div className="absolute right-0 top-full mt-1 hidden group-hover/color:flex items-center bg-white border border-slate-200 shadow-lg p-1.5 rounded-lg z-30 space-x-1">
+                              {STAGE_COLOR_PALETTE.map((col) => (
+                                <button
+                                  key={col.label}
+                                  type="button"
+                                  onClick={() => handleChangeStageColor(stage.id, col.bg)}
+                                  className="w-3.5 h-3.5 rounded-full border border-slate-300 hover:scale-125 transition-transform cursor-pointer shrink-0"
+                                  style={{ backgroundColor: col.hex }}
+                                  title={`Set to ${col.label}`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+
                           <button
                             onClick={() => {
                               setEditingStageId(stage.id);
                               setEditStageName(stage.name);
+                              setEditStageBg(stage.bg);
                             }}
                             className="p-1 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
                             title="Edit Stage"
@@ -586,6 +637,24 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                 placeholder="e.g. Visit Scheduled, Proposal Sent, Negotiation"
                 className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-500"
               />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1.5">Select Stage Color</label>
+              <div className="flex items-center space-x-1.5 flex-wrap gap-y-1.5">
+                {STAGE_COLOR_PALETTE.map((col) => (
+                  <button
+                    key={col.label}
+                    type="button"
+                    onClick={() => setNewStageBg(col.bg)}
+                    className={`w-6 h-6 rounded-full border cursor-pointer transition-transform ${
+                      newStageBg === col.bg ? 'ring-2 ring-indigo-600 scale-110 border-slate-900' : 'border-slate-300 hover:scale-110'
+                    }`}
+                    style={{ backgroundColor: col.hex }}
+                    title={col.label}
+                  />
+                ))}
+              </div>
             </div>
 
             <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">

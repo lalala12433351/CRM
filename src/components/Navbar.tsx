@@ -89,7 +89,7 @@ interface NavbarProps {
   pendingFollowUpsCount?: number;
   onNavigateToFollowUps?: () => void;
   onNavigateToSettings?: () => void;
-  onNavigateToTab?: (tab: string) => void;
+  onNavigateToTab?: (tab: string, subTab?: string) => void;
   currentView?: string;
   onShowToast?: (message: string) => void;
 }
@@ -146,10 +146,10 @@ export const Navbar: React.FC<NavbarProps> = ({
     }
   };
 
-  const handleMenuClick = (tabOrAction: string, msg?: string) => {
+  const handleMenuClick = (tabOrAction: string, msg?: string, settingsSubTab?: string) => {
     setIsSettingsMenuOpen(false);
     if (onNavigateToTab) {
-      onNavigateToTab(tabOrAction);
+      onNavigateToTab(tabOrAction, settingsSubTab);
     } else if (onNavigateToSettings && tabOrAction === 'settings') {
       onNavigateToSettings();
     }
@@ -226,7 +226,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
               <div className="space-y-0.5 mb-2">
                 <button
-                  onClick={() => handleMenuClick('fields')}
+                  onClick={() => handleMenuClick('settings', 'Lead Fields Settings', 'fields')}
                   className={`w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left cursor-pointer transition-all ${
                     currentView === 'fields'
                       ? 'bg-indigo-50/80 text-indigo-900 font-bold border border-indigo-200 shadow-2xs'
@@ -238,7 +238,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
 
                 <button
-                  onClick={() => handleMenuClick('pipeline')}
+                  onClick={() => handleMenuClick('settings', 'Pipeline Stages & Colors', 'pipeline')}
                   className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
                 >
                   <Layers className="w-4 h-4 text-slate-500" />
@@ -262,7 +262,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
 
                 <button
-                  onClick={() => handleMenuClick('settings', 'System Preferences')}
+                  onClick={() => handleMenuClick('settings', 'System Preferences', 'general')}
                   className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
                 >
                   <Sliders className="w-4 h-4 text-slate-500" />
@@ -276,7 +276,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
               <div className="space-y-0.5 mb-2">
                 <button
-                  onClick={() => handleMenuClick('settings', 'Managing Users & Agents')}
+                  onClick={() => handleMenuClick('team', 'Managing Users & Representatives')}
                   className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
                 >
                   <Users className="w-4 h-4 text-slate-500" />
@@ -284,7 +284,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
 
                 <button
-                  onClick={() => handleMenuClick('settings', 'Permission Templates & Roles')}
+                  onClick={() => handleMenuClick('settings', 'Permission Templates & Roles', 'permissions')}
                   className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
                 >
                   <Shield className="w-4 h-4 text-slate-500" />
@@ -298,10 +298,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
               <div className="space-y-0.5">
                 <button
-                  onClick={() => {
-                    setIsSettingsMenuOpen(false);
-                    if (onShowToast) onShowToast('License Purchase Desk: Active Enterprise Tier');
-                  }}
+                  onClick={() => handleMenuClick('settings', 'Buy Licenses & Billing Desk', 'billing')}
                   className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
                 >
                   <CreditCard className="w-4 h-4 text-slate-500" />
@@ -309,10 +306,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
 
                 <button
-                  onClick={() => {
-                    setIsSettingsMenuOpen(false);
-                    if (onShowToast) onShowToast('Billing & Transaction receipts history loaded.');
-                  }}
+                  onClick={() => handleMenuClick('settings', 'Billing & Transaction History', 'billing')}
                   className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
                 >
                   <FileText className="w-4 h-4 text-slate-500" />
@@ -337,24 +331,24 @@ export const Navbar: React.FC<NavbarProps> = ({
           <kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200 text-[10px] font-mono text-slate-400">⌘K</kbd>
         </button>
 
-        {/* AI Sales Copilot Button */}
+        {/* AI Sales Copilot Button (Hidden on mobile top nav to avoid clutter, accessible via side drawer) */}
         <button
           onClick={onOpenAiCopilot}
-          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold text-xs shadow-xs cursor-pointer transition-all"
+          className="hidden md:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold text-xs shadow-xs cursor-pointer transition-all shrink-0"
           title="AI Sales Copilot & Objection Buster"
         >
           <Sparkles className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">AI Copilot</span>
+          <span>AI Copilot</span>
         </button>
 
-        {/* Power Dialer Queue Button */}
+        {/* Power Dialer Queue Button (Hidden on mobile top nav to avoid clutter, accessible via side drawer) */}
         <button
           onClick={onOpenPowerDialer}
-          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs cursor-pointer transition-all"
+          className="hidden md:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs cursor-pointer transition-all shrink-0"
           title="Launch Power Dialer Call Queue"
         >
           <PhoneCall className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Power Dialer</span>
+          <span>Power Dialer</span>
         </button>
 
         {/* Call Followups Tasks Button */}

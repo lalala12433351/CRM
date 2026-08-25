@@ -51,7 +51,10 @@ import {
   AtSign,
   CheckSquare,
   MessageCircle,
-  Search
+  Search,
+  Paperclip,
+  IndianRupee,
+  PhoneOutgoing
 } from 'lucide-react';
 import { Lead, ActivityLog, WhatsAppMessage, CallRecord, Agent, LeadStatus } from '../types';
 import { calculateLeadQualityScore } from '../utils/conversionEngine';
@@ -117,6 +120,116 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   const [copiedPhone, setCopiedPhone] = useState(false);
   const [activityFilter, setActivityFilter] = useState<'ALL' | 'call' | 'note' | 'whatsapp' | 'stage_change'>('ALL');
   const [showAddActionMenu, setShowAddActionMenu] = useState(false);
+  const [actionMenuSearch, setActionMenuSearch] = useState('');
+  const [activeActionType, setActiveActionType] = useState<'email' | 'file' | 'note' | 'call' | 'payment' | 'sms' | 'task' | 'whatsapp' | null>(null);
+
+  // Action Composer Form Input States
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+  const [fileTitle, setFileTitle] = useState('');
+  const [actionNote, setActionNote] = useState('');
+  const [callDisposition, setCallDisposition] = useState('Connected');
+  const [callNotes, setCallNotes] = useState('');
+  const [callDuration, setCallDuration] = useState('2 min');
+  const [paymentAmount, setPaymentAmount] = useState<number | ''>('');
+  const [paymentDescription, setPaymentDescription] = useState('');
+  const [smsText, setSmsText] = useState('');
+  const [taskTitle, setTaskTitle] = useState('');
+  const [taskDueDate, setTaskDueDate] = useState('');
+
+  // Submit Handlers for Actions
+  const handleSendEmailAction = () => {
+    if (!emailSubject.trim() && !emailBody.trim()) return;
+    onAddActivity({
+      leadId: lead.id,
+      type: 'note',
+      title: `Email: ${emailSubject || 'Sent Email'}`,
+      description: emailBody || 'Email delivered to recipient inbox.'
+    });
+    setEmailSubject('');
+    setEmailBody('');
+    setActiveActionType(null);
+  };
+
+  const handleUploadFileAction = () => {
+    if (!fileTitle.trim()) return;
+    onAddActivity({
+      leadId: lead.id,
+      type: 'note',
+      title: `File Uploaded: ${fileTitle}`,
+      description: `Document attached to lead files repository.`
+    });
+    setFileTitle('');
+    setActiveActionType(null);
+  };
+
+  const handleSaveNoteAction = () => {
+    if (!actionNote.trim()) return;
+    onAddActivity({
+      leadId: lead.id,
+      type: 'note',
+      title: `Internal Note`,
+      description: actionNote
+    });
+    setActionNote('');
+    setActiveActionType(null);
+  };
+
+  const handleLogCallAction = () => {
+    onAddActivity({
+      leadId: lead.id,
+      type: 'call',
+      title: `Outgoing Call - ${callDisposition}`,
+      description: `Duration: ${callDuration}. Remarks: ${callNotes || 'Call logged'}`
+    });
+    setCallNotes('');
+    setActiveActionType(null);
+  };
+
+  const handleSendPaymentAction = () => {
+    if (!paymentAmount) return;
+    onAddActivity({
+      leadId: lead.id,
+      type: 'note',
+      title: `Payment Link Generated: ₹${paymentAmount}`,
+      description: `Description: ${paymentDescription || 'Course Fee / Quote'}. Direct Payment link sent via SMS & WhatsApp.`
+    });
+    setPaymentAmount('');
+    setPaymentDescription('');
+    setActiveActionType(null);
+  };
+
+  const handleSendSmsAction = () => {
+    if (!smsText.trim()) return;
+    onAddActivity({
+      leadId: lead.id,
+      type: 'note',
+      title: `SMS Dispatched`,
+      description: smsText
+    });
+    setSmsText('');
+    setActiveActionType(null);
+  };
+
+  const handleScheduleTaskAction = () => {
+    if (!taskTitle.trim()) return;
+    onUpdateLead({
+      ...lead,
+      followUpAt: taskDueDate || undefined,
+      status: 'Follow Up',
+      updatedAt: new Date().toISOString()
+    });
+    onAddActivity({
+      leadId: lead.id,
+      type: 'note',
+      title: `Task Scheduled: ${taskTitle}`,
+      description: `Due Date: ${taskDueDate || 'Today'}. Assigned to active team representative.`
+    });
+    setTaskTitle('');
+    setTaskDueDate('');
+    setActiveActionType(null);
+  };
+
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [showCampaignMenu, setShowCampaignMenu] = useState(false);
   const [showTagMenu, setShowTagMenu] = useState(false);
@@ -440,7 +553,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
       {/* Wrapper for Drawer and Buttons */}
       <div className="relative w-full lg:w-[65%] xl:w-[60%] max-w-6xl h-full flex flex-col z-50 font-sans animate-in slide-in-from-right duration-300">
         
-        {/* Floating Close Button (Left of Drawer) */}
+        {/* Floating Close Button */}
         <button 
           onClick={onClose} 
           className="absolute -left-14 top-4 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-all cursor-pointer hidden md:flex z-50"
@@ -449,15 +562,27 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
         </button>
 
         {/* Main Drawer Panel */}
-        <div className="flex-1 w-full h-full bg-[#fafafa] flex flex-col overflow-hidden shadow-2xl border-l border-slate-200">
-        
-          {/* Top Floating Navigation */}
-          <div className="absolute top-4 right-6 z-10 flex items-center bg-white border border-slate-200 rounded-full px-1 py-1 shadow-sm text-xs font-semibold text-slate-600">
-           <button onClick={handlePrevLead} className="px-3 py-1 hover:text-slate-900 transition-colors flex items-center space-x-1 cursor-pointer rounded-full hover:bg-slate-50">
+        <div className="flex-1 w-full h-full bg-[#fafafa] flex flex-col overflow-hidden shadow-2xl border-l border-slate-200 relative">
+          
+          {/* Mobile Top Close Header */}
+          <div className="md:hidden flex items-center justify-between px-3 py-2.5 bg-white border-b border-slate-200 z-20 shrink-0">
+            <button 
+              onClick={onClose}
+              className="flex items-center space-x-1 text-slate-600 hover:text-slate-900 text-xs font-semibold px-2 py-1 rounded-lg bg-slate-100 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+              <span>Close</span>
+            </button>
+            <span className="text-xs font-bold text-slate-800 font-serif truncate max-w-[180px]">{lead.name}</span>
+          </div>
+
+          {/* Top Floating Navigation (Desktop & Mobile) */}
+          <div className="absolute top-2.5 right-3 sm:top-4 sm:right-6 z-10 flex items-center bg-white border border-slate-200 rounded-full px-1 py-0.5 sm:py-1 shadow-sm text-[11px] sm:text-xs font-semibold text-slate-600">
+           <button onClick={handlePrevLead} className="px-2 sm:px-3 py-0.5 sm:py-1 hover:text-slate-900 transition-colors flex items-center space-x-0.5 sm:space-x-1 cursor-pointer rounded-full hover:bg-slate-50">
              <ChevronLeft className="w-3.5 h-3.5"/> <span>Prev</span>
            </button>
-           <span className="px-3 text-slate-800 border-x border-slate-200">{currentIndex + 1} <span className="text-slate-400 font-normal">of</span> {totalLeadsCount}</span>
-           <button onClick={handleNextLead} className="px-3 py-1 hover:text-slate-900 transition-colors flex items-center space-x-1 cursor-pointer rounded-full hover:bg-slate-50">
+           <span className="px-2 sm:px-3 text-slate-800 border-x border-slate-200">{currentIndex + 1} <span className="text-slate-400 font-normal">of</span> {totalLeadsCount}</span>
+           <button onClick={handleNextLead} className="px-2 sm:px-3 py-0.5 sm:py-1 hover:text-slate-900 transition-colors flex items-center space-x-0.5 sm:space-x-1 cursor-pointer rounded-full hover:bg-slate-50">
              <span>Next</span> <ChevronRight className="w-3.5 h-3.5"/>
            </button>
         </div>
@@ -465,16 +590,16 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
         {/* Scrollable Feed Container */}
         <div className="flex-1 overflow-y-auto ios-scroll">
           
-          <div className="max-w-4xl mx-auto pt-16 px-8 pb-12">
+          <div className="max-w-4xl mx-auto pt-12 sm:pt-16 px-3 sm:px-8 pb-12">
             
             {/* Detailed Header */}
-            <div className="mb-6 border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden mt-6">
+            <div className="mb-6 border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden mt-2 sm:mt-6">
                {/* Top Title Row */}
-               <div className="flex justify-between items-start p-5 border-b border-slate-100">
-                 <div>
-                   <h1 className="text-[22px] font-bold text-slate-800 tracking-tight font-serif">{lead.name}</h1>
+               <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center p-3.5 sm:p-5 gap-3 border-b border-slate-100">
+                 <div className="w-full sm:w-auto">
+                   <h1 className="text-lg sm:text-[22px] font-bold text-slate-800 tracking-tight font-serif break-words">{lead.name}</h1>
                    
-                   <div className="flex items-center space-x-3 mt-3">
+                   <div className="flex flex-wrap items-center gap-2 mt-2">
                      {/* Status Dropdown */}
                      <div className="relative">
                        {(() => {
@@ -507,8 +632,8 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                    </div>
                  </div>
 
-                 {/* Right Actions & Assignee */}
-                 <div className="flex flex-col items-end space-y-4">
+                 {/* Right Actions & Assignee (Fully Responsive Row on Mobile & Desktop) */}
+                 <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto pt-2.5 sm:pt-0 border-t sm:border-t-0 border-slate-100 sm:border-transparent gap-2">
                    <div className="flex items-center space-x-2 text-slate-600">
                       {/* Campaign Popover */}
                       <div className="relative">
@@ -910,6 +1035,265 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                </div>
             </div>
 
+            {/* Action Composers Top Box (Triggered by + Action menu) */}
+            {activeActionType === 'email' && (
+              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm mb-4 space-y-3 font-sans animate-in fade-in duration-200">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <h4 className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                    <Mail className="w-4 h-4 text-[#5034a8]" />
+                    <span>Email Lead: {lead.name}</span>
+                  </h4>
+                  <button onClick={() => setActiveActionType(null)} className="text-slate-400 hover:text-slate-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-400 block mb-1 uppercase tracking-wider font-mono">Subject</label>
+                  <input 
+                    type="text" 
+                    value={emailSubject}
+                    onChange={(e) => setEmailSubject(e.target.value)}
+                    placeholder="Enter Email Subject, press / for templates"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 shadow-2xs font-sans"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-400 block mb-1 uppercase tracking-wider font-mono">Body</label>
+                  <textarea 
+                    rows={4}
+                    value={emailBody}
+                    onChange={(e) => setEmailBody(e.target.value)}
+                    placeholder="Enter your email text"
+                    className="w-full bg-white border border-slate-200 rounded-lg p-3 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 shadow-2xs resize-none font-sans"
+                  />
+                </div>
+                <div className="flex items-center justify-end space-x-3 pt-1">
+                  <button 
+                    onClick={() => setActiveActionType(null)} 
+                    className="px-3.5 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg transition-colors font-medium cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleSendEmailAction}
+                    className="px-4 py-1.5 bg-[#5034a8] hover:bg-[#432993] text-white text-xs font-bold rounded-lg shadow-2xs transition-all flex items-center space-x-1 cursor-pointer"
+                  >
+                    <span>SEND</span>
+                    <Send className="w-3 h-3 ml-1" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeActionType === 'file' && (
+              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm mb-4 space-y-3 font-sans animate-in fade-in duration-200">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <h4 className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                    <Paperclip className="w-4 h-4 text-[#5034a8]" />
+                    <span>Attach Document File</span>
+                  </h4>
+                  <button onClick={() => setActiveActionType(null)} className="text-slate-400 hover:text-slate-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-400 block mb-1 uppercase tracking-wider font-mono">Document Label</label>
+                  <input 
+                    type="text" 
+                    value={fileTitle}
+                    onChange={(e) => setFileTitle(e.target.value)}
+                    placeholder="Enter document title (e.g. Identity Proof, Proposal PDF)"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 shadow-2xs font-sans"
+                  />
+                </div>
+                <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center bg-slate-50">
+                  <Paperclip className="w-6 h-6 text-slate-400 mx-auto mb-1" />
+                  <p className="text-xs text-slate-600 font-medium">Drag and drop file here or click to browse</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Supports PDF, DOCX, PNG, JPG (Max 25MB)</p>
+                </div>
+                <div className="flex items-center justify-end space-x-3 pt-1">
+                  <button onClick={() => setActiveActionType(null)} className="px-3.5 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer">Cancel</button>
+                  <button onClick={handleUploadFileAction} className="px-4 py-1.5 bg-[#5034a8] hover:bg-[#432993] text-white text-xs font-bold rounded-lg shadow-2xs cursor-pointer">Upload File</button>
+                </div>
+              </div>
+            )}
+
+            {activeActionType === 'note' && (
+              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm mb-4 space-y-3 font-sans animate-in fade-in duration-200">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <h4 className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                    <FileText className="w-4 h-4 text-[#5034a8]" />
+                    <span>Log Internal Team Note</span>
+                  </h4>
+                  <button onClick={() => setActiveActionType(null)} className="text-slate-400 hover:text-slate-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <textarea 
+                  rows={3}
+                  value={actionNote}
+                  onChange={(e) => setActionNote(e.target.value)}
+                  placeholder="Enter internal note for team activity history..."
+                  className="w-full bg-white border border-slate-200 rounded-lg p-3 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 shadow-2xs resize-none font-sans"
+                />
+                <div className="flex items-center justify-end space-x-3 pt-1">
+                  <button onClick={() => setActiveActionType(null)} className="px-3.5 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer">Cancel</button>
+                  <button onClick={handleSaveNoteAction} className="px-4 py-1.5 bg-[#5034a8] hover:bg-[#432993] text-white text-xs font-bold rounded-lg shadow-2xs cursor-pointer">Save Note</button>
+                </div>
+              </div>
+            )}
+
+            {activeActionType === 'call' && (
+              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm mb-4 space-y-3 font-sans animate-in fade-in duration-200">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <h4 className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                    <PhoneOutgoing className="w-4 h-4 text-[#5034a8]" />
+                    <span>Log Outgoing Call Outcome</span>
+                  </h4>
+                  <button onClick={() => setActiveActionType(null)} className="text-slate-400 hover:text-slate-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-400 block mb-1 uppercase tracking-wider font-mono">Disposition</label>
+                    <select value={callDisposition} onChange={(e) => setCallDisposition(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:outline-none">
+                      <option value="Connected">Connected / Answered</option>
+                      <option value="RNR / No Answer">RNR / No Answer</option>
+                      <option value="Busy">Busy Signal</option>
+                      <option value="Call Back Requested">Call Back Requested</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-400 block mb-1 uppercase tracking-wider font-mono">Duration</label>
+                    <select value={callDuration} onChange={(e) => setCallDuration(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:outline-none">
+                      <option value="1 min">1 min</option>
+                      <option value="2 min">2 min</option>
+                      <option value="5 min">5 min</option>
+                      <option value="10 min">10 min</option>
+                    </select>
+                  </div>
+                </div>
+                <textarea 
+                  rows={2}
+                  value={callNotes}
+                  onChange={(e) => setCallNotes(e.target.value)}
+                  placeholder="Call discussion notes & next steps..."
+                  className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 shadow-2xs resize-none font-sans"
+                />
+                <div className="flex items-center justify-end space-x-3 pt-1">
+                  <button onClick={() => setActiveActionType(null)} className="px-3.5 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer">Cancel</button>
+                  <button onClick={handleLogCallAction} className="px-4 py-1.5 bg-[#5034a8] hover:bg-[#432993] text-white text-xs font-bold rounded-lg shadow-2xs cursor-pointer">Log Outgoing Call</button>
+                </div>
+              </div>
+            )}
+
+            {activeActionType === 'payment' && (
+              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm mb-4 space-y-3 font-sans animate-in fade-in duration-200">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <h4 className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                    <IndianRupee className="w-4 h-4 text-[#5034a8]" />
+                    <span>Generate Payment Link</span>
+                  </h4>
+                  <button onClick={() => setActiveActionType(null)} className="text-slate-400 hover:text-slate-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-400 block mb-1 uppercase tracking-wider font-mono">Amount (₹)</label>
+                    <input type="number" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value ? Number(e.target.value) : '')} placeholder="5000" className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-400 block mb-1 uppercase tracking-wider font-mono">Item Description</label>
+                    <input type="text" value={paymentDescription} onChange={(e) => setPaymentDescription(e.target.value)} placeholder="Admission Fee / Deposit" className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:outline-none" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-end space-x-3 pt-1">
+                  <button onClick={() => setActiveActionType(null)} className="px-3.5 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer">Cancel</button>
+                  <button onClick={handleSendPaymentAction} className="px-4 py-1.5 bg-[#5034a8] hover:bg-[#432993] text-white text-xs font-bold rounded-lg shadow-2xs cursor-pointer">Send Payment Link</button>
+                </div>
+              </div>
+            )}
+
+            {activeActionType === 'sms' && (
+              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm mb-4 space-y-3 font-sans animate-in fade-in duration-200">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <h4 className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                    <MessageSquare className="w-4 h-4 text-[#5034a8]" />
+                    <span>Send SMS Message</span>
+                  </h4>
+                  <button onClick={() => setActiveActionType(null)} className="text-slate-400 hover:text-slate-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <textarea 
+                  rows={3}
+                  value={smsText}
+                  onChange={(e) => setSmsText(e.target.value)}
+                  placeholder="Enter SMS message text..."
+                  className="w-full bg-white border border-slate-200 rounded-lg p-3 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 shadow-2xs resize-none font-sans"
+                />
+                <div className="flex items-center justify-end space-x-3 pt-1">
+                  <button onClick={() => setActiveActionType(null)} className="px-3.5 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer">Cancel</button>
+                  <button onClick={handleSendSmsAction} className="px-4 py-1.5 bg-[#5034a8] hover:bg-[#432993] text-white text-xs font-bold rounded-lg shadow-2xs cursor-pointer">Send SMS</button>
+                </div>
+              </div>
+            )}
+
+            {activeActionType === 'task' && (
+              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm mb-4 space-y-3 font-sans animate-in fade-in duration-200">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <h4 className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                    <Clock className="w-4 h-4 text-[#5034a8]" />
+                    <span>Schedule Task / Follow-Up</span>
+                  </h4>
+                  <button onClick={() => setActiveActionType(null)} className="text-slate-400 hover:text-slate-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-400 block mb-1 uppercase tracking-wider font-mono">Task Title</label>
+                    <input type="text" value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder="Follow-up call" className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-400 block mb-1 uppercase tracking-wider font-mono">Due Date & Time</label>
+                    <input type="datetime-local" value={taskDueDate} onChange={(e) => setTaskDueDate(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:outline-none" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-end space-x-3 pt-1">
+                  <button onClick={() => setActiveActionType(null)} className="px-3.5 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer">Cancel</button>
+                  <button onClick={handleScheduleTaskAction} className="px-4 py-1.5 bg-[#5034a8] hover:bg-[#432993] text-white text-xs font-bold rounded-lg shadow-2xs cursor-pointer">Schedule Task</button>
+                </div>
+              </div>
+            )}
+
+            {activeActionType === 'whatsapp' && (
+              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm mb-4 space-y-3 font-sans animate-in fade-in duration-200">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <h4 className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                    <MessageCircle className="w-4 h-4 text-emerald-600" />
+                    <span>Send WhatsApp Message</span>
+                  </h4>
+                  <button onClick={() => setActiveActionType(null)} className="text-slate-400 hover:text-slate-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <textarea 
+                  rows={3}
+                  value={whatsAppText}
+                  onChange={(e) => setWhatsAppText(e.target.value)}
+                  placeholder="Type WhatsApp message..."
+                  className="w-full bg-white border border-slate-200 rounded-lg p-3 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 shadow-2xs resize-none font-sans"
+                />
+                <div className="flex items-center justify-end space-x-3 pt-1">
+                  <button onClick={() => setActiveActionType(null)} className="px-3.5 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer">Cancel</button>
+                  <button onClick={(e) => { handleSendWhatsApp(e); setActiveActionType(null); }} className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-2xs cursor-pointer">SEND WHATSAPP</button>
+                </div>
+              </div>
+            )}
+
             {/* Tabs & Filter Bar Row */}
             <div className="flex items-center justify-between mb-4 border-b border-slate-200">
               <div className="flex space-x-6">
@@ -920,11 +1304,62 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                   Task
                 </button>
               </div>
-              <button className="flex items-center space-x-1 border border-indigo-200 text-indigo-700 bg-white hover:bg-indigo-50 px-3 py-1.5 rounded-md text-xs font-medium transition-colors mb-2 cursor-pointer shadow-sm">
-                <Plus className="w-3.5 h-3.5" />
-                <span>Action</span>
-                <ChevronDown className="w-3.5 h-3.5 ml-1" />
-              </button>
+
+              {/* Purple + Action Menu Button matching screenshot */}
+              <div className="relative mb-2">
+                <button 
+                  onClick={() => setShowAddActionMenu(!showAddActionMenu)}
+                  className="flex items-center space-x-1.5 bg-[#5034a8] hover:bg-[#432993] text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Action</span>
+                  <ChevronDown className="w-3.5 h-3.5 ml-1" />
+                </button>
+
+                {/* Action Floating Dropdown Box (Screenshot 1:1 match) */}
+                {showAddActionMenu && (
+                  <div className="absolute right-0 top-9 w-56 bg-white border border-slate-200 rounded-xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 font-sans">
+                    <div className="relative mb-2">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
+                      <input 
+                        type="text"
+                        value={actionMenuSearch}
+                        onChange={(e) => setActionMenuSearch(e.target.value)}
+                        placeholder="Search"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 font-sans"
+                      />
+                    </div>
+
+                    <div className="space-y-0.5 max-h-64 overflow-y-auto">
+                      {[
+                        { id: 'email', name: 'Email', icon: Mail },
+                        { id: 'file', name: 'File', icon: Paperclip },
+                        { id: 'note', name: 'Note', icon: FileText },
+                        { id: 'call', name: 'Outgoing Call', icon: PhoneOutgoing },
+                        { id: 'payment', name: 'Payment', icon: IndianRupee },
+                        { id: 'sms', name: 'Sms', icon: MessageSquare },
+                        { id: 'task', name: 'Task', icon: Clock },
+                        { id: 'whatsapp', name: 'Whatsapp', icon: MessageCircle },
+                      ]
+                        .filter(item => item.name.toLowerCase().includes(actionMenuSearch.toLowerCase()))
+                        .map((item) => (
+                          <button
+                            key={item.id}
+                            onClick={() => {
+                              setActiveActionType(item.id as any);
+                              setShowAddActionMenu(false);
+                              setActionMenuSearch('');
+                            }}
+                            className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-lg text-xs font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-900 transition-all cursor-pointer text-left group"
+                          >
+                            <item.icon className="w-4 h-4 text-slate-500 group-hover:text-indigo-600" />
+                            <span>{item.name}</span>
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Filter Bar */}

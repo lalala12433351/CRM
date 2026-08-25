@@ -40,6 +40,8 @@ interface MobileBottomNavProps {
   onSelectAgent: (agentId: string) => void;
   onOpenAddLeadModal?: () => void;
   onOpenGoogleSheets?: () => void;
+  onOpenPowerDialer?: () => void;
+  onOpenAiCopilot?: () => void;
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
@@ -51,7 +53,9 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   agents,
   onSelectAgent,
   onOpenAddLeadModal,
-  onOpenGoogleSheets
+  onOpenGoogleSheets,
+  onOpenPowerDialer,
+  onOpenAiCopilot
 }) => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [mobileSearchQuery, setMobileSearchQuery] = useState('');
@@ -272,6 +276,47 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             {/* Scrollable Navigation Views */}
             <div className="overflow-y-auto p-4 space-y-4 flex-1 ios-scroll">
               
+              {/* Quick AI & Call Tools Banner */}
+              {(onOpenPowerDialer || onOpenAiCopilot) && (
+                <div className="grid grid-cols-2 gap-2">
+                  {onOpenAiCopilot && (
+                    <button
+                      onClick={() => {
+                        setIsDrawerOpen(false);
+                        onOpenAiCopilot();
+                      }}
+                      className="flex items-center space-x-2.5 p-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold text-xs shadow-xs cursor-pointer text-left transition-all active:scale-[0.98]"
+                    >
+                      <div className="p-1.5 rounded-lg bg-white/20 shrink-0">
+                        <Sparkles className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <div className="font-bold text-xs leading-tight">AI Copilot</div>
+                        <div className="text-[9px] text-violet-100 font-normal">Objection Buster</div>
+                      </div>
+                    </button>
+                  )}
+
+                  {onOpenPowerDialer && (
+                    <button
+                      onClick={() => {
+                        setIsDrawerOpen(false);
+                        onOpenPowerDialer();
+                      }}
+                      className="flex items-center space-x-2.5 p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs cursor-pointer text-left transition-all active:scale-[0.98]"
+                    >
+                      <div className="p-1.5 rounded-lg bg-white/20 shrink-0">
+                        <PhoneCall className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <div className="font-bold text-xs leading-tight">Power Dialer</div>
+                        <div className="text-[9px] text-emerald-100 font-normal">Auto Call Queue</div>
+                      </div>
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* Active Telecaller Switcher Strip */}
               <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
                 <div className="flex items-center justify-between">

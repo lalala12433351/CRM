@@ -23,8 +23,8 @@ interface TasksViewProps {
 export const TasksView: React.FC<TasksViewProps> = ({
   leads,
   agents,
-  onOpenLeadDetail = () => {},
-  onCallLead = () => {}
+  onOpenLeadDetail = (_lead: Lead) => {},
+  onCallLead = (_lead: Lead) => {}
 }) => {
   const [activeTab, setActiveTab] = useState<'Call Followups' | 'Todo'>('Call Followups');
   const [searchQuery, setSearchQuery] = useState('');
