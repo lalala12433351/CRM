@@ -159,6 +159,13 @@ export function App() {
     );
   };
 
+  const handleUpdateAgentRole = (agentId: string, newRole: string) => {
+    setAgents((prev) =>
+      prev.map((a) => (a.id === agentId ? { ...a, role: newRole } : a))
+    );
+    showToast(`Updated user role designation to: ${newRole}`);
+  };
+
   const renderAccessRestricted = (viewTitle: string) => (
     <div className="p-8 max-w-xl mx-auto my-12 bg-white rounded-2xl border border-slate-200 shadow-xl text-center space-y-4 font-sans animate-in fade-in">
       <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-2xs">
@@ -709,6 +716,7 @@ export function App() {
               onAddAgent={handleAddAgent}
               onRemoveAgent={handleRemoveAgent}
               onToggleAdminPower={handleToggleAdminPower}
+              onUpdateAgentRole={handleUpdateAgentRole}
             />
           )}
 
@@ -718,7 +726,7 @@ export function App() {
 
           {currentView === 'campaigns' && (
             <CampaignsView
-              leads={leads}
+              leads={visibleLeads}
               agents={agents}
               initialCampaignHandle={selectedCampaignHandle}
               onOpenLeadDetail={(lead) => setDetailLead(lead)}
@@ -733,14 +741,14 @@ export function App() {
           )}
 
           {currentView === 'integrations' && (
-            activeAgentRights.integrations ? (
+            isAdmin ? (
               <IntegrationsView 
                 onNavigateToCampaign={(handle) => {
                   setSelectedCampaignHandle(handle);
                   setCurrentView('campaigns');
                 }}
               />
-            ) : renderAccessRestricted('Integrations & Webhooks')
+            ) : renderAccessRestricted('Integrations & Webhook Connections (Admin Only)')
           )}
 
           {currentView === 'docs_sign' && (

@@ -226,21 +226,23 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="absolute left-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in text-xs font-sans">
               
               {/* WORKSPACE SECTION */}
-              <div className="px-2.5 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider font-sans">
+              <div className="px-2.5 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider font-sans">
                 WORKSPACE
               </div>
               <div className="space-y-0.5 mb-2">
-                <button
-                  onClick={() => handleMenuClick('settings', 'Lead Fields Settings', 'fields')}
-                  className={`w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left cursor-pointer transition-all ${
-                    currentView === 'fields'
-                      ? 'bg-indigo-50/80 text-indigo-900 font-bold border border-indigo-200 shadow-2xs'
-                      : 'text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <ListFilter className="w-4 h-4 text-slate-500" />
-                  <span>Lead Fields</span>
-                </button>
+                {isAgentAdmin(activeAgent) && (
+                  <button
+                    onClick={() => handleMenuClick('settings', 'Lead Fields Settings', 'fields')}
+                    className={`w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left cursor-pointer transition-all ${
+                      currentView === 'fields'
+                        ? 'bg-indigo-50/80 text-indigo-900 font-medium border border-indigo-200 shadow-2xs'
+                        : 'text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <ListFilter className="w-4 h-4 text-slate-500" />
+                    <span>Lead Fields</span>
+                  </button>
+                )}
 
                 <button
                   onClick={() => handleMenuClick('settings', 'Pipeline Stages & Colors', 'pipeline')}
@@ -276,7 +278,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
 
               {/* TEAM SECTION */}
-              <div className="px-2.5 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider font-sans border-t border-slate-100 pt-2">
+              <div className="px-2.5 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider font-sans border-t border-slate-100 pt-2">
                 TEAM
               </div>
               <div className="space-y-0.5 mb-2">
@@ -285,39 +287,45 @@ export const Navbar: React.FC<NavbarProps> = ({
                   className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
                 >
                   <Users className="w-4 h-4 text-slate-500" />
-                  <span>Users</span>
+                  <span>Users & Team</span>
                 </button>
 
-                <button
-                  onClick={() => handleMenuClick('settings', 'Permission Templates & Roles', 'permissions')}
-                  className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
-                >
-                  <Shield className="w-4 h-4 text-slate-500" />
-                  <span>Permission Templates</span>
-                </button>
+                {isAgentAdmin(activeAgent) && (
+                  <button
+                    onClick={() => handleMenuClick('settings', 'Permission Templates & Roles', 'permissions')}
+                    className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  >
+                    <Shield className="w-4 h-4 text-slate-500" />
+                    <span>Permission Templates</span>
+                  </button>
+                )}
               </div>
 
-              {/* BILLING SECTION */}
-              <div className="px-2.5 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider font-sans border-t border-slate-100 pt-2">
-                BILLING
-              </div>
-              <div className="space-y-0.5">
-                <button
-                  onClick={() => handleMenuClick('settings', 'Buy Licenses & Billing Desk', 'billing')}
-                  className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
-                >
-                  <CreditCard className="w-4 h-4 text-slate-500" />
-                  <span>Buy Licenses</span>
-                </button>
+              {/* BILLING SECTION (Admin Only) */}
+              {isAgentAdmin(activeAgent) && (
+                <>
+                  <div className="px-2.5 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider font-sans border-t border-slate-100 pt-2">
+                    BILLING & PAYMENTS
+                  </div>
+                  <div className="space-y-0.5">
+                    <button
+                      onClick={() => handleMenuClick('settings', 'Buy Licenses & Billing Desk', 'billing')}
+                      className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
+                    >
+                      <CreditCard className="w-4 h-4 text-slate-500" />
+                      <span>Buy Licenses / Payment Options</span>
+                    </button>
 
-                <button
-                  onClick={() => handleMenuClick('settings', 'Billing & Transaction History', 'billing')}
-                  className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
-                >
-                  <FileText className="w-4 h-4 text-slate-500" />
-                  <span>Transaction History</span>
-                </button>
-              </div>
+                    <button
+                      onClick={() => handleMenuClick('settings', 'Billing & Transaction History', 'billing')}
+                      className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
+                    >
+                      <FileText className="w-4 h-4 text-slate-500" />
+                      <span>Transaction History</span>
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -385,10 +393,10 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="relative" ref={userDropdownRef}>
           <button 
             onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-            className="flex items-center space-x-2 p-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer transition-all shadow-2xs group"
+            className="flex items-center space-x-2 p-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer transition-all shadow-2xs group font-sans font-normal"
             title="Switch User Account / Role Persona"
           >
-            <div className="w-7 h-7 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center shadow-2xs overflow-hidden ring-1 ring-slate-200">
+            <div className="w-7 h-7 rounded-full bg-slate-900 text-white font-medium text-xs flex items-center justify-center shadow-2xs overflow-hidden ring-1 ring-slate-200">
               {activeAgent.avatar ? (
                 <img src={activeAgent.avatar} alt={activeAgent.name} className="w-full h-full object-cover" />
               ) : (
@@ -396,9 +404,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
             <div className="hidden sm:flex flex-col text-left leading-none pr-1">
-              <span className="text-xs font-bold text-slate-800 truncate max-w-[110px]">{activeAgent.name}</span>
-              <span className={`text-[10px] font-semibold mt-0.5 ${isAgentAdmin(activeAgent) ? 'text-indigo-600' : 'text-slate-500'}`}>
-                {isAgentAdmin(activeAgent) ? 'Admin' : 'Employee'}
+              <span className="text-xs font-medium text-slate-800 truncate max-w-[120px]">{activeAgent.name}</span>
+              <span className={`text-[10px] font-normal mt-0.5 ${isAgentAdmin(activeAgent) ? 'text-indigo-600' : 'text-slate-500'}`}>
+                {isAgentAdmin(activeAgent) ? 'Admin' : activeAgent.role || 'Employee'}
               </span>
             </div>
             <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isUserMenuOpen ? 'rotate-180 text-indigo-600' : ''}`} />
@@ -406,12 +414,12 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* User Account Selection Dropdown */}
           {isUserMenuOpen && (
-            <div className="absolute right-0 top-full mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in text-xs font-sans">
+            <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in text-xs font-sans font-normal">
               <div className="px-3 py-2 border-b border-slate-100 mb-1">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-sans">Active User Account</p>
+                <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider font-sans">Active User Account</p>
                 <div className="flex items-center justify-between mt-1">
-                  <span className="font-bold text-slate-900 truncate">{activeAgent.name}</span>
-                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase ${
+                  <span className="font-medium text-slate-900 truncate">{activeAgent.name}</span>
+                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-medium uppercase ${
                     isAgentAdmin(activeAgent) ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-700'
                   }`}>
                     {isAgentAdmin(activeAgent) ? 'Admin' : 'Employee'}
@@ -419,10 +427,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
               </div>
 
-              <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider font-sans">
+              <div className="px-2 py-1 text-[10px] font-medium text-slate-400 uppercase tracking-wider font-sans">
                 Switch User Persona
               </div>
-              <div className="space-y-1 max-h-64 overflow-y-auto">
+              <div className="space-y-1 max-h-72 overflow-y-auto">
                 {agents.map((ag) => {
                   const agIsAdmin = isAgentAdmin(ag);
                   const isSelected = ag.id === activeAgent.id;
@@ -436,20 +444,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                           onShowToast(`Switched user account to ${ag.name} (${agIsAdmin ? 'Admin' : 'Employee'})`);
                         }
                       }}
-                      className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-all cursor-pointer ${
+                      className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition-all cursor-pointer ${
                         isSelected 
-                          ? 'bg-indigo-50/90 border border-indigo-200 text-indigo-950 font-bold' 
-                          : 'hover:bg-slate-50 text-slate-700'
+                          ? 'bg-indigo-50/90 border border-indigo-200 text-indigo-950 font-medium' 
+                          : 'hover:bg-slate-50 text-slate-700 font-normal'
                       }`}
                     >
                       <div className="flex items-center space-x-2.5 truncate">
-                        <img src={ag.avatar} alt={ag.name} className="w-7 h-7 rounded-lg object-cover ring-1 ring-slate-200 shrink-0" />
+                        <img src={ag.avatar} alt={ag.name} className="w-8 h-8 rounded-lg object-cover ring-1 ring-slate-200 shrink-0" />
                         <div className="truncate">
-                          <div className="text-xs font-semibold text-slate-900 truncate">{ag.name}</div>
-                          <div className="text-[10px] text-slate-500 truncate">{ag.role}</div>
+                          <div className="text-xs font-medium text-slate-900 truncate">{ag.name}</div>
+                          <div className="text-[10px] text-slate-500 truncate">{ag.role || (agIsAdmin ? 'Admin' : 'Employee')}</div>
                         </div>
                       </div>
-                      <span className={`px-2 py-0.5 rounded text-[9px] font-extrabold shrink-0 ml-1 ${
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-medium shrink-0 ml-1 ${
                         agIsAdmin ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'
                       }`}>
                         {agIsAdmin ? 'Admin' : 'Employee'}
