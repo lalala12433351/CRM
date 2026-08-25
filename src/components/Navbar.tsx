@@ -21,7 +21,8 @@ import {
   X,
   Sparkles,
   Command,
-  Search
+  Search,
+  LogOut
 } from 'lucide-react';
 import { Agent, isAgentAdmin } from '../types';
 
@@ -92,6 +93,7 @@ interface NavbarProps {
   onNavigateToTab?: (tab: string, subTab?: string) => void;
   currentView?: string;
   onShowToast?: (message: string) => void;
+  onLogout?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -112,7 +114,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onNavigateToSettings,
   onNavigateToTab,
   currentView = '',
-  onShowToast
+  onShowToast,
+  onLogout
 }) => {
   // Work Accounts State
   const [workAccounts, setWorkAccounts] = useState<WorkAccount[]>(DEFAULT_WORK_ACCOUNTS);
@@ -466,6 +469,22 @@ export const Navbar: React.FC<NavbarProps> = ({
                   );
                 })}
               </div>
+
+              {/* Log Out Action */}
+              {onLogout && (
+                <div className="pt-2 border-t border-slate-100 mt-2">
+                  <button
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      onLogout();
+                    }}
+                    className="w-full flex items-center justify-center space-x-2 p-2 rounded-xl text-rose-600 hover:bg-rose-50 border border-rose-100 transition-colors cursor-pointer text-xs font-medium"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Log Out of Workspace</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

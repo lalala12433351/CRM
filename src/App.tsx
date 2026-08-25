@@ -30,6 +30,8 @@ import { GoogleSheetsIntegrationModal } from './components/GoogleSheetsIntegrati
 import { CommandPalette } from './components/CommandPalette';
 import { AiCopilotModal } from './components/AiCopilotModal';
 import { PowerDialerQueueModal } from './components/PowerDialerQueueModal';
+import { LoginView } from './components/LoginView';
+import { verifyCurrentSession, logoutWithApi } from './lib/auth';
 
 import { 
   INITIAL_LEADS, 
@@ -104,9 +106,32 @@ export function App() {
 
   const activeTemplates = permissionTemplates.length > 0 ? permissionTemplates : INITIAL_PERMISSION_TEMPLATES;
 
+  // Real-World Authentication & Session State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return Boolean(localStorage.getItem('pixbe_auth_token') || localStorage.getItem('pixbe_auth_user'));
+  });
+
   useEffect(() => {
     seedDatabase();
+    verifyCurrentSession().then((authenticatedUser) => {
+      if (authenticatedUser) {
+        setIsAuthenticated(true);
+        setActiveAgentId(authenticatedUser.id);
+      }
+    });
   }, []);
+
+  const handleLoginSuccess = (agent: Agent) => {
+    setActiveAgentId(agent.id);
+    setIsAuthenticated(true);
+    showToast(`Welcome back, ${agent.name}! Authenticated as ${isAgentAdmin(agent) ? 'Admin' : 'Employee'}.`);
+  };
+
+  const handleLogout = async () => {
+    await logoutWithApi();
+    setIsAuthenticated(false);
+    showToast('Logged out of workspace.');
+  };
 
   // Modals & Overlay Drawers State
   const [detailLead, setDetailLead] = useState<Lead | null>(null);
@@ -485,6 +510,15 @@ export function App() {
     showToast(`Call logged: ${targetLead?.name || 'Lead'} marked as ${disposition}`);
   };
 
+  if (!isAuthenticated) {
+    return (
+      <LoginView
+        agents={agents.length > 0 ? agents : INITIAL_AGENTS}
+        onLogin={handleLoginSuccess}
+      />
+    );
+  }
+
   return (
     <StagesContext.Provider value={stages}>
     <div className="min-h-screen bg-[#F3F4F7] text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
@@ -518,6 +552,7 @@ export function App() {
         }}
         currentView={currentView}
         onShowToast={(msg) => showToast(msg)}
+        onLogout={handleLogout}
       />
 
       {/* Main Layout */}
