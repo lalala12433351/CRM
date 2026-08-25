@@ -23,7 +23,7 @@ import {
   Command,
   Search
 } from 'lucide-react';
-import { Agent } from '../types';
+import { Agent, isAgentAdmin } from '../types';
 
 export interface WorkAccount {
   id: string;
@@ -119,10 +119,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [activeAccount, setActiveAccount] = useState<WorkAccount>(DEFAULT_WORK_ACCOUNTS[0]);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [showLicenseBanner, setShowLicenseBanner] = useState(true);
 
   const accountDropdownRef = useRef<HTMLDivElement>(null);
   const settingsDropdownRef = useRef<HTMLDivElement>(null);
+  const userDropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns on click outside
   useEffect(() => {
@@ -132,6 +134,9 @@ export const Navbar: React.FC<NavbarProps> = ({
       }
       if (settingsDropdownRef.current && !settingsDropdownRef.current.contains(event.target as Node)) {
         setIsSettingsMenuOpen(false);
+      }
+      if (userDropdownRef.current && !userDropdownRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -376,13 +381,85 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </button>
 
-        {/* User Avatar Circle with initials "FC" */}
-        <div 
-          onClick={() => { if (onShowToast) onShowToast(`Logged in as: ${activeAgent.name} (Flight Controller)`); }}
-          className="w-8 h-8 rounded-full bg-slate-100 border border-slate-300 text-slate-800 font-bold text-xs flex items-center justify-center cursor-pointer hover:border-indigo-500 transition-colors shadow-2xs"
-          title={`${activeAgent.name} (FC)`}
-        >
-          FC
+        {/* User Account Switcher Popover */}
+        <div className="relative" ref={userDropdownRef}>
+          <button 
+            onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+            className="flex items-center space-x-2 p-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer transition-all shadow-2xs group"
+            title="Switch User Account / Role Persona"
+          >
+            <div className="w-7 h-7 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center shadow-2xs overflow-hidden ring-1 ring-slate-200">
+              {activeAgent.avatar ? (
+                <img src={activeAgent.avatar} alt={activeAgent.name} className="w-full h-full object-cover" />
+              ) : (
+                activeAgent.name.slice(0, 2).toUpperCase()
+              )}
+            </div>
+            <div className="hidden sm:flex flex-col text-left leading-none pr-1">
+              <span className="text-xs font-bold text-slate-800 truncate max-w-[110px]">{activeAgent.name}</span>
+              <span className={`text-[10px] font-semibold mt-0.5 ${isAgentAdmin(activeAgent) ? 'text-indigo-600' : 'text-slate-500'}`}>
+                {isAgentAdmin(activeAgent) ? 'Admin' : 'Employee'}
+              </span>
+            </div>
+            <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isUserMenuOpen ? 'rotate-180 text-indigo-600' : ''}`} />
+          </button>
+
+          {/* User Account Selection Dropdown */}
+          {isUserMenuOpen && (
+            <div className="absolute right-0 top-full mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in text-xs font-sans">
+              <div className="px-3 py-2 border-b border-slate-100 mb-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-sans">Active User Account</p>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="font-bold text-slate-900 truncate">{activeAgent.name}</span>
+                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase ${
+                    isAgentAdmin(activeAgent) ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-700'
+                  }`}>
+                    {isAgentAdmin(activeAgent) ? 'Admin' : 'Employee'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider font-sans">
+                Switch User Persona
+              </div>
+              <div className="space-y-1 max-h-64 overflow-y-auto">
+                {agents.map((ag) => {
+                  const agIsAdmin = isAgentAdmin(ag);
+                  const isSelected = ag.id === activeAgent.id;
+                  return (
+                    <button
+                      key={ag.id}
+                      onClick={() => {
+                        onSelectAgent(ag.id);
+                        setIsUserMenuOpen(false);
+                        if (onShowToast) {
+                          onShowToast(`Switched user account to ${ag.name} (${agIsAdmin ? 'Admin' : 'Employee'})`);
+                        }
+                      }}
+                      className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-all cursor-pointer ${
+                        isSelected 
+                          ? 'bg-indigo-50/90 border border-indigo-200 text-indigo-950 font-bold' 
+                          : 'hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2.5 truncate">
+                        <img src={ag.avatar} alt={ag.name} className="w-7 h-7 rounded-lg object-cover ring-1 ring-slate-200 shrink-0" />
+                        <div className="truncate">
+                          <div className="text-xs font-semibold text-slate-900 truncate">{ag.name}</div>
+                          <div className="text-[10px] text-slate-500 truncate">{ag.role}</div>
+                        </div>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-extrabold shrink-0 ml-1 ${
+                        agIsAdmin ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        {agIsAdmin ? 'Admin' : 'Employee'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </header>

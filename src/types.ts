@@ -351,6 +351,12 @@ export interface Agent {
   responseTimeMinutes: number;
   currentActiveCallLeadId?: string;
   permissionTemplateId?: string;
+  isAdmin?: boolean;
+}
+
+export function isAgentAdmin(agent?: Agent | null): boolean {
+  if (!agent) return false;
+  return agent.isAdmin === true || agent.role === 'Admin' || agent.role === 'Super Admin';
 }
 
 export interface Lead {

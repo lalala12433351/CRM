@@ -58,7 +58,8 @@ import {
   WorkflowRule, 
   CustomFieldDef, 
   LeadStatus,
-  PermissionTemplate
+  PermissionTemplate,
+  isAgentAdmin
 } from './types';
 
 import { getAgentPermissionRights } from './utils/permissionUtils';
@@ -126,6 +127,37 @@ export function App() {
   // Active Agent details & permissions
   const activeAgent = agents.find((a) => a.id === activeAgentId) || agents[0] || INITIAL_AGENTS[0];
   const activeAgentRights = getAgentPermissionRights(activeAgent, activeTemplates);
+  const isAdmin = isAgentAdmin(activeAgent);
+
+  // Scoped Lead list based on role: Admins see ALL leads, Employees see ONLY assigned leads
+  const visibleLeads = isAdmin
+    ? leads
+    : leads.filter((l) => l.ownerAgentId === activeAgent.id || l.ownerAgentName === activeAgent.name);
+
+  const handleAddAgent = (newAgent: Agent) => {
+    setAgents((prev) => [newAgent, ...prev]);
+    showToast(`User account created: ${newAgent.name} (${newAgent.role})`);
+  };
+
+  const handleRemoveAgent = (agentId: string) => {
+    const targetAgent = agents.find((a) => a.id === agentId);
+    setAgents((prev) => prev.filter((a) => a.id !== agentId));
+    showToast(`Removed user account: ${targetAgent?.name || agentId}`);
+  };
+
+  const handleToggleAdminPower = (agentId: string) => {
+    setAgents((prev) =>
+      prev.map((a) => {
+        if (a.id === agentId) {
+          const nextIsAdmin = !isAgentAdmin(a);
+          const nextRole = nextIsAdmin ? 'Admin' : 'Counselor';
+          showToast(`${nextIsAdmin ? 'Granted Admin powers to' : 'Revoked Admin powers from'} ${a.name}`);
+          return { ...a, isAdmin: nextIsAdmin, role: nextRole };
+        }
+        return a;
+      })
+    );
+  };
 
   const renderAccessRestricted = (viewTitle: string) => (
     <div className="p-8 max-w-xl mx-auto my-12 bg-white rounded-2xl border border-slate-200 shadow-xl text-center space-y-4 font-sans animate-in fade-in">
@@ -140,7 +172,7 @@ export function App() {
       </div>
       <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-[11px] text-slate-500 text-left space-y-1">
         <p><strong className="text-slate-700">Active Representative:</strong> {activeAgent?.name || 'Telecaller'} ({activeAgent?.role || 'Caller'})</p>
-        <p><strong className="text-slate-700">Required Security Right:</strong> Enable in Workspace Settings → Permission Templates</p>
+        <p><strong className="text-slate-700">Required Security Right:</strong> Admin privileges required to access this feature.</p>
       </div>
     </div>
   );
@@ -540,7 +572,7 @@ export function App() {
           {currentView === 'dashboard' && (
             activeAgentRights.dashboardView ? (
               <DashboardView
-                leads={leads}
+                leads={visibleLeads}
                 agents={agents}
                 stages={stages}
                 hourlyMetrics={HOURLY_METRICS}
@@ -554,7 +586,7 @@ export function App() {
 
           {currentView === 'pipeline' && (
             <PipelineView
-              leads={leads}
+              leads={visibleLeads}
               stages={stages}
               onOpenLeadDetail={(lead) => setDetailLead(lead)}
               onUpdateLeadStage={(leadId, newStageStatus) => {
@@ -572,7 +604,7 @@ export function App() {
 
           {currentView === 'leads' && (
             <LeadsView
-              leads={leads}
+              leads={visibleLeads}
               agents={agents}
               customFields={customFields}
               activeAgent={activeAgent}
@@ -594,7 +626,7 @@ export function App() {
 
           {currentView === 'followups' && (
             <FollowUpsView
-              leads={leads}
+              leads={visibleLeads}
               agents={agents}
               callRecords={callRecords}
               onUpdateLead={handlePartialUpdateLead}
@@ -606,7 +638,7 @@ export function App() {
 
           {currentView === 'tasks' && (
             <TasksView
-              leads={leads.filter((l) => l.followUpAt || l.status === 'Follow Up')}
+              leads={visibleLeads.filter((l) => l.followUpAt || l.status === 'Follow Up')}
               agents={agents}
               onOpenLeadDetail={(lead) => setDetailLead(lead)}
               onCallLead={(lead) => { window.location.href = `tel:${lead.phone}`; }}
@@ -615,7 +647,7 @@ export function App() {
 
           {currentView === 'inbox' && (
             <OmnichannelInboxView
-              leads={leads}
+              leads={visibleLeads}
               messages={messages}
               onSendMessage={handleSendMessage}
               onOpenLeadDetail={(lead) => setDetailLead(lead)}
@@ -628,7 +660,7 @@ export function App() {
               <WhatsAppCrmView
                 templates={templates}
                 campaigns={campaigns}
-                leads={leads}
+                leads={visibleLeads}
                 onAddTemplate={(tmpl) => setTemplates((prev) => [tmpl, ...prev])}
                 onCreateCampaign={(camp) => setCampaigns((prev) => [camp, ...prev])}
               />
@@ -657,7 +689,7 @@ export function App() {
                 initialSubTab={reportsSubTab}
                 callRecords={callRecords}
                 agents={agents}
-                leads={leads}
+                leads={visibleLeads}
                 activities={activities}
                 onOpenLeadDetail={(lead) => setDetailLead(lead)}
                 onUpdateCallRecord={handleUpdateCallRecord}
@@ -666,13 +698,17 @@ export function App() {
           )}
 
           {currentView === 'analytics' && (
-            <AnalyticsView leads={leads} hourlyMetrics={HOURLY_METRICS} />
+            <AnalyticsView leads={visibleLeads} hourlyMetrics={HOURLY_METRICS} />
           )}
 
           {currentView === 'team' && (
             <TeamView
               agents={agents}
+              activeAgent={activeAgent}
               onToggleAgentStatus={(id, st) => setAgents((prev) => prev.map((a) => a.id === id ? { ...a, status: st } : a))}
+              onAddAgent={handleAddAgent}
+              onRemoveAgent={handleRemoveAgent}
+              onToggleAdminPower={handleToggleAdminPower}
             />
           )}
 
@@ -800,7 +836,7 @@ export function App() {
       <CommandPalette
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
-        leads={leads}
+        leads={visibleLeads}
         agents={agents}
         onSelectLead={(lead) => setDetailLead(lead)}
         onNavigate={(view) => setCurrentView(view)}
