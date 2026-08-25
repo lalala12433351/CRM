@@ -1,12 +1,11 @@
 import os
+import json
 import zipfile
 
 OUTPUT_ZIP = "pixbe-crm-deploy.zip"
 
 FILES_TO_INCLUDE = [
     "Procfile",
-    "package.json",
-    "package-lock.json",
     "firebase-applet-config.json",
     ".env",
     ".env.example"
@@ -15,14 +14,29 @@ FILES_TO_INCLUDE = [
 DIRS_TO_INCLUDE = [
     "dist",
     "public",
-    ".ebextensions",
-    ".platform"
+    ".ebextensions"
 ]
 
 def build_zip():
-    print(f"Creating {OUTPUT_ZIP} with POSIX forward-slash paths for AWS Elastic Beanstalk...")
+    print(f"Creating ultra-fast deployment bundle {OUTPUT_ZIP} for AWS Elastic Beanstalk...")
     count = 0
     with zipfile.ZipFile(OUTPUT_ZIP, "w", zipfile.ZIP_DEFLATED) as z:
+        # Create lightweight deployment package.json that skips npm install
+        deploy_pkg = {
+            "name": "pixbe-crm-backend",
+            "version": "1.0.0",
+            "private": True,
+            "type": "module",
+            "scripts": {
+                "start": "node dist/server.cjs",
+                "build": "node -e \"console.log('Prebuilt bundle ready')\""
+            },
+            "dependencies": {}
+        }
+        z.writestr("package.json", json.dumps(deploy_pkg, indent=2))
+        print(" Added optimized package.json (skips npm install for instant deployment)")
+        count += 1
+
         for file in FILES_TO_INCLUDE:
             if os.path.exists(file):
                 z.write(file, file)
