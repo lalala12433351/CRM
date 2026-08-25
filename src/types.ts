@@ -356,7 +356,14 @@ export interface Agent {
 
 export function isAgentAdmin(agent?: Agent | null): boolean {
   if (!agent) return false;
-  return agent.isAdmin === true || agent.role === 'Admin' || agent.role === 'Super Admin';
+  const roleName = (agent.role || '').toLowerCase();
+  const emailName = (agent.email || '').toLowerCase();
+  return (
+    agent.isAdmin === true ||
+    roleName.includes('admin') ||
+    roleName.includes('owner') ||
+    emailName.includes('admin')
+  );
 }
 
 export interface Lead {

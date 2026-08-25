@@ -107,6 +107,16 @@ export function App() {
   const activeTemplates = permissionTemplates.length > 0 ? permissionTemplates : INITIAL_PERMISSION_TEMPLATES;
 
   // Real-World Authentication & Session State
+  const [currentUser, setCurrentUser] = useState<Agent | null>(() => {
+    const stored = localStorage.getItem('pixbe_auth_user');
+    if (stored) {
+      try {
+        return JSON.parse(stored) as Agent;
+      } catch (e) {}
+    }
+    return null;
+  });
+
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return Boolean(localStorage.getItem('pixbe_auth_token') || localStorage.getItem('pixbe_auth_user'));
   });
@@ -116,21 +126,38 @@ export function App() {
     verifyCurrentSession().then((authenticatedUser) => {
       if (authenticatedUser) {
         setIsAuthenticated(true);
+        setCurrentUser(authenticatedUser);
         setActiveAgentId(authenticatedUser.id);
       }
     });
   }, []);
 
   const handleLoginSuccess = (agent: Agent) => {
+    setCurrentUser(agent);
     setActiveAgentId(agent.id);
     setIsAuthenticated(true);
-    showToast(`Welcome back, ${agent.name}! Authenticated as ${isAgentAdmin(agent) ? 'Admin' : 'Employee'}.`);
+    localStorage.setItem('pixbe_auth_user', JSON.stringify(agent));
+    showToast(`Welcome back, ${agent.name}! Logged in as ${isAgentAdmin(agent) ? 'Admin' : 'Employee'}.`);
   };
 
   const handleLogout = async () => {
     await logoutWithApi();
+    setCurrentUser(null);
     setIsAuthenticated(false);
+    localStorage.removeItem('pixbe_auth_user');
     showToast('Logged out of workspace.');
+  };
+
+  const handleSelectAgent = (agentId: string) => {
+    const targetAgent = agents.find((a) => a.id === agentId) || INITIAL_AGENTS.find((a) => a.id === agentId);
+    if (targetAgent) {
+      setCurrentUser(targetAgent);
+      setActiveAgentId(targetAgent.id);
+      localStorage.setItem('pixbe_auth_user', JSON.stringify(targetAgent));
+      showToast(`Switched active user to ${targetAgent.name} (${isAgentAdmin(targetAgent) ? 'Admin' : 'Employee'})`);
+    } else {
+      setActiveAgentId(agentId);
+    }
   };
 
   // Modals & Overlay Drawers State
@@ -149,15 +176,15 @@ export function App() {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // Active Agent details & permissions
-  const activeAgent = agents.find((a) => a.id === activeAgentId) || agents[0] || INITIAL_AGENTS[0];
+  // Active Agent details & permissions - ensure exact logged-in user takes absolute precedence
+  const activeAgent = currentUser || agents.find((a) => a.id === activeAgentId) || INITIAL_AGENTS[0];
   const activeAgentRights = getAgentPermissionRights(activeAgent, activeTemplates);
   const isAdmin = isAgentAdmin(activeAgent);
 
   // Scoped Lead list based on role: Admins see ALL leads, Employees see ONLY assigned leads
   const visibleLeads = isAdmin
     ? leads
-    : leads.filter((l) => l.ownerAgentId === activeAgent.id || l.ownerAgentName === activeAgent.name);
+    : leads.filter((l) => l.ownerAgentId === activeAgent.id || l.ownerAgentName === activeAgent.name || (activeAgent.email && l.email === activeAgent.email));
 
   const handleAddAgent = (newAgent: Agent) => {
     setAgents((prev) => [newAgent, ...prev]);
@@ -533,7 +560,7 @@ export function App() {
       <Navbar
         activeAgent={activeAgent}
         agents={agents}
-        onSelectAgent={(agentId) => setActiveAgentId(agentId)}
+        onSelectAgent={handleSelectAgent}
         onOpenLeadModal={() => setCurrentView('add_lead')}
         onAddNewLead={() => setCurrentView('add_lead')}
         onPushTestLead={() => handlePushTestLead('IndiaMart')}
