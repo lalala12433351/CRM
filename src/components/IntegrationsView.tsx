@@ -355,31 +355,43 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
     return () => window.removeEventListener('message', handleFbAuthMessage);
   }, []);
 
-  const handleOfficialFacebookLogin = () => {
+  const handleOfficialFacebookLogin = async () => {
     setIsLoggingInFb(true);
     setModalStatusMsg(null);
 
-    const targetAppId = fbAppId.trim();
-    const redirectUri = encodeURIComponent(window.location.origin + '/api/auth/meta/callback');
-    const scopes = encodeURIComponent('pages_show_list,pages_read_engagement,pages_manage_ads,leads_retrieval');
-    const fbOAuthUrl = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${targetAppId}&redirect_uri=${redirectUri}&scope=${scopes}&response_type=code`;
+    try {
+      // Fetch authoritative OAuth URL generated directly by the backend
+      const res = await fetch('/api/auth/meta/url');
+      const data = await res.json();
 
-    const width = 640;
-    const height = 740;
-    const left = window.screenX + (window.innerWidth - width) / 2;
-    const top = window.screenY + (window.innerHeight - height) / 2;
+      if (!data.success || !data.url) {
+        setModalStatusMsg("⚠️ Meta App ID is not configured on the server. Please check your .env file.");
+        setIsLoggingInFb(false);
+        return;
+      }
 
-    const popup = window.open(
-      fbOAuthUrl,
-      'MetaOfficialOAuthWindow',
-      `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,status=yes`
-    );
+      const fbOAuthUrl = data.url;
 
-    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-      setModalStatusMsg('⚠️ Browser popup was blocked. Please allow popups for localhost to connect with Facebook.');
+      const width = 640;
+      const height = 740;
+      const left = window.screenX + (window.innerWidth - width) / 2;
+      const top = window.screenY + (window.innerHeight - height) / 2;
+
+      const popup = window.open(
+        fbOAuthUrl,
+        'MetaOfficialOAuthWindow',
+        `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,status=yes`
+      );
+
+      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+        // Fallback: direct navigation if popups are blocked
+        window.location.href = fbOAuthUrl;
+      } else {
+        setTimeout(() => setIsLoggingInFb(false), 2500);
+      }
+    } catch (err: any) {
+      setModalStatusMsg(`⚠️ Error initiating Meta login: ${err.message}`);
       setIsLoggingInFb(false);
-    } else {
-      setTimeout(() => setIsLoggingInFb(false), 2500);
     }
   };
 
