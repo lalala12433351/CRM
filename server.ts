@@ -264,9 +264,9 @@ async function startServer() {
     let leadData: any = null;
 
     if (token && leadgenId && !token.includes("_DEMO")) {
-      console.log(`⚡ [Meta Graph API v20.0] Fetching lead details for leadgen_id: ${leadgenId}`);
+      console.log(`⚡ [Meta Graph API v22.0] Fetching lead details for leadgen_id: ${leadgenId}`);
       try {
-        const graphUrl = `https://graph.facebook.com/v20.0/${leadgenId}?access_token=${token}`;
+        const graphUrl = `https://graph.facebook.com/v22.0/${leadgenId}?access_token=${token}`;
         const graphRes = await fetch(graphUrl);
         leadData = await graphRes.json();
         console.log(`[Meta Graph API Response for ${leadgenId}]:`, JSON.stringify(leadData));
@@ -499,10 +499,10 @@ async function startServer() {
     const host = req.get("host");
     const isHttps = req.protocol === "https" || req.headers["x-forwarded-proto"] === "https" || req.headers["cloudfront-forwarded-proto"] === "https" || (host && host.includes("cloudfront.net"));
     const protocol = isHttps ? "https" : "http";
-    const redirectUri = `${protocol}://${host}/api/auth/meta/callback`;
+    const redirectUri = process.env.META_REDIRECT_URI || `${protocol}://${host}/api/auth/meta/callback`;
     const appId = (activeMetaConfig.appId || process.env.META_APP_ID || process.env.VITE_META_APP_ID || "").toString().trim().replace(/['"]/g, "");
-    const scopes = "pages_show_list,pages_read_engagement,pages_manage_ads,leads_retrieval";
-    const authUrl = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes}&response_type=code`;
+    const scopes = "leads_retrieval,pages_show_list,pages_read_engagement,pages_manage_ads";
+    const authUrl = `https://www.facebook.com/v22.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes}&response_type=code`;
 
     res.json({
       success: true,
@@ -512,13 +512,13 @@ async function startServer() {
     });
   });
 
-  // 4. Meta OAuth Callback (Exchange Code for Token & Get Managed Pages)
+  // 4. Meta OAuth Callback (Exchange Code for Token, Auto-Subscribe & Save Pages)
   const handleMetaOAuthCallback = async (req: any, res: any) => {
     const { code, error, error_description } = req.query;
     const host = req.get("host");
     const isHttps = req.protocol === "https" || req.headers["x-forwarded-proto"] === "https" || req.headers["cloudfront-forwarded-proto"] === "https" || (host && host.includes("cloudfront.net"));
     const protocol = isHttps ? "https" : "http";
-    const redirectUri = `${protocol}://${host}${req.path}`;
+    const redirectUri = process.env.META_REDIRECT_URI || `${protocol}://${host}${req.path}`;
 
     if (error) {
       return res.send(`
@@ -549,8 +549,8 @@ async function startServer() {
       let userInfo: any = { name: "Meta Lead Ads User", email: "meta_user@facebook.com" };
 
       if (appSecret) {
-        // Step A: Exchange code for User Access Token
-        const tokenUrl = `https://graph.facebook.com/v20.0/oauth/access_token?client_id=${appId}&client_secret=${appSecret}&redirect_uri=${encodeURIComponent(redirectUri)}&code=${code}`;
+        // 1. Exchange temporary code for User Access Token (Graph API v22.0)
+        const tokenUrl = `https://graph.facebook.com/v22.0/oauth/access_token?client_id=${appId}&client_secret=${appSecret}&redirect_uri=${encodeURIComponent(redirectUri)}&code=${code}`;
         const tokenRes = await fetch(tokenUrl);
         const tokenData: any = await tokenRes.json();
 
@@ -558,16 +558,38 @@ async function startServer() {
           userAccessToken = tokenData.access_token;
           activeMetaConfig.userAccessToken = userAccessToken;
 
-          // Step B: Get the list of real pages the user manages
-          const pagesRes = await fetch(`https://graph.facebook.com/v20.0/me/accounts?access_token=${userAccessToken}`);
+          // 2. Get client's Facebook Pages and Page Access Tokens
+          const pagesRes = await fetch(`https://graph.facebook.com/v22.0/me/accounts?access_token=${userAccessToken}`);
           const pagesData: any = await pagesRes.json();
           if (Array.isArray(pagesData.data)) {
             pages = pagesData.data;
           }
 
-          // Step B2: Get user profile details
+          // 3. Auto-save each page and auto-subscribe to webhook leadgen events
+          for (const page of pages) {
+            try {
+              await saveMetaConnectedPage({
+                pageId: page.id,
+                pageName: page.name,
+                pageAccessToken: page.access_token,
+                tenantId: 'default_admin',
+                crmUserId: 'default_admin'
+              });
+
+              // CRITICAL: Install webhook onto the client's Page
+              const subRes = await fetch(`https://graph.facebook.com/v22.0/${page.id}/subscribed_apps?subscribed_fields=leadgen&access_token=${page.access_token}`, {
+                method: "POST"
+              });
+              const subData: any = await subRes.json();
+              console.log(`✅ [Meta Auto-Subscribe v22.0] Subscribed page ${page.name} (${page.id}):`, subData);
+            } catch (err: any) {
+              console.warn(`⚠️ [Meta Page Subscription Warning]: ${page.name}`, err.message);
+            }
+          }
+
+          // 4. Get user profile details
           try {
-            const meRes = await fetch(`https://graph.facebook.com/v20.0/me?fields=id,name,email,picture&access_token=${userAccessToken}`);
+            const meRes = await fetch(`https://graph.facebook.com/v22.0/me?fields=id,name,email,picture&access_token=${userAccessToken}`);
             const meData: any = await meRes.json();
             if (meData.id) {
               userInfo = {
@@ -602,7 +624,7 @@ async function startServer() {
           <body style="font-family: system-ui, sans-serif; background: #0f172a; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; color: #f8fafc;">
             <div style="background: #1e293b; padding: 2rem; border-radius: 1.25rem; max-width: 440px; width: 90%; text-align: center; border: 1px solid #334155;">
               <h3 style="color: #f59e0b; margin-top: 0;">Meta App Secret Required</h3>
-              <p style="color: #cbd5e1; font-size: 13px; line-height: 1.5;">Please configure your <strong>META_APP_SECRET</strong> in <code>.env</code> or directly connect using your real <strong>Page Access Token</strong>.</p>
+              <p style="color: #cbd5e1; font-size: 13px; line-height: 1.5;">Please configure your <strong>META_APP_SECRET</strong> in <code>.env</code>.</p>
               <button onclick="window.close()" style="margin-top: 1rem; background: #1877F2; color: white; border: none; padding: 0.6rem 1.5rem; border-radius: 0.5rem; cursor: pointer; font-weight: bold;">Close Window</button>
             </div>
           </body>
@@ -628,6 +650,12 @@ async function startServer() {
 
       activeMetaConfig.userAccount = userInfo;
       activeMetaConfig.pages = pages;
+      if (pages.length > 0) {
+        activeMetaConfig.pageId = pages[0].id;
+        activeMetaConfig.pageName = pages[0].name;
+        activeMetaConfig.pageAccessToken = pages[0].access_token;
+        activeMetaConfig.isConnected = true;
+      }
 
       // Render popup bridge that transmits real pages to CRM parent window and auto-closes
       return res.send(`
@@ -649,7 +677,7 @@ async function startServer() {
           <div class="card">
             <div class="logo">f</div>
             <h3>Connected to Meta!</h3>
-            <p>Loaded <strong>${pages.length}</strong> real Facebook Page(s) for <strong>${userInfo.name}</strong>. Returning to CRM to select your page...</p>
+            <p>Loaded & subscribed <strong>${pages.length}</strong> real Facebook Page(s) for <strong>${userInfo.name}</strong>. Returning to CRM...</p>
             <div class="spinner"></div>
           </div>
           <script>
@@ -663,15 +691,15 @@ async function startServer() {
               window.opener.postMessage(payload, '*');
               setTimeout(() => window.close(), 1200);
             } else {
-              setTimeout(() => { window.location.href = '/'; }, 1500);
+              window.location.href = '/?meta=connected';
             }
           </script>
         </body>
         </html>
       `);
     } catch (err: any) {
-      console.error("❌ [Meta OAuth Callback Error]:", err);
-      return res.status(500).send(`Authentication error: ${err.message}`);
+      console.error("❌ [Meta OAuth Callback Exception]:", err);
+      res.status(500).send("Internal Server Error during Meta authentication.");
     }
   };
 
