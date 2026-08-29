@@ -357,7 +357,8 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
 
   const handleConnectMeta = () => {
     const appId = "1785911265462186";
-    const redirectUri = encodeURIComponent("https://d3pcv3wpcxqhl2.cloudfront.net/api/auth/meta/callback");
+    // Use current origin so it works both locally (ngrok) and on CloudFront
+    const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/meta/callback`);
     const scope = "leads_retrieval,pages_show_list,pages_read_engagement,pages_manage_ads";
 
     window.location.href = `https://www.facebook.com/v22.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;

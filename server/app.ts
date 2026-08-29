@@ -1,0 +1,86 @@
+import express from 'express';
+import path from 'path';
+import fs from 'fs';
+import {
+  testAwsDbConnection,
+  seedAwsDbMockData,
+  getAwsDbTablesSummary
+} from './config/database';
+
+import paymentRoutes from './modules/payments/payment.routes';
+import metaRoutes from './modules/integrations/meta/meta.routes';
+import googleRoutes from './modules/integrations/google/google.routes';
+import integrationsRoutes from './modules/integrations/integrations.routes';
+import leadRoutes from './modules/leads/lead.routes';
+import authRoutes from './modules/auth/auth.routes';
+import pipelineRoutes from './modules/pipelines/pipeline.routes';
+import aiRoutes from './modules/ai/ai.routes';
+
+export async function createApp() {
+  const app = express();
+  app.set('trust proxy', 1);
+  app.use(express.json({ limit: '10mb' }));
+
+  // Health check endpoints
+  app.get(['/health', '/api/health'], (req, res) => {
+    res.status(200).json({ status: 'ok', app: 'Pixbe CRM', timestamp: new Date().toISOString() });
+  });
+
+  // Aurora RDS diagnostics & seeding endpoints
+  app.get('/api/db/test', async (req, res) => {
+    const dbStatus = await testAwsDbConnection();
+    res.json(dbStatus);
+  });
+
+  app.get('/api/db/seed', async (req, res) => {
+    const seedResult = await seedAwsDbMockData();
+    res.json(seedResult);
+  });
+
+  app.get('/api/db/tables', async (req, res) => {
+    const tablesSummary = await getAwsDbTablesSummary();
+    res.json(tablesSummary);
+  });
+
+  // Mount domain modules under /api
+  app.use('/api', paymentRoutes);
+  app.use('/api', metaRoutes);
+  app.use('/api', googleRoutes);
+  app.use('/api', integrationsRoutes);
+  app.use('/api', leadRoutes);
+  app.use('/api', authRoutes);
+  app.use('/api', pipelineRoutes);
+  app.use('/api', aiRoutes);
+
+  // Serve static files in production or Vite middleware in development
+  const distPath = path.join(process.cwd(), 'dist');
+
+  if (process.env.NODE_ENV === 'production') {
+    app.use(express.static(distPath));
+    app.get('*', (req, res) => {
+      const indexPath = path.join(distPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        res.status(404).send('Application dist/index.html not found.');
+      }
+    });
+  } else {
+    try {
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        server: { middlewareMode: true, allowedHosts: true },
+        appType: 'spa'
+      });
+      app.use(vite.middlewares);
+    } catch (err) {
+      console.warn('Vite dev server unavailable, serving static dist files:', err);
+      app.use(express.static(distPath));
+      app.get('*', (req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+    }
+  }
+
+  return app;
+}
