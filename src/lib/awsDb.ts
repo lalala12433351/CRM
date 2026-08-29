@@ -534,6 +534,7 @@ export async function initializeAwsDbTables() {
     // 22. Meta (Facebook & Instagram) Connected Pages (Multi-Tenant Architecture)
     await client.query(`
       CREATE TABLE IF NOT EXISTS meta_connected_pages (
+        client_id VARCHAR(100) DEFAULT 'default_admin',
         page_id VARCHAR(100) PRIMARY KEY,
         page_name VARCHAR(255) NOT NULL,
         page_access_token TEXT NOT NULL,
@@ -543,6 +544,7 @@ export async function initializeAwsDbTables() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
+      ALTER TABLE meta_connected_pages ADD COLUMN IF NOT EXISTS client_id VARCHAR(100) DEFAULT 'default_admin';
     `);
 
     console.log('⚡ AWS Aurora RDS database tables (22 Total Modules) initialized successfully.');
@@ -968,10 +970,28 @@ export async function saveIntegrationConfigToAwsDb(config: { id: string; name: s
   }
 }
 
+export async function executeAwsQuery(text: string, params: any[] = []) {
+  let pool: any = null;
+  let client: any = null;
+  try {
+    pool = await getAwsClient();
+    client = await pool.connect();
+    const res = await client.query(text, params);
+    return res;
+  } catch (err: any) {
+    console.error('⚠️ AWS RDS Query Execution Error:', err.message);
+    throw err;
+  } finally {
+    if (client) try { client.release(); } catch (e) {}
+    if (pool) try { await pool.end(); } catch (e) {}
+  }
+}
+
 export async function saveMetaConnectedPage(data: {
   pageId: string;
   pageName: string;
   pageAccessToken: string;
+  clientId?: string;
   tenantId?: string;
   crmUserId?: string;
 }) {
@@ -981,16 +1001,18 @@ export async function saveMetaConnectedPage(data: {
     pool = await getAwsClient();
     client = await pool.connect();
     await client.query(`
-      INSERT INTO meta_connected_pages (page_id, page_name, page_access_token, tenant_id, crm_user_id, is_active, updated_at)
-      VALUES ($1, $2, $3, $4, $5, TRUE, NOW())
+      INSERT INTO meta_connected_pages (client_id, page_id, page_name, page_access_token, tenant_id, crm_user_id, is_active, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, TRUE, NOW())
       ON CONFLICT (page_id) DO UPDATE SET
         page_name = EXCLUDED.page_name,
         page_access_token = EXCLUDED.page_access_token,
+        client_id = EXCLUDED.client_id,
         tenant_id = EXCLUDED.tenant_id,
         crm_user_id = EXCLUDED.crm_user_id,
         is_active = TRUE,
         updated_at = NOW();
     `, [
+      data.clientId || data.crmUserId || 'default_admin',
       data.pageId,
       data.pageName,
       data.pageAccessToken,

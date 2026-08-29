@@ -355,44 +355,16 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
     return () => window.removeEventListener('message', handleFbAuthMessage);
   }, []);
 
-  const handleOfficialFacebookLogin = async () => {
-    setIsLoggingInFb(true);
-    setModalStatusMsg(null);
+  const handleConnectMeta = () => {
+    const appId = "1785911265462186";
+    const redirectUri = encodeURIComponent("https://d3pcv3wpcxqhl2.cloudfront.net/api/auth/meta/callback");
+    const scope = "leads_retrieval,pages_show_list,pages_read_engagement,pages_manage_ads";
 
-    try {
-      // Fetch authoritative OAuth URL generated directly by the backend
-      const res = await fetch('/api/auth/meta/url');
-      const data = await res.json();
+    window.location.href = `https://www.facebook.com/v22.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
+  };
 
-      if (!data.success || !data.url) {
-        setModalStatusMsg("⚠️ Meta App ID is not configured on the server. Please check your .env file.");
-        setIsLoggingInFb(false);
-        return;
-      }
-
-      const fbOAuthUrl = data.url;
-
-      const width = 640;
-      const height = 740;
-      const left = window.screenX + (window.innerWidth - width) / 2;
-      const top = window.screenY + (window.innerHeight - height) / 2;
-
-      const popup = window.open(
-        fbOAuthUrl,
-        'MetaOfficialOAuthWindow',
-        `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,status=yes`
-      );
-
-      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-        // Fallback: direct navigation if popups are blocked
-        window.location.href = fbOAuthUrl;
-      } else {
-        setTimeout(() => setIsLoggingInFb(false), 2500);
-      }
-    } catch (err: any) {
-      setModalStatusMsg(`⚠️ Error initiating Meta login: ${err.message}`);
-      setIsLoggingInFb(false);
-    }
+  const handleOfficialFacebookLogin = () => {
+    handleConnectMeta();
   };
 
   const handleSyncSelectedPage = async () => {

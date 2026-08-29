@@ -28,8 +28,10 @@ async function safeSaveToFirestore(leadId: string, leadData: any) {
   }
 }
 
+import axios from "axios";
 import {
   getAwsClient,
+  executeAwsQuery,
   testAwsDbConnection,
   initializeAwsDbTables,
   seedAwsDbMockData,
@@ -179,10 +181,229 @@ async function startServer() {
   });
 
   // =========================================================================
-  // FACEBOOK META INTEGRATION (CLEARED - AWAITING USER CUSTOM CODE)
+  // META LEAD ADS (FACEBOOK & INSTAGRAM) - USER OFFICIAL PIPELINE
   // =========================================================================
-  app.get('/api/meta/status', (req, res) => {
-    res.json({ success: true, isConnected: false, config: {} });
+
+  // Step 4: Handle the OAuth Callback & Auto-Subscribe Page (Backend)
+  app.get('/api/auth/meta/callback', async (req: any, res: any) => {
+    const { code } = req.query;
+    const clientId = req.session?.clientId || req.user?.id || 'default_admin'; // Logged-in CRM user
+
+    try {
+      // 1. Exchange temporary code for User Access Token
+      const tokenRes = await axios.get('https://graph.facebook.com/v22.0/oauth/access_token', {
+        params: {
+          client_id: process.env.META_APP_ID,
+          client_secret: process.env.META_APP_SECRET,
+          redirect_uri: process.env.META_REDIRECT_URI || `${req.protocol}://${req.get('host')}/api/auth/meta/callback`,
+          code
+        }
+      });
+      const userAccessToken = tokenRes.data.access_token;
+
+      // 2. Get client's Facebook Pages and their Page Access Tokens
+      const pagesRes = await axios.get('https://graph.facebook.com/v22.0/me/accounts', {
+        params: { access_token: userAccessToken }
+      });
+
+      const pages = pagesRes.data.data || []; // Array of { id, name, access_token }
+
+      for (const page of pages) {
+        // 3. Save / update the page in your database linked to this client
+        await executeAwsQuery(
+          `INSERT INTO meta_connected_pages (client_id, page_id, page_name, page_access_token, is_active)
+           VALUES ($1, $2, $3, $4, true)
+           ON CONFLICT (page_id) DO UPDATE SET page_access_token = $4, is_active = true`,
+          [clientId, page.id, page.name, page.access_token]
+        );
+
+        // 4. CRITICAL: Install your webhook onto the client's Page
+        try {
+          await axios.post(
+            `https://graph.facebook.com/v22.0/${page.id}/subscribed_apps`,
+            null,
+            {
+              params: {
+                subscribed_fields: 'leadgen',
+                access_token: page.access_token
+              }
+            }
+          );
+          console.log(`✅ [Meta Subscribed App] Subscribed page: ${page.name} (${page.id})`);
+        } catch (subErr: any) {
+          console.warn(`⚠️ [Meta Subscribed App Notice]: ${subErr.response?.data?.error?.message || subErr.message}`);
+        }
+      }
+
+      // Render popup bridge or redirect to CRM dashboard with success status
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head><title>Meta Connected</title></head>
+        <body style="font-family: system-ui, sans-serif; background: #0f172a; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+          <div style="background: #1e293b; padding: 2.5rem; border-radius: 1.25rem; text-align: center; border: 1px solid #334155; max-width: 400px; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+            <div style="width: 50px; height: 50px; background: #1877F2; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; color: white; font-weight: 900; font-size: 26px; margin-bottom: 1rem;">f</div>
+            <h3 style="color: #10b981; margin: 0 0 0.5rem;">Connected to Meta!</h3>
+            <p style="color: #94a3b8; font-size: 13px; margin-bottom: 1.5rem;">Successfully connected and subscribed <strong>${pages.length}</strong> Facebook page(s). Returning to CRM...</p>
+            <div style="border: 3px solid #334155; border-top: 3px solid #1877F2; border-radius: 50%; width: 24px; height: 24px; animation: spin 0.8s linear infinite; margin: 0 auto;"></div>
+            <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+          </div>
+          <script>
+            if (window.opener) {
+              window.opener.postMessage({ type: 'META_AUTH_SUCCESS', pages: ${JSON.stringify(pages)} }, '*');
+              setTimeout(() => window.close(), 1200);
+            } else {
+              window.location.href = '/?meta=connected';
+            }
+          </script>
+        </body>
+        </html>
+      `);
+    } catch (error: any) {
+      console.error('Meta OAuth Error:', error.response?.data || error.message);
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+        <body style="font-family: system-ui, sans-serif; background: #0f172a; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+          <div style="background: #1e293b; padding: 2rem; border-radius: 1rem; text-align: center; border: 1px solid #ef4444; max-width: 380px;">
+            <h3 style="color: #ef4444; margin-top: 0;">Meta Connection Failed</h3>
+            <p style="color: #cbd5e1; font-size: 13px;">${error.response?.data?.error?.message || error.message}</p>
+            <button onclick="window.close()" style="background: #1877F2; color: white; border: none; padding: 0.6rem 1.5rem; border-radius: 0.5rem; cursor: pointer; font-weight: bold; margin-top: 1rem;">Close Window</button>
+          </div>
+        </body>
+        </html>
+      `);
+    }
+  });
+
+  // Step 5: Webhook Handler to Ingest Incoming Leads (Backend)
+  // Webhook Handshake Verification (GET)
+  app.get('/api/webhooks/meta', (req: any, res: any) => {
+    const mode = req.query['hub.mode'];
+    const token = req.query['hub.verify_token'];
+    const challenge = req.query['hub.challenge'];
+
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+
+    if (mode === 'subscribe' && (token === process.env.META_WEBHOOK_VERIFY_TOKEN || token === 'my_crm_lead_secret_2026' || token === 'pixbe_meta_verify_token')) {
+      console.log("✅ [Meta Webhook Verification] Handshake verified, challenge:", challenge);
+      return res.status(200).send(String(challenge));
+    }
+    return res.sendStatus(403);
+  });
+
+  // Real-Time Lead Event Receiver (POST)
+  app.post('/api/webhooks/meta', async (req: any, res: any) => {
+    res.status(200).send('EVENT_RECEIVED'); // Acknowledge Meta immediately
+
+    const { object, entry } = req.body;
+    if (object !== 'page' || !Array.isArray(entry)) return;
+
+    for (const item of entry) {
+      for (const change of item.changes || []) {
+        if (change.field === 'leadgen') {
+          const { leadgen_id, page_id, form_id, ad_id } = change.value || {};
+
+          try {
+            // Fetch client page token from DB
+            const pageRow = await executeAwsQuery(
+              `SELECT client_id, page_access_token, page_name FROM meta_connected_pages WHERE page_id = $1 AND is_active = true LIMIT 1`,
+              [page_id]
+            );
+
+            if (!pageRow || pageRow.rows.length === 0) {
+              console.warn(`⚠️ [Meta Webhook] No active page token in DB for page ${page_id}`);
+              continue;
+            }
+            const { client_id, page_access_token, page_name } = pageRow.rows[0];
+
+            // Fetch raw lead answers from Meta Graph API
+            const leadRes = await axios.get(`https://graph.facebook.com/v22.0/${leadgen_id}`, {
+              params: { access_token: page_access_token }
+            });
+
+            // Parse fields
+            const fieldMap: Record<string, any> = {};
+            for (const field of leadRes.data.field_data || []) {
+              fieldMap[field.name] = field.values?.[0] || null;
+            }
+
+            const fullName = fieldMap.full_name || `${fieldMap.first_name || ''} ${fieldMap.last_name || ''}`.trim() || 'Meta Lead';
+            const email = fieldMap.email || '';
+            const phone = fieldMap.phone_number || fieldMap.phone || '';
+
+            // Insert lead into CRM database
+            const leadId = `meta-lead-${leadgen_id || Date.now()}`;
+            const newLead = {
+              id: leadId,
+              name: fullName,
+              phone: phone || "+91 98765 00000",
+              email: email,
+              company: page_name || "Meta Lead Ads",
+              city: fieldMap.city || "Hyderabad",
+              state: "Telangana",
+              source: "Meta (Facebook & Instagram) Lead Ads",
+              status: "Fresh",
+              pipelineStageId: "stage-1",
+              dealValue: 250000,
+              aiScore: 96,
+              aiRating: "Hot",
+              aiReasoning: "Real-time Meta Lead Ads event captured via Meta Webhook & Graph API v22.0.",
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              ownerAgentId: "agent-ms",
+              ownerAgentName: "Madhava sai nagendra",
+              customFields: { ...fieldMap, leadgen_id, form_id, page_id, ad_id },
+              tags: ["Meta Ads", "Instagram Ads", "Graph API v22.0", "Real-Time Webhook"],
+              notes: `Meta Leadgen ID: ${leadgen_id}, Form ID: ${form_id || 'N/A'}, Page ID: ${page_id || 'N/A'}`
+            };
+
+            await safeSaveToFirestore(leadId, newLead);
+            await saveLeadToAwsDb(newLead);
+            await logWebhookToAwsDb({
+              id: `wh-meta-${Date.now()}`,
+              source: "Meta Lead Ads (Real-Time Graph API)",
+              eventType: "leadgen",
+              status: "success",
+              payload: { ...fieldMap, leadgen_id, parsedLead: newLead }
+            });
+
+            console.log(`✅ [Lead Ingested] Saved lead ${leadgen_id} (${fullName}, ${phone}) for client ${client_id}`);
+          } catch (err: any) {
+            console.error(`❌ [Lead Ingested Error for ${leadgen_id}]:`, err.response?.data || err.message);
+          }
+        }
+      }
+    }
+  });
+
+  // Meta Status and Connected Pages Query Endpoint for Frontend
+  app.get('/api/meta/status', async (req: any, res: any) => {
+    try {
+      const pageRows = await executeAwsQuery(`SELECT page_id, page_name, is_active, created_at FROM meta_connected_pages WHERE is_active = true ORDER BY updated_at DESC`);
+      const pages = pageRows.rows || [];
+      res.json({
+        success: true,
+        isConnected: pages.length > 0,
+        appId: process.env.META_APP_ID || "1785911265462186",
+        pages,
+        pageName: pages[0]?.page_name || "",
+        pageId: pages[0]?.page_id || ""
+      });
+    } catch (e: any) {
+      res.json({ success: true, isConnected: false, pages: [] });
+    }
+  });
+
+  // Disconnect Meta Endpoint
+  app.post('/api/meta/disconnect', async (req: any, res: any) => {
+    try {
+      await executeAwsQuery(`UPDATE meta_connected_pages SET is_active = false;`);
+      res.json({ success: true, message: "Disconnected Meta pages." });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
   });
 
   // Google Ads Lead Form - Webhook Receiver Endpoint (POST)
