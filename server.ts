@@ -205,10 +205,13 @@ async function startServer() {
     lastSyncAt?: string;
   }
 
+  const cleanEnvAppId = (process.env.META_APP_ID || process.env.VITE_META_APP_ID || "").toString().trim().replace(/['"]/g, "");
+  const cleanEnvAppSecret = (process.env.META_APP_SECRET || "").toString().trim().replace(/['"]/g, "");
+
   const activeMetaConfig: MetaIntegrationState = {
-    appId: process.env.META_APP_ID || "",
-    appSecret: process.env.META_APP_SECRET || "",
-    verifyToken: process.env.META_WEBHOOK_VERIFY_TOKEN || process.env.FB_VERIFY_TOKEN || "pixbe_meta_verify_token",
+    appId: cleanEnvAppId,
+    appSecret: cleanEnvAppSecret,
+    verifyToken: (process.env.META_WEBHOOK_VERIFY_TOKEN || process.env.FB_VERIFY_TOKEN || "pixbe_meta_verify_token").toString().trim().replace(/['"]/g, ""),
     pageId: process.env.META_PAGE_ID || "",
     pageName: process.env.META_PAGE_NAME || "",
     pageAccessToken: process.env.META_PAGE_ACCESS_TOKEN || "",
@@ -497,7 +500,7 @@ async function startServer() {
     const isHttps = req.protocol === "https" || req.headers["x-forwarded-proto"] === "https" || req.headers["cloudfront-forwarded-proto"] === "https" || (host && host.includes("cloudfront.net"));
     const protocol = isHttps ? "https" : "http";
     const redirectUri = `${protocol}://${host}/api/auth/meta/callback`;
-    const appId = activeMetaConfig.appId || process.env.META_APP_ID || "";
+    const appId = (activeMetaConfig.appId || process.env.META_APP_ID || process.env.VITE_META_APP_ID || "").toString().trim().replace(/['"]/g, "");
     const scopes = "pages_show_list,pages_read_engagement,pages_manage_ads,leads_retrieval";
     const authUrl = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes}&response_type=code`;
 
@@ -538,8 +541,8 @@ async function startServer() {
     }
 
     try {
-      const appId = activeMetaConfig.appId || process.env.META_APP_ID || "";
-      const appSecret = activeMetaConfig.appSecret || process.env.META_APP_SECRET || "";
+      const appId = (activeMetaConfig.appId || process.env.META_APP_ID || process.env.VITE_META_APP_ID || "").toString().trim().replace(/['"]/g, "");
+      const appSecret = (activeMetaConfig.appSecret || process.env.META_APP_SECRET || "").toString().trim().replace(/['"]/g, "");
 
       let userAccessToken = "";
       let pages: MetaConnectedPage[] = [];
