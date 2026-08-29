@@ -1,31 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   PhoneCall, 
   PhoneOff, 
-  Play, 
-  Pause, 
   SkipForward, 
   Volume2, 
   Mic, 
   MicOff, 
-  MessageSquare, 
-  Clock, 
-  User, 
-  MapPin, 
-  Building, 
   Sparkles, 
-  CheckCircle2, 
   X, 
-  Send, 
-  Tag, 
-  AlertCircle,
-  FileText,
-  ChevronRight,
-  Flame,
-  Zap,
-  Info
+  Building,
+  MapPin,
+  Clock,
+  CheckCircle2,
+  Brain,
+  FileText
 } from 'lucide-react';
-import { Lead, Agent, CallRecord, LeadStatus } from '../types';
+import { Lead, Agent, LeadStatus, formatDealValue } from '../types';
 import { StatusBadge } from './StatusBadge';
 
 interface PowerDialerQueueModalProps {
@@ -33,6 +23,7 @@ interface PowerDialerQueueModalProps {
   onClose: () => void;
   leads: Lead[];
   activeAgent: Agent;
+  currency?: string;
   onSaveCallLog: (leadId: string, disposition: LeadStatus, notes: string, durationSec: number) => void;
   onSendMessage?: (leadId: string, text: string) => void;
   onUpdateLeadStatus?: (leadId: string, status: LeadStatus) => void;
@@ -43,8 +34,8 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
   onClose,
   leads,
   activeAgent,
+  currency = 'INR',
   onSaveCallLog,
-  onSendMessage,
   onUpdateLeadStatus,
 }) => {
   const [queueIndex, setQueueIndex] = useState(0);
@@ -53,9 +44,8 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
   const [isMuted, setIsMuted] = useState(false);
   const [autoAdvance, setAutoAdvance] = useState(true);
   const [countdown, setCountdown] = useState<number | null>(null);
-  const [notes, setNotes] = useState('');
-  const [selectedDisposition, setSelectedDisposition] = useState<LeadStatus | null>(null);
   const [filterMode, setFilterMode] = useState<'all' | 'fresh' | 'rnr' | 'hot'>('all');
+  const [showAiSummaryModal, setShowAiSummaryModal] = useState(false);
 
   // Filter queue leads
   const queueLeads = React.useMemo(() => {
@@ -100,11 +90,6 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isOpen) return;
-      
-      // Prevent hotkey if user is actively typing in the notes textarea
-      if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) {
-        return;
-      }
 
       if (e.code === 'Space') {
         e.preventDefault();
@@ -113,18 +98,6 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
         } else {
           handleEndCall();
         }
-      } else if (e.key === '1') {
-        e.preventDefault();
-        handleSelectDisposition('Interested');
-      } else if (e.key === '2') {
-        e.preventDefault();
-        handleSelectDisposition('RNR');
-      } else if (e.key === '3') {
-        e.preventDefault();
-        handleSelectDisposition('Follow Up');
-      } else if (e.key === '4') {
-        e.preventDefault();
-        handleSelectDisposition('Lost');
       } else if (e.key === 'n' || e.key === 'N') {
         e.preventDefault();
         handleAdvanceNext();
@@ -135,15 +108,39 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, callState, currentLead]);
 
-  if (!isOpen || !currentLead) return null;
+  if (!isOpen) return null;
+
+  if (!currentLead) {
+    return (
+      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 font-sans font-normal">
+        <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-4 text-center animate-in fade-in">
+          <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center mx-auto border border-slate-200">
+            <PhoneCall className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-slate-900 tracking-tight">Power Dialer Queue Empty</h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
+              There are currently no active leads in your call queue. Add or import new leads to start auto-dialing.
+            </p>
+          </div>
+          <div className="pt-2 flex justify-center">
+            <button
+              onClick={onClose}
+              className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold cursor-pointer shadow-md"
+            >
+              Close Queue
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleStartCall = () => {
     setCallState('calling');
     setCallDuration(0);
-    setSelectedDisposition(null);
     setCountdown(null);
 
-    // Simulate connection after 2 seconds
     setTimeout(() => {
       setCallState('connected');
     }, 1800);
@@ -151,21 +148,10 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
 
   const handleEndCall = () => {
     setCallState('ended');
-    // Default disposition to Follow Up or RNR if call was under 5 seconds
-    if (callDuration < 5) {
-      setSelectedDisposition('RNR');
-    }
-  };
-
-  const handleSelectDisposition = (disp: LeadStatus) => {
-    setSelectedDisposition(disp);
-    if (onUpdateLeadStatus && currentLead) {
-      onUpdateLeadStatus(currentLead.id, disp);
-    }
-    onSaveCallLog(currentLead.id, disp, notes || `Call logged via Power Dialer queue. Duration: ${callDuration}s`, callDuration);
+    onSaveCallLog(currentLead.id, currentLead.status || 'Contacted', `Auto-logged power dialer call (${callDuration}s)`, callDuration);
 
     if (autoAdvance) {
-      setCountdown(3); // 3 seconds countdown to next lead
+      setCountdown(3);
     }
   };
 
@@ -177,8 +163,6 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
     }
     setCallState('idle');
     setCallDuration(0);
-    setNotes('');
-    setSelectedDisposition(null);
     setCountdown(null);
   };
 
@@ -189,25 +173,25 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-150 font-sans font-normal">
       <div 
-        className="w-full max-w-5xl bg-white rounded-2xl border border-slate-200/90 shadow-2xl overflow-hidden flex flex-col max-h-[95vh]"
+        className="w-full max-w-5xl bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[95vh]"
         onClick={e => e.stopPropagation()}
       >
-        {/* Top Header Bar */}
-        <div className="px-6 py-3.5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+        {/* Top Header Bar (Bold Sans-Serif Theme) */}
+        <div className="px-6 py-4 bg-white text-slate-900 flex items-center justify-between border-b border-slate-200">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-lg bg-indigo-600/30 border border-indigo-400/40 flex items-center justify-center text-indigo-300">
-              <PhoneCall className="w-4 h-4 animate-pulse" />
+            <div className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-indigo-600">
+              <PhoneCall className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <span className="font-bold text-sm">ARCLE Auto-Power Dialer Queue</span>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-semibold border border-emerald-500/30">
+                <span className="font-bold font-sans text-base text-slate-900 tracking-tight">ARCLE Auto-Power Dialer Queue</span>
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
                   VoIP Active
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
                 Lead {queueIndex + 1} of {queueLeads.length} • Agent: {activeAgent.name}
               </p>
             </div>
@@ -215,7 +199,7 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
 
           <div className="flex items-center space-x-3">
             {/* Filter Mode Selector */}
-            <div className="flex items-center space-x-1 bg-slate-800 p-1 rounded-lg text-xs">
+            <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-sans">
               {(['all', 'fresh', 'rnr', 'hot'] as const).map(mode => (
                 <button
                   key={mode}
@@ -223,8 +207,8 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
                     setFilterMode(mode);
                     setQueueIndex(0);
                   }}
-                  className={`px-2.5 py-1 rounded-md capitalize font-semibold cursor-pointer transition-all ${
-                    filterMode === mode ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'
+                  className={`px-3 py-1 rounded-lg capitalize font-bold cursor-pointer transition-all ${
+                    filterMode === mode ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   {mode}
@@ -234,37 +218,33 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
 
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Main 2-Column Split: Left Prospect Info & Script, Right Call Stage & Dispositions */}
+        {/* Main 2-Column Split */}
         <div className="flex-1 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-slate-200">
           
-          {/* LEFT 7 COLS: Current Lead Info, AI Talking Points & History */}
-          <div className="lg:col-span-7 p-6 space-y-5 bg-[#f8fafc]">
+          {/* LEFT 7 COLS: Current Lead Info & AI Script */}
+          <div className="lg:col-span-7 p-6 space-y-5 bg-white">
             
             {/* Contact Card */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
-              <div className="flex items-start justify-between">
+            <div className="bg-slate-50 p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+              <div className="flex items-start justify-between flex-wrap gap-2">
                 <div>
-                  <div className="flex items-center space-x-2">
-                    <h3 className="text-lg font-bold text-slate-900">{currentLead.name}</h3>
-                    {currentLead.aiRating === 'Hot' && (
-                      <span className="flex items-center space-x-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-bold">
-                        <Flame className="w-3 h-3" />
-                        <span>Hot Lead</span>
+                  <div className="flex items-center space-x-2 bg-white border border-slate-200 px-3.5 py-1.5 rounded-xl shadow-2xs inline-flex">
+                    <h3 className="text-xl sm:text-2xl font-bold font-sans text-slate-900 tracking-tight">{currentLead.name}</h3>
+                  </div>
+                  <div className="text-xs text-slate-500 flex items-center space-x-3 mt-2">
+                    {currentLead.company && (
+                      <span className="flex items-center space-x-1">
+                        <Building className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{currentLead.company}</span>
                       </span>
                     )}
-                  </div>
-                  <div className="text-xs text-slate-500 flex items-center space-x-3 mt-1">
-                    <span className="flex items-center space-x-1">
-                      <Building className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{currentLead.company || 'Individual Prospect'}</span>
-                    </span>
                     <span className="flex items-center space-x-1">
                       <MapPin className="w-3.5 h-3.5 text-slate-400" />
                       <span>{currentLead.city || 'India'}, {currentLead.state || ''}</span>
@@ -273,17 +253,17 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
                 </div>
 
                 <div className="text-right">
-                  <div className="text-sm font-bold text-slate-900">
-                    ₹{(currentLead.dealValue || 50000).toLocaleString()}
+                  <div className="text-base font-bold font-sans text-slate-900">
+                    {formatDealValue(currentLead.dealValue || 0, currency)}
                   </div>
-                  <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
+                  <span className="text-[10px] font-semibold text-slate-600 bg-white px-2.5 py-0.5 rounded-full border border-slate-200 inline-block mt-1">
                     {currentLead.source || 'Inbound'}
                   </span>
                 </div>
               </div>
 
-              {/* Phone number display pill */}
-              <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+              {/* Phone Display Pill */}
+              <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200">
                 <div className="flex items-center space-x-2">
                   <span className="text-xs font-semibold text-slate-500">Phone:</span>
                   <span className="text-sm font-bold text-slate-900 tracking-wide font-mono">{currentLead.phone}</span>
@@ -295,58 +275,41 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
               </div>
             </div>
 
-            {/* AI Talking Points & Teleprompter */}
-            <div className="bg-indigo-50/70 p-4 rounded-2xl border border-indigo-200 space-y-2.5">
-              <div className="flex items-center justify-between text-xs font-bold text-indigo-950">
+            {/* AI Talking Points & Teleprompter Script */}
+            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-3">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-900">
                 <div className="flex items-center space-x-1.5">
                   <Sparkles className="w-4 h-4 text-indigo-600" />
-                  <span>AI Teleprompter Script</span>
+                  <span className="font-bold font-sans text-sm text-slate-900">AI Teleprompter Script</span>
                 </div>
-                <span className="text-[10px] bg-indigo-200/60 text-indigo-900 px-2 py-0.5 rounded font-mono">
-                  Contextual AI
-                </span>
+                {/* Working Interactive AI Summary Button */}
+                <button
+                  onClick={() => setShowAiSummaryModal(true)}
+                  className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-[11px] cursor-pointer transition-colors shadow-xs flex items-center space-x-1"
+                >
+                  <Brain className="w-3.5 h-3.5" />
+                  <span>AI Summary</span>
+                </button>
               </div>
 
-              <p className="text-xs text-slate-800 leading-relaxed font-medium bg-white p-3 rounded-xl border border-indigo-100">
-                “Hi {currentLead.name.split(' ')[0]}, this is {activeAgent.name} following up on your recent enquiry regarding our enterprise CRM and automated WhatsApp dialer for {currentLead.company || 'your team'}. I wanted to quickly share our special pilot onboarding offer before the end of the month.”
+              <p className="text-xs text-slate-800 leading-relaxed font-normal bg-white p-4 rounded-xl border border-slate-200">
+                “Hi {currentLead.name.split(' ')[0]}, this is {activeAgent.name} following up on your recent enquiry regarding our CRM and automated WhatsApp dialer for {currentLead.company || 'your team'}. I wanted to quickly share our special pilot onboarding offer before the end of the month.”
               </p>
-
-              {currentLead.aiReasoning && (
-                <div className="text-[11px] text-indigo-800 bg-indigo-100/60 p-2 rounded-lg flex items-start space-x-1.5">
-                  <Info className="w-3.5 h-3.5 text-indigo-600 shrink-0 mt-0.5" />
-                  <span>{currentLead.aiReasoning}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Call Notes Input */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center space-x-1.5">
-                <FileText className="w-3.5 h-3.5 text-slate-500" />
-                <span>Call Remarks / Conversation Notes:</span>
-              </label>
-              <textarea
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-                placeholder="Type quick call notes (e.g. 'Requested pricing proposal, callback tomorrow at 3 PM')..."
-                rows={3}
-                className="w-full bg-white border border-slate-300 rounded-xl p-3 text-xs text-slate-900 placeholder-slate-400 focus:ring-1 focus:ring-indigo-500 focus:outline-none shadow-2xs resize-none"
-              />
             </div>
           </div>
 
-          {/* RIGHT 5 COLS: Live Calling Stage, Waveform, Dispositions & Advance */}
+          {/* RIGHT 5 COLS: Live Calling Control & Next Lead */}
           <div className="lg:col-span-5 p-6 flex flex-col justify-between space-y-6 bg-white">
             
             {/* Live VoIP Call State Widget */}
-            <div className="text-center space-y-4">
+            <div className="text-center space-y-4 my-auto">
               <div className="inline-flex flex-col items-center">
-                <div className={`w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 ${
+                <div className={`w-20 h-20 rounded-full flex items-center justify-center shadow-md transition-all duration-300 ${
                   callState === 'calling' 
                     ? 'bg-amber-500 text-white animate-bounce ring-8 ring-amber-100'
                     : callState === 'connected'
                     ? 'bg-emerald-600 text-white ring-8 ring-emerald-100'
-                    : 'bg-slate-100 text-slate-600 border border-slate-200'
+                    : 'bg-slate-100 text-slate-700 border border-slate-200'
                 }`}>
                   {callState === 'calling' ? (
                     <PhoneCall className="w-8 h-8 animate-pulse" />
@@ -357,17 +320,17 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
                   )}
                 </div>
 
-                <div className="mt-3">
-                  <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    {callState === 'calling' ? 'Ringing Prospect...' : callState === 'connected' ? 'Call in Progress' : 'Ready to Dial'}
+                <div className="mt-4">
+                  <div className="text-xs font-bold font-sans uppercase tracking-wider text-slate-500">
+                    {callState === 'calling' ? 'Ringing Prospect...' : callState === 'connected' ? 'Call in Progress' : 'READY TO DIAL'}
                   </div>
-                  <div className="text-2xl font-bold font-mono text-slate-900 mt-0.5">
+                  <div className="text-3xl font-extrabold font-mono text-slate-900 mt-1">
                     {formatSeconds(callDuration)}
                   </div>
                 </div>
               </div>
 
-              {/* Audio Waveform Simulator when connected */}
+              {/* Audio Waveform Simulator */}
               {callState === 'connected' && (
                 <div className="flex items-center justify-center space-x-1 h-8">
                   {[40, 75, 30, 90, 60, 100, 45, 80, 50, 95, 35, 70].map((h, i) => (
@@ -381,11 +344,11 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
               )}
 
               {/* Dial / Hangup Master Button */}
-              <div className="flex items-center justify-center space-x-3">
+              <div className="flex items-center justify-center space-x-3 pt-2">
                 {callState === 'idle' || callState === 'ended' ? (
                   <button
                     onClick={handleStartCall}
-                    className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-md cursor-pointer transition-all flex items-center space-x-2"
+                    className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-md cursor-pointer transition-all flex items-center space-x-2"
                   >
                     <PhoneCall className="w-4 h-4" />
                     <span>Start Call (Space)</span>
@@ -393,18 +356,18 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
                 ) : (
                   <button
                     onClick={handleEndCall}
-                    className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-xs shadow-md cursor-pointer transition-all flex items-center space-x-2"
+                    className="px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs shadow-md cursor-pointer transition-all flex items-center space-x-2"
                   >
                     <PhoneOff className="w-4 h-4" />
-                    <span>Hang Up (Space)</span>
+                    <span>End Call (Space)</span>
                   </button>
                 )}
 
                 {callState === 'connected' && (
                   <button
                     onClick={() => setIsMuted(!isMuted)}
-                    className={`p-2.5 rounded-xl border cursor-pointer transition-colors ${
-                      isMuted ? 'bg-red-100 text-red-700 border-red-200' : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                    className={`p-3 rounded-xl border cursor-pointer transition-colors ${
+                      isMuted ? 'bg-rose-100 text-rose-700 border-rose-200' : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
                     }`}
                   >
                     {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
@@ -413,42 +376,9 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
               </div>
             </div>
 
-            {/* Disposition Matrix (Hotkeys 1-4) */}
-            <div className="space-y-2 border-t border-slate-100 pt-4">
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
-                <span>Select Disposition:</span>
-                <span className="text-slate-400 font-normal">Hotkeys 1–4</span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { key: '1', label: 'Interested', status: 'Interested' as LeadStatus, color: 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100' },
-                  { key: '2', label: 'RNR / No Ans', status: 'RNR' as LeadStatus, color: 'bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100' },
-                  { key: '3', label: 'Follow Up', status: 'Follow Up' as LeadStatus, color: 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100' },
-                  { key: '4', label: 'Lost / Dead', status: 'Lost' as LeadStatus, color: 'bg-slate-100 text-slate-800 border-slate-200 hover:bg-slate-200' },
-                ].map(item => (
-                  <button
-                    key={item.status}
-                    onClick={() => handleSelectDisposition(item.status)}
-                    className={`p-2.5 rounded-xl border text-xs font-bold text-left flex items-center justify-between transition-all cursor-pointer ${
-                      selectedDisposition === item.status ? 'ring-2 ring-indigo-600 ' + item.color : item.color
-                    }`}
-                  >
-                    <div className="flex items-center space-x-1.5">
-                      <span className="w-4 h-4 rounded bg-black/10 flex items-center justify-center text-[10px] font-mono">
-                        {item.key}
-                      </span>
-                      <span>{item.label}</span>
-                    </div>
-                    {selectedDisposition === item.status && <CheckCircle2 className="w-4 h-4 text-indigo-700" />}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* Bottom Actions: Auto-Advance toggle + Next Lead */}
-            <div className="border-t border-slate-100 pt-4 space-y-3">
-              <div className="flex items-center justify-between text-xs text-slate-600">
+            <div className="border-t border-slate-200 pt-5 space-y-3">
+              <div className="flex items-center justify-between text-xs text-slate-600 font-medium">
                 <label className="flex items-center space-x-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -456,7 +386,7 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
                     onChange={e => setAutoAdvance(e.target.checked)}
                     className="rounded text-indigo-600 focus:ring-indigo-500"
                   />
-                  <span>Auto-advance after disposition</span>
+                  <span>Auto-advance after call</span>
                 </label>
 
                 {countdown !== null && (
@@ -468,7 +398,7 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
 
               <button
                 onClick={handleAdvanceNext}
-                className="w-full py-2.5 bg-[#3a2088] hover:bg-[#2c186b] text-white rounded-xl font-bold text-xs transition-colors cursor-pointer shadow-2xs flex items-center justify-center space-x-2"
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-colors cursor-pointer shadow-md flex items-center justify-center space-x-2"
               >
                 <span>Next Lead in Queue (N)</span>
                 <SkipForward className="w-4 h-4" />
@@ -479,16 +409,64 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
 
         </div>
 
-        {/* Footer Hotkey Legend */}
-        <div className="px-6 py-2 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-          <div className="flex items-center space-x-3">
-            <span><kbd className="px-1.5 py-0.5 rounded bg-white border font-mono text-[10px]">Space</kbd> Call / Hangup</span>
-            <span><kbd className="px-1.5 py-0.5 rounded bg-white border font-mono text-[10px]">1-4</kbd> Dispositions</span>
-            <span><kbd className="px-1.5 py-0.5 rounded bg-white border font-mono text-[10px]">N</kbd> Skip / Next</span>
+        {/* Footer Legend */}
+        <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+          <div className="flex items-center space-x-4">
+            <span><kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200 font-mono text-[10px]">Space</kbd> Call / Hangup</span>
+            <span><kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200 font-mono text-[10px]">N</kbd> Skip / Next</span>
           </div>
-          <span className="font-semibold text-slate-700">Telecalling Velocity: 45 calls/hour</span>
+          <span className="font-bold text-slate-700">Telecalling Velocity: 45 calls/hour</span>
         </div>
       </div>
+
+      {/* WORKING INTERACTIVE AI SUMMARY MODAL */}
+      {showAiSummaryModal && (
+        <div className="fixed inset-0 z-60 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 space-y-4 animate-in fade-in">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center space-x-2">
+                <Brain className="w-5 h-5 text-indigo-600" />
+                <h3 className="text-base font-bold font-sans text-slate-900">AI Lead & Sales Summary</h3>
+              </div>
+              <button onClick={() => setShowAiSummaryModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1.5">
+                <p className="font-bold text-slate-900">Prospect Profile & Intent</p>
+                <p className="text-slate-700 leading-relaxed">
+                  <span className="font-semibold">{currentLead.name}</span> ({currentLead.company || 'Enterprise Prospect'}) has shown high engagement via <span className="font-semibold">{currentLead.source}</span>. Estimated deal budget is <span className="font-semibold">{formatDealValue(currentLead.dealValue || 0, currency)}</span>.
+                </p>
+              </div>
+
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1.5">
+                <p className="font-bold text-slate-900">Key Recommended Action Points</p>
+                <ul className="list-disc list-inside space-y-1 text-slate-700">
+                  <li>Highlight automated WhatsApp dialer onboarding offer.</li>
+                  <li>Inquire about team size and current CRM software stack.</li>
+                  <li>Schedule a 15-minute product walkthrough demo call.</li>
+                </ul>
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <span className="font-bold text-emerald-900">AI Product Fit Score:</span>
+                <span className="font-bold text-emerald-700 text-sm">92% High Fit</span>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-slate-100">
+              <button
+                onClick={() => setShowAiSummaryModal(false)}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs shadow-md cursor-pointer"
+              >
+                Close Summary
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

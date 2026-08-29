@@ -176,12 +176,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const totalCalls = dateFilteredCalls.length;
   const connectedCalls = dateFilteredCalls.filter(c => c.durationSeconds > 0).length;
   const totalTalkTimeSecs = dateFilteredCalls.reduce((acc, c) => acc + (c.durationSeconds || 0), 0);
-  const totalSales = dateFilteredCalls
-    .filter(c => c.disposition === 'Converted')
-    .reduce((acc, c) => {
-      const foundLead = leads.find(l => l.id === c.leadId);
-      return acc + (foundLead?.dealValue || 15000);
-    }, 0);
+  // Revenue calculated STRICTLY based on converted leads (status: Converted / Won) and their estimated deal values
+  const totalSales = dateFilteredLeads
+    .filter(l => l.status === 'Converted' || l.status === 'Won')
+    .reduce((acc, l) => acc + (Number(l.dealValue) || 0), 0);
 
   const formatSecs = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -231,7 +229,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       : (agent.convertedLeadsCount || agentLeads.filter(l => l.status === 'Converted').length);
 
     const totalTalkSecs = agentCalls.reduce((sum, c) => sum + (c.durationSeconds || 0), 0) || (hasActiveDateFilter ? 0 : agent.talkTimeMinutes * 60);
-    const revenue = agentLeads.filter(l => l.status === 'Converted').reduce((sum, l) => sum + l.dealValue, 0) || (hasActiveDateFilter ? 0 : agent.revenueGenerated || 0);
+    const revenue = agentLeads
+      .filter(l => l.status === 'Converted' || l.status === 'Won')
+      .reduce((sum, l) => sum + (Number(l.dealValue) || 0), 0);
     const winRate = totalCallsCount > 0 ? Math.round((convertedCount / totalCallsCount) * 100) : 0;
 
     return {

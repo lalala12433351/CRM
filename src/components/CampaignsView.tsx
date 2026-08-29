@@ -1111,7 +1111,9 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
           {/* ACTION BUTTONS TOOLBAR (CALL, TASK, WHATSAPP, SMS, ADD NOTE, LEAD-IQ) */}
           <div className="grid grid-cols-6 gap-1 pt-1 border-t border-slate-100">
             <button 
-              onClick={() => alert(`Calling ${selectedLead.name} (${selectedLead.phone})...`)}
+              onClick={() => {
+                if (onShowToast) onShowToast(`Initiating call to ${selectedLead.name} (${selectedLead.phone})`);
+              }}
               className="flex flex-col items-center justify-center p-2 rounded-lg hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 transition-colors cursor-pointer"
             >
               <Phone className="w-4 h-4 text-slate-600 mb-1" />
@@ -1119,7 +1121,9 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
             </button>
 
             <button 
-              onClick={() => alert('Add Task scheduled')}
+              onClick={() => {
+                if (onShowToast) onShowToast(`Follow-up task created for ${selectedLead.name}`);
+              }}
               className="flex flex-col items-center justify-center p-2 rounded-lg hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 transition-colors cursor-pointer"
             >
               <CheckSquare className="w-4 h-4 text-slate-600 mb-1" />
@@ -1135,7 +1139,9 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
             </button>
 
             <button 
-              onClick={() => alert(`Sending SMS to ${selectedLead.phone}`)}
+              onClick={() => {
+                if (onShowToast) onShowToast(`SMS sent to ${selectedLead.phone}`);
+              }}
               className="flex flex-col items-center justify-center p-2 rounded-lg hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 transition-colors cursor-pointer"
             >
               <Mail className="w-4 h-4 text-slate-600 mb-1" />
@@ -1154,7 +1160,9 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
             </button>
 
             <button 
-              onClick={() => alert(`Lead-IQ AI Score: ${selectedLead.aiScore}/100 (${selectedLead.aiRating}). Analysis: ${selectedLead.aiReasoning}`)}
+              onClick={() => {
+                if (onShowToast) onShowToast(`Lead-IQ AI Score: ${selectedLead.aiScore}/100 (${selectedLead.aiRating}). ${selectedLead.aiReasoning}`);
+              }}
               className="flex flex-col items-center justify-center p-2 rounded-lg hover:bg-purple-50 text-slate-700 hover:text-purple-700 transition-colors cursor-pointer"
             >
               <Sparkles className="w-4 h-4 text-purple-600 mb-1" />
@@ -1211,7 +1219,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
                 </button>
                 {showActionDropdown && (
                   <div className="absolute left-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-50 p-1 text-xs w-36">
-                    {['All Actions', 'Calls Only', 'WhatsApp', 'Notes', 'Status Changes'].map(f => (
+                    {['All Actions', 'Calls Only', 'WhatsApp', 'Notes', 'Status Changes'].map((f) => (
                       <button
                         key={f}
                         onClick={() => {
@@ -1226,24 +1234,6 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
                   </div>
                 )}
               </div>
-
-              <button 
-                onClick={() => alert('Filter by Time')}
-                className="bg-white border border-slate-200 hover:border-slate-300 px-2.5 py-0.5 rounded-full text-[11px] font-medium flex items-center space-x-1 text-slate-700 cursor-pointer shadow-2xs"
-              >
-                <Clock className="w-3 h-3 text-slate-400" />
-                <span>Time</span>
-                <ChevronDown className="w-3 h-3 text-slate-400" />
-              </button>
-
-              <button 
-                onClick={() => alert('Filter by Team')}
-                className="bg-white border border-slate-200 hover:border-slate-300 px-2.5 py-0.5 rounded-full text-[11px] font-medium flex items-center space-x-1 text-slate-700 cursor-pointer shadow-2xs"
-              >
-                <User className="w-3 h-3 text-slate-400" />
-                <span>Team</span>
-                <ChevronDown className="w-3 h-3 text-slate-400" />
-              </button>
             </div>
 
             {/* Note Input */}

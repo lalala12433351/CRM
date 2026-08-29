@@ -54,7 +54,8 @@ import {
   Search,
   Paperclip,
   IndianRupee,
-  PhoneOutgoing
+  PhoneOutgoing,
+  CalendarPlus
 } from 'lucide-react';
 import { Lead, ActivityLog, WhatsAppMessage, CallRecord, Agent, LeadStatus } from '../types';
 import { calculateLeadQualityScore } from '../utils/conversionEngine';
@@ -121,7 +122,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   const [activityFilter, setActivityFilter] = useState<'ALL' | 'call' | 'note' | 'whatsapp' | 'stage_change'>('ALL');
   const [showAddActionMenu, setShowAddActionMenu] = useState(false);
   const [actionMenuSearch, setActionMenuSearch] = useState('');
-  const [activeActionType, setActiveActionType] = useState<'email' | 'file' | 'note' | 'call' | 'payment' | 'sms' | 'task' | 'whatsapp' | null>(null);
+  const [activeActionType, setActiveActionType] = useState<'email' | 'file' | 'note' | 'call' | 'payment' | 'sms' | 'task' | 'whatsapp' | 'followup' | null>(null);
 
   // Action Composer Form Input States
   const [emailSubject, setEmailSubject] = useState('');
@@ -136,6 +137,12 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   const [smsText, setSmsText] = useState('');
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDueDate, setTaskDueDate] = useState('');
+  const [followupNote, setFollowupNote] = useState('');
+  const [followupDateTime, setFollowupDateTime] = useState('');
+  const [followupDueDay, setFollowupDueDay] = useState(() => new Date().toISOString().slice(0, 10));
+  const [followupHour, setFollowupHour] = useState('09');
+  const [followupMinute, setFollowupMinute] = useState('00');
+  const [followupAmPm, setFollowupAmPm] = useState<'AM' | 'PM'>('AM');
 
   // Submit Handlers for Actions
   const handleSendEmailAction = () => {
@@ -227,6 +234,36 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
     });
     setTaskTitle('');
     setTaskDueDate('');
+    setActiveActionType(null);
+  };
+
+  const handleCreateFollowUp = () => {
+    let h = parseInt(followupHour, 10);
+    if (followupAmPm === 'PM' && h !== 12) h += 12;
+    if (followupAmPm === 'AM' && h === 12) h = 0;
+    const combinedDate = `${followupDueDay}T${String(h).padStart(2, '0')}:${followupMinute}:00`;
+
+    const selectedDateTime = new Date(combinedDate);
+    if (selectedDateTime < new Date()) {
+      alert('Cannot schedule a follow-up in the past. Please select a future date and time.');
+      return;
+    }
+
+    const activityText = followupNote.trim() || 'Follow-up scheduled.';
+    onAddActivity({
+      leadId: lead.id,
+      type: 'note',
+      title: `Follow-Up${combinedDate ? ': ' + new Date(combinedDate).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : ''}`,
+      description: activityText,
+    });
+    if (combinedDate) {
+      onUpdateLead({ ...lead, followUpAt: combinedDate, status: 'Follow Up' });
+    }
+    setFollowupNote('');
+    setFollowupDueDay(new Date().toISOString().slice(0, 10));
+    setFollowupHour('09');
+    setFollowupMinute('00');
+    setFollowupAmPm('AM');
     setActiveActionType(null);
   };
 
@@ -413,6 +450,13 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
 
   // Save Notes & Follow Up
   const handleSaveNotes = (markAsFollowUpStage: boolean = true) => {
+    if (followUpDate) {
+      const selected = new Date(followUpDate);
+      if (selected < new Date()) {
+        alert('Cannot schedule a follow-up in the past. Please select a future date and time.');
+        return;
+      }
+    }
     onUpdateLead({
       ...lead,
       notes: noteText,
@@ -1028,6 +1072,10 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                    <Clipboard className="w-5 h-5 mb-1" strokeWidth={1.5} />
                    <span>ADD NOTE</span>
                  </button>
+                 <button onClick={() => setActiveActionType('followup')} className="flex-1 flex flex-col items-center justify-center space-y-1 hover:text-indigo-700 transition-colors py-3 cursor-pointer">
+                    <CalendarPlus className="w-5 h-5 mb-1" strokeWidth={1.5} />
+                    <span>FOLLOW UP</span>
+                 </button>
                  <button className="flex-1 flex flex-col items-center justify-center space-y-1 hover:text-slate-800 transition-colors py-3 cursor-pointer">
                    <Sparkles className="w-5 h-5 mb-1" strokeWidth={1.5} />
                    <span>LEAD-IQ</span>
@@ -1265,6 +1313,104 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                 <div className="flex items-center justify-end space-x-3 pt-1">
                   <button onClick={() => setActiveActionType(null)} className="px-3.5 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer">Cancel</button>
                   <button onClick={handleScheduleTaskAction} className="px-4 py-1.5 bg-[#5034a8] hover:bg-[#432993] text-white text-xs font-bold rounded-lg shadow-2xs cursor-pointer">Schedule Task</button>
+                </div>
+              </div>
+            )}
+
+            {activeActionType === 'followup' && (
+              <div className="bg-white border border-indigo-100 rounded-xl p-4 shadow-sm mb-4 space-y-3 font-sans animate-in fade-in duration-200">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <h4 className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                    <CalendarPlus className="w-4 h-4 text-[#5034a8]" />
+                    <span>Create Follow-Up</span>
+                  </h4>
+                  <button onClick={() => setActiveActionType(null)} className="text-slate-400 hover:text-slate-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-400 block mb-1 uppercase tracking-wider font-mono">Note</label>
+                  <textarea
+                    rows={3}
+                    value={followupNote}
+                    onChange={(e) => setFollowupNote(e.target.value)}
+                    placeholder="What should be discussed in this follow-up?"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-400 resize-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-400 block mb-1.5 uppercase tracking-wider font-mono">Date & Time</label>
+                  <div className="space-y-2">
+                    {/* Date picker */}
+                    <div className="relative">
+                      <Calendar className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                      <input
+                        type="date"
+                        required
+                        value={followupDueDay}
+                        min={new Date().toISOString().slice(0, 10)}
+                        onChange={(e) => setFollowupDueDay(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-400"
+                      />
+                    </div>
+
+                    {/* Time selector */}
+                    <div className="flex items-center space-x-2">
+                      {/* Hour */}
+                      <div className="flex-1">
+                        <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg overflow-hidden focus-within:border-indigo-400">
+                          <Clock className="w-3.5 h-3.5 text-slate-400 ml-2.5 shrink-0" />
+                          <select
+                            value={followupHour}
+                            onChange={(e) => setFollowupHour(e.target.value)}
+                            className="flex-1 bg-transparent px-2 py-1.5 text-xs text-slate-900 focus:outline-none cursor-pointer"
+                          >
+                            {Array.from({ length: 12 }, (_, i) => {
+                              const v = String(i + 1).padStart(2, '0');
+                              return <option key={v} value={v}>{v}</option>;
+                            })}
+                          </select>
+                        </div>
+                      </div>
+
+                      <span className="text-slate-400 font-bold text-sm">:</span>
+
+                      {/* Minute */}
+                      <div className="flex-1">
+                        <select
+                          value={followupMinute}
+                          onChange={(e) => setFollowupMinute(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-400 cursor-pointer"
+                        >
+                          {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map(m => (
+                            <option key={m} value={m}>{m}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* AM/PM switcher */}
+                      <div className="flex rounded-lg border border-slate-200 overflow-hidden shrink-0">
+                        {(['AM', 'PM'] as const).map((period) => (
+                          <button
+                            key={period}
+                            type="button"
+                            onClick={() => setFollowupAmPm(period)}
+                            className={`px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer ${
+                              followupAmPm === period
+                                ? 'bg-indigo-600 text-white'
+                                : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                            }`}
+                          >
+                            {period}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-end space-x-3 pt-1">
+                  <button onClick={() => setActiveActionType(null)} className="px-3.5 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer">Cancel</button>
+                  <button onClick={handleCreateFollowUp} className="px-4 py-1.5 bg-[#5034a8] hover:bg-[#432993] text-white text-xs font-bold rounded-lg shadow-2xs cursor-pointer">Save Follow-Up</button>
                 </div>
               </div>
             )}

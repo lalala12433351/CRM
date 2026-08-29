@@ -13,17 +13,25 @@ import {
   ChevronRight,
   Info,
   Sparkles,
-  ArrowLeftRight
+  ArrowLeftRight,
+  CalendarPlus,
+  Clock,
+  Calendar,
+  FileText
 } from 'lucide-react';
-import { Lead, PipelineStage, LeadStatus } from '../types';
+import { Lead, PipelineStage, LeadStatus, CustomFieldDef, formatDealValue, formatDealValueCompact } from '../types';
+import { LeadSummaryModal } from './LeadSummaryModal';
 
 interface PipelineViewProps {
   leads: Lead[];
   stages: PipelineStage[];
+  customFields?: CustomFieldDef[];
+  currency?: string;
   onOpenLeadDetail: (lead: Lead) => void;
   onOpenPowerDialerForLead?: (lead: Lead) => void;
   onUpdateLeadStage: (leadId: string, newStageStatus: LeadStatus) => void;
   onUpdateStages?: (stages: PipelineStage[]) => void;
+  onUpdateLead?: (leadId: string, updates: Partial<Lead>) => void;
 }
 
 export interface LostReasonItem {
@@ -48,13 +56,67 @@ export const STAGE_COLOR_PALETTE = [
 export const PipelineView: React.FC<PipelineViewProps> = ({
   leads,
   stages,
+  customFields = [],
+  currency = 'INR',
   onOpenLeadDetail,
   onOpenPowerDialerForLead,
   onUpdateLeadStage,
-  onUpdateStages
+  onUpdateStages,
+  onUpdateLead
 }) => {
   // Mode toggle: 'config' (exact screenshot layout) vs 'kanban'
   const [viewMode, setViewMode] = useState<'config' | 'kanban'>('config');
+
+  // Follow-Up Scheduling Modal State
+  const [followUpLead, setFollowUpLead] = useState<Lead | null>(null);
+  const [summaryLead, setSummaryLead] = useState<Lead | null>(null);
+  const [followUpDate, setFollowUpDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [followUpHour, setFollowUpHour] = useState('09');
+  const [followUpMinute, setFollowUpMinute] = useState('00');
+  const [followUpAmPm, setFollowUpAmPm] = useState<'AM' | 'PM'>('AM');
+  const [followUpRemarks, setFollowUpRemarks] = useState('');
+
+  const openFollowUpModal = (lead: Lead) => {
+    const defaultDate = new Date(Date.now() + 3600000);
+    setFollowUpDate(defaultDate.toISOString().slice(0, 10));
+    let h = defaultDate.getHours();
+    const period = h >= 12 ? 'PM' : 'AM';
+    h = h % 12;
+    if (h === 0) h = 12;
+    setFollowUpHour(String(h).padStart(2, '0'));
+    setFollowUpMinute(String(Math.round(defaultDate.getMinutes() / 5) * 5 % 60).padStart(2, '0'));
+    setFollowUpAmPm(period);
+    setFollowUpRemarks('');
+    setFollowUpLead(lead);
+  };
+
+  const handleSaveFollowUp = () => {
+    if (!followUpLead) return;
+    let h = parseInt(followUpHour, 10);
+    if (followUpAmPm === 'PM' && h !== 12) h += 12;
+    if (followUpAmPm === 'AM' && h === 12) h = 0;
+    const combinedDate = `${followUpDate}T${String(h).padStart(2, '0')}:${followUpMinute}:00`;
+
+    const selectedDateTime = new Date(combinedDate);
+    if (selectedDateTime < new Date()) {
+      alert('Cannot schedule a follow-up in the past. Please select a future date and time.');
+      return;
+    }
+
+    if (onUpdateLead) {
+      onUpdateLead(followUpLead.id, {
+        status: 'Follow Up',
+        followUpAt: combinedDate,
+        notes: followUpRemarks
+          ? `${followUpLead.notes ? followUpLead.notes + '\n' : ''}[Follow-up Remark]: ${followUpRemarks}`
+          : followUpLead.notes,
+        updatedAt: new Date().toISOString()
+      });
+    } else {
+      onUpdateLeadStage(followUpLead.id, 'Follow Up');
+    }
+    setFollowUpLead(null);
+  };
 
   // Active stage list state matching screenshot default pastel palette
   const [activeStagesList, setActiveStagesList] = useState<{ id: string; name: string; bg: string; text: string }[]>([
@@ -546,9 +608,11 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between text-[10px] font-mono text-slate-500">
-                    <span>Win: <strong className="text-indigo-600">{stage.winProbability}%</strong></span>
-                    <span className="font-bold text-emerald-600">₹{(stageValue / 1000).toFixed(0)}k</span>
+                  <div className="flex items-center justify-between text-[10px] text-slate-500">
+                    <span className="capitalize font-semibold px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700">
+                      {stage.category || (stage.name === 'New Lead' || stage.name === 'Fresh' ? 'initial' : stage.name === 'Converted' || stage.name === 'Lost' ? 'closed' : 'active')}
+                    </span>
+                    <span className="font-bold text-slate-700 font-mono">{formatDealValueCompact(stageValue, currency)}</span>
                   </div>
                 </div>
 
@@ -561,14 +625,31 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                     stageLeads.map((lead) => (
                       <div
                         key={lead.id}
+                        onClick={() => onOpenLeadDetail(lead)}
                         className={`p-2.5 rounded-lg bg-white border-l-3 ${
                           lead.aiRating === 'Hot' ? 'border-l-indigo-600' : 'border-l-slate-400'
-                        } border-r border-t border-b border-slate-200 shadow-xs space-y-2 group`}
+                        } border-r border-t border-b border-slate-200 shadow-xs space-y-2 group cursor-pointer hover:shadow-md transition-all`}
                       >
                         <div className="flex items-start justify-between">
                           <div>
-                            <p onClick={() => onOpenLeadDetail(lead)} className="text-xs font-bold text-slate-900 leading-tight cursor-pointer hover:text-indigo-600 hover:underline">{lead.name}</p>
-                            <p className="text-[10px] text-slate-500">{lead.company}</p>
+                            <p className="text-xs font-semibold text-slate-700 leading-tight hover:text-slate-900 hover:underline capitalize">
+                              {(() => {
+                                const h1 = customFields.find((f) => f.primarySlot === 'H1');
+                                if (h1 && h1.name !== 'name' && (lead as any)[h1.name]) {
+                                  return (lead as any)[h1.name];
+                                }
+                                return lead.name;
+                              })()}
+                            </p>
+                            <p className="text-[10px] text-slate-500">
+                              {(() => {
+                                const h2 = customFields.find((f) => f.primarySlot === 'H2');
+                                if (h2 && (lead as any)[h2.name]) {
+                                  return (lead as any)[h2.name];
+                                }
+                                return lead.company || lead.phone;
+                              })()}
+                            </p>
                           </div>
                           {lead.aiRating === 'Hot' && (
                             <span title="AI Hot Lead" className="text-amber-500 text-xs">🔥</span>
@@ -576,14 +657,15 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                         </div>
 
                         <div className="flex items-center justify-between text-[10px] font-mono">
-                          <span className="font-bold text-emerald-600">₹{(lead.dealValue || 0).toLocaleString()}</span>
+                          <span className="font-bold text-emerald-600">{formatDealValue(lead.dealValue || 0, currency)}</span>
                           <span className="text-[9px] text-slate-600 px-1 py-0.2 rounded bg-slate-100 border border-slate-200">{lead.source}</span>
                         </div>
 
-                        <div className="flex items-center justify-between pt-1.5 border-t border-slate-100">
+                        <div className="flex items-center justify-between pt-1.5 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
                           <select
                             value={lead.status}
-                            onChange={(e) => onUpdateLeadStage(lead.id, e.target.value as LeadStatus)}
+                            onChange={(e) => { e.stopPropagation(); onUpdateLeadStage(lead.id, e.target.value as LeadStatus); }}
+                            onClick={(e) => e.stopPropagation()}
                             className="bg-slate-50 text-[9px] font-mono text-slate-700 rounded px-1 py-0.5 focus:outline-none border border-slate-200 cursor-pointer"
                           >
                             <option value="New Lead">Move: New Lead</option>
@@ -595,9 +677,24 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                             <option value="Lost">Move: Lost</option>
                           </select>
 
-                          <div className="flex items-center space-x-1">
+                          <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
                             <button
-                              onClick={() => {
+                              onClick={(e) => { e.stopPropagation(); setSummaryLead(lead); }}
+                              title="Quick Lead Call Brief"
+                              className="px-2 py-0.5 rounded bg-transparent border border-indigo-200 text-indigo-700 hover:bg-indigo-50/50 transition-colors cursor-pointer text-[10px] font-semibold"
+                            >
+                              Brief
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openFollowUpModal(lead); }}
+                              title="Schedule Follow-Up"
+                              className="px-2 py-0.5 rounded bg-transparent border border-purple-200 text-[#5034a8] hover:bg-purple-50/50 transition-colors cursor-pointer text-[10px] font-semibold"
+                            >
+                              Follow Up
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 window.location.href = `tel:${lead.phone}`;
                                 if (onOpenPowerDialerForLead) onOpenPowerDialerForLead(lead);
                               }}
@@ -606,7 +703,6 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                             >
                               <PhoneCall className="w-3 h-3" />
                             </button>
-
                           </div>
                         </div>
                       </div>
@@ -658,18 +754,149 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
             </div>
 
             <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">
+              <button onClick={() => setShowAddStageModal(false)} className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">Cancel</button>
+              <button onClick={handleAddStage} disabled={!newStageName.trim()} className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold disabled:opacity-50">Add Stage</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Lead Call Brief / Summary */}
+      {summaryLead && (
+        <LeadSummaryModal
+          lead={summaryLead}
+          onClose={() => setSummaryLead(null)}
+          onCallLead={(l) => { window.location.href = `tel:${l.phone}`; }}
+          onScheduleFollowUp={(l) => openFollowUpModal(l)}
+        />
+      )}
+
+      {/* Modal: Schedule Follow-Up from Pipeline */}
+      {followUpLead && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 font-sans">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-xl p-4 space-y-4 font-sans text-xs animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 font-sans">
+              <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2 font-sans tracking-tight">
+                <CalendarPlus className="w-4 h-4 text-[#5034a8]" />
+                <span className="font-sans">Schedule Follow-Up for {followUpLead.name}</span>
+              </h3>
+              <button onClick={() => setFollowUpLead(null)} className="text-slate-400 hover:text-slate-600 font-sans cursor-pointer text-sm">✕</button>
+            </div>
+
+            <div className="space-y-3 font-sans">
+              <div>
+                <label className="block text-[11px] font-sans uppercase text-slate-600 font-bold mb-2 tracking-wider">SCHEDULED FOLLOW-UP DATE & TIME</label>
+                <div className="space-y-2 font-sans text-xs">
+                  {/* Date picker */}
+                  <div className="relative">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                    <input
+                      type="date"
+                      required
+                      value={followUpDate}
+                      min={new Date().toISOString().slice(0, 10)}
+                      onChange={(e) => setFollowUpDate(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#5034a8]"
+                    />
+                  </div>
+
+                  {/* Time selector */}
+                  <div className="flex items-center space-x-2">
+                    {/* Hour */}
+                    <div className="flex-1">
+                      <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl overflow-hidden focus-within:border-[#5034a8] focus-within:ring-1 focus-within:ring-[#5034a8]/20">
+                        <Clock className="w-3.5 h-3.5 text-slate-400 ml-2.5 shrink-0" />
+                        <select
+                          value={followUpHour}
+                          onChange={(e) => setFollowUpHour(e.target.value)}
+                          className="flex-1 bg-transparent px-2 py-2 text-xs text-slate-900 focus:outline-none cursor-pointer"
+                        >
+                          {Array.from({ length: 12 }, (_, i) => {
+                            const v = String(i + 1).padStart(2, '0');
+                            return <option key={v} value={v}>{v}</option>;
+                          })}
+                        </select>
+                      </div>
+                    </div>
+
+                    <span className="text-slate-400 font-bold text-sm">:</span>
+
+                    {/* Minute */}
+                    <div className="flex-1">
+                      <select
+                        value={followUpMinute}
+                        onChange={(e) => setFollowUpMinute(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#5034a8] cursor-pointer"
+                      >
+                        {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map((m) => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* AM/PM switcher */}
+                    <div className="flex rounded-xl border border-slate-200 overflow-hidden shrink-0">
+                      {(['AM', 'PM'] as const).map((period) => (
+                        <button
+                          key={period}
+                          type="button"
+                          onClick={() => setFollowUpAmPm(period)}
+                          className={`px-3 py-2 text-xs font-bold transition-colors cursor-pointer ${
+                            followUpAmPm === period
+                              ? 'bg-[#5034a8] text-white'
+                              : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                          }`}
+                        >
+                          {period}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Formatted Date Preview */}
+                  {followUpDate && (
+                    <div className="mt-1.5 font-sans">
+                      <p className="text-[11px] font-semibold text-[#5034a8] bg-purple-50 border border-purple-200 px-2.5 py-1 rounded-md inline-flex items-center space-x-1">
+                        <Clock className="w-3 h-3 text-[#5034a8]" />
+                        <span>
+                          Scheduled: {new Date(`${followUpDate}T${String(
+                            followUpAmPm === 'PM'
+                              ? (parseInt(followUpHour) === 12 ? 12 : parseInt(followUpHour) + 12)
+                              : (parseInt(followUpHour) === 12 ? 0 : parseInt(followUpHour))
+                          ).padStart(2, '0')}:${followUpMinute}:00`).toLocaleString('en-IN', {
+                            weekday: 'short', day: '2-digit', month: 'short', year: 'numeric',
+                            hour: '2-digit', minute: '2-digit', hour12: true
+                          })}
+                        </span>
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <textarea
+                  rows={3}
+                  value={followUpRemarks}
+                  onChange={(e) => setFollowUpRemarks(e.target.value)}
+                  placeholder="Notes or agenda for this follow-up..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-none focus:border-[#5034a8] font-sans"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100 font-sans">
               <button
-                onClick={() => setShowAddStageModal(false)}
-                className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200"
+                onClick={() => setFollowUpLead(null)}
+                className="px-3.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 font-sans font-semibold cursor-pointer"
               >
                 Cancel
               </button>
               <button
-                onClick={handleAddStage}
-                disabled={!newStageName.trim()}
-                className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold disabled:opacity-50"
+                onClick={handleSaveFollowUp}
+                className="px-4 py-1.5 rounded-lg bg-[#5034a8] hover:bg-[#432993] text-white font-sans font-bold shadow-2xs cursor-pointer"
               >
-                Add Stage
+                Save & Move to Follow Up
               </button>
             </div>
           </div>

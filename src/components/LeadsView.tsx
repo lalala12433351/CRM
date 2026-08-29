@@ -37,7 +37,10 @@ import {
   AtSign,
   Mail,
   FileText,
-  Phone
+  Phone,
+  CalendarPlus,
+  Clock,
+  UserCheck
 } from 'lucide-react';
 import { 
   Lead, 
@@ -48,12 +51,15 @@ import {
   FilterCondition, 
   SortConfig, 
   SavedViewDef, 
-  AIRating 
+  AIRating,
+  isAgentAdmin,
+  formatDealValue 
 } from '../types';
 import { BulkEditModal } from './BulkEditModal';
 import { ColumnCustomizerModal, ColumnVisibility } from './ColumnCustomizerModal';
 import { StatusBadge } from './StatusBadge';
 import { getStatusStyle } from '../utils/statusStyles';
+import { LeadSummaryModal } from './LeadSummaryModal';
 import { StagesContext } from '../App';
 
 interface LeadsViewProps {
@@ -61,6 +67,7 @@ interface LeadsViewProps {
   agents: Agent[];
   customFields: CustomFieldDef[];
   activeAgent?: Agent;
+  currency?: string;
   onOpenLeadDetail: (lead: Lead) => void;
   onOpenPowerDialerForLead?: (lead: Lead) => void;
   onAddNewLead: () => void;
@@ -78,20 +85,16 @@ interface LeadsViewProps {
 }
 
 type AnalyticsDimension = 
-  | 'created_on' 
-  | 'status' 
-  | 'lost_reasons' 
   | 'assignee' 
-  | 'rating' 
-  | 'call_status' 
-  | 'calls_placed' 
-  | 'custom';
+  | 'created_on' 
+  | 'status';
 
 export const LeadsView: React.FC<LeadsViewProps> = ({
   leads,
   agents,
   customFields,
   activeAgent,
+  currency = 'INR',
   onOpenLeadDetail,
   onOpenPowerDialerForLead,
   onAddNewLead,
@@ -110,12 +113,9 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
   const stages = useContext(StagesContext);
 
   // Main View Toggle: 'chart' (Analytics/Graph) vs 'table' (Data Grid)
-  // Default to 'chart' to match the uploaded screenshot
   const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
-
-  // Chart Dimension Tab (defaults to 'status' matching screenshot)
-  const [activeDimension, setActiveDimension] = useState<AnalyticsDimension>('status');
-  const [chartType, setChartType] = useState<'bar' | 'column' | 'donut' | 'line'>('bar');
+  const [activeDimension, setActiveDimension] = useState<AnalyticsDimension>('assignee');
+  const [chartType, setChartType] = useState<'bar' | 'column' | 'donut'>('bar');
   const [isChartTypeOpen, setIsChartTypeOpen] = useState(false);
   const [groupBy, setGroupBy] = useState<string>('none');
   const [isGroupByOpen, setIsGroupByOpen] = useState(false);
@@ -123,7 +123,8 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
 
   // Views & Filters Popover State
   const [isFiltersDropdownOpen, setIsFiltersDropdownOpen] = useState(false);
-  const currentViewTitle = globalSavedFilters.find(f => f.id === activeFilterId)?.name || 'All Leads';
+  const isAdmin = isAgentAdmin(activeAgent);
+  const currentViewTitle = !isAdmin ? 'My Leads' : (globalSavedFilters.find(f => f.id === activeFilterId)?.name || 'All Leads');
 
   // Search & Filter fields (auto | phone | name | email | text | all)
   const [searchField, setSearchField] = useState<'auto' | 'phone' | 'name' | 'email' | 'text' | 'all'>('auto');
@@ -139,6 +140,15 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
 
   const [selectedDateFilter, setSelectedDateFilter] = useState<string>('all');
   const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
+  const [createdOnDaysRange, setCreatedOnDaysRange] = useState<number>(5); // Default past 5 days (max 10)
+
+  // Dynamically compute all unique lead statuses present in database + pipeline stages
+  const availableStatuses = useMemo(() => {
+    const stageNames = stages ? stages.map((s) => s.name) : [];
+    const leadStatuses = leads ? leads.map((l) => l.status).filter(Boolean) : [];
+    const combined = Array.from(new Set([...stageNames, ...leadStatuses]));
+    return combined;
+  }, [stages, leads]);
 
   // Sorting
   const [sortField, setSortField] = useState<'createdOn' | 'rating' | 'name'>('createdOn');
@@ -178,6 +188,121 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
   const [showCustomFieldModal, setShowCustomFieldModal] = useState(false);
   const [showNewViewModal, setShowNewViewModal] = useState(false);
   const [newViewName, setNewViewName] = useState('');
+
+  const visibleFields = useMemo(() => {
+    const active = (customFields || []).filter((f) => !f.isHidden);
+    return active.sort((a, b) => {
+      if (a.name === 'name') return -1;
+      if (b.name === 'name') return 1;
+      if (a.name === 'phone' || a.name === 'number') return -1;
+      if (b.name === 'phone' || b.name === 'number') return 1;
+      return 0;
+    });
+  }, [customFields]);
+
+  const getLeadFieldValue = (lead: Lead, field: CustomFieldDef): string => {
+    if (!lead || !field) return '—';
+    const nameKey = field.name;
+    if (nameKey === 'name') return lead.name || '—';
+    if (nameKey === 'phone') return lead.phone || '—';
+    if (nameKey === 'email') return lead.email || '—';
+    if (nameKey === 'company') return lead.company || '—';
+    if (nameKey === 'city') return lead.city || '—';
+    if (nameKey === 'state') return lead.state || '—';
+    if (nameKey === 'pincode') return lead.pincode || '—';
+    if (nameKey === 'address') return lead.address || '—';
+    if (nameKey === 'source') return lead.source || '—';
+    if (nameKey === 'status') return lead.status || '—';
+    if (nameKey === 'assignee' || nameKey === 'owner') return lead.ownerAgentName || activeAgent?.name || 'Madhava sai nagendra';
+    if (nameKey === 'createdOn' || nameKey === 'createdAt' || nameKey === 'created_on') return formatCreatedDate(lead.createdAt);
+    if (nameKey === 'deal_value' || nameKey === 'dealValue') return formatDealValue(lead.dealValue || 0, currency);
+    if (nameKey === 'lead_score' || nameKey === 'aiScore') return String(lead.aiScore || 85);
+    
+    if (lead.customFields && lead.customFields[nameKey] !== undefined && lead.customFields[nameKey] !== null) {
+      return String(lead.customFields[nameKey]);
+    }
+    if ((lead as any)[nameKey] !== undefined && (lead as any)[nameKey] !== null) {
+      return String((lead as any)[nameKey]);
+    }
+    return '—';
+  };
+
+  // Follow-Up Scheduling Modal State
+  const [followUpLead, setFollowUpLead] = useState<Lead | null>(null);
+  const [summaryLead, setSummaryLead] = useState<Lead | null>(null);
+  const [followUpDate, setFollowUpDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [followUpHour, setFollowUpHour] = useState('09');
+  const [followUpMinute, setFollowUpMinute] = useState('00');
+  const [followUpAmPm, setFollowUpAmPm] = useState<'AM' | 'PM'>('AM');
+  const [followUpRemarks, setFollowUpRemarks] = useState('');
+
+  // Change Lead Access & Reassign State
+  const [reassignModalLead, setReassignModalLead] = useState<Lead | null>(null);
+  const [selectedNewAssigneeId, setSelectedNewAssigneeId] = useState<string>('');
+  const [isConfirmingReassign, setIsConfirmingReassign] = useState<boolean>(false);
+
+  const handleOpenReassignModal = (lead: Lead) => {
+    setReassignModalLead(lead);
+    setSelectedNewAssigneeId(lead.ownerAgentId || (agents[0]?.id || ''));
+    setIsConfirmingReassign(false);
+  };
+
+  const handleConfirmReassign = () => {
+    if (!reassignModalLead || !selectedNewAssigneeId) return;
+    const newAgent = agents.find((a) => a.id === selectedNewAssigneeId);
+    if (newAgent && onUpdateLead) {
+      onUpdateLead(reassignModalLead.id, {
+        ownerAgentId: newAgent.id,
+        ownerAgentName: newAgent.name,
+        updatedAt: new Date().toISOString()
+      });
+    }
+    setReassignModalLead(null);
+    setIsConfirmingReassign(false);
+  };
+
+  const formatCreatedDate = (createdAt?: string): string => {
+    if (!createdAt || createdAt === 'Just Now' || createdAt.includes('ago')) {
+      return new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+    const parsedDate = new Date(createdAt);
+    if (!isNaN(parsedDate.getTime())) {
+      return parsedDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+    return new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  const openFollowUpModal = (lead: Lead) => {
+    const defaultDate = new Date(Date.now() + 3600000);
+    setFollowUpDate(defaultDate.toISOString().slice(0, 10));
+    let h = defaultDate.getHours();
+    const period = h >= 12 ? 'PM' : 'AM';
+    h = h % 12;
+    if (h === 0) h = 12;
+    setFollowUpHour(String(h).padStart(2, '0'));
+    setFollowUpMinute(String(Math.round(defaultDate.getMinutes() / 5) * 5 % 60).padStart(2, '0'));
+    setFollowUpAmPm(period);
+    setFollowUpRemarks('');
+    setFollowUpLead(lead);
+  };
+
+  const handleSaveFollowUp = () => {
+    if (!followUpLead || !onUpdateLead) return;
+    let h = parseInt(followUpHour, 10);
+    if (followUpAmPm === 'PM' && h !== 12) h += 12;
+    if (followUpAmPm === 'AM' && h === 12) h = 0;
+    const combinedDate = `${followUpDate}T${String(h).padStart(2, '0')}:${followUpMinute}:00`;
+
+    onUpdateLead(followUpLead.id, {
+      status: 'Follow Up',
+      followUpAt: combinedDate,
+      notes: followUpRemarks
+        ? `${followUpLead.notes ? followUpLead.notes + '\n' : ''}[Follow-up Remark]: ${followUpRemarks}`
+        : followUpLead.notes,
+      updatedAt: new Date().toISOString()
+    });
+    setFollowUpLead(null);
+  };
 
   // Custom Field Form State
   const [csvText, setCsvText] = useState('');
@@ -311,38 +436,25 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
         }
       }
 
-      // 2. Active View Filter (Database attribute-driven evaluation)
-      if (activeFilterId === 'assigned_to_me' || activeFilterId === 'my_leads') {
-        if (activeAgent) {
-          const isMine = lead.ownerAgentId === activeAgent.id || 
-                         (lead.ownerAgentName && activeAgent.name && lead.ownerAgentName.toLowerCase() === activeAgent.name.toLowerCase());
-          if (!isMine) return false;
-        }
-      } else if (activeFilterId === 'fresh_leads') {
-        if (lead.status !== 'Fresh' && lead.status !== 'New Lead') return false;
-      } else if (activeFilterId === 'followup_leads') {
-        if (lead.status !== 'Follow Up' && !lead.followUpAt) return false;
-      } else if (activeFilterId === 'hot_leads') {
-        if (lead.aiRating !== 'Hot' && (lead.aiScore || 0) < 80 && lead.rating !== 5) return false;
-      } else if (activeFilterId === 'meta_leads') {
-        if (!lead.source?.toLowerCase().includes('meta') && !lead.source?.toLowerCase().includes('facebook')) return false;
-      } else if (activeFilterId === 'website_leads') {
-        if (!lead.source?.toLowerCase().includes('website')) return false;
-      } else if (activeFilterId === 'active_leads') {
-        // Active lead in database: status is not Lost, not Converted, or is an active stage
-        const isClosed = lead.status === 'Lost' || lead.status === 'Converted';
-        if (isClosed) return false;
-      } else if (activeFilterId === 'incoming_whatsapp') {
-        if (!lead.source?.toLowerCase().includes('whatsapp') && !lead.phone) return false;
-      } else if (activeFilterId !== 'all_leads') {
-        // Dynamic Stage Filter: Check if activeFilterId corresponds to a stage name or stage ID in DB
-        const matchedStage = stages.find(
-          s => s.id === activeFilterId || 
-          s.name.toLowerCase() === activeFilterId.toLowerCase() ||
-          s.name.toLowerCase().replace(/\s+/g, '_') === activeFilterId.toLowerCase()
-        );
-        if (matchedStage) {
-          if (lead.status !== matchedStage.name && lead.pipelineStageId !== matchedStage.id) return false;
+      // 2. Role-based Scoping: Non-Admin Employees can ONLY view My Leads
+      if (!isAdmin && activeAgent) {
+        const isMine = lead.ownerAgentId === activeAgent.id || 
+                       (lead.ownerAgentName && activeAgent.name && lead.ownerAgentName.toLowerCase() === activeAgent.name.toLowerCase());
+        if (!isMine) return false;
+      }
+
+      // 3. Active View Filter for Admin (All Leads, All Active Leads, Followup Leads)
+      if (isAdmin) {
+        if (activeFilterId === 'active_leads') {
+          const matchedStage = stages.find(s => s.name === lead.status || s.id === lead.pipelineStageId);
+          if (matchedStage && matchedStage.category) {
+            if (matchedStage.category === 'closed') return false;
+          } else {
+            const isClosed = lead.status === 'Lost' || lead.status === 'Converted';
+            if (isClosed) return false;
+          }
+        } else if (activeFilterId === 'followup_leads') {
+          if (lead.status !== 'Follow Up' && !lead.followUpAt) return false;
         }
       }
 
@@ -508,84 +620,111 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
 
   const isAllCurrentPageSelected = currentPaginatedLeads.length > 0 && currentPaginatedLeads.every(l => selectedLeadIds.includes(l.id));
 
-  // STATUS CHART DATA SPECIFICATION (Exact match to screenshot values, colors, percentages & layout)
-  const statusDistributionData = useMemo(() => [
-    { label: 'Fresh', count: 456, displayValue: '456', displayCount: '456', percentage: '4.11%', color: '#52796f', rawValue: 456 },
-    { label: 'RNR', count: 2950, displayValue: '3k', displayCount: '2.95K', percentage: '26.58%', color: '#ff5a5f', rawValue: 2950 },
-    { label: 'Interested', count: 702, displayValue: '702', displayCount: '702', percentage: '6.32%', color: '#8d877b', rawValue: 702 },
-    { label: 'Warm', count: 171, displayValue: '171', displayCount: '171', percentage: '1.54%', color: '#8cb369', rawValue: 171 },
-    { label: 'IATA', count: 28, displayValue: '28', displayCount: '28', percentage: '0.25%', color: '#9d80c3', rawValue: 28 },
-    { label: 'Next Batch', count: 35, displayValue: '35', displayCount: '35', percentage: '0.32%', color: '#8b3a3a', rawValue: 35 },
-    { label: 'Next Year', count: 192, displayValue: '192', displayCount: '192', percentage: '1.73%', color: '#3b82f6', rawValue: 192 },
-    { label: 'Visit Scheduled', count: 77, displayValue: '77', displayCount: '77', percentage: '0.69%', color: '#1e3a8a', rawValue: 77 },
-    { label: 'Visited', count: 49, displayValue: '49', displayCount: '49', percentage: '0.44%', color: '#8e44ad', rawValue: 49 },
-    { label: 'Open', count: 582, displayValue: '582', displayCount: '582', percentage: '5.24%', color: '#00b4d8', rawValue: 582 },
-    { label: 'CPL', count: 20, displayValue: '20', displayCount: '20', percentage: '0.18%', color: '#2d6a4f', rawValue: 20 },
-    { label: 'Existing', count: 66, displayValue: '66', displayCount: '66', percentage: '0.59%', color: '#264653', rawValue: 66 },
-    { label: 'Job enquiry', count: 56, displayValue: '56', displayCount: '56', percentage: '0.50%', color: '#8d5b4c', rawValue: 56 },
-    { label: 'Converted', count: 123, displayValue: '123', displayCount: '123', percentage: '1.11%', color: '#22c55e', rawValue: 123 },
-    { label: 'Lost', count: 5600, displayValue: '5.6k', displayCount: '5.6k', percentage: '50.45%', color: '#ff4d4f', rawValue: 5600 },
-  ], []);
-
+  // Dynamic Graph Calculation from Actual Database
   const activeChartData = useMemo(() => {
     const total = filteredAndSortedLeads.length || 1;
-    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316', '#64748b', '#84cc16'];
-    
-    const aggregate = (keyFn: (lead: Lead) => string | undefined) => {
+    const colors = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316', '#64748b', '#84cc16'];
+
+    if (activeDimension === 'assignee') {
       const counts: Record<string, number> = {};
-      filteredAndSortedLeads.forEach(l => {
-        const key = keyFn(l) || 'Unknown';
-        counts[key] = (counts[key] || 0) + 1;
+      
+      // Initialize counts for all created database agents
+      if (agents && agents.length > 0) {
+        agents.forEach((ag) => {
+          counts[ag.name] = 0;
+        });
+      }
+
+      filteredAndSortedLeads.forEach((l) => {
+        const name = l.ownerAgentName || activeAgent?.name || 'Madhava sai nagendra';
+        counts[name] = (counts[name] || 0) + 1;
       });
+
       return Object.entries(counts)
         .map(([label, count], idx) => ({
           label,
           value: count,
-          displayValue: count > 999 ? (count/1000).toFixed(1) + 'k' : count.toString(),
+          displayValue: count > 999 ? (count / 1000).toFixed(1) + 'k' : count.toString(),
           displayCount: count.toString(),
-          percentage: ((count / total) * 100).toFixed(2) + '%',
+          percentage: ((count / total) * 100).toFixed(1) + '%',
           color: colors[idx % colors.length]
         }))
         .sort((a, b) => b.value - a.value);
-    };
 
-    if (activeDimension === 'status') {
-      return aggregate(l => l.status);
-    } else if (activeDimension === 'assignee') {
-      return aggregate(l => l.ownerAgentName);
-    } else if (activeDimension === 'rating') {
-      return aggregate(l => l.aiRating);
     } else if (activeDimension === 'created_on') {
-      return aggregate(l => {
-        const days = Math.floor((new Date().getTime() - new Date(l.createdAt).getTime()) / (1000 * 3600 * 24));
-        if (isNaN(days)) return 'Unknown';
-        if (days === 0) return 'Today';
-        if (days === 1) return 'Yesterday';
-        if (days <= 7) return 'Last 7 Days';
-        if (days <= 30) return 'Last 30 Days';
-        return 'Older';
-      });
-    } else if (activeDimension === 'call_status') {
-      return aggregate(l => 'Unknown'); // Placeholder for dynamic call status since it's not strictly on Lead
-    } else if (activeDimension === 'calls_placed') {
-      return aggregate(l => '0 Calls'); // Placeholder
-    } else if (activeDimension === 'lost_reasons') {
-      return aggregate(l => l.status === 'Lost' ? 'Unknown Reason' : 'Not Lost');
-    }
-    
-    return aggregate(l => l.status);
-  }, [activeDimension, filteredAndSortedLeads]);
+      const numDays = Math.min(Math.max(createdOnDaysRange || 5, 1), 10);
+      const now = new Date();
+      
+      // Pre-fill past N days array (from oldest to newest)
+      const pastDaysList: { label: string; isoDate: string; count: number }[] = [];
+      
+      for (let i = numDays - 1; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+        const isoDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const label = d.toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short'
+        });
+        pastDaysList.push({ label, isoDate, count: 0 });
+      }
 
-  // Dimension Tabs Configuration
+      filteredAndSortedLeads.forEach((l) => {
+        let d: Date;
+        if (!l.createdAt || l.createdAt === 'Just Now' || l.createdAt.includes('ago')) {
+          d = now;
+        } else {
+          const parsed = new Date(l.createdAt);
+          d = isNaN(parsed.getTime()) ? now : parsed;
+        }
+        const leadIsoDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const match = pastDaysList.find((item) => item.isoDate === leadIsoDate);
+        if (match) {
+          match.count += 1;
+        }
+      });
+
+      return pastDaysList.map((item, idx) => ({
+        label: item.label,
+        value: item.count,
+        displayValue: item.count > 999 ? (item.count / 1000).toFixed(1) + 'k' : item.count.toString(),
+        displayCount: item.count.toString(),
+        percentage: ((item.count / total) * 100).toFixed(1) + '%',
+        color: colors[idx % colors.length]
+      }));
+
+    } else if (activeDimension === 'status') {
+      const counts: Record<string, number> = {};
+
+      // Initialize all available statuses
+      availableStatuses.forEach((stgName) => {
+        counts[stgName] = 0;
+      });
+
+      filteredAndSortedLeads.forEach((l) => {
+        const status = l.status || 'New Lead';
+        counts[status] = (counts[status] || 0) + 1;
+      });
+
+      return Object.entries(counts)
+        .map(([label, count], idx) => ({
+          label,
+          value: count,
+          displayValue: count > 999 ? (count / 1000).toFixed(1) + 'k' : count.toString(),
+          displayCount: count.toString(),
+          percentage: ((count / total) * 100).toFixed(1) + '%',
+          color: colors[idx % colors.length]
+        }))
+        .sort((a, b) => b.value - a.value);
+    }
+
+    return [];
+  }, [activeDimension, filteredAndSortedLeads, agents, stages]);
+
+  // Dimension Tabs Configuration (Assignee | Created on | Status)
   const dimensionTabs: { id: AnalyticsDimension; label: string }[] = [
+    { id: 'assignee', label: 'Assignee' },
     { id: 'created_on', label: 'Created on' },
     { id: 'status', label: 'Status' },
-    { id: 'lost_reasons', label: 'Lost Reasons' },
-    { id: 'assignee', label: 'Assignee' },
-    { id: 'rating', label: 'Rating' },
-    { id: 'call_status', label: 'Call status' },
-    { id: 'calls_placed', label: 'Number of calls placed' },
-    { id: 'custom', label: 'Custom' },
   ];
 
   return (
@@ -596,38 +735,29 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
         {/* Left: View title dropdown button + Edit + Refresh + Add */}
         <div className="flex items-center space-x-2 relative">
           
-          {/* Main View Selector Pill ("All Leads ⌵") */}
+          {/* Main View Selector Pill */}
           <div className="relative" ref={filterDropdownRef}>
             <button
-              onClick={() => setIsFiltersDropdownOpen(!isFiltersDropdownOpen)}
-              className="flex items-center space-x-1.5 text-lg sm:text-xl font-bold text-slate-900 hover:text-indigo-900 transition-colors cursor-pointer py-1 px-1 rounded-lg"
+              onClick={() => {
+                if (isAdmin) setIsFiltersDropdownOpen(!isFiltersDropdownOpen);
+              }}
+              className={`flex items-center space-x-1.5 text-lg sm:text-xl font-bold text-slate-900 transition-colors py-1 px-1 rounded-lg ${
+                isAdmin ? 'hover:text-indigo-900 cursor-pointer' : 'cursor-default'
+              }`}
             >
               <span>{currentViewTitle}</span>
-              <ChevronDown className={`w-4 h-4 text-slate-600 transition-transform ${isFiltersDropdownOpen ? 'rotate-180' : ''}`} />
+              {isAdmin && (
+                <ChevronDown className={`w-4 h-4 text-slate-600 transition-transform ${isFiltersDropdownOpen ? 'rotate-180' : ''}`} />
+              )}
             </button>
 
-            {/* FILTERS / SAVED VIEWS FLOATING POPOVER (Exact match to screenshot) */}
-            {isFiltersDropdownOpen && (
-              <div className="absolute left-0 top-full mt-1.5 w-72 bg-white rounded-2xl border border-slate-200/90 shadow-2xl z-50 p-2.5 space-y-1.5 animate-in fade-in slide-in-from-top-1 text-xs">
+            {/* FILTERS / SAVED VIEWS FLOATING POPOVER */}
+            {isAdmin && isFiltersDropdownOpen && (
+              <div className="absolute left-0 top-full mt-1.5 w-64 bg-white rounded-2xl border border-slate-200/90 shadow-2xl z-50 p-2.5 space-y-1.5 animate-in fade-in slide-in-from-top-1 text-xs">
                 
-                {/* Popover Header: Filters | Arrange | + Create New */}
+                {/* Popover Header */}
                 <div className="flex items-center justify-between px-2 py-1 border-b border-slate-100 pb-2">
-                  <span className="font-bold text-slate-700 text-xs">Filters</span>
-                  <div className="flex items-center space-x-3">
-                    <button className="flex items-center space-x-1 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer">
-                      <List className="w-3 h-3" />
-                      <span>Arrange</span>
-                    </button>
-                    <button 
-                      onClick={() => {
-                        setIsFiltersDropdownOpen(false);
-                        setShowNewViewModal(true);
-                      }}
-                      className="text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer"
-                    >
-                      + Create New
-                    </button>
-                  </div>
+                  <span className="font-bold text-slate-700 text-xs">Admin Filters</span>
                 </div>
 
                 {/* Popover List Items */}
@@ -667,33 +797,6 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
               </div>
             )}
           </div>
-
-          {/* Edit Icon */}
-          <button 
-            onClick={() => setShowNewViewModal(true)}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
-            title="Edit View Name"
-          >
-            <Edit3 className="w-4 h-4" />
-          </button>
-
-          {/* Refresh Icon */}
-          <button 
-            onClick={handleRefresh}
-            className={`p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors cursor-pointer ${isRefreshing ? 'animate-spin text-indigo-600' : ''}`}
-            title="Refresh Table / Charts"
-          >
-            <RotateCw className="w-4 h-4" />
-          </button>
-
-          {/* Plus Icon (in circle) */}
-          <button 
-            onClick={() => setShowNewViewModal(true)}
-            className="w-6 h-6 rounded-full border border-slate-300 flex items-center justify-center text-slate-600 hover:border-indigo-600 hover:text-indigo-600 hover:bg-indigo-50 transition-all cursor-pointer"
-            title="Create Filter View"
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </button>
         </div>
 
         {/* Right: View Toggle (Analytics / Chart View & List View Switcher) */}
@@ -884,7 +987,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
 
               {isStatusDropdownOpen && (
                 <div className="absolute left-0 top-full mt-2 w-52 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-1.5 space-y-0.5 text-xs max-h-80 overflow-y-auto">
-                  {['all', ...stages.map(s => s.name)].map((st) => {
+                  {['all', ...availableStatuses].map((st) => {
                     const stageConfig = st !== 'all' ? stages.find(s => s.name === st) : null;
                     const isSelected = selectedStatus === st;
                     return (
@@ -961,26 +1064,38 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
           <div className="bg-white rounded-xl border border-slate-200 shadow-2xs px-4 py-2 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
             
             {/* Left Dimension Tabs: Created on | Status | Lost Reasons | Assignee | Rating | Call status | Number of calls placed | Custom */}
-            <div className="flex items-center space-x-6 overflow-x-auto no-scrollbar text-xs">
+            <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar text-xs py-1">
               {dimensionTabs.map((tab) => {
                 const isActive = activeDimension === tab.id;
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveDimension(tab.id)}
-                    className={`whitespace-nowrap font-semibold cursor-pointer transition-all relative py-2 ${
+                    className={`px-3 py-1.5 rounded-lg whitespace-nowrap text-xs font-semibold cursor-pointer transition-all ${
                       isActive
-                        ? 'text-[#3a2088] font-bold'
-                        : 'text-slate-500 hover:text-slate-800'
+                        ? 'bg-[#3a2088] text-white shadow-xs font-bold'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200/80 hover:border-slate-300'
                     }`}
                   >
                     <span>{tab.label}</span>
-                    {isActive && (
-                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#3a2088] rounded-full" />
-                    )}
                   </button>
                 );
               })}
+
+              {activeDimension === 'created_on' && (
+                <div className="flex items-center space-x-1 pl-2 border-l border-slate-200 shrink-0">
+                  <span className="text-[11px] text-slate-500 font-medium whitespace-nowrap">Show Range:</span>
+                  <select
+                    value={createdOnDaysRange}
+                    onChange={(e) => setCreatedOnDaysRange(Number(e.target.value))}
+                    className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-900 font-bold focus:outline-none focus:border-indigo-600 cursor-pointer"
+                  >
+                    <option value={5}>Past 5 Days (Default)</option>
+                    <option value={7}>Past 7 Days</option>
+                    <option value={10}>Past 10 Days (Max)</option>
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Right: Export Chart as CSV ⌵ | Download */}
@@ -1051,7 +1166,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
 
                   {isChartTypeOpen && (
                     <div className="absolute left-0 top-full mt-1.5 w-32 bg-white border border-slate-200 rounded-xl shadow-xl z-40 p-1 space-y-0.5 text-xs">
-                      {['bar', 'column', 'donut', 'line'].map((t) => (
+                      {['bar', 'column', 'donut'].map((t) => (
                         <button
                           key={t}
                           onClick={() => {
@@ -1111,72 +1226,146 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
             </div>
 
             {/* CHART DISPLAY AREA */}
-            <div className="relative flex items-stretch h-80 pl-10 pr-2 pt-4">
+            <div className="relative flex items-stretch min-h-[320px] p-4">
               
-              {/* Y-Axis Label ("Leads Count") rotated on left */}
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 -rotate-90 text-[11px] font-medium text-slate-400 tracking-wide select-none origin-center whitespace-nowrap">
-                Leads Count
-              </div>
-
-              {/* Y-Axis Grid Lines & Numbers */}
-              <div className="absolute inset-y-4 left-10 right-2 pointer-events-none flex flex-col justify-between">
-                {[
-                  { val: '6,000' },
-                  { val: '5,000' },
-                  { val: '4,000' },
-                  { val: '3,000' },
-                  { val: '2,000' },
-                  { val: '1,000' },
-                  { val: '0' },
-                ].map((tick, i) => (
-                  <div key={i} className="relative w-full border-t border-slate-100 flex items-center">
-                    <span className="absolute -left-9 text-[10px] text-slate-400 select-none">
-                      {tick.val}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Bars Row */}
-              <div className="relative z-10 w-full h-full flex items-end justify-between gap-1 sm:gap-2 px-1">
-                {activeChartData.map((item, index) => {
-                  const maxVal = 6000;
-                  const barHeightPercent = Math.max((item.value / maxVal) * 100, 2);
-
-                  return (
-                    <div 
-                      key={index} 
-                      className="flex-1 flex flex-col items-center justify-end h-full group relative cursor-pointer"
-                      onClick={() => {
-                        setSelectedStatus(item.label);
-                        setViewMode('table');
-                      }}
-                      title={`${item.label}: ${item.displayCount || item.value} leads (${item.percentage})`}
-                    >
-                      {/* Value display text on top of the bar */}
-                      <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 mb-1 select-none transition-transform group-hover:-translate-y-1">
-                        {item.displayValue}
+              {chartType === 'donut' ? (
+                /* DONUT CHART MODE */
+                <div className="w-full flex flex-col md:flex-row items-center justify-center gap-6 py-2">
+                  <div className="relative w-52 h-52 flex items-center justify-center shrink-0">
+                    <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+                      {(() => {
+                        const total = activeChartData.reduce((acc, curr) => acc + curr.value, 0) || 1;
+                        let accum = 0;
+                        const radius = 38;
+                        const circ = 2 * Math.PI * radius;
+                        return activeChartData.map((item, idx) => {
+                          const strokeDasharray = `${(item.value / total) * circ} ${circ}`;
+                          const strokeDashoffset = -accum;
+                          accum += (item.value / total) * circ;
+                          return (
+                            <circle
+                              key={idx}
+                              cx="50"
+                              cy="50"
+                              r={radius}
+                              fill="transparent"
+                              stroke={item.color}
+                              strokeWidth="14"
+                              strokeDasharray={strokeDasharray}
+                              strokeDashoffset={strokeDashoffset}
+                              className="transition-all duration-300 hover:opacity-80 cursor-pointer"
+                              onClick={() => {
+                                setSelectedStatus(item.label);
+                                setViewMode('table');
+                              }}
+                            />
+                          );
+                        });
+                      })()}
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                      <span className="text-lg font-black text-slate-900">
+                        {activeChartData.reduce((acc, curr) => acc + curr.value, 0).toLocaleString()}
                       </span>
-
-                      {/* The Bar */}
-                      <div 
-                        className="w-full max-w-[42px] rounded-t-sm transition-all duration-300 group-hover:opacity-90 group-hover:shadow-md"
-                        style={{
-                          height: `${barHeightPercent}%`,
-                          backgroundColor: item.color
-                        }}
-                      />
-
-                      {/* X-Axis Status Label */}
-                      <div className="h-7 pt-1 flex items-start justify-center text-center w-full">
-                        <span className="text-[10px] text-slate-700 font-medium truncate max-w-[54px] sm:max-w-none">
-                          {item.label}
-                        </span>
-                      </div>
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase">Total Leads</span>
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs font-sans max-h-56 overflow-y-auto w-full max-w-md">
+                    {activeChartData.map((item, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          setSelectedStatus(item.label);
+                          setViewMode('table');
+                        }}
+                        className="flex items-center space-x-2 p-2 rounded-lg border border-slate-100 bg-slate-50/80 hover:bg-indigo-50/50 hover:border-indigo-200 transition-all cursor-pointer"
+                      >
+                        <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-slate-800 text-[11px] truncate">{item.label}</p>
+                          <p className="text-[10px] text-slate-500 font-mono">{item.displayValue} ({item.percentage})</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : chartType === 'bar' ? (
+                /* HORIZONTAL BAR CHART MODE */
+                <div className="w-full h-full space-y-2.5 py-2 overflow-y-auto max-h-72">
+                  {(() => {
+                    const maxVal = Math.max(...activeChartData.map(d => d.value), 1);
+                    return activeChartData.map((item, idx) => {
+                      const barWidth = Math.max((item.value / maxVal) * 100, 2);
+                      return (
+                        <div
+                          key={idx}
+                          onClick={() => {
+                            setSelectedStatus(item.label);
+                            setViewMode('table');
+                          }}
+                          className="flex items-center space-x-3 text-xs group cursor-pointer"
+                        >
+                          <span className="w-28 text-[11px] font-medium text-slate-700 truncate text-right">{item.label}</span>
+                          <div className="flex-1 bg-slate-100 rounded-full h-4 overflow-hidden relative">
+                            <div
+                              className="h-full rounded-full transition-all duration-500 group-hover:opacity-90"
+                              style={{ width: `${barWidth}%`, backgroundColor: item.color }}
+                            />
+                          </div>
+                          <span className="w-16 text-[11px] font-bold text-slate-800 font-mono">{item.displayValue}</span>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              ) : (
+                /* VERTICAL COLUMN CHART MODE (DEFAULT) */
+                <div className="w-full flex flex-col h-72 justify-between">
+                  <div className="relative flex items-stretch h-64 pl-10 pr-2 pt-4">
+                    {/* Y-Axis Label */}
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 -rotate-90 text-[11px] font-medium text-slate-400 tracking-wide select-none origin-center whitespace-nowrap">
+                      Leads Count
+                    </div>
+
+                    {/* Bars Row */}
+                    <div className="relative z-10 w-full h-full flex items-end justify-between gap-1 sm:gap-2 px-1">
+                      {activeChartData.map((item, index) => {
+                        const maxVal = Math.max(...activeChartData.map(d => d.value), 1);
+                        const barHeightPercent = Math.max((item.value / maxVal) * 100, 3);
+
+                        return (
+                          <div 
+                            key={index} 
+                            className="flex-1 flex flex-col items-center justify-end h-full group relative cursor-pointer"
+                            onClick={() => {
+                              setSelectedStatus(item.label);
+                              setViewMode('table');
+                            }}
+                            title={`${item.label}: ${item.displayCount || item.value} leads (${item.percentage})`}
+                          >
+                            <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 mb-1 select-none transition-transform group-hover:-translate-y-1">
+                              {item.displayValue}
+                            </span>
+                            <div 
+                              className="w-full max-w-[42px] rounded-t-sm transition-all duration-300 group-hover:opacity-90 group-hover:shadow-md"
+                              style={{
+                                height: `${barHeightPercent}%`,
+                                backgroundColor: item.color
+                              }}
+                            />
+                            <div className="h-7 pt-1 flex items-start justify-center text-center w-full">
+                              <span className="text-[10px] text-slate-700 font-medium truncate max-w-[54px] sm:max-w-none">
+                                {item.label}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
 
             </div>
 
@@ -1256,26 +1445,6 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                 >
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
-              </div>
-
-              {/* Column Customizer Button */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowColumnModal(!showColumnModal)}
-                  className="px-2.5 py-1 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium flex items-center space-x-1 cursor-pointer transition-colors shadow-2xs"
-                >
-                  <Columns3 className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Column</span>
-                  <ChevronDown className="w-3 h-3 text-slate-400" />
-                </button>
-
-                {showColumnModal && (
-                  <ColumnCustomizerModal
-                    columns={columns}
-                    onChange={setColumns}
-                    onClose={() => setShowColumnModal(false)}
-                  />
-                )}
               </div>
             </div>
 
@@ -1473,58 +1642,33 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                         </button>
                       </th>
 
-                      {/* Name */}
-                      <th 
-                        className="px-3.5 py-3 font-semibold text-slate-700 cursor-pointer hover:text-indigo-600"
-                        onClick={() => {
-                          setSortField('name');
-                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                        }}
-                      >
-                        Name
-                      </th>
+                      {/* Dynamic Headers from Database Fields Settings */}
+                      {visibleFields.map((field) => (
+                        <th 
+                          key={field.id}
+                          className="px-3.5 py-3 font-semibold text-slate-700 whitespace-nowrap cursor-pointer hover:text-indigo-600"
+                          onClick={() => {
+                            if (field.name === 'name') {
+                              setSortField('name');
+                              setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                            } else if (field.name === 'createdOn' || field.name === 'createdAt' || field.name === 'created_on') {
+                              setSortField('createdOn');
+                              setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                            }
+                          }}
+                        >
+                          <div className="flex items-center space-x-1">
+                            <span>{field.label}</span>
+                            {(field.name === 'createdOn' || field.name === 'createdAt' || field.name === 'created_on') && (
+                              <ChevronUp className="w-3.5 h-3.5 text-slate-600" />
+                            )}
+                          </div>
+                        </th>
+                      ))}
 
-                      {/* Status */}
-                      <th className="px-3.5 py-3 font-semibold text-slate-700">
-                        Status
-                      </th>
-
-                      {/* Rating ⬍ */}
-                      <th 
-                        className="px-3.5 py-3 font-semibold text-slate-700 cursor-pointer hover:text-indigo-600"
-                        onClick={() => {
-                          setSortField('rating');
-                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                        }}
-                      >
-                        <div className="flex items-center space-x-1">
-                          <span>Rating</span>
-                          <ArrowUpDown className="w-3 h-3 text-slate-400" />
-                        </div>
-                      </th>
-
-                      {/* Assignee */}
-                      <th className="px-3.5 py-3 font-semibold text-slate-700">
-                        Assignee
-                      </th>
-
-                      {/* Created On ▴ */}
-                      <th 
-                        className="px-3.5 py-3 font-semibold text-slate-700 cursor-pointer hover:text-indigo-600"
-                        onClick={() => {
-                          setSortField('createdOn');
-                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                        }}
-                      >
-                        <div className="flex items-center space-x-1">
-                          <span>Created On</span>
-                          <ChevronUp className="w-3.5 h-3.5 text-slate-600" />
-                        </div>
-                      </th>
-
-                      {/* Lead Souce */}
-                      <th className="px-3.5 py-3 font-semibold text-slate-700">
-                        Lead Souce
+                      {/* Actions */}
+                      <th className="px-3.5 py-3 font-semibold text-slate-700 text-center">
+                        Actions
                       </th>
                     </tr>
                   </thead>
@@ -1533,27 +1677,30 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                   <tbody className="divide-y divide-slate-100">
                     {currentPaginatedLeads.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-4 py-12 text-center text-slate-400 text-xs">
+                        <td colSpan={visibleFields.length + 2} className="px-4 py-12 text-center text-slate-400 text-xs">
                           No leads match your current search or filter conditions.
                         </td>
                       </tr>
                     ) : (
                       currentPaginatedLeads.map((lead) => {
                         const avatar = getAgentAvatar(lead.ownerAgentName);
-                        const isStarred = (leadRatings[lead.id] || 0) > 0;
                         const isSelected = selectedLeadIds.includes(lead.id);
 
                         return (
                           <tr 
                             key={lead.id}
-                            className={`hover:bg-slate-50/70 transition-colors ${
+                            onClick={() => onOpenLeadDetail(lead)}
+                            className={`hover:bg-slate-50/70 transition-colors cursor-pointer ${
                               isSelected ? 'bg-indigo-50/30' : ''
                             }`}
                           >
                             {/* Checkbox */}
-                            <td className="px-3.5 py-2.5 text-center">
+                            <td className="px-3.5 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
                               <button
-                                onClick={() => handleToggleLeadSelect(lead.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleLeadSelect(lead.id);
+                                }}
                                 className="cursor-pointer inline-flex items-center justify-center"
                               >
                                 {isSelected ? (
@@ -1566,56 +1713,86 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                               </button>
                             </td>
 
-                            {/* Name */}
-                            <td 
-                              className="px-3.5 py-2.5 font-bold text-[#5034a8] hover:underline cursor-pointer"
-                              onClick={() => onOpenLeadDetail(lead)}
-                            >
-                              <span className="truncate max-w-[200px] inline-block">{lead.name || '—'}</span>
-                            </td>
+                            {/* Dynamic Row Cells from Database Field Settings */}
+                            {visibleFields.map((field) => {
+                              const val = getLeadFieldValue(lead, field);
+                              
+                              if (field.primarySlot === 'H1' || field.name === 'name') {
+                                return (
+                                  <td 
+                                    key={field.id}
+                                    className="px-3.5 py-2.5 font-semibold text-slate-700 hover:text-slate-900 hover:underline cursor-pointer whitespace-nowrap"
+                                  >
+                                    <span className="truncate max-w-[200px] inline-block capitalize">{val || '—'}</span>
+                                  </td>
+                                );
+                              }
+                              
+                              if (field.name === 'status') {
+                                return (
+                                  <td key={field.id} className="px-3.5 py-2.5 whitespace-nowrap">
+                                    <StatusBadge status={lead.status || 'Fresh'} size="xs" />
+                                  </td>
+                                );
+                              }
+                              
+                              if (field.name === 'assignee' || field.name === 'owner') {
+                                return (
+                                  <td key={field.id} className="px-3.5 py-2.5 whitespace-nowrap">
+                                    <div className="flex items-center space-x-2">
+                                      <span className={`w-5.5 h-5.5 rounded-full flex items-center justify-center text-[10px] font-bold ${avatar.bg}`}>
+                                        {avatar.initials}
+                                      </span>
+                                      <span className="text-slate-700 text-xs font-normal truncate max-w-[180px]">
+                                        {lead.ownerAgentName || activeAgent?.name || 'Madhava sai nagendra'}
+                                      </span>
+                                    </div>
+                                  </td>
+                                );
+                              }
+                              
+                              if (field.name === 'source') {
+                                return (
+                                  <td key={field.id} className="px-3.5 py-2.5 whitespace-nowrap">
+                                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${getSourceBadgeStyle(lead.source)}`}>
+                                      {lead.source || 'Direct'}
+                                    </span>
+                                  </td>
+                                );
+                              }
 
-                            {/* Status */}
-                            <td className="px-3.5 py-2.5">
-                              <StatusBadge status={lead.status || 'Fresh'} size="xs" />
-                            </td>
+                              return (
+                                <td key={field.id} className="px-3.5 py-2.5 text-slate-700 text-xs font-normal whitespace-nowrap truncate max-w-[180px]">
+                                  {val || '—'}
+                                </td>
+                              );
+                            })}
 
-                            {/* Rating */}
-                            <td className="px-3.5 py-2.5">
-                              <button 
-                                onClick={(e) => handleToggleStar(lead.id, e)}
-                                className="text-slate-400 hover:text-amber-500 cursor-pointer transition-colors"
-                                title="Rate Lead"
-                              >
-                                {isStarred ? (
-                                  <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-                                ) : (
-                                  <Star className="w-4 h-4 text-slate-400 stroke-[1.5]" />
-                                )}
-                              </button>
-                            </td>
-
-                            {/* Assignee */}
-                            <td className="px-3.5 py-2.5">
-                              <div className="flex items-center space-x-2">
-                                <span className={`w-5.5 h-5.5 rounded-full flex items-center justify-center text-[10px] font-bold ${avatar.bg}`}>
-                                  {avatar.initials}
-                                </span>
-                                <span className="text-slate-700 text-xs font-normal truncate max-w-[180px]">
-                                  {lead.ownerAgentName || 'Unassigned'}
-                                </span>
+                            {/* Actions */}
+                            <td className="px-3.5 py-2.5 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center justify-center space-x-1.5" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setSummaryLead(lead); }}
+                                  className="inline-flex items-center px-2 py-1 rounded-lg bg-transparent text-indigo-600 border border-indigo-200 hover:bg-indigo-50/50 transition-colors text-[11px] font-semibold cursor-pointer"
+                                  title="View Quick Call Brief"
+                                >
+                                  <span>Brief</span>
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); openFollowUpModal(lead); }}
+                                  className="inline-flex items-center px-2 py-1 rounded-lg bg-transparent text-[#5034a8] border border-purple-200 hover:bg-purple-50/50 transition-colors text-[11px] font-semibold cursor-pointer"
+                                  title="Schedule Follow-Up"
+                                >
+                                  <span>Follow Up</span>
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleOpenReassignModal(lead); }}
+                                  className="inline-flex items-center justify-center p-1.5 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-700 hover:text-white border border-slate-200 transition-colors cursor-pointer shadow-2xs"
+                                  title="Change Lead Access / Direct Lead to Another Assignee"
+                                >
+                                  <UserCheck className="w-3.5 h-3.5" />
+                                </button>
                               </div>
-                            </td>
-
-                            {/* Created On */}
-                            <td className="px-3.5 py-2.5 text-slate-600 text-xs">
-                              {lead.createdAt || '3m ago'}
-                            </td>
-
-                            {/* Lead Souce */}
-                            <td className="px-3.5 py-2.5">
-                              <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${getSourceBadgeStyle(lead.source)}`}>
-                                {lead.source || 'Facebook-Meta-01'}
-                              </span>
                             </td>
                           </tr>
                         );
@@ -1624,6 +1801,219 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Lead Call Brief / Summary */}
+      {summaryLead && (
+        <LeadSummaryModal
+          lead={summaryLead}
+          onClose={() => setSummaryLead(null)}
+          onCallLead={(l) => { window.location.href = `tel:${l.phone}`; }}
+          onScheduleFollowUp={(l) => openFollowUpModal(l)}
+        />
+      )}
+
+      {/* MODAL: Change Lead Access & Reassign */}
+      {reassignModalLead && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 font-sans">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-2xl p-5 space-y-4 text-xs animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900 tracking-tight">Change Lead Access & Assignee</h3>
+              <button 
+                onClick={() => setReassignModalLead(null)} 
+                className="text-slate-400 hover:text-slate-600 cursor-pointer text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                <p className="text-sm font-bold text-slate-900">{reassignModalLead.name}</p>
+                <p className="text-xs text-slate-600">Current Assignee: <strong className="text-indigo-600">{reassignModalLead.ownerAgentName || activeAgent?.name || 'Madhava sai nagendra'}</strong></p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Select New Assignee</label>
+                <select
+                  value={selectedNewAssigneeId}
+                  onChange={(e) => setSelectedNewAssigneeId(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-600 cursor-pointer"
+                >
+                  {agents.map((agent) => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <p className="text-xs text-amber-500 font-semibold">
+                  The access of this lead will change to the new assignee.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100">
+              <button
+                onClick={() => setReassignModalLead(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              {!isConfirmingReassign ? (
+                <button
+                  onClick={() => setIsConfirmingReassign(true)}
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold cursor-pointer transition-colors shadow-xs"
+                >
+                  Change Access
+                </button>
+              ) : (
+                <button
+                  onClick={handleConfirmReassign}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold cursor-pointer transition-colors shadow-md flex items-center space-x-1"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Click to Confirm Change</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Schedule Lead as Follow-Up */}
+      {followUpLead && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 font-sans">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-xl p-4 space-y-4 font-sans text-xs animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 font-sans">
+              <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2 font-sans tracking-tight">
+                <CalendarPlus className="w-4 h-4 text-[#5034a8]" />
+                <span className="font-sans">Schedule Follow-Up for {followUpLead.name}</span>
+              </h3>
+              <button onClick={() => setFollowUpLead(null)} className="text-slate-400 hover:text-slate-600 font-sans cursor-pointer text-sm">✕</button>
+            </div>
+
+            <div className="space-y-3 font-sans">
+              <div>
+                <label className="block text-[11px] font-sans uppercase text-slate-600 font-bold mb-2 tracking-wider">SCHEDULED FOLLOW-UP DATE & TIME</label>
+                <div className="space-y-2 font-sans text-xs">
+                  {/* Date picker */}
+                  <div className="relative">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                    <input
+                      type="date"
+                      required
+                      value={followUpDate}
+                      min={new Date().toISOString().slice(0, 10)}
+                      onChange={(e) => setFollowUpDate(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#5034a8]"
+                    />
+                  </div>
+
+                  {/* Time selector */}
+                  <div className="flex items-center space-x-2">
+                    {/* Hour */}
+                    <div className="flex-1">
+                      <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl overflow-hidden focus-within:border-[#5034a8] focus-within:ring-1 focus-within:ring-[#5034a8]/20">
+                        <Clock className="w-3.5 h-3.5 text-slate-400 ml-2.5 shrink-0" />
+                        <select
+                          value={followUpHour}
+                          onChange={(e) => setFollowUpHour(e.target.value)}
+                          className="flex-1 bg-transparent px-2 py-2 text-xs text-slate-900 focus:outline-none cursor-pointer"
+                        >
+                          {Array.from({ length: 12 }, (_, i) => {
+                            const v = String(i + 1).padStart(2, '0');
+                            return <option key={v} value={v}>{v}</option>;
+                          })}
+                        </select>
+                      </div>
+                    </div>
+
+                    <span className="text-slate-400 font-bold text-sm">:</span>
+
+                    {/* Minute */}
+                    <div className="flex-1">
+                      <select
+                        value={followUpMinute}
+                        onChange={(e) => setFollowUpMinute(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#5034a8] cursor-pointer"
+                      >
+                        {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map((m) => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* AM/PM switcher */}
+                    <div className="flex rounded-xl border border-slate-200 overflow-hidden shrink-0">
+                      {(['AM', 'PM'] as const).map((period) => (
+                        <button
+                          key={period}
+                          type="button"
+                          onClick={() => setFollowUpAmPm(period)}
+                          className={`px-3 py-2 text-xs font-bold transition-colors cursor-pointer ${
+                            followUpAmPm === period
+                              ? 'bg-[#5034a8] text-white'
+                              : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                          }`}
+                        >
+                          {period}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Formatted Date Preview */}
+                  {followUpDate && (
+                    <div className="mt-1.5 font-sans">
+                      <p className="text-[11px] font-semibold text-[#5034a8] bg-purple-50 border border-purple-200 px-2.5 py-1 rounded-md inline-flex items-center space-x-1">
+                        <Clock className="w-3 h-3 text-[#5034a8]" />
+                        <span>
+                          Scheduled: {new Date(`${followUpDate}T${String(
+                            followUpAmPm === 'PM'
+                              ? (parseInt(followUpHour) === 12 ? 12 : parseInt(followUpHour) + 12)
+                              : (parseInt(followUpHour) === 12 ? 0 : parseInt(followUpHour))
+                          ).padStart(2, '0')}:${followUpMinute}:00`).toLocaleString('en-IN', {
+                            weekday: 'short', day: '2-digit', month: 'short', year: 'numeric',
+                            hour: '2-digit', minute: '2-digit', hour12: true
+                          })}
+                        </span>
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <textarea
+                  rows={3}
+                  value={followUpRemarks}
+                  onChange={(e) => setFollowUpRemarks(e.target.value)}
+                  placeholder="Notes or agenda for this follow-up..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-none focus:border-[#5034a8] font-sans"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100 font-sans">
+              <button
+                onClick={() => setFollowUpLead(null)}
+                className="px-3.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 font-sans font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveFollowUp}
+                className="px-4 py-1.5 rounded-lg bg-[#5034a8] hover:bg-[#432993] text-white font-sans font-bold shadow-2xs cursor-pointer"
+              >
+                Save & Move to Follow Up
+              </button>
             </div>
           </div>
         </div>

@@ -13,7 +13,7 @@ import {
   INITIAL_WORKFLOWS, 
   INITIAL_CUSTOM_FIELDS, 
   INITIAL_PERMISSION_TEMPLATES 
-} from '../data/mockData';
+} from '../constants/initialState';
 
 dotenv.config();
 
@@ -109,9 +109,11 @@ export async function testAwsDbConnection() {
 }
 
 export async function initializeAwsDbTables() {
+  let pool: any = null;
+  let client: any = null;
   try {
-    const pool = await getAwsClient();
-    const client = await pool.connect();
+    pool = await getAwsClient();
+    client = await pool.connect();
 
     // Schema Migration: Upgrade legacy tables if present
     await client.query(`
@@ -529,7 +531,21 @@ export async function initializeAwsDbTables() {
       );
     `);
 
-    console.log('⚡ AWS Aurora RDS database tables (21 Total Modules) initialized successfully.');
+    // 22. Meta (Facebook & Instagram) Connected Pages (Multi-Tenant Architecture)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS meta_connected_pages (
+        page_id VARCHAR(100) PRIMARY KEY,
+        page_name VARCHAR(255) NOT NULL,
+        page_access_token TEXT NOT NULL,
+        tenant_id VARCHAR(100) DEFAULT 'default_admin',
+        crm_user_id VARCHAR(100) DEFAULT 'default_admin',
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    console.log('⚡ AWS Aurora RDS database tables (22 Total Modules) initialized successfully.');
   } catch (err: any) {
     console.warn('⚠️ AWS Aurora RDS notice:', err.message);
   } finally {
@@ -539,9 +555,11 @@ export async function initializeAwsDbTables() {
 }
 
 export async function seedAwsDbMockData() {
+  let pool: any = null;
+  let client: any = null;
   try {
-    const pool = await getAwsClient();
-    const client = await pool.connect();
+    pool = await getAwsClient();
+    client = await pool.connect();
     
     // Ensure tables exist
     await initializeAwsDbTables();
@@ -776,9 +794,11 @@ export async function seedAwsDbMockData() {
 }
 
 export async function getAwsDbTablesSummary() {
+  let pool: any = null;
+  let client: any = null;
   try {
-    const pool = await getAwsClient();
-    const client = await pool.connect();
+    pool = await getAwsClient();
+    client = await pool.connect();
 
     const resTables = await client.query(`
       SELECT table_name 
@@ -820,9 +840,11 @@ export async function getAwsDbTablesSummary() {
 }
 
 export async function saveLeadToAwsDb(lead: any) {
+  let pool: any = null;
+  let client: any = null;
   try {
-    const pool = await getAwsClient();
-    const client = await pool.connect();
+    pool = await getAwsClient();
+    client = await pool.connect();
     
     await client.query(`
       INSERT INTO leads (id, name, phone, email, company, city, state, source, status, pipeline_stage_id, deal_value, assignee_id, assignee_name, ai_score, ai_rating, ai_reasoning, notes, custom_fields, tags, gclid, fbclid, data)
@@ -868,9 +890,11 @@ export async function saveLeadToAwsDb(lead: any) {
 }
 
 export async function logWebhookToAwsDb(webhook: any) {
+  let pool: any = null;
+  let client: any = null;
   try {
-    const pool = await getAwsClient();
-    const client = await pool.connect();
+    pool = await getAwsClient();
+    client = await pool.connect();
     
     await client.query(`
       INSERT INTO webhooks (id, name, endpoint_url, source_platform, total_payloads_received, last_received_at)
@@ -894,10 +918,13 @@ export async function logWebhookToAwsDb(webhook: any) {
 }
 
 export async function getIntegrationsConfigFromAwsDb() {
+  let pool: any = null;
+  let client: any = null;
   try {
-    const pool = await getAwsClient();
-    const client = await pool.connect();
+    pool = await getAwsClient();
+    client = await pool.connect();
     const res = await client.query('SELECT * FROM integrations_config ORDER BY updated_at DESC;');
+    return { success: true, configs: res.rows };
   } catch (err: any) {
     console.warn('⚠️ AWS RDS Integrations Config Fetch Error:', err.message);
     return { success: false, configs: [], error: err.message };
@@ -908,9 +935,11 @@ export async function getIntegrationsConfigFromAwsDb() {
 }
 
 export async function saveIntegrationConfigToAwsDb(config: { id: string; name: string; isConnected: boolean; credentials: any; syncFrequency?: string }) {
+  let pool: any = null;
+  let client: any = null;
   try {
-    const pool = await getAwsClient();
-    const client = await pool.connect();
+    pool = await getAwsClient();
+    client = await pool.connect();
     
     await client.query(`
       INSERT INTO integrations_config (id, integration_name, is_connected, credentials, sync_frequency, last_sync_at, updated_at)
@@ -929,7 +958,7 @@ export async function saveIntegrationConfigToAwsDb(config: { id: string; name: s
       JSON.stringify(config.credentials || {}),
       config.syncFrequency || 'Real-time'
     ]);
-
+    return { success: true };
   } catch (err: any) {
     console.error('⚠️ AWS RDS Integration Save Error:', err.message);
     return { success: false, error: err.message };
@@ -937,4 +966,309 @@ export async function saveIntegrationConfigToAwsDb(config: { id: string; name: s
     if (client) try { client.release(); } catch (e) {}
     if (pool) try { await pool.end(); } catch (e) {}
   }
+}
+
+export async function saveMetaConnectedPage(data: {
+  pageId: string;
+  pageName: string;
+  pageAccessToken: string;
+  tenantId?: string;
+  crmUserId?: string;
+}) {
+  let pool: any = null;
+  let client: any = null;
+  try {
+    pool = await getAwsClient();
+    client = await pool.connect();
+    await client.query(`
+      INSERT INTO meta_connected_pages (page_id, page_name, page_access_token, tenant_id, crm_user_id, is_active, updated_at)
+      VALUES ($1, $2, $3, $4, $5, TRUE, NOW())
+      ON CONFLICT (page_id) DO UPDATE SET
+        page_name = EXCLUDED.page_name,
+        page_access_token = EXCLUDED.page_access_token,
+        tenant_id = EXCLUDED.tenant_id,
+        crm_user_id = EXCLUDED.crm_user_id,
+        is_active = TRUE,
+        updated_at = NOW();
+    `, [
+      data.pageId,
+      data.pageName,
+      data.pageAccessToken,
+      data.tenantId || 'default_admin',
+      data.crmUserId || 'default_admin'
+    ]);
+    return { success: true };
+  } catch (err: any) {
+    console.error('⚠️ AWS RDS Save Meta Connected Page Error:', err.message);
+    return { success: false, error: err.message };
+  } finally {
+    if (client) try { client.release(); } catch (e) {}
+    if (pool) try { await pool.end(); } catch (e) {}
+  }
+}
+
+export async function getMetaConnectedPage(pageId: string) {
+  let pool: any = null;
+  let client: any = null;
+  try {
+    pool = await getAwsClient();
+    client = await pool.connect();
+    const res = await client.query(`
+      SELECT * FROM meta_connected_pages WHERE page_id = $1 AND is_active = TRUE LIMIT 1;
+    `, [pageId]);
+    return { success: true, page: res.rows[0] || null };
+  } catch (err: any) {
+    console.error('⚠️ AWS RDS Get Meta Connected Page Error:', err.message);
+    return { success: false, error: err.message, page: null };
+  } finally {
+    if (client) try { client.release(); } catch (e) {}
+    if (pool) try { await pool.end(); } catch (e) {}
+  }
+}
+
+export async function getMetaPagesForTenant(tenantId: string) {
+  let pool: any = null;
+  let client: any = null;
+  try {
+    pool = await getAwsClient();
+    client = await pool.connect();
+    const res = await client.query(`
+      SELECT page_id, page_name, tenant_id, crm_user_id, is_active, created_at, updated_at
+      FROM meta_connected_pages
+      WHERE tenant_id = $1 AND is_active = TRUE
+      ORDER BY updated_at DESC;
+    `, [tenantId]);
+    return { success: true, pages: res.rows };
+  } catch (err: any) {
+    console.error('⚠️ AWS RDS Get Meta Pages For Tenant Error:', err.message);
+    return { success: false, error: err.message, pages: [] };
+  } finally {
+    if (client) try { client.release(); } catch (e) {}
+    if (pool) try { await pool.end(); } catch (e) {}
+  }
+}
+
+export async function disconnectMetaPage(pageId: string, tenantId?: string) {
+  let pool: any = null;
+  let client: any = null;
+  try {
+    pool = await getAwsClient();
+    client = await pool.connect();
+    if (tenantId) {
+      await client.query(`
+        UPDATE meta_connected_pages SET is_active = FALSE, updated_at = NOW()
+        WHERE page_id = $1 AND tenant_id = $2;
+      `, [pageId, tenantId]);
+    } else {
+      await client.query(`
+        UPDATE meta_connected_pages SET is_active = FALSE, updated_at = NOW()
+        WHERE page_id = $1;
+      `, [pageId]);
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  } finally {
+    if (client) try { client.release(); } catch (e) {}
+    if (pool) try { await pool.end(); } catch (e) {}
+  }
+}
+
+export async function provisionClientTenantInAwsDb(tenantId: string, companyName: string, ownerEmail: string, ownerPhone: string) {
+  let pool: any = null;
+  let client: any = null;
+  try {
+    pool = await getAwsClient();
+    client = await pool.connect();
+    
+    // Create tenants table if not exists
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS client_tenants (
+        tenant_id VARCHAR(100) PRIMARY KEY,
+        company_name VARCHAR(255) NOT NULL,
+        owner_email VARCHAR(255) NOT NULL,
+        owner_phone VARCHAR(50),
+        status VARCHAR(50) DEFAULT 'ACTIVE',
+        settings JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Insert tenant registration record
+    await client.query(`
+      INSERT INTO client_tenants (tenant_id, company_name, owner_email, owner_phone, settings)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (tenant_id) DO UPDATE SET
+        company_name = EXCLUDED.company_name,
+        owner_email = EXCLUDED.owner_email,
+        owner_phone = EXCLUDED.owner_phone,
+        updated_at = NOW();
+    `, [
+      tenantId,
+      companyName,
+      ownerEmail,
+      ownerPhone,
+      JSON.stringify({ defaultPipeline: 'Standard Sales Pipeline', autoDialer: true, whatsappCrm: true })
+    ]);
+
+    console.log(`[AWS RDS Tenant Provisioning] ✅ Client database collection provisioned for tenant ${tenantId} (${companyName})`);
+    return { success: true, tenantId };
+  } catch (err: any) {
+    console.warn('⚠️ AWS RDS Tenant Provisioning Notice (continuing with client store):', err.message);
+    return { success: false, error: err.message };
+  } finally {
+    if (client) try { client.release(); } catch (e) {}
+    if (pool) try { await pool.end(); } catch (e) {}
+  }
+}
+
+export async function saveAgentToAwsDb(agent: any) {
+  let pool: any = null;
+  let client: any = null;
+  try {
+    pool = await getAwsClient();
+    client = await pool.connect();
+    
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS agents (
+        id VARCHAR(100) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        phone VARCHAR(50),
+        role VARCHAR(100),
+        status VARCHAR(50),
+        avatar TEXT,
+        tenant_id VARCHAR(100),
+        company_name VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await client.query(`
+      INSERT INTO agents (id, name, email, phone, role, status, avatar, tenant_id, company_name)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        email = EXCLUDED.email,
+        phone = EXCLUDED.phone,
+        role = EXCLUDED.role,
+        status = EXCLUDED.status,
+        avatar = EXCLUDED.avatar,
+        tenant_id = EXCLUDED.tenant_id,
+        company_name = EXCLUDED.company_name;
+    `, [
+      agent.id,
+      agent.name,
+      agent.email,
+      agent.phone || '',
+      agent.role || 'Telecaller',
+      agent.status || 'online',
+      agent.avatar || '',
+      agent.tenantId || '',
+      agent.companyName || ''
+    ]);
+
+    console.log(`[AWS RDS] Saved agent ${agent.name} for tenant ${agent.tenantId || 'global'}`);
+    return { success: true };
+  } catch (err: any) {
+    console.warn('⚠️ AWS RDS Save Agent Notice:', err.message);
+    return { success: false, error: err.message };
+  } finally {
+    if (client) try { client.release(); } catch (e) {}
+    if (pool) try { await pool.end(); } catch (e) {}
+  }
+}
+
+export async function getAwsDbFieldSettings() {
+  let pool: any = null;
+  let client: any = null;
+  try {
+    pool = await getAwsClient();
+    client = await pool.connect();
+    
+    await initializeAwsDbTables();
+    const res = await client.query(`
+      SELECT id, field_key as name, field_label as label, field_type as type, category, options, is_required as required, is_primary as "isPrimary", primary_slot as "primarySlot", display_order as "displayOrder", is_active as "isActive"
+      FROM field_settings
+      ORDER BY display_order ASC;
+    `);
+
+    if (res.rows && res.rows.length > 0) {
+      return res.rows.map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        label: row.label,
+        type: row.type,
+        category: row.category || 'General',
+        options: typeof row.options === 'string' ? JSON.parse(row.options) : (row.options || []),
+        required: Boolean(row.required),
+        isPrimary: Boolean(row.isPrimary),
+        primarySlot: row.primarySlot || null,
+        createdOn: 'Database',
+        lastModified: 'Just Now'
+      }));
+    }
+    return INITIAL_CUSTOM_FIELDS;
+  } catch (err: any) {
+    console.warn('⚠️ AWS RDS getFieldSettings Notice:', err.message);
+    return INITIAL_CUSTOM_FIELDS;
+  } finally {
+    if (client) try { client.release(); } catch (e) {}
+    if (pool) try { await pool.end(); } catch (e) {}
+  }
+}
+
+export async function saveAwsDbFieldSetting(field: any) {
+  let pool: any = null;
+  let client: any = null;
+  try {
+    pool = await getAwsClient();
+    client = await pool.connect();
+    
+    await initializeAwsDbTables();
+    await client.query(`
+      INSERT INTO field_settings (id, field_key, field_label, field_type, category, options, is_required, is_primary, primary_slot, display_order)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      ON CONFLICT (id) DO UPDATE SET
+        field_key = EXCLUDED.field_key,
+        field_label = EXCLUDED.field_label,
+        field_type = EXCLUDED.field_type,
+        category = EXCLUDED.category,
+        options = EXCLUDED.options,
+        is_required = EXCLUDED.is_required,
+        is_primary = EXCLUDED.is_primary,
+        primary_slot = EXCLUDED.primary_slot,
+        updated_at = NOW();
+    `, [
+      field.id,
+      field.name,
+      field.label,
+      field.type || 'text',
+      field.category || 'General',
+      JSON.stringify(field.options || []),
+      Boolean(field.required),
+      Boolean(field.isPrimary),
+      field.primarySlot || null,
+      field.displayOrder || 1
+    ]);
+
+    return { success: true };
+  } catch (err: any) {
+    console.warn('⚠️ AWS RDS saveFieldSetting Notice:', err.message);
+    return { success: false, error: err.message };
+  } finally {
+    if (client) try { client.release(); } catch (e) {}
+    if (pool) try { await pool.end(); } catch (e) {}
+  }
+}
+
+export async function saveAwsDbAllFieldSettings(fields: any[]) {
+  let results = [];
+  for (let i = 0; i < fields.length; i++) {
+    const f = { ...fields[i], displayOrder: i + 1 };
+    const res = await saveAwsDbFieldSetting(f);
+    results.push(res);
+  }
+  return { success: true, count: fields.length };
 }

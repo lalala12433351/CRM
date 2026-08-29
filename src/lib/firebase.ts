@@ -1,14 +1,25 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { getAnalytics, isSupported } from 'firebase/analytics';
 
 const firebaseConfig = {
-  projectId: "witty-poetry-wq6d2",
-  appId: "1:725308561687:web:ff895882c820676404bf52",
-  apiKey: "AIzaSyB-JhzuRxCWvoobBuW88-MKfCm-aC2OOw8",
-  authDomain: "witty-poetry-wq6d2.firebaseapp.com",
-  storageBucket: "witty-poetry-wq6d2.firebasestorage.app",
-  messagingSenderId: "725308561687"
+  apiKey: "AIzaSyCsZhHMY1PqQRgTDwqMlMHqItovknrBhow",
+  authDomain: "crmnew-8a435.firebaseapp.com",
+  projectId: "crmnew-8a435",
+  storageBucket: "crmnew-8a435.firebasestorage.app",
+  messagingSenderId: "1001840805334",
+  appId: "1:1001840805334:web:71971264848f1f66b71077",
+  measurementId: "G-DCP7CQ3H4L"
 };
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app); // uses (default) database
+export const app = initializeApp(firebaseConfig);
+export const db = getFirestore(app);
+
+export let analytics: any = null;
+if (typeof window !== 'undefined') {
+  isSupported().then((supported) => {
+    if (supported) {
+      analytics = getAnalytics(app);
+    }
+  }).catch(() => {});
+}

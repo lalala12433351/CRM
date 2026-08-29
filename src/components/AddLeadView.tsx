@@ -37,11 +37,13 @@ interface AddLeadViewProps {
   leads: Lead[];
   agents: Agent[];
   customFields: CustomFieldDef[];
+  activeAgent?: Agent;
   onSaveLead: (lead: Lead) => void;
   onSaveAndCall?: (lead: Lead) => void;
   onImportBulkLeads: (leads: Partial<Lead>[]) => void;
   onCancel: () => void;
   onNavigateToTab?: (tab: string) => void;
+  onShowToast?: (msg: string) => void;
 }
 
 // Sample Pincode Database for Smart Auto-Fill
@@ -61,18 +63,63 @@ const PINCODE_DATABASE: Record<string, { city: string; state: string; country: s
   '90210': { city: 'Los Angeles', state: 'California', country: 'USA' },
 };
 
+// All Indian States and their major cities
+const INDIA_STATES_CITIES: Record<string, string[]> = {
+  'Andhra Pradesh': ['Visakhapatnam', 'Vijayawada', 'Guntur', 'Tirupati', 'Nellore', 'Kurnool', 'Kakinada', 'Rajamahendravaram', 'Kadapa', 'Anantapur'],
+  'Arunachal Pradesh': ['Itanagar', 'Tawang', 'Ziro', 'Naharlagun', 'Pasighat'],
+  'Assam': ['Guwahati', 'Silchar', 'Dibrugarh', 'Jorhat', 'Nagaon', 'Tinsukia', 'Tezpur', 'Karimganj'],
+  'Bihar': ['Patna', 'Gaya', 'Bhagalpur', 'Muzaffarpur', 'Darbhanga', 'Purnia', 'Arrah', 'Begusarai', 'Katihar', 'Bihar Sharif'],
+  'Chhattisgarh': ['Raipur', 'Bhilai', 'Bilaspur', 'Korba', 'Durg', 'Rajnandgaon', 'Jagdalpur', 'Ambikapur'],
+  'Goa': ['Panaji', 'Margao', 'Vasco da Gama', 'Mapusa', 'Ponda', 'Calangute', 'Colva'],
+  'Gujarat': ['Ahmedabad', 'Surat', 'Vadodara', 'Rajkot', 'Bhavnagar', 'Jamnagar', 'Gandhinagar', 'Junagadh', 'Anand', 'Nadiad', 'Bharuch', 'Morbi'],
+  'Haryana': ['Faridabad', 'Gurgaon', 'Panipat', 'Ambala', 'Yamunanagar', 'Rohtak', 'Hisar', 'Karnal', 'Sonipat', 'Panchkula'],
+  'Himachal Pradesh': ['Shimla', 'Manali', 'Dharamshala', 'Solan', 'Mandi', 'Kullu', 'Kangra'],
+  'Jharkhand': ['Ranchi', 'Jamshedpur', 'Dhanbad', 'Bokaro', 'Deoghar', 'Phusro', 'Hazaribagh', 'Giridih'],
+  'Karnataka': ['Bengaluru', 'Mysuru', 'Hubballi', 'Mangaluru', 'Belagavi', 'Kalaburagi', 'Ballari', 'Vijayapura', 'Shivamogga', 'Tumakuru', 'Davangere', 'Hassan'],
+  'Kerala': ['Thiruvananthapuram', 'Kochi', 'Kozhikode', 'Thrissur', 'Kollam', 'Palakkad', 'Alappuzha', 'Malappuram', 'Kannur', 'Kasaragod'],
+  'Madhya Pradesh': ['Indore', 'Bhopal', 'Jabalpur', 'Gwalior', 'Ujjain', 'Sagar', 'Rewa', 'Satna', 'Dewas', 'Chhindwara'],
+  'Maharashtra': ['Mumbai', 'Pune', 'Nagpur', 'Nashik', 'Thane', 'Aurangabad', 'Solapur', 'Kolhapur', 'Amravati', 'Navi Mumbai', 'Pimpri-Chinchwad', 'Vasai-Virar', 'Malegaon'],
+  'Manipur': ['Imphal', 'Thoubal', 'Churachandpur', 'Bishnupur'],
+  'Meghalaya': ['Shillong', 'Tura', 'Jowai', 'Nongstoin'],
+  'Mizoram': ['Aizawl', 'Lunglei', 'Champhai', 'Serchhip'],
+  'Nagaland': ['Kohima', 'Dimapur', 'Mokokchung', 'Tuensang'],
+  'Odisha': ['Bhubaneswar', 'Cuttack', 'Rourkela', 'Brahmapur', 'Sambalpur', 'Puri', 'Balasore', 'Bhadrak'],
+  'Punjab': ['Ludhiana', 'Amritsar', 'Jalandhar', 'Patiala', 'Bathinda', 'Mohali', 'Pathankot', 'Hoshiarpur'],
+  'Rajasthan': ['Jaipur', 'Jodhpur', 'Udaipur', 'Kota', 'Bikaner', 'Ajmer', 'Bhilwara', 'Alwar', 'Sikar', 'Bharatpur'],
+  'Sikkim': ['Gangtok', 'Namchi', 'Geyzing', 'Mangan'],
+  'Tamil Nadu': ['Chennai', 'Coimbatore', 'Madurai', 'Tiruchirappalli', 'Salem', 'Tirunelveli', 'Vellore', 'Erode', 'Thoothukudi', 'Tiruppur', 'Dindigul'],
+  'Telangana': ['Hyderabad', 'Warangal', 'Nizamabad', 'Khammam', 'Karimnagar', 'Ramagundam', 'Mahbubnagar'],
+  'Tripura': ['Agartala', 'Udaipur', 'Dharmanagar', 'Kailasahar'],
+  'Uttar Pradesh': ['Lucknow', 'Kanpur', 'Agra', 'Varanasi', 'Prayagraj', 'Meerut', 'Noida', 'Ghaziabad', 'Bareilly', 'Aligarh', 'Moradabad', 'Gorakhpur', 'Mathura', 'Firozabad'],
+  'Uttarakhand': ['Dehradun', 'Haridwar', 'Roorkee', 'Haldwani', 'Rudrapur', 'Rishikesh', 'Kashipur'],
+  'West Bengal': ['Kolkata', 'Asansol', 'Siliguri', 'Durgapur', 'Bardhaman', 'Malda', 'Baharampur', 'Kharagpur', 'Howrah'],
+  'Delhi': ['New Delhi', 'Dwarka', 'Rohini', 'Janakpuri', 'Laxmi Nagar', 'Karol Bagh', 'Saket', 'Pitampura'],
+  'Chandigarh': ['Chandigarh'],
+  'Jammu & Kashmir': ['Srinagar', 'Jammu', 'Anantnag', 'Baramulla', 'Sopore', 'Leh'],
+  'Ladakh': ['Leh', 'Kargil'],
+  'Puducherry': ['Puducherry', 'Karaikal', 'Mahe', 'Yanam'],
+  'Andaman & Nicobar Islands': ['Port Blair', 'Mayabunder', 'Diglipur'],
+  'Dadra & Nagar Haveli and Daman & Diu': ['Daman', 'Diu', 'Silvassa'],
+  'Lakshadweep': ['Kavaratti', 'Agatti'],
+};
+
 export const AddLeadView: React.FC<AddLeadViewProps> = ({
   leads,
   agents,
   customFields,
+  activeAgent,
   onSaveLead,
   onSaveAndCall,
   onImportBulkLeads,
   onCancel,
-  onNavigateToTab
+  onNavigateToTab,
+  onShowToast
 }) => {
   // Top Active Mode / Tab: 'single' | 'excel' | 'integration'
   const [activeTab, setActiveTab] = useState<'single' | 'excel' | 'integration'>('single');
+
+  // Toggle for Collapsible Additional Information Accordion Bar
+  const [isAdditionalInfoOpen, setIsAdditionalInfoOpen] = useState(false);
 
   // Toggle for optional advanced settings in single lead mode
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -100,12 +147,21 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
   const [country, setCountry] = useState('India');
 
   const [companyName, setCompanyName] = useState('');
-  const [dealValue, setDealValue] = useState<number>(100000);
+  const [dealValue, setDealValue] = useState<number>(0);
   const [requirement, setRequirement] = useState('');
 
-  const [leadStatus, setLeadStatus] = useState<LeadStatus>('New Lead');
-  const [assignedAgentId, setAssignedAgentId] = useState(agents[0]?.id || '');
+  const [leadStatus, setLeadStatus] = useState<LeadStatus>('Fresh');
+  const [assignedAgentId, setAssignedAgentId] = useState(activeAgent?.id || agents[0]?.id || '');
   const [priority, setPriority] = useState<'Hot' | 'Warm' | 'Cold'>('Hot');
+
+  // Auto-sync default telecaller to current active logged-in agent
+  useEffect(() => {
+    if (activeAgent?.id) {
+      setAssignedAgentId(activeAgent.id);
+    } else if (agents.length > 0 && !assignedAgentId) {
+      setAssignedAgentId(agents[0].id);
+    }
+  }, [activeAgent, agents, assignedAgentId]);
 
   const [followUpDate, setFollowUpDate] = useState('');
   const [followUpNotes, setFollowUpNotes] = useState('');
@@ -180,23 +236,29 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
     }
   }, [rawPhone, leads]);
 
-  // Handle Pincode Auto-Fill
+  // Handle Pincode Auto-Fill (digits only, max 6)
   const handlePincodeChange = (pinVal: string) => {
-    setPincode(pinVal);
-    if (PINCODE_DATABASE[pinVal]) {
-      const data = PINCODE_DATABASE[pinVal];
+    const cleaned = pinVal.replace(/\D/g, '').slice(0, 6);
+    setPincode(cleaned);
+    if (PINCODE_DATABASE[cleaned]) {
+      const data = PINCODE_DATABASE[cleaned];
       setCity(data.city);
       setState(data.state);
       setCountry(data.country);
     }
   };
 
-  // AI Agent Recommender
+  // When state changes reset city
+  const handleStateChange = (stateVal: string) => {
+    setState(stateVal);
+    setCity('');
+  };
+
+  // AI Agent Recommender - Picks randomly from all available assignees
   const handleSuggestBestAgent = () => {
-    if (agents.length === 0) return;
-    const sorted = [...agents].sort((a, b) => a.totalCallsToday - b.totalCallsToday);
-    const bestAgent = sorted[0];
-    setAssignedAgentId(bestAgent.id);
+    if (!agents || agents.length === 0) return;
+    const randomIndex = Math.floor(Math.random() * agents.length);
+    setAssignedAgentId(agents[randomIndex].id);
   };
 
   // Tag Handlers
@@ -216,15 +278,38 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
   // -------------------------------------------------------------
   const validateForm = () => {
     const errs: Record<string, string> = {};
-    if (!fullName.trim()) errs.fullName = 'Full Name is required.';
-    if (!rawPhone.trim()) errs.phone = 'Phone Number is required.';
-    if (email && !email.includes('@')) errs.email = 'Invalid email address.';
+    const trimmedName = fullName.trim();
+    if (!trimmedName || trimmedName.length < 2) {
+      errs.fullName = 'Full Name must be at least 2 characters.';
+    }
+
+    const digitsOnly = rawPhone.trim().replace(/\D/g, '');
+    if (!rawPhone.trim()) {
+      errs.phone = 'Phone Number is required.';
+    } else if (digitsOnly.length < 10) {
+      errs.phone = 'Phone number must contain at least 10 valid digits.';
+    }
+
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      errs.email = 'Email Address is required.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      errs.email = 'Email must be a valid address containing "@" and domain (e.g. name@company.com).';
+    }
+
+    if (pincode && pincode.trim().replace(/\D/g, '').length !== 6) {
+      errs.pincode = 'Pincode must be exactly 6 digits.';
+    }
+
     setFormErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
   const constructLead = (): Lead => {
-    const assignedAgent = agents.find((a) => a.id === assignedAgentId) || agents[0];
+    const assignedAgent = agents.find((a) => a.id === assignedAgentId);
+    // If created without an assignee, automatically assign to current user account creating the lead
+    const finalOwnerId = assignedAgent ? assignedAgent.id : (activeAgent ? activeAgent.id : (agents[0]?.id || 'agent-admin'));
+    const finalOwnerName = assignedAgent ? assignedAgent.name : (activeAgent ? activeAgent.name : (agents[0]?.name || 'Madhava sai nagendra'));
     const finalPhone = `${countryCode} ${rawPhone.trim()}`;
     const finalSource: LeadSource = leadSource === ('Other' as any) ? (customLeadSource as any || 'Manual Entry') : leadSource;
 
@@ -233,15 +318,15 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
       name: fullName.trim(),
       phone: finalPhone,
       email: email.trim(),
-      company: companyName || 'Individual',
+      company: companyName || '',
       city: city || 'Not Specified',
       state: state || 'Not Specified',
       source: finalSource,
       status: leadStatus,
       pipelineStageId: 'stage-1',
-      dealValue: Number(dealValue) || 100000,
-      ownerAgentId: assignedAgent?.id || 'agent-1',
-      ownerAgentName: assignedAgent?.name || 'Unassigned',
+      dealValue: Number(dealValue) || 0,
+      ownerAgentId: finalOwnerId,
+      ownerAgentName: finalOwnerName,
       createdAt: 'Just Now',
       updatedAt: 'Just Now',
       aiScore: priority === 'Hot' ? 88 : priority === 'Warm' ? 68 : 45,
@@ -258,6 +343,7 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
       utmSource: utmSource || undefined,
       utmMedium: utmMedium || undefined,
       utmCampaign: utmCampaign || campaignName || undefined,
+      whatsappOptIn: whatsappOptIn,
     };
   };
 
@@ -286,7 +372,7 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
       setRequirement('');
       setNotes('');
       setDuplicateWarning(null);
-      alert('Lead saved successfully! Ready to add another.');
+      if (onShowToast) onShowToast('Lead saved successfully! Ready to add another.');
     } else if (action === 'save') {
       onCancel();
     }
@@ -363,7 +449,7 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
   const handlePushIntegrationLead = (e: React.FormEvent) => {
     e.preventDefault();
     if (!integName || !integPhone) {
-      alert('Please enter Name and Phone number for the integration lead.');
+      if (onShowToast) onShowToast('Please enter Name and Phone number for the integration lead.');
       return;
     }
 
@@ -380,8 +466,8 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
       status: 'New Lead',
       pipelineStageId: 'stage-1',
       dealValue: 150000,
-      ownerAgentId: assigned?.id || 'agent-1',
-      ownerAgentName: assigned?.name || 'Unassigned',
+      ownerAgentId: assigned?.id || activeAgent?.id || agents[0]?.id || 'agent-admin',
+      ownerAgentName: assigned?.name || activeAgent?.name || agents[0]?.name || 'Madhava sai nagendra',
       createdAt: 'Just Now',
       updatedAt: 'Just Now',
       aiScore: 92,
@@ -408,9 +494,6 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
             <UserPlus className="w-5 h-5 text-indigo-600" />
             <h1 className="text-lg font-bold text-slate-900 tracking-tight">Add New Lead</h1>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Create single contacts, import Excel / CSV files, or connect lead forms via integrations.
-          </p>
         </div>
 
         {/* Quick Top Actions */}
@@ -444,8 +527,8 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
         </div>
       )}
 
-      {/* 3 Main Mode Tabs: Single Lead | Excel / CSV | From Integrations */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200 font-medium">
+      {/* 2 Main Mode Tabs: Single Lead | Excel / CSV */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200 font-medium">
         <button
           onClick={() => setActiveTab('single')}
           className={`flex items-center justify-center space-x-2 py-2.5 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
@@ -468,18 +551,6 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
         >
           <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
           <span>2. Excel / CSV Import</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('integration')}
-          className={`flex items-center justify-center space-x-2 py-2.5 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-            activeTab === 'integration'
-              ? 'bg-white text-indigo-700 shadow-2xs font-bold'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-          }`}
-        >
-          <Link2 className="w-4 h-4 text-violet-600" />
-          <span>3. From Integrations</span>
         </button>
       </div>
 
@@ -514,8 +585,7 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Card 1: Contact Information */}
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3">
-              <div className="flex items-center space-x-2 border-b border-slate-100 pb-2.5">
-                <User className="w-4 h-4 text-indigo-600" />
+              <div className="border-b border-slate-100 pb-2.5">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">
                   1. Contact Information
                 </h2>
@@ -559,7 +629,8 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
                     <input
                       type="text"
                       value={rawPhone}
-                      onChange={(e) => setRawPhone(e.target.value)}
+                      maxLength={10}
+                      onChange={(e) => setRawPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                       placeholder="9876543210"
                       className={`w-full bg-slate-50 border ${
                         formErrors.phone ? 'border-rose-400 bg-rose-50/50' : 'border-slate-200'
@@ -570,14 +641,22 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Email Address</label>
+                  <label className="block text-slate-700 font-semibold mb-1">
+                    Email Address <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (formErrors.email) setFormErrors((prev) => ({ ...prev, email: '' }));
+                    }}
                     placeholder="rahul@example.com"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-indigo-500"
+                    className={`w-full bg-slate-50 border ${
+                      formErrors.email ? 'border-rose-400 bg-rose-50/50 focus:border-rose-600' : 'border-slate-200 focus:border-indigo-500'
+                    } rounded-lg px-3 py-2 text-slate-900 focus:outline-none`}
                   />
+                  {formErrors.email && <p className="text-[11px] text-rose-600 mt-1">{formErrors.email}</p>}
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">
@@ -586,30 +665,40 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
                     <input
                       type="text"
                       value={pincode}
+                      maxLength={6}
                       onChange={(e) => handlePincodeChange(e.target.value)}
                       placeholder="400001"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-2 text-slate-900 focus:outline-none focus:border-indigo-500"
+                      className={`w-full bg-slate-50 border ${
+                        formErrors.pincode ? 'border-rose-400 bg-rose-50/50' : 'border-slate-200'
+                      } rounded-lg px-2.5 py-2 text-slate-900 focus:outline-none focus:border-indigo-500`}
                     />
-                  </div>
-                  <div>
-                    <label className="block text-slate-700 font-semibold mb-1">City</label>
-                    <input
-                      type="text"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      placeholder="Mumbai"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-2 text-slate-900 focus:outline-none focus:border-indigo-500"
-                    />
+                    {formErrors.pincode && <p className="text-[11px] text-rose-600 mt-1">{formErrors.pincode}</p>}
                   </div>
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1">State</label>
-                    <input
-                      type="text"
+                    <select
                       value={state}
-                      onChange={(e) => setState(e.target.value)}
-                      placeholder="Maharashtra"
+                      onChange={(e) => handleStateChange(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-2 text-slate-900 focus:outline-none focus:border-indigo-500"
-                    />
+                    >
+                      <option value="">Select State</option>
+                      {Object.keys(INDIA_STATES_CITIES).sort().map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 font-semibold mb-1">City</label>
+                    <select
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-2 text-slate-900 focus:outline-none focus:border-indigo-500"
+                    >
+                      <option value="">{state ? 'Select City' : 'Select State first'}</option>
+                      {(INDIA_STATES_CITIES[state] || []).map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </div>
@@ -617,8 +706,7 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
 
             {/* Card 2: Assignment & Status */}
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3">
-              <div className="flex items-center space-x-2 border-b border-slate-100 pb-2.5">
-                <Tag className="w-4 h-4 text-indigo-600" />
+              <div className="border-b border-slate-100 pb-2.5">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">
                   2. Lead Assignment & Status
                 </h2>
@@ -667,20 +755,20 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
                     <button
                       type="button"
                       onClick={handleSuggestBestAgent}
-                      className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold flex items-center space-x-1 cursor-pointer"
+                      className="text-[11px] text-[#3a2088] hover:underline font-semibold cursor-pointer"
                     >
-                      <Sparkles className="w-3 h-3 text-indigo-500" />
-                      <span>Auto Assign</span>
+                      Auto Assign
                     </button>
                   </div>
                   <select
                     value={assignedAgentId}
                     onChange={(e) => setAssignedAgentId(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 font-medium focus:outline-none focus:border-indigo-500"
                   >
+                    <option value="">Auto-Assign to Me ({activeAgent?.name || 'Creator'})</option>
                     {agents.map((agent) => (
                       <option key={agent.id} value={agent.id}>
-                        {agent.name} ({agent.role}) - {agent.totalCallsToday} calls today
+                        {agent.name}
                       </option>
                     ))}
                   </select>
@@ -717,128 +805,10 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
                       type="number"
                       value={dealValue}
                       onChange={(e) => setDealValue(Number(e.target.value))}
-                      placeholder="100000"
+                      placeholder="0"
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-indigo-500"
                     />
                   </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 3: Context & Requirements */}
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3">
-              <div className="flex items-center space-x-2 border-b border-slate-100 pb-2.5">
-                <Building className="w-4 h-4 text-indigo-600" />
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                  3. Business & Requirements
-                </h2>
-              </div>
-
-              <div className="space-y-3 text-xs">
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Company Name</label>
-                  <input
-                    type="text"
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    placeholder="e.g. Sharma Enterprises"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Lead Notes / Requirement</label>
-                  <textarea
-                    rows={2}
-                    value={requirement}
-                    onChange={(e) => setRequirement(e.target.value)}
-                    placeholder="Describe specific client needs, budget, or discussion notes..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-
-                {/* Tags */}
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Tags</label>
-                  <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
-                    {selectedTags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold flex items-center space-x-1"
-                      >
-                        <span>#{tag}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveTag(tag)}
-                          className="hover:text-rose-600 cursor-pointer ml-1"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex items-center space-x-1.5">
-                    <input
-                      type="text"
-                      value={newTagInput}
-                      onChange={(e) => setNewTagInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                      placeholder="Add tag and press Enter"
-                      className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddTag}
-                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs cursor-pointer"
-                    >
-                      Add
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 4: Next Follow-Up */}
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3">
-              <div className="flex items-center space-x-2 border-b border-slate-100 pb-2.5">
-                <Calendar className="w-4 h-4 text-indigo-600" />
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                  4. Schedule Follow-Up
-                </h2>
-              </div>
-
-              <div className="space-y-3 text-xs">
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Follow-Up Date & Time</label>
-                  <input
-                    type="datetime-local"
-                    value={followUpDate}
-                    onChange={(e) => setFollowUpDate(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Follow-Up Agenda / Note</label>
-                  <input
-                    type="text"
-                    value={followUpNotes}
-                    onChange={(e) => setFollowUpNotes(e.target.value)}
-                    placeholder="e.g. Call regarding quotation review"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-
-                <div className="pt-1">
-                  <label className="flex items-center space-x-2 text-slate-700 font-semibold cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={whatsappOptIn}
-                      onChange={(e) => setWhatsappOptIn(e.target.checked)}
-                      className="rounded text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <span>Send automated WhatsApp introduction message</span>
-                  </label>
                 </div>
               </div>
             </div>
@@ -945,15 +915,19 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
                           />
                         ) : (
                           <input
-                            type={field.type === 'number' || field.type === 'currency' ? 'number' : 'text'}
+                            type={field.type === 'number' || field.type === 'currency' ? 'number' : field.type === 'phone' ? 'tel' : 'text'}
                             value={val}
-                            onChange={(e) =>
+                            onChange={(e) => {
+                              const inputVal = e.target.value;
+                              const filteredVal = (field.type === 'number' || field.type === 'phone' || field.type === 'currency')
+                                ? inputVal.replace(/\D/g, '')
+                                : inputVal;
                               setCustomFieldValues((prev) => ({
                                 ...prev,
-                                [field.name]: e.target.value,
-                              }))
-                            }
-                            placeholder={`Enter ${field.label}...`}
+                                [field.name]: filteredVal,
+                              }));
+                            }}
+                            placeholder={field.type === 'phone' || field.type === 'number' ? 'e.g. 9876543210' : `Enter ${field.label}...`}
                             className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-500"
                           />
                         )}
@@ -1047,7 +1021,7 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
               <button
                 type="button"
                 onClick={() => handleSaveSingleLead('save')}
-                className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all cursor-pointer shadow-xs"
+                className="px-5 py-2 rounded-lg bg-sky-500 hover:bg-sky-400 text-white font-bold text-xs transition-all cursor-pointer shadow-md shadow-sky-500/25"
               >
                 Save Lead
               </button>
@@ -1163,176 +1137,6 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* TAB 3: FROM INTEGRATIONS */}
-      {/* ========================================================================= */}
-      {activeTab === 'integration' && (
-        <div className="space-y-4">
-          {integSuccessMsg && (
-            <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs font-bold flex items-center space-x-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>{integSuccessMsg}</span>
-            </div>
-          )}
-
-          {/* Active Connectors Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {[
-              { id: 'Meta Ads', title: 'Meta Lead Ads (FB & IG)', status: 'Connected & Syncing', count: '167 Leads', color: 'bg-indigo-50 border-indigo-200 text-indigo-700' },
-              { id: 'Google Ads', title: 'Google Lead Forms', status: 'Connected (API V2)', count: '48 Leads', color: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
-              { id: 'IndiaMart', title: 'IndiaMART Buyer Leads', status: 'Connected', count: '32 Leads', color: 'bg-amber-50 border-amber-200 text-amber-700' },
-              { id: 'Justdial', title: 'Justdial Express Sync', status: 'Connected', count: '19 Leads', color: 'bg-blue-50 border-blue-200 text-blue-700' },
-              { id: 'Website Form', title: 'Website Webhook API', status: 'Active (200 OK)', count: '85 Leads', color: 'bg-purple-50 border-purple-200 text-purple-700' },
-              { id: 'Zapier', title: 'Zapier & Sheet Sync', status: 'Live Sync', count: '112 Leads', color: 'bg-rose-50 border-rose-200 text-rose-700' },
-            ].map((integ) => (
-              <div key={integ.id} className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs text-slate-900">{integ.title}</span>
-                  <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${integ.color}`}>
-                    {integ.status}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
-                  <span>Captured: <strong>{integ.count}</strong></span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIntegProvider(integ.id);
-                      setIntegCampaign(`master-form-${integ.id.toLowerCase().replace(/\s+/g, '-')}`);
-                    }}
-                    className="text-xs text-indigo-600 font-semibold hover:underline cursor-pointer flex items-center space-x-0.5"
-                  >
-                    <span>Use Provider</span>
-                    <ChevronDown className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Test Trigger / Ingest Form from Integration */}
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs space-y-4">
-            <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
-                  <Zap className="w-4 h-4 text-violet-600" />
-                  <span>Simulate / Capture Inbound Integration Lead</span>
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Test instant lead ingestion from Meta Ads, Google Forms, or Webhooks.
-                </p>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText('https://api.arclecrm.io/v1/webhooks/inbound-leads');
-                    setCopiedWebhook(true);
-                    setTimeout(() => setCopiedWebhook(false), 2000);
-                  }}
-                  className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer flex items-center space-x-1"
-                >
-                  <Copy className="w-3.5 h-3.5 text-violet-600" />
-                  <span>{copiedWebhook ? 'Copied URL!' : 'Copy Webhook Endpoint'}</span>
-                </button>
-              </div>
-            </div>
-
-            <form onSubmit={handlePushIntegrationLead} className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-              <div>
-                <label className="block text-slate-700 font-semibold mb-1">Integration Provider</label>
-                <select
-                  value={integProvider}
-                  onChange={(e) => setIntegProvider(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 font-semibold focus:outline-none"
-                >
-                  <option value="Meta Ads">Meta Lead Ads (FB & IG)</option>
-                  <option value="Google Ads">Google Lead Form Ads</option>
-                  <option value="IndiaMart">IndiaMART Buyer Enquiry</option>
-                  <option value="Justdial">Justdial Express</option>
-                  <option value="Website Form">Website Webhook API</option>
-                  <option value="Zapier">Zapier / Google Sheets</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-semibold mb-1">Lead Full Name *</label>
-                <input
-                  type="text"
-                  value={integName}
-                  onChange={(e) => setIntegName(e.target.value)}
-                  placeholder="Alexander Gheevarghese"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-semibold mb-1">Phone Number *</label>
-                <input
-                  type="text"
-                  value={integPhone}
-                  onChange={(e) => setIntegPhone(e.target.value)}
-                  placeholder="98590096589"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-semibold mb-1">Email ID</label>
-                <input
-                  type="email"
-                  value={integEmail}
-                  onChange={(e) => setIntegEmail(e.target.value)}
-                  placeholder="alexvarghese619@gmail.com"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-semibold mb-1">Form / Campaign Handle</label>
-                <input
-                  type="text"
-                  value={integCampaign}
-                  onChange={(e) => setIntegCampaign(e.target.value)}
-                  placeholder="master-form-iata-cargo"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 font-mono text-slate-800 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-semibold mb-1">City</label>
-                <input
-                  type="text"
-                  value={integCity}
-                  onChange={(e) => setIntegCity(e.target.value)}
-                  placeholder="Punalur"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none"
-                />
-              </div>
-
-              <div className="col-span-1 md:col-span-3 flex justify-end space-x-2 pt-2">
-                <button
-                  type="button"
-                  onClick={onCancel}
-                  className="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs cursor-pointer shadow-xs flex items-center space-x-1.5"
-                >
-                  <Zap className="w-3.5 h-3.5" />
-                  <span>Push Ingested Lead</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

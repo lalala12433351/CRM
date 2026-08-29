@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Settings, 
   Building2, 
@@ -18,6 +18,7 @@ import {
   ArrowDown,
   Sparkles,
   ChevronRight,
+  ChevronDown,
   CreditCard,
   ShoppingCart,
   Receipt,
@@ -33,12 +34,92 @@ import {
   UserCheck,
   SlidersHorizontal
 } from 'lucide-react';
+
+const STAGE_COLOR_SWATCHES = [
+  '#3d6b60', '#787d77', '#803300', '#ff6600', '#e69900',
+  '#008e76', '#0073e6', '#6610f2', '#e80088', '#ff001b',
+  '#00b4d8', '#55a600', '#0011a8', '#702066', '#591010'
+];
+
+interface ColorPickerDropdownProps {
+  color: string;
+  onChange: (newColor: string) => void;
+}
+
+const ColorPickerDropdown: React.FC<ColorPickerDropdownProps> = ({ color, onChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative inline-block" ref={dropdownRef}>
+      {/* Trigger Button: Solid Color Bar with Chevron Down Arrow */}
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-36 h-9 px-2.5 bg-white border border-slate-200 hover:border-slate-300 rounded-xl flex items-center justify-between cursor-pointer transition-all shadow-2xs group"
+      >
+        {/* Solid Color Bar */}
+        <div
+          className="h-5 flex-1 rounded-md transition-transform group-hover:scale-[0.99]"
+          style={{ backgroundColor: color }}
+        />
+        {/* Chevron Down Arrow */}
+        <ChevronDown className={`w-4 h-4 text-slate-500 ml-2 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {/* Palette Popover Dropdown (15 Circular Swatches in 3x5 Grid) */}
+      {isOpen && (
+        <div className="absolute left-0 top-full mt-1.5 w-48 bg-white border border-slate-200/90 rounded-2xl p-3 shadow-xl z-50 animate-in fade-in slide-in-from-top-1">
+          <div className="grid grid-cols-5 gap-2.5">
+            {STAGE_COLOR_SWATCHES.map((c) => {
+              const isSelected = color.toLowerCase() === c.toLowerCase();
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => {
+                    onChange(c);
+                    setIsOpen(false);
+                  }}
+                  className={`w-6 h-6 rounded-full transition-transform cursor-pointer shadow-2xs ${
+                    isSelected
+                      ? 'scale-110 ring-2 ring-blue-600 ring-offset-2'
+                      : 'hover:scale-110 opacity-95 hover:opacity-100'
+                  }`}
+                  style={{ backgroundColor: c }}
+                  title={c}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 import { PipelineStage, Agent, CustomFieldDef, PermissionTemplate } from '../types';
-import { INITIAL_STAGES, INITIAL_AGENTS, INITIAL_CUSTOM_FIELDS, INITIAL_PERMISSION_TEMPLATES } from '../data/mockData';
+import { INITIAL_STAGES, INITIAL_AGENTS, INITIAL_CUSTOM_FIELDS, INITIAL_PERMISSION_TEMPLATES } from '../constants/initialState';
 import { FieldsSettingsView } from './FieldsSettingsView';
 import { PermissionsSettingsView } from './PermissionsSettingsView';
 
 interface SettingsViewProps {
+  companyName?: string;
+  onUpdateCompanyName?: (name: string) => void;
+  supportEmail?: string;
+  onUpdateSupportEmail?: (email: string) => void;
+  currency?: string;
+  onUpdateCurrency?: (code: string) => void;
+  activeAgent?: Agent;
   onShowToast?: (message: string) => void;
   stages?: PipelineStage[];
   onUpdateStages?: (stages: PipelineStage[]) => void;
@@ -130,6 +211,13 @@ const INDUSTRY_PRESETS = [
 ];
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ 
+  companyName: initialCompanyName,
+  onUpdateCompanyName,
+  supportEmail: initialSupportEmail,
+  onUpdateSupportEmail,
+  currency: initialCurrency,
+  onUpdateCurrency,
+  activeAgent,
   onShowToast, 
   stages, 
   onUpdateStages,
@@ -260,16 +348,58 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   // Pipeline Stages Customization State
-  const [localStages, setLocalStages] = useState<PipelineStage[]>(stages || INITIAL_STAGES);
+  const [localStages, setLocalStages] = useState<PipelineStage[]>(
+    stages && stages.length > 0 ? stages : INITIAL_STAGES
+  );
+
+  useEffect(() => {
+    if (stages && stages.length > 0) {
+      setLocalStages(stages);
+    }
+  }, [stages]);
+
   const [showAddStageModal, setShowAddStageModal] = useState(false);
   const [newStageName, setNewStageName] = useState('');
   const [newStageColor, setNewStageColor] = useState('#3B82F6');
-  const [newStageProb, setNewStageProb] = useState(50);
+  const [newStageCategory, setNewStageCategory] = useState<'initial' | 'active' | 'closed'>('active');
+
+  // Lost Reasons State
+  const [lostReasons, setLostReasons] = useState<string[]>([
+    'No Need',
+    'Unable to Connect',
+    'Budget Issues',
+    'Product does not fit need',
+    'Lost to competitor',
+    'Unknown Reason',
+    'Not eligible',
+    'Junk'
+  ]);
+  const [newLostReasonInput, setNewLostReasonInput] = useState('');
 
   // Form State - General Settings
-  const [companyName, setCompanyName] = useState('ARCLE Real Estate & Sales');
-  const [supportEmail, setSupportEmail] = useState('support@arclecrm.io');
-  const [currency, setCurrency] = useState('INR');
+  const [companyName, setCompanyName] = useState(initialCompanyName || 'ARCLE Real Estate & Sales');
+
+  useEffect(() => {
+    if (initialCompanyName) {
+      setCompanyName(initialCompanyName);
+    }
+  }, [initialCompanyName]);
+
+  const defaultSupportEmail = initialSupportEmail || activeAgent?.email || 'admin@company.com';
+  const [supportEmail, setSupportEmail] = useState(defaultSupportEmail);
+
+  useEffect(() => {
+    if (initialSupportEmail || activeAgent?.email) {
+      setSupportEmail(initialSupportEmail || activeAgent?.email || 'admin@company.com');
+    }
+  }, [initialSupportEmail, activeAgent?.email]);
+  const [currency, setCurrency] = useState(initialCurrency || 'INR');
+
+  useEffect(() => {
+    if (initialCurrency) {
+      setCurrency(initialCurrency);
+    }
+  }, [initialCurrency]);
   const [timezone, setTimezone] = useState('Asia/Kolkata (GMT+5:30)');
   const [workingHoursStart, setWorkingHoursStart] = useState('09:30');
   const [workingHoursEnd, setWorkingHoursEnd] = useState('18:30');
@@ -437,9 +567,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   // Pipeline Stage Handlers
   const handleUpdateStageField = (stageId: string, field: keyof PipelineStage, value: any) => {
-    setLocalStages((prev) =>
-      prev.map((s) => (s.id === stageId ? { ...s, [field]: value } : s))
-    );
+    setLocalStages((prev) => {
+      const updated = prev.map((s) => (s.id === stageId ? { ...s, [field]: value } : s));
+      if (onUpdateStages) onUpdateStages(updated);
+      return updated;
+    });
   };
 
   const handleMoveStage = (index: number, direction: 'up' | 'down') => {
@@ -450,6 +582,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     updated.splice(newIndex, 0, moved);
     const reordered = updated.map((st, i) => ({ ...st, order: i + 1 }));
     setLocalStages(reordered);
+    if (onUpdateStages) onUpdateStages(reordered);
   };
 
   const handleDeleteStage = (stageId: string) => {
@@ -457,7 +590,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       alert('Pipeline must contain at least 2 stages.');
       return;
     }
-    setLocalStages((prev) => prev.filter((s) => s.id !== stageId));
+    setLocalStages((prev) => {
+      const updated = prev.filter((s) => s.id !== stageId);
+      if (onUpdateStages) onUpdateStages(updated);
+      return updated;
+    });
   };
 
   const handleAddCustomStage = () => {
@@ -470,7 +607,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       name: newStageName.trim(),
       color: newStageColor,
       order: localStages.length + 1,
-      winProbability: newStageProb,
+      category: newStageCategory,
+      winProbability: 50,
     };
     const updated = [...localStages, newStage];
     setLocalStages(updated);
@@ -495,14 +633,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   const handleResetStagesToDefault = () => {
-    if (confirm('Reset pipeline stages and colors to default CRM configuration?')) {
-      setLocalStages(INITIAL_STAGES);
-      if (onUpdateStages) {
-        onUpdateStages(INITIAL_STAGES);
-      }
-      if (onShowToast) {
-        onShowToast('Reset pipeline stages to default');
-      }
+    setLocalStages(INITIAL_STAGES);
+    if (onUpdateStages) {
+      onUpdateStages(INITIAL_STAGES);
+    }
+    if (onShowToast) {
+      onShowToast('Reset pipeline stages & colors to default configuration');
     }
   };
 
@@ -524,26 +660,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   const handleResetDefaults = () => {
-    if (confirm('Are you sure you want to reset all CRM settings to system defaults?')) {
-      setCompanyName('ARCLE Real Estate & Sales');
-      setSupportEmail('support@arclecrm.io');
-      setCurrency('INR');
-      setTimezone('Asia/Kolkata (GMT+5:30)');
-      setDefaultCountryCode('+91');
-      setPowerDialerDelay('5');
-      setAutoRecordCalls(true);
-      setHotLeadThreshold(80);
-      setWarmLeadThreshold(50);
-      setAutoGreetingEnabled(true);
-      setDesktopPush(true);
-      setHotLeadSoundAlert(true);
-      setLocalStages(INITIAL_STAGES);
-      if (onUpdateStages) {
-        onUpdateStages(INITIAL_STAGES);
-      }
-      if (onShowToast) {
-        onShowToast('Settings reset to default values.');
-      }
+    setCompanyName('ARCLE Real Estate & Sales');
+    setSupportEmail('support@arclecrm.io');
+    setCurrency('INR');
+    setTimezone('Asia/Kolkata (GMT+5:30)');
+    setDefaultCountryCode('+91');
+    setPowerDialerDelay('5');
+    setAutoRecordCalls(true);
+    setHotLeadThreshold(80);
+    setWarmLeadThreshold(50);
+    setAutoGreetingEnabled(true);
+    setDesktopPush(true);
+    setHotLeadSoundAlert(true);
+    setLocalStages(INITIAL_STAGES);
+    if (onUpdateStages) {
+      onUpdateStages(INITIAL_STAGES);
+    }
+    if (onShowToast) {
+      onShowToast('All CRM settings reset to system defaults');
     }
   };
 
@@ -561,202 +695,193 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     <div className="text-slate-900 font-sans space-y-5 select-none pb-8">
       
       {/* HEADER BAR */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-5 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 shrink-0">
-            <Settings className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="text-base md:text-lg font-bold text-slate-900 tracking-tight flex items-center space-x-2">
-              <span>CRM Settings & Preferences</span>
-              <span className="text-[10px] font-mono font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full">
-                System Admin
-              </span>
-            </h1>
-            <p className="text-xs text-slate-500">
-              Manage workspace configuration, pipeline stages & colors, telephony defaults, AI scoring & notifications.
-            </p>
-          </div>
+      {/* HEADER BAR */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-sans pb-2">
+        <div>
+          <h1 className="text-2xl font-bold font-sans text-slate-900 tracking-tight flex items-center space-x-3">
+            <span>CRM Settings & Preferences</span>
+            <span className="text-[10px] font-sans font-medium bg-blue-50 text-[#2563eb] border border-blue-100 px-2.5 py-0.5 rounded-full tracking-wide">
+              System Admin
+            </span>
+          </h1>
         </div>
 
-        <div className="flex items-center space-x-2.5">
+        <div className="flex items-center space-x-2.5 font-sans shrink-0">
           <button
             onClick={handleResetDefaults}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+            className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium transition-all cursor-pointer font-sans shadow-2xs"
           >
-            <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
             <span>Reset Defaults</span>
           </button>
 
           <button
             onClick={handleSaveSettings}
             disabled={isSaving}
-            className="flex items-center space-x-1.5 px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all cursor-pointer shadow-sm disabled:opacity-50"
+            className="px-5 py-2 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-medium transition-all cursor-pointer font-sans shadow-sm shadow-blue-500/20 disabled:opacity-50 flex items-center space-x-2"
           >
             {isSaving ? (
-              <>
-                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>Saving...</span>
-              </>
+              <span>Saving...</span>
             ) : savedSuccess ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-200" />
-                <span>Saved!</span>
-              </>
+              <span>Saved!</span>
             ) : (
-              <>
-                <Save className="w-3.5 h-3.5" />
-                <span>Save Changes</span>
-              </>
+              <span>Save Changes</span>
             )}
           </button>
         </div>
       </div>
 
       {/* TABS & CONTENT LAYOUT */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 font-sans pt-2">
         
         {/* SIDEBAR NAVIGATION TABS */}
-        <div className="lg:col-span-3 space-y-1 bg-white border border-slate-200 rounded-xl p-2 h-fit shadow-2xs">
-          <p className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider px-3 py-2">
+        <div className="lg:col-span-3 space-y-1.5 bg-white border border-slate-100 rounded-3xl p-3 h-fit shadow-xs font-sans">
+          <p className="text-[10px] font-sans font-bold text-slate-400 uppercase tracking-wider px-3 py-2">
             Configuration Sections
           </p>
 
           <button
             onClick={() => setActiveTab('fields')}
-            className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
               activeTab === 'fields'
-                ? 'bg-indigo-600 text-white shadow-2xs'
-                : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
+                : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
             }`}
           >
-            <SlidersHorizontal className="w-4 h-4 shrink-0" />
-            <span className="flex-1 text-left">Fields Settings</span>
-            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 font-bold border border-indigo-200">
+            <SlidersHorizontal className={`w-4 h-4 shrink-0 ${activeTab === 'fields' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+            <span className="flex-1 text-left font-sans">Fields Settings</span>
+            <span className={`text-[10px] font-sans px-2 py-0.5 rounded-full font-bold ${
+              activeTab === 'fields' ? 'bg-blue-100 text-[#2563eb]' : 'bg-slate-200/70 text-slate-600'
+            }`}>
               {localCustomFields.length}
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab('permissions')}
-            className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
               activeTab === 'permissions'
-                ? 'bg-indigo-600 text-white shadow-2xs'
-                : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
+                : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
             }`}
           >
-            <ShieldCheck className="w-4 h-4 shrink-0" />
-            <span className="flex-1 text-left">Permission Templates</span>
-            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
+            <ShieldCheck className={`w-4 h-4 shrink-0 ${activeTab === 'permissions' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+            <span className="flex-1 text-left font-sans">Permission Templates</span>
+            <span className={`text-[10px] font-sans px-2 py-0.5 rounded-full font-bold ${
+              activeTab === 'permissions' ? 'bg-blue-100 text-[#2563eb]' : 'bg-slate-200/70 text-slate-600'
+            }`}>
               {localTemplates.length}
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab('general')}
-            className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
               activeTab === 'general'
-                ? 'bg-indigo-600 text-white shadow-2xs'
-                : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
+                : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
             }`}
           >
-            <Building2 className="w-4 h-4 shrink-0" />
-            <span>General & Business</span>
+            <Building2 className={`w-4 h-4 shrink-0 ${activeTab === 'general' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+            <span className="font-sans">General & Business</span>
           </button>
 
           <button
             onClick={() => setActiveTab('pipeline')}
-            className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
               activeTab === 'pipeline'
-                ? 'bg-indigo-600 text-white shadow-2xs'
-                : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
+                : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
             }`}
           >
-            <Kanban className="w-4 h-4 shrink-0" />
-            <span className="flex-1 text-left">Pipeline Stages & Colors</span>
-            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold border border-amber-200">
+            <Kanban className={`w-4 h-4 shrink-0 ${activeTab === 'pipeline' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+            <span className="flex-1 text-left font-sans">Pipeline Stages & Colors</span>
+            <span className={`text-[10px] font-sans px-2 py-0.5 rounded-full font-bold ${
+              activeTab === 'pipeline' ? 'bg-blue-100 text-[#2563eb]' : 'bg-amber-100 text-amber-700'
+            }`}>
               New
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab('billing')}
-            className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
               activeTab === 'billing'
-                ? 'bg-indigo-600 text-white shadow-2xs'
-                : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
+                : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
             }`}
           >
-            <CreditCard className="w-4 h-4 shrink-0" />
-            <span className="flex-1 text-left">Buy Licenses & Billing</span>
-            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
+            <CreditCard className={`w-4 h-4 shrink-0 ${activeTab === 'billing' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+            <span className="flex-1 text-left font-sans">Buy Licenses & Billing</span>
+            <span className={`text-[10px] font-sans px-2 py-0.5 rounded-full font-bold ${
+              activeTab === 'billing' ? 'bg-blue-100 text-[#2563eb]' : 'bg-emerald-100 text-emerald-700'
+            }`}>
               Billing
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab('telephony')}
-            className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
               activeTab === 'telephony'
-                ? 'bg-indigo-600 text-white shadow-2xs'
-                : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
+                : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
             }`}
           >
-            <PhoneCall className="w-4 h-4 shrink-0" />
-            <span>Telephony & Dialer</span>
+            <PhoneCall className={`w-4 h-4 shrink-0 ${activeTab === 'telephony' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+            <span className="font-sans">Telephony & Dialer</span>
           </button>
 
           <button
             onClick={() => setActiveTab('ai_scoring')}
-            className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
               activeTab === 'ai_scoring'
-                ? 'bg-indigo-600 text-white shadow-2xs'
-                : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
+                : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
             }`}
           >
-            <Bot className="w-4 h-4 shrink-0" />
-            <span>AI & Lead Scoring</span>
+            <Bot className={`w-4 h-4 shrink-0 ${activeTab === 'ai_scoring' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+            <span className="font-sans">AI & Lead Scoring</span>
           </button>
 
           <button
             onClick={() => setActiveTab('whatsapp')}
-            className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
               activeTab === 'whatsapp'
-                ? 'bg-indigo-600 text-white shadow-2xs'
-                : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
+                : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
             }`}
           >
-            <MessageSquare className="w-4 h-4 shrink-0" />
-            <span>WhatsApp & Automation</span>
+            <MessageSquare className={`w-4 h-4 shrink-0 ${activeTab === 'whatsapp' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+            <span className="font-sans">WhatsApp & Automation</span>
           </button>
 
           <button
             onClick={() => setActiveTab('notifications')}
-            className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
               activeTab === 'notifications'
-                ? 'bg-indigo-600 text-white shadow-2xs'
-                : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
+                : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
             }`}
           >
-            <Bell className="w-4 h-4 shrink-0" />
-            <span>Notifications & Alerts</span>
+            <Bell className={`w-4 h-4 shrink-0 ${activeTab === 'notifications' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+            <span className="font-sans">Notifications & Alerts</span>
           </button>
 
           <button
             onClick={() => setActiveTab('security')}
-            className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
               activeTab === 'security'
-                ? 'bg-indigo-600 text-white shadow-2xs'
-                : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
+                : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
             }`}
           >
-            <ShieldCheck className="w-4 h-4 shrink-0" />
-            <span>Security & Permissions</span>
+            <ShieldCheck className={`w-4 h-4 shrink-0 ${activeTab === 'security' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+            <span className="font-sans">Security & Permissions</span>
           </button>
         </div>
 
-        {/* TAB PANELS */}
-        <div className="lg:col-span-9 bg-white border border-slate-200 rounded-xl p-5 space-y-6 shadow-2xs">
+        {/* TAB PANELS CONTAINER */}
+        <div className="lg:col-span-9 bg-white border border-slate-100 rounded-3xl p-6 sm:p-7 shadow-xs font-sans space-y-6">
           
           {/* TAB 0: FIELDS SETTINGS */}
           {activeTab === 'fields' && (
@@ -785,13 +910,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {activeTab === 'general' && (
             <div className="space-y-5">
               <div className="border-b border-slate-200 pb-3">
-                <h2 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
+                <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight flex items-center space-x-2">
                   <Building2 className="w-4 h-4 text-indigo-600" />
                   <span>General Workspace Profile</span>
                 </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Basic organization details used across reports, invoices, and customer communications.
-                </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -800,7 +922,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <input
                     type="text"
                     value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCompanyName(val);
+                      if (onUpdateCompanyName) onUpdateCompanyName(val);
+                    }}
                     className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
                   />
                 </div>
@@ -810,7 +936,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <input
                     type="email"
                     value={supportEmail}
-                    onChange={(e) => setSupportEmail(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSupportEmail(val);
+                      if (onUpdateSupportEmail) onUpdateSupportEmail(val);
+                    }}
                     className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
                   />
                 </div>
@@ -819,7 +949,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <label className="text-xs font-semibold text-slate-700">Base Currency</label>
                   <select
                     value={currency}
-                    onChange={(e) => setCurrency(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCurrency(val);
+                      if (onUpdateCurrency) onUpdateCurrency(val);
+                    }}
                     className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-600 cursor-pointer"
                   >
                     <option value="INR">INR (₹ Indian Rupee)</option>
@@ -897,108 +1031,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                 </div>
               </div>
-
-              {/* Workspace Assignees & Telecaller Management */}
-              <div className="pt-4 border-t border-slate-200 space-y-3 font-noto">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <h3 className="text-xs font-bold text-slate-900 flex items-center space-x-1.5 font-sans">
-                      <UserCheck className="w-4 h-4 text-indigo-600" />
-                      <span>Workspace Assignees ({localAgents.length})</span>
-                    </h3>
-                    <p className="text-[10px] text-slate-500 mt-0.5">
-                      Add or remove sales team members and telecallers assigned to leads and round-robin allocation pools.
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowAddAssigneeModal(true)}
-                    className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold flex items-center space-x-1 transition-all cursor-pointer shadow-2xs font-noto"
-                  >
-                    <UserPlus className="w-3.5 h-3.5" />
-                    <span>Add Assignee</span>
-                  </button>
-                </div>
-
-                {/* Assignees Cards Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                  {localAgents.map((ag) => (
-                    <div 
-                      key={ag.id}
-                      className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between space-x-2 hover:border-slate-300 transition-all"
-                    >
-                      <div className="flex items-center space-x-2.5 min-w-0">
-                        <div className="relative shrink-0">
-                          <img 
-                            src={ag.avatar} 
-                            alt={ag.name} 
-                            className="w-8 h-8 rounded-full object-cover border border-slate-200"
-                          />
-                          <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${
-                            ag.status === 'online' ? 'bg-emerald-500' :
-                            ag.status === 'on_call' ? 'bg-amber-500' :
-                            ag.status === 'break' ? 'bg-indigo-500' : 'bg-slate-400'
-                          }`} />
-                        </div>
-
-                        <div className="min-w-0 text-[10px]">
-                          <div className="flex items-center space-x-1.5">
-                            <h4 className="font-bold text-slate-900 truncate font-sans text-xs">{ag.name}</h4>
-                            <span className={`text-[8px] font-bold px-1.5 py-0.2 rounded shrink-0 ${
-                              ag.role === 'Admin' ? 'bg-purple-100 text-purple-800' :
-                              ag.role === 'Sales Manager' ? 'bg-indigo-100 text-indigo-800' : 'bg-blue-100 text-blue-800'
-                            }`}>
-                              {ag.role}
-                            </span>
-                          </div>
-                          <p className="text-slate-500 truncate">{ag.email}</p>
-                          <p className="text-slate-400 text-[9px] font-mono">{ag.phone}</p>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveAssignee(ag.id, ag.name)}
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer shrink-0"
-                        title={`Remove ${ag.name} from Assignees`}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-
-                  {localAgents.length === 0 && (
-                    <div className="col-span-full p-6 text-center bg-slate-50 border border-dashed border-slate-300 rounded-xl space-y-2">
-                      <Users className="w-6 h-6 text-slate-400 mx-auto" />
-                      <p className="text-xs font-bold text-slate-700 font-sans">No Assignees Configured</p>
-                      <p className="text-[10px] text-slate-500">Click "Add Assignee" to add sales members to your lead allocation team.</p>
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
           )}
 
-          {/* TAB 2: PIPELINE STAGES & COLOR CUSTOMIZATION */}
+          {/* TAB: PIPELINE STAGES & COLORS */}
           {activeTab === 'pipeline' && (
             <div className="space-y-6">
               <div className="border-b border-slate-200 pb-3 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
-                    <Kanban className="w-4 h-4 text-indigo-600" />
+                  <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight flex items-center space-x-2">
+                    <Kanban className="w-5 h-5 text-indigo-600" />
                     <span>Pipeline Stages & Color Customization</span>
                   </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Tailor the CRM sales pipeline stages to your business workflow and assign custom colors to each stage.
-                  </p>
                 </div>
 
                 <div className="flex items-center space-x-2">
                   <button
                     type="button"
                     onClick={handleResetStagesToDefault}
-                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+                    className="flex items-center space-x-1 px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-all cursor-pointer shadow-2xs"
                   >
                     <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
                     <span>Reset Stages</span>
@@ -1006,193 +1057,224 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
               </div>
 
-              {/* INDUSTRY STAGE PRESETS */}
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-                <div className="flex items-center justify-between">
+              {/* VERTICAL PIPELINE STAGES CONTAINER MATCHING IMAGE 2 */}
+              <div className="space-y-6">
+
+                {/* 1. INITIAL STAGE SECTION (1 OPTION: FRESH, COLOR: BLUE) */}
+                <div className="bg-slate-50/80 border border-slate-200/90 rounded-2xl p-4 space-y-3 shadow-2xs">
                   <div className="flex items-center space-x-2">
-                    <Sparkles className="w-4 h-4 text-amber-500" />
-                    <h3 className="text-xs font-bold text-slate-800">Quick Industry Business Templates</h3>
+                    <div className="px-4 py-2 bg-slate-200/90 text-slate-800 font-bold text-xs rounded-xl flex items-center space-x-2 shadow-2xs">
+                      <span>Initial stage</span>
+                      <ChevronRight className="w-4 h-4 text-slate-500" />
+                    </div>
                   </div>
-                  <span className="text-[10px] font-mono font-semibold text-slate-500">Click to auto-configure pipeline</span>
+
+                  <div className="p-3.5 rounded-xl border border-slate-200 bg-white flex flex-wrap md:flex-nowrap items-center justify-between gap-3 shadow-2xs">
+                    <div className="flex items-center space-x-3">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase">
+                        Default Initial
+                      </span>
+                      <span className="text-sm font-bold text-slate-900">Fresh</span>
+                    </div>
+
+                    <div className="flex items-center space-x-3">
+                      <span className="text-xs text-slate-500 font-medium">Stage Color:</span>
+                      <ColorPickerDropdown
+                        color={localStages.find(s => s.name === 'Fresh')?.color || '#3B82F6'}
+                        onChange={(newColor) => {
+                          const freshStage = localStages.find(s => s.name === 'Fresh');
+                          if (freshStage) handleUpdateStageField(freshStage.id, 'color', newColor);
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {INDUSTRY_PRESETS.map((preset) => (
+                {/* 2. ACTIVE STAGE SECTION (CUSTOM TAGS & COLORS) */}
+                <div className="bg-emerald-50/30 border border-emerald-200/60 rounded-2xl p-4 space-y-3 shadow-2xs">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="px-4 py-2 bg-emerald-100/90 text-emerald-900 font-bold text-xs rounded-xl flex items-center space-x-2 shadow-2xs">
+                      <span>Active stage</span>
+                      <ChevronRight className="w-4 h-4 text-emerald-600" />
+                    </div>
+
                     <button
-                      key={preset.id}
                       type="button"
-                      onClick={() => handleApplyIndustryPreset(preset)}
-                      className="p-2.5 rounded-lg border border-slate-200 bg-white hover:border-indigo-400 hover:shadow-xs transition-all text-left cursor-pointer group"
+                      onClick={() => setShowAddStageModal(true)}
+                      className="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-2xs"
                     >
-                      <p className="text-xs font-bold text-slate-800 group-hover:text-indigo-600">{preset.name}</p>
-                      <p className="text-[10px] text-slate-500 mt-0.5">{preset.stages.length} custom stages</p>
+                      <Plus className="w-4 h-4" />
+                      <span>+ Add Active Stage / Tag</span>
                     </button>
-                  ))}
-                </div>
-              </div>
+                  </div>
 
-              {/* PIPELINE STAGES VISUAL FLOW PREVIEW */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-800">Pipeline Visual Flow Preview</label>
-                  <span className="text-[11px] font-mono text-slate-500">{localStages.length} Active Stages</span>
-                </div>
+                  <div className="space-y-2.5">
+                    {localStages
+                      .filter((s) => s.name !== 'Fresh' && s.name !== 'Converted' && s.name !== 'Lost')
+                      .map((stage, idx) => (
+                        <div
+                          key={stage.id}
+                          className="p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-all flex flex-wrap md:flex-nowrap items-center justify-between gap-3 shadow-2xs"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <span className="w-6 h-6 rounded-md bg-slate-100 text-slate-700 text-xs font-mono font-bold flex items-center justify-center border border-slate-200">
+                              {idx + 1}
+                            </span>
+                            <div className="flex flex-col space-y-0.5">
+                              <button
+                                type="button"
+                                disabled={idx === 0}
+                                onClick={() => handleMoveStage(idx, 'up')}
+                                className="p-0.5 rounded hover:bg-slate-100 text-slate-500 disabled:opacity-20 cursor-pointer"
+                              >
+                                <ArrowUp className="w-3 h-3" />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={idx === localStages.filter(s => s.name !== 'Fresh' && s.name !== 'Converted' && s.name !== 'Lost').length - 1}
+                                onClick={() => handleMoveStage(idx, 'down')}
+                                className="p-0.5 rounded hover:bg-slate-100 text-slate-500 disabled:opacity-20 cursor-pointer"
+                              >
+                                <ArrowDown className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
 
-                <div className="p-3.5 bg-slate-900 rounded-xl overflow-x-auto flex items-center space-x-2 shadow-inner">
-                  {localStages.map((stg, idx) => (
-                    <React.Fragment key={stg.id}>
-                      <div 
-                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-white flex items-center space-x-2 shrink-0 shadow-xs transition-all"
-                        style={{ backgroundColor: stg.color }}
-                      >
-                        <span className="w-2 h-2 rounded-full bg-white/40" />
-                        <span>{stg.name}</span>
-                        <span className="text-[10px] opacity-80 font-mono">({stg.winProbability}%)</span>
-                      </div>
-                      {idx < localStages.length - 1 && (
-                        <ChevronRight className="w-4 h-4 text-slate-600 shrink-0" />
-                      )}
-                    </React.Fragment>
-                  ))}
-                </div>
-              </div>
-
-              {/* LIST OF STAGES EDITING TABLE / CARDS */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-slate-800">Manage Pipeline Stages & Colors</h3>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddStageModal(true)}
-                    className="flex items-center space-x-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-xs"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Custom Stage</span>
-                  </button>
-                </div>
-
-                <div className="space-y-2.5">
-                  {localStages.map((stage, index) => (
-                    <div
-                      key={stage.id}
-                      className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-all flex flex-wrap md:flex-nowrap items-center justify-between gap-3 shadow-2xs"
-                    >
-                      {/* Stage Drag & Order */}
-                      <div className="flex items-center space-x-2.5 shrink-0">
-                        <span className="w-6 h-6 rounded-md bg-slate-100 text-slate-700 text-xs font-mono font-bold flex items-center justify-center border border-slate-200">
-                          #{index + 1}
-                        </span>
-
-                        <div className="flex flex-col space-y-0.5">
-                          <button
-                            type="button"
-                            disabled={index === 0}
-                            onClick={() => handleMoveStage(index, 'up')}
-                            className="p-0.5 rounded hover:bg-slate-100 text-slate-500 disabled:opacity-20 cursor-pointer"
-                            title="Move stage up"
-                          >
-                            <ArrowUp className="w-3 h-3" />
-                          </button>
-                          <button
-                            type="button"
-                            disabled={index === localStages.length - 1}
-                            onClick={() => handleMoveStage(index, 'down')}
-                            className="p-0.5 rounded hover:bg-slate-100 text-slate-500 disabled:opacity-20 cursor-pointer"
-                            title="Move stage down"
-                          >
-                            <ArrowDown className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Stage Name Field */}
-                      <div className="flex-1 min-w-[180px]">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                          Stage Name
-                        </label>
-                        <input
-                          type="text"
-                          value={stage.name}
-                          onChange={(e) => handleUpdateStageField(stage.id, 'name', e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-600"
-                        />
-                      </div>
-
-                      {/* Color Swatch & Palette Picker */}
-                      <div className="space-y-1 min-w-[210px]">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                          Stage Color
-                        </label>
-                        <div className="flex items-center space-x-2">
-                          <div 
-                            className="w-7 h-7 rounded-lg border border-slate-300 shadow-2xs shrink-0 relative overflow-hidden cursor-pointer"
-                            style={{ backgroundColor: stage.color }}
-                          >
+                          <div className="flex-1 min-w-[180px]">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                              Custom Tag / Stage Name
+                            </label>
                             <input
-                              type="color"
-                              value={stage.color}
-                              onChange={(e) => handleUpdateStageField(stage.id, 'color', e.target.value)}
-                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                              title="Choose custom color"
+                              type="text"
+                              value={stage.name}
+                              onChange={(e) => handleUpdateStageField(stage.id, 'name', e.target.value)}
+                              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-emerald-600"
                             />
                           </div>
 
-                          {/* Preset Palette Swatches */}
-                          <div className="flex items-center space-x-1 overflow-x-auto py-0.5">
-                            {COLOR_PALETTE.map((c) => (
-                              <button
-                                key={c}
-                                type="button"
-                                onClick={() => handleUpdateStageField(stage.id, 'color', c)}
-                                className={`w-4 h-4 rounded-full border shrink-0 transition-transform cursor-pointer ${
-                                  stage.color.toLowerCase() === c.toLowerCase()
-                                    ? 'scale-125 border-slate-900 ring-2 ring-indigo-500/30'
-                                    : 'border-slate-300 hover:scale-110'
-                                }`}
-                                style={{ backgroundColor: c }}
-                              />
-                            ))}
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                              Custom Color Tag
+                            </label>
+                            <ColorPickerDropdown
+                              color={stage.color}
+                              onChange={(newColor) => handleUpdateStageField(stage.id, 'color', newColor)}
+                            />
                           </div>
 
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteStage(stage.id)}
+                            className="p-2 rounded-lg text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer"
+                            title="Delete Custom Active Stage"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+
+                {/* 3. CLOSED / FINAL STAGE SECTION (CONVERTED [BLUE] & LOST [RED]) */}
+                <div className="bg-emerald-50/20 border border-emerald-200/50 rounded-2xl p-4 space-y-4 shadow-2xs">
+                  <div className="flex items-center space-x-2">
+                    <div className="px-4 py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl flex items-center space-x-2 shadow-2xs">
+                      <span>Closed stage</span>
+                      <ChevronRight className="w-4 h-4 text-emerald-200" />
+                    </div>
+                  </div>
+
+                  {/* WON SUB-BLOCK (CONVERTED - BLUE) */}
+                  <div className="bg-white rounded-xl border border-emerald-300 overflow-hidden shadow-2xs">
+                    <div className="bg-emerald-100/80 px-3.5 py-2 border-b border-emerald-200 font-bold text-xs text-emerald-900 flex items-center justify-between">
+                      <span>Won</span>
+                      <span className="text-[10px] font-semibold text-emerald-700 uppercase">Final Won Option</span>
+                    </div>
+                    <div className="p-3.5 flex flex-wrap md:flex-nowrap items-center justify-between gap-3">
+                      <span className="text-sm font-bold text-slate-900">Converted</span>
+                      <div className="flex items-center space-x-3">
+                        <span className="text-xs text-slate-500 font-medium">Stage Color:</span>
+                        <ColorPickerDropdown
+                          color={localStages.find(s => s.name === 'Converted')?.color || '#2563EB'}
+                          onChange={(newColor) => {
+                            const convertedStage = localStages.find(s => s.name === 'Converted');
+                            if (convertedStage) handleUpdateStageField(convertedStage.id, 'color', newColor);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* LOST SUB-BLOCK (LOST - RED & REASON MANAGEMENT) */}
+                  <div className="bg-white rounded-xl border border-rose-300 overflow-hidden shadow-2xs">
+                    <div className="bg-rose-100/80 px-3.5 py-2 border-b border-rose-200 font-bold text-xs text-rose-900 flex items-center justify-between">
+                      <span>Lost</span>
+                      <span className="text-[10px] font-semibold text-rose-700 uppercase">Final Lost Option</span>
+                    </div>
+                    <div className="p-3.5 flex flex-wrap md:flex-nowrap items-center justify-between gap-3 border-b border-slate-100">
+                      <span className="text-sm font-bold text-slate-900">Lost</span>
+                      <div className="flex items-center space-x-3">
+                        <span className="text-xs text-slate-500 font-medium">Stage Color:</span>
+                        <ColorPickerDropdown
+                          color={localStages.find(s => s.name === 'Lost')?.color || '#EF4444'}
+                          onChange={(newColor) => {
+                            const lostStage = localStages.find(s => s.name === 'Lost');
+                            if (lostStage) handleUpdateStageField(lostStage.id, 'color', newColor);
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Reason for Lost Leads Sub-Section */}
+                    <div className="p-3.5 bg-slate-50/60 space-y-3">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <span className="text-xs font-bold text-slate-700">
+                          Reason for Lost leads ({lostReasons.length}/25)
+                        </span>
+
+                        <div className="flex items-center space-x-2">
                           <input
                             type="text"
-                            value={stage.color}
-                            onChange={(e) => handleUpdateStageField(stage.id, 'color', e.target.value)}
-                            className="w-16 bg-slate-50 border border-slate-300 rounded-md px-1.5 py-1 text-[11px] font-mono text-slate-700 text-center uppercase"
+                            placeholder="Add lost reason..."
+                            value={newLostReasonInput}
+                            onChange={(e) => setNewLostReasonInput(e.target.value)}
+                            className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-xs focus:outline-none focus:border-rose-500"
                           />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (newLostReasonInput.trim()) {
+                                setLostReasons((prev) => [...prev, newLostReasonInput.trim()]);
+                                setNewLostReasonInput('');
+                              }
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all cursor-pointer"
+                          >
+                            + Add
+                          </button>
                         </div>
                       </div>
 
-                      {/* Win Probability */}
-                      <div className="w-28 shrink-0">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                          Win Prob. ({stage.winProbability}%)
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="5"
-                          value={stage.winProbability}
-                          onChange={(e) => handleUpdateStageField(stage.id, 'winProbability', Number(e.target.value))}
-                          className="w-full accent-indigo-600 cursor-pointer"
-                        />
-                      </div>
-
-                      {/* Delete Stage Button */}
-                      <div className="shrink-0 pt-3 md:pt-0">
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteStage(stage.id)}
-                          disabled={localStages.length <= 2}
-                          className="p-2 rounded-lg text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer disabled:opacity-20"
-                          title={localStages.length <= 2 ? "Minimum 2 stages required" : "Delete Stage"}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                        {lostReasons.map((reason, rIdx) => (
+                          <div key={rIdx} className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 flex items-center justify-between text-xs text-slate-800 shadow-2xs">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-slate-400 font-mono text-[10px]">#</span>
+                              <span>{reason}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setLostReasons((prev) => prev.filter((_, i) => i !== rIdx))}
+                              className="p-1 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                              title="Remove Lost Reason"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  ))}
+                  </div>
                 </div>
               </div>
 
@@ -1226,44 +1308,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-slate-700">Select Stage Color</label>
-                        <div className="flex items-center space-x-3">
-                          <input
-                            type="color"
-                            value={newStageColor}
-                            onChange={(e) => setNewStageColor(e.target.value)}
-                            className="w-9 h-9 rounded-lg border border-slate-300 cursor-pointer shrink-0"
-                          />
-                          <div className="flex flex-wrap gap-1.5">
-                            {COLOR_PALETTE.map((c) => (
-                              <button
-                                key={c}
-                                type="button"
-                                onClick={() => setNewStageColor(c)}
-                                className={`w-6 h-6 rounded-full border cursor-pointer transition-transform ${
-                                  newStageColor.toLowerCase() === c.toLowerCase() ? 'scale-110 ring-2 ring-indigo-500/40 border-slate-900' : 'border-slate-300'
-                                }`}
-                                style={{ backgroundColor: c }}
-                              />
-                            ))}
-                          </div>
-                        </div>
+                        <label className="text-xs font-semibold text-slate-700 block">Select Stage Color</label>
+                        <ColorPickerDropdown
+                          color={newStageColor}
+                          onChange={setNewStageColor}
+                        />
                       </div>
 
-                      <div className="space-y-1">
-                        <div className="flex justify-between items-center">
-                          <label className="text-xs font-semibold text-slate-700">Win Probability</label>
-                          <span className="text-xs font-bold text-indigo-600 font-mono">{newStageProb}%</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="5"
-                          value={newStageProb}
-                          onChange={(e) => setNewStageProb(Number(e.target.value))}
-                          className="w-full accent-indigo-600 cursor-pointer"
-                        />
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-slate-700 block">Stage Type / Category</label>
+                        <select
+                          value={newStageCategory}
+                          onChange={(e) => setNewStageCategory(e.target.value as any)}
+                          className="w-full bg-[#f8fafc] border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:bg-white focus:border-[#2563eb] cursor-pointer capitalize"
+                        >
+                          <option value="initial" disabled={localStages.some((s) => s.category === 'initial' || s.name === 'Fresh')}>
+                            Initial {localStages.some((s) => s.category === 'initial' || s.name === 'Fresh') ? '(Max 1 Set)' : ''}
+                          </option>
+                          <option value="active">Active</option>
+                          <option value="closed">Closed</option>
+                        </select>
                       </div>
                     </div>
 
@@ -1293,13 +1357,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {activeTab === 'telephony' && (
             <div className="space-y-5">
               <div className="border-b border-slate-200 pb-3">
-                <h2 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
+                <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight flex items-center space-x-2">
                   <PhoneCall className="w-4 h-4 text-emerald-600" />
                   <span>Telephony & Call Settings</span>
                 </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Configure SIM card dialer defaults, country prefix, and call recording behaviors.
-                </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1382,13 +1443,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {activeTab === 'ai_scoring' && (
             <div className="space-y-5">
               <div className="border-b border-slate-200 pb-3">
-                <h2 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
+                <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight flex items-center space-x-2">
                   <Bot className="w-4 h-4 text-amber-600" />
                   <span>Gemini AI & Predictive Lead Scoring</span>
                 </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Tune lead qualification thresholds, transcription summarizers, and auto-routing rules.
-                </p>
               </div>
 
               <div className="space-y-4">
@@ -1482,13 +1540,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {activeTab === 'whatsapp' && (
             <div className="space-y-5">
               <div className="border-b border-slate-200 pb-3">
-                <h2 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
+                <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight flex items-center space-x-2">
                   <MessageSquare className="w-4 h-4 text-emerald-600" />
                   <span>WhatsApp Business API & Webhooks</span>
                 </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Configure official WhatsApp Cloud API sender phone number and automated welcome messages.
-                </p>
               </div>
 
               <div className="space-y-4">
@@ -1548,13 +1603,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {activeTab === 'notifications' && (
             <div className="space-y-5">
               <div className="border-b border-slate-200 pb-3">
-                <h2 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
+                <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight flex items-center space-x-2">
                   <Bell className="w-4 h-4 text-amber-600" />
                   <span>Notification Preferences & Real-time Alerts</span>
                 </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Control browser push notifications, sound triggers for hot leads, and email digests.
-                </p>
               </div>
 
               <div className="space-y-3">
@@ -1618,13 +1670,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {activeTab === 'security' && (
             <div className="space-y-5">
               <div className="border-b border-slate-200 pb-3">
-                <h2 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
+                <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight flex items-center space-x-2">
                   <ShieldCheck className="w-4 h-4 text-indigo-600" />
                   <span>Security & Data Access Controls</span>
                 </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Manage lead export policies, session timeouts, and two-factor authentication requirements.
-                </p>
               </div>
 
               <div className="space-y-4">

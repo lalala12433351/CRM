@@ -29,8 +29,6 @@ export function useSyncState<T extends { id: string }>(collectionName: string) {
     setData((prev) => {
       const next = typeof action === 'function' ? (action as any)(prev) : action;
       
-      if (!initialized.current) return next;
-
       // Compute diff and push to firestore asynchronously
       const nextMap = new Map(next.map((item: any) => [item.id, item]));
       const prevMap = new Map(prev.map((item: any) => [item.id, item]));

@@ -11,7 +11,7 @@ import {
   INITIAL_WORKFLOWS, 
   INITIAL_CUSTOM_FIELDS, 
   INITIAL_STAGES 
-} from '../data/mockData';
+} from '../constants/initialState';
 
 export async function seedDatabase() {
   // Mock data seeding disabled for live production Meta Lead Ads integration

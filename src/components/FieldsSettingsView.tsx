@@ -34,35 +34,38 @@ import {
   Lock,
   Layers
 } from 'lucide-react';
-import { CustomFieldDef, CustomFieldType } from '../types';
+import { CustomFieldDef, CustomFieldType, Agent, isAgentAdmin } from '../types';
 
 interface FieldsSettingsViewProps {
   customFields: CustomFieldDef[];
+  activeAgent?: Agent;
   onUpdateFields: (fields: CustomFieldDef[]) => void;
   onShowToast?: (message: string) => void;
   onBackToLeads?: () => void;
 }
 
 const FIELD_TYPE_CONFIG: Record<CustomFieldType, { label: string; icon: any; color: string; bg: string }> = {
-  text: { label: 'Text', icon: TypeIcon, color: 'text-blue-600', bg: 'bg-blue-50 border-blue-200' },
-  phone: { label: 'Phone', icon: Phone, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200' },
-  email: { label: 'Email', icon: Mail, color: 'text-purple-600', bg: 'bg-purple-50 border-purple-200' },
-  number: { label: 'Number', icon: Hash, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200' },
-  dropdown: { label: 'Dropdown', icon: ListFilter, color: 'text-indigo-600', bg: 'bg-indigo-50 border-indigo-200' },
-  multiselect: { label: 'Multi-Select', icon: ListFilter, color: 'text-violet-600', bg: 'bg-violet-50 border-violet-200' },
-  date: { label: 'Date', icon: Calendar, color: 'text-rose-600', bg: 'bg-rose-50 border-rose-200' },
-  currency: { label: 'Currency', icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200' },
-  textarea: { label: 'Textarea', icon: FileText, color: 'text-slate-600', bg: 'bg-slate-50 border-slate-200' },
-  boolean: { label: 'Checkbox', icon: CheckSquare, color: 'text-teal-600', bg: 'bg-teal-50 border-teal-200' },
-  url: { label: 'URL', icon: LinkIcon, color: 'text-cyan-600', bg: 'bg-cyan-50 border-cyan-200' },
+  text: { label: 'Text', icon: null, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
+  phone: { label: 'Phone', icon: null, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
+  email: { label: 'Email', icon: null, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
+  number: { label: 'Number', icon: null, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
+  dropdown: { label: 'Dropdown', icon: null, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
+  multiselect: { label: 'Multi-Select', icon: null, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
+  date: { label: 'Date', icon: null, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
+  currency: { label: 'Currency', icon: null, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
+  textarea: { label: 'Textarea', icon: null, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
+  boolean: { label: 'Checkbox', icon: null, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
+  url: { label: 'URL', icon: null, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
 };
 
 export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
   customFields,
+  activeAgent,
   onUpdateFields,
   onShowToast = (_msg: string) => {},
   onBackToLeads,
 }) => {
+  const isAdmin = activeAgent ? isAgentAdmin(activeAgent) : true;
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -195,12 +198,29 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
 
   const handleSaveField = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fieldName.trim()) {
+    if (!isAdmin) {
+      onShowToast('Access Restricted: Only Admin accounts can modify Lead Field Settings.');
+      return;
+    }
+    const trimmedLabel = fieldName.trim();
+    if (!trimmedLabel) {
       onShowToast('Please enter a Field Name');
       return;
     }
 
-    const finalKey = fieldKey.trim() || fieldName.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    const finalKey = fieldKey.trim() || trimmedLabel.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+
+    // Duplicate Check: Disallow more than one field with the same name or key
+    const isDuplicate = customFields.some(
+      (f) =>
+        (!editingField || f.id !== editingField.id) &&
+        (f.label.toLowerCase() === trimmedLabel.toLowerCase() || f.name.toLowerCase() === finalKey.toLowerCase())
+    );
+
+    if (isDuplicate) {
+      onShowToast(`Field with name "${trimmedLabel}" already exists.`);
+      return;
+    }
 
     if (editingField) {
       // Update existing
@@ -208,7 +228,7 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
         if (f.id === editingField.id) {
           return {
             ...f,
-            label: fieldName.trim(),
+            label: trimmedLabel,
             name: finalKey,
             type: fieldType,
             category: fieldCategory,
@@ -224,13 +244,13 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
         return f;
       });
       onUpdateFields(updatedList);
-      onShowToast(`Field "${fieldName}" updated successfully!`);
+      onShowToast(`Field "${trimmedLabel}" updated successfully!`);
     } else {
       // Create new
       const newField: CustomFieldDef = {
         id: `f-${Date.now()}`,
         name: finalKey,
-        label: fieldName.trim(),
+        label: trimmedLabel,
         type: fieldType,
         category: fieldCategory,
         required: fieldRequired,
@@ -244,13 +264,17 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
         isHidden: false,
       };
       onUpdateFields([...customFields, newField]);
-      onShowToast(`New field "${fieldName}" added successfully!`);
+      onShowToast(`New field "${trimmedLabel}" added successfully!`);
     }
 
     setShowAddModal(false);
   };
 
   const handleToggleHideField = (field: CustomFieldDef) => {
+    if (!isAdmin) {
+      onShowToast('Access Restricted: Only Admin accounts can change lead field status.');
+      return;
+    }
     const updated = customFields.map((f) => {
       if (f.id === field.id) {
         const nextState = !f.isHidden;
@@ -263,6 +287,10 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
   };
 
   const handleDeleteField = () => {
+    if (!isAdmin) {
+      onShowToast('Access Restricted: Only Admin accounts can delete lead fields.');
+      return;
+    }
     if (!fieldToDelete) return;
     const updated = customFields.filter((f) => f.id !== fieldToDelete.id);
     onUpdateFields(updated);
@@ -294,14 +322,8 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
     }
   };
 
-  const renderFieldIcon = (type: CustomFieldType) => {
-    const config = FIELD_TYPE_CONFIG[type] || FIELD_TYPE_CONFIG.text;
-    const IconComp = config.icon;
-    return (
-      <div className={`w-6 h-6 rounded-md flex items-center justify-center font-bold text-xs ${config.bg} ${config.color} shrink-0`}>
-        <IconComp className="w-3.5 h-3.5" />
-      </div>
-    );
+  const renderFieldIcon = (_type: CustomFieldType) => {
+    return null;
   };
 
   return (
@@ -311,116 +333,101 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
         <div>
           <div className="flex items-center space-x-2">
-            <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <h1 className="text-2xl md:text-3xl font-bold font-sans text-slate-900 tracking-tight flex items-center gap-2">
               <span>Fields Settings</span>
-              <button 
-                onClick={() => onShowToast('Field settings refreshed')}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all cursor-pointer"
-                title="Refresh Fields"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
             </h1>
           </div>
-          <div className="flex items-center space-x-2 text-xs text-slate-500 mt-1 font-medium">
+          <div className="flex items-center space-x-2 text-xs text-slate-500 mt-1 font-normal font-sans">
             <span>Lead Id</span>
             <a 
               href="#learn-more" 
               onClick={(e) => { e.preventDefault(); onShowToast('Lead ID represents the primary unique identifier key for deduplication and phone lookup.'); }} 
-              className="text-indigo-600 hover:text-indigo-700 hover:underline font-semibold"
+              className="text-slate-700 hover:text-slate-900 hover:underline font-normal"
             >
               Learn more
             </a>
           </div>
         </div>
 
-        {/* Action Button: + Add a new Field */}
-        <div className="flex items-center space-x-2.5">
+        {/* Action Button: + Add Field */}
+        <div className="flex items-center space-x-2.5 font-sans">
           {onBackToLeads && (
             <button
               onClick={onBackToLeads}
-              className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer"
+              className="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-all cursor-pointer"
             >
               Back to Leads
             </button>
           )}
           <button
             onClick={handleOpenAddModal}
-            className="px-4 py-2 rounded-xl bg-[#5034a8] hover:bg-[#432993] active:scale-[0.98] text-white text-xs md:text-sm font-bold transition-all cursor-pointer flex items-center space-x-2 shadow-sm shadow-indigo-900/15"
+            className="px-4 py-2.5 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs md:text-sm font-medium transition-all cursor-pointer flex items-center space-x-1.5 shadow-sm shadow-blue-500/20"
           >
-            <Plus className="w-4 h-4 text-white" />
-            <span>Add a new Field</span>
+            <Plus className="w-3.5 h-3.5 text-white" />
+            <span>Add Field</span>
           </button>
         </div>
       </div>
 
       {/* 2. UNIQUE IDENTIFIER BANNER CARD */}
-      <div className="bg-white rounded-xl border border-slate-200/90 p-3.5 sm:p-4 shadow-2xs flex items-center justify-between gap-3">
-        <div className="flex items-center space-x-3.5">
-          <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 font-bold shrink-0">
-            <Phone className="w-5 h-5 text-slate-600" />
+      <div className="bg-[#f8fafc] rounded-2xl border border-slate-200/80 p-4 shadow-2xs flex items-center justify-between gap-3 font-sans">
+        <div>
+          <div className="flex items-center space-x-2">
+            <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+              {selectedUniqueIdKey === 'phone' ? 'Phone' : selectedUniqueIdKey === 'email' ? 'Email' : 'Lead ID'}
+            </span>
+            <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-[#2563eb] border border-blue-100 text-[10px] font-bold">
+              Unique
+            </span>
           </div>
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                {selectedUniqueIdKey === 'phone' ? 'Phone' : selectedUniqueIdKey === 'email' ? 'Email' : 'Lead ID'}
-              </span>
-              <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
-                Unique Primary Identifier
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 font-mono mt-0.5">
-              {selectedUniqueIdKey === 'phone' ? '+91 9999999999' : 'contact@client.com'}
-            </p>
-          </div>
+          <p className="text-xs text-slate-500 font-mono mt-1">
+            {selectedUniqueIdKey === 'phone' ? '9876543210' : 'contact@client.com'}
+          </p>
         </div>
 
         <button
           onClick={() => setShowChangeIdModal(true)}
-          className="text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-all cursor-pointer"
+          className="text-xs font-medium text-[#2563eb] hover:text-[#1d4ed8] hover:underline px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-all cursor-pointer"
         >
           Change
         </button>
       </div>
 
       {/* 3. PRIMARY FIELDS (ASSIGN) */}
-      <div className="space-y-2">
+      <div className="space-y-2 font-sans">
         <div className="flex items-center justify-between">
-          <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+          <h2 className="text-xs font-bold font-sans text-slate-900 uppercase tracking-wider">
             PRIMARY FIELDS (ASSIGN)
           </h2>
-          <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">Header slot previews shown on lead card header</span>
+          <span className="text-[11px] text-slate-400 font-normal hidden sm:inline">Header slot previews shown on lead card header</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {/* H1 SLOT */}
           <div className="bg-white rounded-xl border border-slate-200/90 p-3 sm:p-3.5 shadow-2xs flex items-center justify-between gap-3 hover:border-slate-300 transition-all">
             <div className="flex items-center space-x-3 min-w-0">
-              <span className="text-xs font-bold text-indigo-600 font-mono bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md shrink-0">
+              <span className="text-xs font-normal text-indigo-600 font-mono bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md shrink-0">
                 H1
               </span>
-              <div className="flex items-center space-x-2 min-w-0">
-                {renderFieldIcon(h1Field ? h1Field.type : 'text')}
-                <span className="text-sm font-bold text-slate-900 truncate">
-                  {h1Field ? h1Field.label : 'Name'}
-                </span>
-              </div>
+              <span className="text-sm font-normal text-slate-900 truncate">
+                {h1Field ? h1Field.label : 'Name'}
+              </span>
             </div>
 
-            <div className="flex items-center space-x-1 shrink-0">
+            <div className="flex items-center space-x-2 shrink-0">
               <button
                 onClick={() => h1Field && handleOpenEditModal(h1Field)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all cursor-pointer"
+                className="text-xs font-normal text-slate-600 hover:text-slate-900 cursor-pointer"
                 title="Edit Field"
               >
-                <Edit3 className="w-4 h-4" />
+                Edit
               </button>
               <button
                 onClick={() => setShowSlotAssignModal('H1')}
-                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all cursor-pointer flex items-center"
+                className="text-xs font-normal text-indigo-600 hover:text-indigo-800 cursor-pointer"
                 title="Change Slot H1 Field"
               >
-                <ChevronDown className="w-4 h-4" />
+                Change
               </button>
             </div>
           </div>
@@ -428,31 +435,28 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
           {/* H2 SLOT */}
           <div className="bg-white rounded-xl border border-slate-200/90 p-3 sm:p-3.5 shadow-2xs flex items-center justify-between gap-3 hover:border-slate-300 transition-all">
             <div className="flex items-center space-x-3 min-w-0">
-              <span className="text-xs font-bold text-indigo-600 font-mono bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md shrink-0">
+              <span className="text-xs font-normal text-indigo-600 font-mono bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md shrink-0">
                 H2
               </span>
-              <div className="flex items-center space-x-2 min-w-0">
-                {renderFieldIcon(h2Field ? h2Field.type : 'phone')}
-                <span className="text-sm font-bold text-slate-900 truncate">
-                  {h2Field ? h2Field.label : 'Phone'}
-                </span>
-              </div>
+              <span className="text-sm font-normal text-slate-900 truncate">
+                {h2Field ? h2Field.label : 'Phone'}
+              </span>
             </div>
 
-            <div className="flex items-center space-x-1 shrink-0">
+            <div className="flex items-center space-x-2 shrink-0">
               <button
                 onClick={() => h2Field && handleOpenEditModal(h2Field)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all cursor-pointer"
+                className="text-xs font-normal text-slate-600 hover:text-slate-900 cursor-pointer"
                 title="Edit Field"
               >
-                <Edit3 className="w-4 h-4" />
+                Edit
               </button>
               <button
                 onClick={() => setShowSlotAssignModal('H2')}
-                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all cursor-pointer flex items-center"
+                className="text-xs font-normal text-indigo-600 hover:text-indigo-800 cursor-pointer"
                 title="Change Slot H2 Field"
               >
-                <ChevronDown className="w-4 h-4" />
+                Change
               </button>
             </div>
           </div>
@@ -460,12 +464,12 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
       </div>
 
       {/* 4. OTHER FIELDS */}
-      <div className="space-y-2.5 pt-1">
+      <div className="space-y-2.5 pt-1 font-sans">
         <div className="flex items-center justify-between">
-          <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+          <h2 className="text-xs font-bold font-sans text-slate-900 uppercase tracking-wider">
             OTHER FIELDS
           </h2>
-          <span className="text-xs font-semibold text-slate-500">
+          <span className="text-xs font-normal text-slate-500">
             {filteredFields.length} results found
           </span>
         </div>
@@ -474,107 +478,70 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
         <div className="bg-white rounded-xl border border-slate-200/90 p-2.5 sm:p-3 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-2.5 sm:gap-3">
           {/* Search Input */}
           <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Search fields by name or type..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-indigo-600 transition-all"
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-normal text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-indigo-600 transition-all"
             />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
           </div>
 
           <div className="flex items-center space-x-2">
             {/* Filter by Field Type Dropdown */}
-            <div className="relative">
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                className="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:border-indigo-600 cursor-pointer appearance-none pr-8"
-              >
-                <option value="all">All Types</option>
-                <option value="text">Text</option>
-                <option value="phone">Phone</option>
-                <option value="email">Email</option>
-                <option value="number">Number</option>
-                <option value="dropdown">Dropdown</option>
-                <option value="multiselect">Multi-Select</option>
-                <option value="date">Date</option>
-                <option value="currency">Currency</option>
-                <option value="textarea">Textarea</option>
-                <option value="boolean">Checkbox</option>
-                <option value="url">URL</option>
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-xs font-normal text-slate-700 focus:outline-none focus:border-indigo-600 cursor-pointer"
+            >
+              <option value="all">All Types</option>
+              <option value="text">Text</option>
+              <option value="phone">Phone</option>
+              <option value="email">Email</option>
+              <option value="number">Number</option>
+              <option value="dropdown">Dropdown</option>
+              <option value="multiselect">Multi-Select</option>
+              <option value="date">Date</option>
+              <option value="currency">Currency</option>
+              <option value="textarea">Textarea</option>
+              <option value="boolean">Checkbox</option>
+              <option value="url">URL</option>
+            </select>
 
             {/* Visibility Status Dropdown */}
-            <div className="relative">
-              <select
-                value={visibilityFilter}
-                onChange={(e) => setVisibilityFilter(e.target.value as any)}
-                className="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:border-indigo-600 cursor-pointer appearance-none pr-8"
-              >
-                <option value="active">Active Fields</option>
-                <option value="hidden">Hidden Fields</option>
-                <option value="all">All Fields</option>
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
+            <select
+              value={visibilityFilter}
+              onChange={(e) => setVisibilityFilter(e.target.value as any)}
+              className="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-xs font-normal text-slate-700 focus:outline-none focus:border-indigo-600 cursor-pointer"
+            >
+              <option value="active">Active Fields</option>
+              <option value="hidden">Hidden Fields</option>
+              <option value="all">All Fields</option>
+            </select>
           </div>
         </div>
 
         {/* 5. DATA TABLE */}
-        <div className="bg-white rounded-xl border border-slate-200/90 shadow-2xs overflow-hidden">
+        <div className="bg-white rounded-xl border border-slate-200/90 shadow-2xs overflow-hidden font-sans">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[11px]">
+                <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-normal uppercase tracking-wider text-[11px]">
                   <th 
                     onClick={() => toggleSort('label')}
                     className="py-3 px-4 cursor-pointer hover:text-slate-900 transition-colors select-none"
                   >
-                    <div className="flex items-center space-x-1.5">
-                      <span>Field Name</span>
-                      <ArrowUpDown className="w-3 h-3 text-slate-400" />
-                    </div>
+                    <span>Field Name</span>
                   </th>
                   <th className="py-3 px-4">Type</th>
-                  <th 
-                    onClick={() => toggleSort('createdOn')}
-                    className="py-3 px-4 cursor-pointer hover:text-slate-900 transition-colors select-none"
-                  >
-                    <div className="flex items-center space-x-1.5">
-                      <span>Created On</span>
-                      <ArrowUpDown className="w-3 h-3 text-slate-400" />
-                    </div>
-                  </th>
-                  <th 
-                    onClick={() => toggleSort('lastModified')}
-                    className="py-3 px-4 cursor-pointer hover:text-slate-900 transition-colors select-none"
-                  >
-                    <div className="flex items-center space-x-1.5">
-                      <span>Last Modified</span>
-                      <ArrowUpDown className="w-3 h-3 text-slate-400" />
-                    </div>
-                  </th>
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredFields.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-12 text-center text-slate-400">
+                    <td colSpan={3} className="py-12 text-center text-slate-400">
                       <div className="max-w-sm mx-auto space-y-2">
-                        <Filter className="w-8 h-8 mx-auto text-slate-300" />
                         <p className="text-sm font-semibold text-slate-700">No matching fields found</p>
                         <p className="text-xs text-slate-400">Try adjusting your search query or filter criteria.</p>
                       </div>
@@ -583,65 +550,52 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
                 ) : (
                   filteredFields.map((field) => {
                     const typeConfig = FIELD_TYPE_CONFIG[field.type] || FIELD_TYPE_CONFIG.text;
-                    const isSystemField = ['name', 'phone', 'email', 'company', 'city', 'state'].includes(field.name);
+                    const isSystemField = field.primarySlot === 'H1' || field.primarySlot === 'H2' || field.name === 'name' || field.name === 'phone';
 
                     return (
                       <tr 
                         key={field.id} 
                         className={`hover:bg-slate-50/80 transition-colors ${field.isHidden ? 'opacity-60 bg-slate-50/40' : ''}`}
                       >
-                        {/* Field Name & Icon */}
+                        {/* Field Name */}
                         <td className="py-3 px-4">
-                          <div className="flex items-center space-x-3">
-                            {renderFieldIcon(field.type)}
-                            <div>
-                              <div className="flex items-center space-x-2">
-                                <span className="font-semibold text-slate-900 text-sm">
-                                  {field.label}
-                                </span>
-                                {field.required && (
-                                  <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold">
-                                    Required
-                                  </span>
-                                )}
-                                {field.isUnique && (
-                                  <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold">
-                                    Unique
-                                  </span>
-                                )}
-                                {field.isHidden && (
-                                  <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 text-[10px] font-bold">
-                                    Hidden
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-[11px] text-slate-400 font-mono">
-                                key: {field.name}
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <span className="font-semibold text-slate-900 text-sm">
+                                {field.label}
                               </span>
+                              {field.required && (
+                                <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold">
+                                  Required
+                                </span>
+                              )}
+                              {field.isUnique && (
+                                <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold">
+                                  Unique
+                                </span>
+                              )}
+                              {field.isHidden && (
+                                <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 text-[10px] font-bold">
+                                  Hidden
+                                </span>
+                              )}
                             </div>
+                            <span className="text-[11px] text-slate-400 font-mono">
+                              key: {field.name}
+                            </span>
                           </div>
                         </td>
 
-                        {/* Type Badge */}
+                        {/* Type Column */}
                         <td className="py-3 px-4">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold ${typeConfig.bg} ${typeConfig.color}`}>
+                          <span className="text-slate-700 text-xs font-normal">
                             {typeConfig.label}
                             {field.options && field.options.length > 0 && (
-                              <span className="ml-1 text-[10px] opacity-75">
+                              <span className="ml-1 text-[10px] text-slate-400">
                                 ({field.options.length} options)
                               </span>
                             )}
                           </span>
-                        </td>
-
-                        {/* Created On */}
-                        <td className="py-3 px-4 text-slate-500 font-mono text-xs">
-                          {field.createdOn || '3M ago'}
-                        </td>
-
-                        {/* Last Modified */}
-                        <td className="py-3 px-4 text-slate-500 font-mono text-xs">
-                          {field.lastModified || '3M ago'}
                         </td>
 
                         {/* Actions */}
@@ -650,11 +604,10 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
                             {/* Edit */}
                             <button
                               onClick={() => handleOpenEditModal(field)}
-                              className="font-medium text-slate-700 hover:text-indigo-600 transition-colors cursor-pointer flex items-center space-x-1"
+                              className="font-semibold text-slate-700 hover:text-indigo-600 transition-colors cursor-pointer"
                               title="Edit Field Configuration"
                             >
-                              <Edit3 className="w-3.5 h-3.5 text-slate-400" />
-                              <span>Edit</span>
+                              Edit
                             </button>
 
                             <span className="text-slate-300">|</span>
@@ -662,27 +615,32 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
                             {/* Hide / Unhide */}
                             <button
                               onClick={() => handleToggleHideField(field)}
-                              className={`font-medium transition-colors cursor-pointer flex items-center space-x-1 ${
+                              className={`font-semibold transition-colors cursor-pointer ${
                                 field.isHidden
                                   ? 'text-indigo-600 hover:text-indigo-800'
                                   : 'text-slate-700 hover:text-rose-600'
                               }`}
                               title={field.isHidden ? 'Unhide Field in CRM' : 'Hide Field from CRM Views'}
                             >
-                              {field.isHidden ? <EyeOff className="w-3.5 h-3.5 text-amber-600" /> : <Eye className="w-3.5 h-3.5 text-slate-400" />}
-                              <span>{field.isHidden ? 'Unhide' : 'Hide'}</span>
+                              {field.isHidden ? 'Unhide' : 'Hide'}
                             </button>
 
-                            {/* Delete (if custom field) */}
+                            {/* Delete */}
                             {!isSystemField && (
                               <>
                                 <span className="text-slate-300">|</span>
                                 <button
-                                  onClick={() => setFieldToDelete(field)}
-                                  className="text-slate-400 hover:text-rose-600 p-1 rounded transition-colors cursor-pointer"
+                                  onClick={() => {
+                                    if (!isAdmin) {
+                                      onShowToast('Access Restricted: Only Admin accounts can delete lead fields.');
+                                      return;
+                                    }
+                                    setFieldToDelete(field);
+                                  }}
+                                  className="font-semibold text-rose-500 hover:text-rose-700 transition-colors cursor-pointer"
                                   title="Delete Field"
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  Delete
                                 </button>
                               </>
                             )}
@@ -733,7 +691,7 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-slate-700">
-                    Field Name / Label <span className="text-rose-500">*</span>
+                    Field Name <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -846,7 +804,7 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
               {/* Category & Placeholder */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Category / Section</label>
+                  <label className="text-xs font-semibold text-slate-700">Category</label>
                   <select
                     value={fieldCategory}
                     onChange={(e) => setFieldCategory(e.target.value as any)}
@@ -854,7 +812,7 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
                   >
                     <option value="General">General Information</option>
                     <option value="Contact">Contact Details</option>
-                    <option value="Academic/Career">Academic / Career</option>
+                    <option value="Academic/Career">Academic Career</option>
                     <option value="Custom">Custom Extra</option>
                   </select>
                 </div>
@@ -873,7 +831,7 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
 
               {/* Description */}
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700">Help Text / Tooltip</label>
+                <label className="text-xs font-semibold text-slate-700">Help Text</label>
                 <input
                   type="text"
                   placeholder="e.g. As per government issued passport document"
@@ -892,7 +850,7 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
                     onChange={(e) => setFieldRequired(e.target.checked)}
                     className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
                   />
-                  <span>Mandatory / Required Field (Must be entered to save lead)</span>
+                  <span>Required Field (Must be entered to save lead)</span>
                 </label>
 
                 <label className="flex items-center space-x-2.5 cursor-pointer text-slate-800 font-semibold">
@@ -944,14 +902,8 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center space-x-2.5">
-                <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center font-bold">
-                  <ShieldCheck className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">Change Primary Lead Identifier</h3>
-                  <p className="text-[11px] text-slate-500">Select the unique key for lead deduplication</p>
-                </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Change Primary Lead Identifier</h3>
               </div>
               <button
                 onClick={() => setShowChangeIdModal(false)}
@@ -965,10 +917,10 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
               <label className="text-xs font-semibold text-slate-700">Choose Primary Key:</label>
               <div className="space-y-2">
                 {[
-                  { key: 'phone', label: 'Phone Number (+91 ...)', desc: 'Standard TeleCRM unique phone deduplication (Recommended)' },
-                  { key: 'email', label: 'Email Address', desc: 'Ideal for B2B SaaS and corporate sales' },
-                  { key: 'pan', label: 'PAN / Tax ID', desc: 'Strict financial compliance verification' },
-                  { key: 'custom_id', label: 'Custom Student / Lead ID', desc: 'Institutional registration roll number' },
+                  { key: 'phone', label: 'Phone Number' },
+                  { key: 'email', label: 'Email Address' },
+                  { key: 'pan', label: 'PAN Tax ID' },
+                  { key: 'custom_id', label: 'Custom Lead ID' },
                 ].map((opt) => (
                   <button
                     key={opt.key}
@@ -984,7 +936,6 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
                       <span className="text-xs font-bold">{opt.label}</span>
                       {selectedUniqueIdKey === opt.key && <Check className="w-4 h-4 text-indigo-600" />}
                     </div>
-                    <p className="text-[11px] text-slate-500 font-normal mt-0.5">{opt.desc}</p>
                   </button>
                 ))}
               </div>

@@ -28,7 +28,7 @@ import {
 import { TabType } from './Sidebar';
 import { ReportsSubTab } from './ReportsView';
 import { AutomationsSubTab } from './WorkflowsView';
-import { Agent } from '../types';
+import { Agent, isAgentAdmin } from '../types';
 
 interface MobileBottomNavProps {
   activeTab: TabType;
@@ -308,14 +308,14 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                         setIsDrawerOpen(false);
                         onOpenPowerDialer();
                       }}
-                      className="flex items-center space-x-2.5 p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs cursor-pointer text-left transition-all active:scale-[0.98]"
+                      className="flex items-center space-x-2.5 p-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-bold text-xs shadow-xs cursor-pointer text-left transition-all active:scale-[0.98]"
                     >
                       <div className="p-1.5 rounded-lg bg-white/20 shrink-0">
-                        <PhoneCall className="w-4 h-4 text-white" />
+                        <PhoneCall className="w-4 h-4 text-emerald-400" />
                       </div>
                       <div>
                         <div className="font-bold text-xs leading-tight">Power Dialer</div>
-                        <div className="text-[9px] text-emerald-100 font-normal">Auto Call Queue</div>
+                        <div className="text-[9px] text-blue-100 font-normal">Auto Call Queue</div>
                       </div>
                     </button>
                   )}

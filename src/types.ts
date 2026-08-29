@@ -326,14 +326,25 @@ export interface WorkflowRule {
   executedCount: number;
 }
 
+export type StageCategory = 'initial' | 'active' | 'closed';
+
 export interface PipelineStage {
   id: string;
   name: string;
   color: string;
   order: number;
-  winProbability: number;
+  category?: StageCategory;
+  winProbability?: number;
   dealsCount?: number;
   totalValue?: number;
+}
+
+export interface RegisterPayload {
+  name: string;
+  email: string;
+  phone: string;
+  companyName: string;
+  password?: string;
 }
 
 export interface Agent {
@@ -352,6 +363,8 @@ export interface Agent {
   currentActiveCallLeadId?: string;
   permissionTemplateId?: string;
   isAdmin?: boolean;
+  tenantId?: string;
+  companyName?: string;
 }
 
 export function isAgentAdmin(agent?: Agent | null): boolean {
@@ -383,6 +396,7 @@ export interface Lead {
   createdAt: string;
   updatedAt: string;
   aiScore: number;
+  tenantId?: string;
   aiRating: AIRating;
   aiReasoning: string;
   customFields: Record<string, any>;
@@ -564,4 +578,53 @@ export interface PermissionTemplate {
   createdOn?: string;
   createdBy?: string;
   rights: PermissionRights;
+}
+
+export interface TaskTypeCategory {
+  id: string;
+  name: string;
+  color?: string;
+  isBuiltIn?: boolean;
+  createdAt?: string;
+}
+
+export interface CrmTask {
+  id: string;
+  title: string;
+  description: string;
+  assigneeAgentId: string;
+  assigneeAgentName: string;
+  dueDate: string;
+  priority: 'High' | 'Medium' | 'Low';
+  status: 'Pending' | 'Completed' | 'Rejected';
+  createdAt: string;
+  createdByAdminId?: string;
+  taskValue?: number;
+  category?: string;
+  leadId?: string;
+  leadName?: string;
+}
+
+export function getCurrencySymbol(code: string = 'INR'): string {
+  switch (code) {
+    case 'USD': return '$';
+    case 'EUR': return '€';
+    case 'GBP': return '£';
+    case 'AED': return 'AED ';
+    case 'INR':
+    default: return '₹';
+  }
+}
+
+export function formatDealValue(amount: number | string = 0, currencyCode: string = 'INR'): string {
+  const num = Number(amount) || 0;
+  const symbol = getCurrencySymbol(currencyCode);
+  return `${symbol}${num.toLocaleString()}`;
+}
+
+export function formatDealValueCompact(amount: number = 0, currencyCode: string = 'INR'): string {
+  const symbol = getCurrencySymbol(currencyCode);
+  if (amount >= 1000000) return `${symbol}${(amount / 1000000).toFixed(1)}M`;
+  if (amount >= 1000) return `${symbol}${(amount / 1000).toFixed(0)}k`;
+  return `${symbol}${amount.toLocaleString()}`;
 }

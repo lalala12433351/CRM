@@ -136,13 +136,13 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-start justify-center pt-20 px-4 animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-start justify-center pt-20 px-4 animate-in fade-in duration-150 font-sans">
       <div 
-        className="w-full max-w-2xl bg-white rounded-2xl border border-slate-200/90 shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+        className="w-full max-w-2xl bg-white rounded-2xl border border-slate-200/90 shadow-2xl overflow-hidden flex flex-col max-h-[80vh] font-sans"
         onClick={e => e.stopPropagation()}
       >
         {/* Top Search Input Bar */}
-        <div className="flex items-center px-4 py-3.5 border-b border-slate-100 bg-slate-50/50">
+        <div className="flex items-center px-4 py-3.5 border-b border-slate-100 bg-slate-50/50 font-sans">
           <Search className="w-5 h-5 text-indigo-600 shrink-0 mr-3" />
           <input
             ref={inputRef}
@@ -152,18 +152,18 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
               setQuery(e.target.value);
               setSelectedIndex(0);
             }}
-            placeholder="Type a command, lead name, phone, or view (e.g. 'dialer', 'Priya', 'pipeline')..."
-            className="flex-1 bg-transparent border-none text-sm text-slate-900 placeholder-slate-400 focus:outline-none"
+            placeholder=""
+            className="flex-1 bg-transparent border-none text-sm text-slate-900 placeholder-slate-400 focus:outline-none font-sans font-normal"
           />
           {query && (
             <button 
               onClick={() => setQuery('')}
-              className="p-1 text-slate-400 hover:text-slate-600 rounded-md cursor-pointer mr-1"
+              className="p-1 text-slate-400 hover:text-slate-600 rounded-md cursor-pointer mr-1 font-sans"
             >
               <X className="w-4 h-4" />
             </button>
           )}
-          <span className="text-[10px] font-semibold text-slate-400 bg-slate-200/70 px-2 py-0.5 rounded">ESC</span>
+          <span className="text-[10px] font-semibold text-slate-400 bg-slate-200/70 px-2 py-0.5 rounded font-sans">ESC</span>
         </div>
 
         {/* Search Mode Options Bar */}
@@ -263,7 +263,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                           <StatusBadge status={lead.status} size="xs" />
                         </div>
                         <div className="text-[11px] text-slate-500 truncate">
-                          {lead.phone} • {lead.company || lead.city || 'Individual'} • ₹{(lead.dealValue || 0).toLocaleString()}
+                          {lead.phone} • {lead.company || lead.city || 'Lead'} • ₹{(lead.dealValue || 0).toLocaleString()}
                         </div>
                       </div>
                     </div>

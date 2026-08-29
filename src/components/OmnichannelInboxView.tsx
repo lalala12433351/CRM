@@ -99,15 +99,9 @@ export const OmnichannelInboxView: React.FC<OmnichannelInboxProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 shadow-xs">
         <div>
           <div className="flex items-center space-x-2">
-            <Inbox className="w-5 h-5 text-indigo-600" />
-            <h1 className="text-sm sm:text-base font-bold text-slate-900">Unified Omnichannel Inbox</h1>
-            <span className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold">
-              {leads.length} Conversations
-            </span>
+            <Inbox className="w-5 h-5 text-[#3a2088]" />
+            <h1 className="text-sm sm:text-base font-bold text-slate-900 font-['Poppins',sans-serif]">Unified Inbox</h1>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Single stream for WhatsApp, Instagram DM, Facebook Messenger, Email & SMS inquiries.
-          </p>
         </div>
 
         {/* Channel filter chips */}
@@ -118,7 +112,7 @@ export const OmnichannelInboxView: React.FC<OmnichannelInboxProps> = ({
               onClick={() => setChannelFilter(ch)}
               className={`px-3 py-1 rounded-lg text-xs font-semibold capitalize cursor-pointer transition-all shrink-0 ${
                 channelFilter === ch 
-                  ? 'bg-indigo-600 text-white shadow-xs' 
+                  ? 'bg-[#3a2088] text-white shadow-xs' 
                   : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
               }`}
             >
@@ -141,7 +135,7 @@ export const OmnichannelInboxView: React.FC<OmnichannelInboxProps> = ({
                 placeholder="Search conversations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#3a2088] focus:ring-1 focus:ring-[#3a2088]"
               />
             </div>
           </div>
@@ -149,7 +143,7 @@ export const OmnichannelInboxView: React.FC<OmnichannelInboxProps> = ({
           {/* Conversation List */}
           <div className="overflow-y-auto divide-y divide-slate-100 flex-1">
             {filteredLeads.length === 0 ? (
-              <div className="p-6 text-center text-slate-400 text-xs">
+              <div className="p-6 text-center text-slate-400 text-xs font-['Poppins',sans-serif]">
                 No matching conversations found.
               </div>
             ) : (
@@ -162,27 +156,22 @@ export const OmnichannelInboxView: React.FC<OmnichannelInboxProps> = ({
                   <div
                     key={lead.id}
                     onClick={() => handleSelectLeadMobile(lead.id)}
-                    className={`p-3 cursor-pointer transition-all flex items-start space-x-3 ${
+                    className={`p-3.5 rounded-xl border transition-all my-1 mx-1 cursor-pointer flex items-start space-x-3 ${
                       isSelected
-                        ? 'bg-indigo-50/80 border-l-4 border-indigo-600'
-                        : 'hover:bg-slate-100/70 bg-white'
+                        ? 'bg-slate-100/90 border-slate-400 shadow-2xs ring-1 ring-slate-300'
+                        : 'bg-white border-slate-200/70 hover:bg-slate-100/80 hover:border-slate-300'
                     }`}
                   >
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
-                      isSelected ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 border border-slate-200'
-                    }`}>
-                      {lead.name[0]}
-                    </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-1">
-                        <p className={`text-xs truncate ${isSelected ? 'font-bold text-indigo-950' : 'font-semibold text-slate-900'}`}>
+                        <p className={`text-sm truncate font-['Poppins',sans-serif] ${isSelected ? 'font-extrabold text-[#3a2088]' : 'font-bold text-slate-900'}`}>
                           {lead.name}
                         </p>
-                        <span className="text-[10px] font-semibold text-indigo-600 shrink-0">
+                        <span className="text-[10px] font-semibold text-[#3a2088] shrink-0">
                           {lead.source}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                      <p className="text-[11px] text-slate-500 truncate mt-0.5 font-['Poppins',sans-serif]">
                         {lastMsg ? lastMsg.content : lead.company || lead.city || 'Incoming conversation'}
                       </p>
                       <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1">
@@ -217,13 +206,12 @@ export const OmnichannelInboxView: React.FC<OmnichannelInboxProps> = ({
                     className="flex items-center space-x-2.5 cursor-pointer group min-w-0"
                     onClick={() => onOpenLeadDetail && onOpenLeadDetail(selectedLead)}
                   >
-                    <div className="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center border border-indigo-200 shrink-0">
-                      {selectedLead.name[0]}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-slate-900 group-hover:text-indigo-600 truncate flex items-center space-x-1">
+                    <div className="min-w-0 bg-white border border-slate-200/80 px-3 py-1.5 rounded-xl shadow-2xs">
+                      <p className="text-sm sm:text-base font-extrabold text-slate-900 group-hover:text-[#3a2088] truncate flex items-center space-x-1.5 font-['Poppins',sans-serif] tracking-tight">
                         <span className="truncate">{selectedLead.name}</span>
-                        <span className="text-[10px] text-slate-400 font-normal hidden sm:inline">({selectedLead.company || 'Customer'})</span>
+                        {selectedLead.company && (
+                          <span className="text-xs text-slate-400 font-normal hidden sm:inline">({selectedLead.company})</span>
+                        )}
                       </p>
                       <div className="flex items-center space-x-2 text-[11px] text-slate-500 truncate mt-0.5">
                         <span>{selectedLead.phone}</span>

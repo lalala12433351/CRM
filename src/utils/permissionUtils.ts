@@ -1,5 +1,5 @@
 import { Agent, PermissionTemplate, PermissionRights } from '../types';
-import { INITIAL_PERMISSION_TEMPLATES } from '../data/mockData';
+import { INITIAL_PERMISSION_TEMPLATES } from '../constants/initialState';
 
 export function getAgentPermissionRights(
   agent: Agent | undefined, 

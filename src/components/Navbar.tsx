@@ -77,6 +77,7 @@ const DEFAULT_WORK_ACCOUNTS: WorkAccount[] = [
 interface NavbarProps {
   activeAgent: Agent;
   agents: Agent[];
+  companyName?: string;
   onSelectAgent: (agentId: string) => void;
   onOpenLeadModal?: () => void;
   onAddNewLead?: () => void;
@@ -99,6 +100,7 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   activeAgent,
   agents,
+  companyName,
   onSelectAgent,
   onOpenLeadModal,
   onAddNewLead,
@@ -166,48 +168,21 @@ export const Navbar: React.FC<NavbarProps> = ({
     }
   };
 
+  const currentWorkspaceName = companyName || activeAccount.name || 'ARCLE Real Estate & Sales';
+
   return (
-    <header className="h-14 bg-white border-b border-slate-200 px-3 md:px-5 flex items-center justify-between sticky top-0 z-30 text-slate-900 font-sans select-none shadow-2xs">
+    <header className="h-14 glass-panel border-b border-white/60 px-3 md:px-5 flex items-center justify-between sticky top-0 z-30 text-slate-900 font-sans select-none">
       
       {/* LEFT: Institute / Workspace Selector & Settings Flyout Trigger */}
       <div className="flex items-center space-x-2">
-        {/* Workspace Dropdown Button */}
-        <div className="relative" ref={accountDropdownRef}>
-          <button
-            onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
-            className="flex items-center space-x-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-all cursor-pointer group text-left"
-          >
-            <div className="w-6 h-6 rounded-full bg-[#5034a8] text-white flex items-center justify-center font-bold text-xs shadow-2xs shrink-0">
-              <Plane className="w-3.5 h-3.5 transform -rotate-45" />
-            </div>
-            <span className="font-semibold text-xs md:text-sm text-slate-800 tracking-tight group-hover:text-indigo-600 transition-colors">
-              {activeAccount.name}
-            </span>
-            <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isAccountMenuOpen ? 'rotate-180 text-indigo-600' : ''}`} />
-          </button>
-
-          {/* Work Account Switcher Dropdown */}
-          {isAccountMenuOpen && (
-            <div className="absolute left-0 top-full mt-1.5 w-72 bg-white border border-slate-200 rounded-xl shadow-xl p-2 z-50 animate-in fade-in">
-              <div className="px-2.5 py-1.5 border-b border-slate-100 mb-1">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-sans">Select Workspace</p>
-              </div>
-              <div className="space-y-1">
-                {workAccounts.map((account) => (
-                  <button
-                    key={account.id}
-                    onClick={() => handleSwitchAccount(account)}
-                    className={`w-full flex items-center justify-between p-2 rounded-lg text-left text-xs transition-colors cursor-pointer ${
-                      account.id === activeAccount.id ? 'bg-indigo-50 font-bold text-indigo-950' : 'hover:bg-slate-50 text-slate-700'
-                    }`}
-                  >
-                    <span className="truncate">{account.name}</span>
-                    {account.id === activeAccount.id && <Check className="w-3.5 h-3.5 text-indigo-600" />}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+        {/* Workspace Title Badge */}
+        <div className="flex items-center space-x-2 px-2 py-1.5 rounded-lg text-left">
+          <div className="w-6 h-6 rounded-full bg-[#5034a8] text-white flex items-center justify-center font-bold text-xs shadow-2xs shrink-0">
+            <Plane className="w-3.5 h-3.5 transform -rotate-45" />
+          </div>
+          <span className="font-semibold text-xs md:text-sm text-slate-800 tracking-tight">
+            {currentWorkspaceName}
+          </span>
         </div>
 
         {/* Settings Gear Button with Popover Flyout matching screenshot */}
@@ -216,8 +191,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => setIsSettingsMenuOpen(!isSettingsMenuOpen)}
             className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
               isSettingsMenuOpen || currentView === 'fields' || currentView === 'settings'
-                ? 'border-slate-300 bg-slate-100 text-slate-900 shadow-2xs'
-                : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                ? 'border-slate-300/80 bg-white/80 text-slate-900 shadow-2xs'
+                : 'border-slate-200/80 bg-white/50 hover:bg-white/90 text-slate-600'
             }`}
             title="Workspace Settings Menu"
           >
@@ -226,7 +201,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* EXACT WORKSPACE / TEAM / BILLING SETTINGS FLYOUT MENU */}
           {isSettingsMenuOpen && (
-            <div className="absolute left-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in text-xs font-sans">
+            <div className="absolute left-0 top-full mt-2 w-64 glass-dropdown rounded-2xl p-2.5 z-[9999] animate-in fade-in text-xs font-sans shadow-2xl">
               
               {/* WORKSPACE SECTION */}
               <div className="px-2.5 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider font-sans">
@@ -332,38 +307,19 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           )}
         </div>
+
       </div>
 
       {/* RIGHT: Action Buttons & Modals */}
-      <div className="flex items-center space-x-2 md:space-x-2.5">
-        {/* Quick Command Launcher button */}
-        <button
-          onClick={onOpenCommandPalette}
-          className="hidden md:flex items-center space-x-2 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-all cursor-pointer shadow-2xs text-xs"
-          title="Open Command Palette (Cmd + K)"
-        >
-          <Search className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-slate-500 font-medium">Quick Search</span>
-          <kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200 text-[10px] font-mono text-slate-400">⌘K</kbd>
-        </button>
+      <div className="flex items-center space-x-2 sm:space-x-3 ml-auto">
 
-        {/* AI Sales Copilot Button (Hidden on mobile top nav to avoid clutter, accessible via side drawer) */}
-        <button
-          onClick={onOpenAiCopilot}
-          className="hidden md:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold text-xs shadow-xs cursor-pointer transition-all shrink-0"
-          title="AI Sales Copilot & Objection Buster"
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>AI Copilot</span>
-        </button>
-
-        {/* Power Dialer Queue Button (Hidden on mobile top nav to avoid clutter, accessible via side drawer) */}
+        {/* Power Dialer Queue Button */}
         <button
           onClick={onOpenPowerDialer}
-          className="hidden md:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs cursor-pointer transition-all shrink-0"
+          className="hidden md:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-semibold text-xs shadow-2xs cursor-pointer transition-all shrink-0 mr-2"
           title="Launch Power Dialer Call Queue"
         >
-          <PhoneCall className="w-3.5 h-3.5" />
+          <PhoneCall className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
           <span>Power Dialer</span>
         </button>
 
@@ -373,111 +329,75 @@ export const Navbar: React.FC<NavbarProps> = ({
           className={`p-2 rounded-xl border transition-all cursor-pointer shadow-2xs ${
             currentView === 'tasks' 
               ? 'bg-indigo-50 border-indigo-200 text-indigo-700' 
-              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              : 'bg-white/70 border-white/80 text-slate-600 hover:bg-white hover:text-slate-900'
           }`}
           title="Call Followups Tasks"
         >
-          <Timer className="w-4 h-4" />
+          <Timer className="w-4.5 h-4.5" />
         </button>
 
         {/* Notification Bell Button */}
         <button
           onClick={() => { if (onShowToast) onShowToast('Notifications'); }}
-          className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition-all cursor-pointer relative shadow-2xs"
+          className="p-2 rounded-xl border border-white/80 bg-white/70 hover:bg-white text-slate-600 hover:text-slate-900 transition-all cursor-pointer relative shadow-2xs"
           title="Notifications"
         >
-          <Bell className="w-4 h-4" />
+          <Bell className="w-4.5 h-4.5" />
           {pendingFollowUpsCount > 0 && (
-            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white"></span>
+            <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-white"></span>
           )}
         </button>
 
-        {/* User Account Switcher Popover */}
+        {/* User Account Button (Rectangular white background behind user name) */}
         <div className="relative" ref={userDropdownRef}>
           <button 
             onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-            className="flex items-center space-x-2 p-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer transition-all shadow-2xs group font-sans font-normal"
-            title="Switch User Account / Role Persona"
+            className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-white border border-slate-200/90 shadow-2xs hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer group font-sans font-normal"
+            title="User Account Menu"
           >
-            <div className="w-7 h-7 rounded-full bg-slate-900 text-white font-medium text-xs flex items-center justify-center shadow-2xs overflow-hidden ring-1 ring-slate-200">
+            <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-800 font-bold text-xs flex items-center justify-center shadow-2xs overflow-hidden ring-1 ring-slate-200 font-sans shrink-0 border border-slate-200">
               {activeAgent.avatar ? (
                 <img src={activeAgent.avatar} alt={activeAgent.name} className="w-full h-full object-cover" />
               ) : (
                 activeAgent.name.slice(0, 2).toUpperCase()
               )}
             </div>
-            <div className="hidden sm:flex flex-col text-left leading-none pr-1">
-              <span className="text-xs font-medium text-slate-800 truncate max-w-[120px]">{activeAgent.name}</span>
-              <span className={`text-[10px] font-normal mt-0.5 ${isAgentAdmin(activeAgent) ? 'text-indigo-600' : 'text-slate-500'}`}>
-                {isAgentAdmin(activeAgent) ? 'Admin' : activeAgent.role || 'Employee'}
-              </span>
-            </div>
-            <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isUserMenuOpen ? 'rotate-180 text-indigo-600' : ''}`} />
+            <span className="text-xs font-semibold text-slate-800 hidden sm:inline-block max-w-[150px] truncate">{activeAgent.name}</span>
+            <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${isUserMenuOpen ? 'rotate-180 text-indigo-600' : ''}`} />
           </button>
 
-          {/* User Account Selection Dropdown */}
+          {/* User Account Dropdown */}
           {isUserMenuOpen && (
-            <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in text-xs font-sans font-normal">
-              <div className="px-3 py-2 border-b border-slate-100 mb-1">
-                <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider font-sans">Active User Account</p>
-                <div className="flex items-center justify-between mt-1">
-                  <span className="font-medium text-slate-900 truncate">{activeAgent.name}</span>
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-medium uppercase tracking-wide bg-slate-100 border border-slate-200 text-slate-700">
-                    {isAgentAdmin(activeAgent) ? 'Admin' : 'Employee'}
+            <div className="absolute right-0 top-full mt-2 w-72 glass-dropdown rounded-2xl p-3 z-[9999] animate-in fade-in text-xs font-sans font-normal shadow-2xl">
+              <div className="flex items-center space-x-3 pb-3 border-b border-slate-100 font-sans">
+                {activeAgent.avatar ? (
+                  <img src={activeAgent.avatar} alt={activeAgent.name} className="w-10 h-10 rounded-xl object-cover ring-1 ring-slate-200 shrink-0" />
+                ) : (
+                  <div className="w-10 h-10 rounded-xl bg-white text-slate-800 font-medium text-xs flex items-center justify-center shrink-0 font-sans border border-slate-200 shadow-sm">
+                    {activeAgent.name.slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+                <div className="truncate font-sans">
+                  <p className="font-bold text-slate-900 truncate font-open-sans" style={{ fontFamily: "'Open Sans', sans-serif" }}>{activeAgent.name}</p>
+                  <p className="text-[11px] text-slate-500 truncate font-sans">{activeAgent.email || 'user@workspace.io'}</p>
+                  <span className="inline-block px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 border border-slate-200 text-slate-600 mt-1 font-sans">
+                    {isAgentAdmin(activeAgent) ? 'Master Admin' : activeAgent.role || 'Employee'}
                   </span>
                 </div>
               </div>
 
-              <div className="px-2 py-1 text-[10px] font-medium text-slate-400 uppercase tracking-wider font-sans">
-                Switch User Persona
-              </div>
-              <div className="space-y-1 max-h-72 overflow-y-auto">
-                {agents.map((ag) => {
-                  const agIsAdmin = isAgentAdmin(ag);
-                  const isSelected = ag.id === activeAgent.id;
-                  return (
-                    <button
-                      key={ag.id}
-                      onClick={() => {
-                        onSelectAgent(ag.id);
-                        setIsUserMenuOpen(false);
-                        if (onShowToast) {
-                          onShowToast(`Switched user account to ${ag.name} (${agIsAdmin ? 'Admin' : 'Employee'})`);
-                        }
-                      }}
-                      className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition-all cursor-pointer ${
-                        isSelected 
-                          ? 'bg-slate-100/80 border border-slate-250 text-slate-900 font-medium' 
-                          : 'hover:bg-slate-50 text-slate-700 font-normal'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-2.5 truncate">
-                        <img src={ag.avatar} alt={ag.name} className="w-8 h-8 rounded-lg object-cover ring-1 ring-slate-200 shrink-0" />
-                        <div className="truncate">
-                          <div className="text-xs font-medium text-slate-900 truncate">{ag.name}</div>
-                          <div className="text-[10px] text-slate-500 truncate">{ag.role || (agIsAdmin ? 'Admin' : 'Employee')}</div>
-                        </div>
-                      </div>
-                      <span className="px-2 py-0.5 rounded text-[9px] font-medium shrink-0 ml-1 bg-slate-100 border border-slate-200 text-slate-700">
-                        {agIsAdmin ? 'Admin' : 'Employee'}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
               {/* Log Out Action */}
               {onLogout && (
-                <div className="pt-2 border-t border-slate-100 mt-2">
+                <div className="pt-2 font-sans">
                   <button
                     onClick={() => {
                       setIsUserMenuOpen(false);
                       onLogout();
                     }}
-                    className="w-full flex items-center justify-center space-x-2 p-2 rounded-xl text-rose-600 hover:bg-rose-50 border border-rose-100 transition-colors cursor-pointer text-xs font-medium"
+                    className="w-full flex items-center justify-center space-x-2 p-2.5 rounded-xl text-rose-600 hover:bg-rose-50 border border-rose-100 font-semibold text-xs transition-colors cursor-pointer font-sans"
                   >
-                    <LogOut className="w-3.5 h-3.5" />
-                    <span>Log Out of Workspace</span>
+                    <LogOut className="w-4 h-4" />
+                    <span>Log Out</span>
                   </button>
                 </div>
               )}

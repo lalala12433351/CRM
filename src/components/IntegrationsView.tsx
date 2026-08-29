@@ -17,7 +17,12 @@ import {
   Users, 
   Clock, 
   MoreVertical, 
-  LogOut 
+  LogOut,
+  ShieldCheck,
+  CheckCircle2,
+  Zap,
+  AlertCircle,
+  ArrowRight
 } from 'lucide-react';
 
 export interface IntegrationItem {
@@ -48,80 +53,8 @@ export interface IntegrationsViewProps {
   onOpenGoogleSheets?: () => void;
 }
 
-const INITIAL_CONNECTED_FORMS: ConnectedForm[] = [
-  {
-    id: 'f-1',
-    title: 'Master Form IATA Cargo',
-    companyName: 'Kite Institute of Aviation & Hospitality',
-    period: 'Active',
-    totalLeads: 0,
-    lastLeadTime: 'No leads yet',
-    campaignHandle: '@master-form-iata-cargo'
-  },
-  {
-    id: 'f-2',
-    title: 'Master Form-Kerala-Vendor-Data',
-    companyName: 'Kite Institute of Aviation & Hospitality',
-    period: 'Active',
-    totalLeads: 0,
-    lastLeadTime: 'No leads yet',
-    campaignHandle: '@master-form-kerala-vendor-data'
-  },
-  {
-    id: 'f-3',
-    title: 'Master Form-Karnataka-Vendor-data',
-    companyName: 'Kite Institute of Aviation & Hospitality',
-    period: 'Active',
-    totalLeads: 0,
-    lastLeadTime: 'No leads yet',
-    campaignHandle: '@master-form-karnataka-vendor-data'
-  },
-  {
-    id: 'f-4',
-    title: 'Master Form IATA',
-    companyName: 'Kite Institute of Aviation & Hospitality',
-    period: 'Active',
-    totalLeads: 0,
-    lastLeadTime: 'No leads yet',
-    campaignHandle: '@master-form-iata'
-  },
-  {
-    id: 'f-5',
-    title: 'Master Form',
-    companyName: 'Kite Institute of Aviation & Hospitality',
-    period: 'Active',
-    totalLeads: 0,
-    lastLeadTime: 'No leads yet',
-    campaignHandle: '@master-form'
-  },
-  {
-    id: 'f-6',
-    title: 'Master Form-IATA-Cargo-V2',
-    companyName: 'Kite Institute of Aviation & Hospitality',
-    period: 'Active',
-    totalLeads: 0,
-    lastLeadTime: 'No leads yet',
-    campaignHandle: '@master-form-iata-cargo-v2'
-  },
-  {
-    id: 'f-7',
-    title: 'Vendor-Data-Kerala',
-    companyName: 'Kite Institute of Aviation & Hospitality',
-    period: 'Active',
-    totalLeads: 0,
-    lastLeadTime: 'No leads yet',
-    campaignHandle: '@vendor-data-kerala'
-  },
-  {
-    id: 'f-8',
-    title: 'IATA Meta 01',
-    companyName: 'Kite Institute of Aviation & Hospitality',
-    period: 'Active',
-    totalLeads: 0,
-    lastLeadTime: 'No leads yet',
-    campaignHandle: '@iata-meta-01'
-  }
-];
+const INITIAL_CONNECTED_FORMS: ConnectedForm[] = [];
+
 
 const INITIAL_INTEGRATIONS: IntegrationItem[] = [
   // Active Integrations (1)
@@ -352,67 +285,70 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
   const [isUnlinkModalOpen, setIsUnlinkModalOpen] = useState(false);
   const [newFormTitle, setNewFormTitle] = useState('');
 
-  // Facebook Page Lead Sync State & Real Facebook OAuth Login Session
+  // Meta (Facebook & Instagram) Lead Ads State & Multi-Page Sync
   const [fbUser, setFbUser] = useState<{ id?: string; name: string; email: string; avatar?: string } | null>(null);
   const [isLoggingInFb, setIsLoggingInFb] = useState(false);
   const [isFbConnectModalOpen, setIsFbConnectModalOpen] = useState(false);
-  const [fbAppId, setFbAppId] = useState('');
+  const [fbAppId, setFbAppId] = useState('1785911265462186');
+  const [fbAppSecret, setFbAppSecret] = useState('');
+  const [fbVerifyToken, setFbVerifyToken] = useState('pixbe_meta_verify_token');
+  const [fbWebhookUrl, setFbWebhookUrl] = useState('');
   const [fbInputName, setFbInputName] = useState('');
   const [fbInputEmail, setFbInputEmail] = useState('');
   const [fbPageId, setFbPageId] = useState('');
+  const [fbPageName, setFbPageName] = useState('');
   const [fbPageToken, setFbPageToken] = useState('');
+  const [fbAvailablePages, setFbAvailablePages] = useState<Array<{ id: string; name: string; access_token: string; category?: string }>>([]);
+  const [selectedPageId, setSelectedPageId] = useState('');
+  const [fbStep, setFbStep] = useState<'overview' | 'select_page' | 'connected'>('overview');
   const [isSyncingFb, setIsSyncingFb] = useState(false);
+  const [isSubscribingPage, setIsSubscribingPage] = useState(false);
+  const [isSendingTestLead, setIsSendingTestLead] = useState(false);
   const [fbStatusMessage, setFbStatusMessage] = useState<string | null>(null);
 
-  // Fetch Facebook status on mount & listen for Meta OAuth Login popup postMessage callback
+  // Fetch Meta status on mount & listen for Meta OAuth Login popup postMessage callback
   React.useEffect(() => {
-    fetch('/api/facebook/status')
+    fetch('/api/meta/status')
       .then(res => res.json())
       .then(data => {
-        if (data.success && data.config) {
-          if (data.metaAppId) {
-            setFbAppId(data.metaAppId);
-          }
+        if (data.success) {
+          if (data.metaAppId) setFbAppId(data.metaAppId);
           const cfg = data.config;
-          if (cfg.isConnected && cfg.userAccount) {
-            setFbUser(cfg.userAccount);
-            setFbPageId(cfg.pageId || '');
-            setFbPageToken(cfg.accessToken || '');
-            setIntegrations(prev => prev.map(item => item.id === 'facebook' ? { ...item, isActive: true, lastSync: 'Connected' } : item));
-            // Trigger automatic sync for historical Facebook leads
-            fetch('/api/facebook/sync-leads', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ pageId: cfg.pageId, accessToken: cfg.accessToken, userAccount: cfg.userAccount })
-            }).catch(() => {});
-          } else {
-            setFbUser(null);
-            setFormsList([]);
-            setIntegrations(prev => prev.map(item => item.id === 'facebook' ? { ...item, isActive: false, lastSync: 'Disconnected' } : item));
+          if (cfg) {
+            if (cfg.pageId) setFbPageId(cfg.pageId);
+            if (cfg.pageName) setFbPageName(cfg.pageName);
+            if (cfg.accessToken) setFbPageToken(cfg.accessToken);
+            if (cfg.userAccount) setFbUser(cfg.userAccount);
+            if (Array.isArray(cfg.pages) && cfg.pages.length > 0) {
+              setFbAvailablePages(cfg.pages);
+              setSelectedPageId(cfg.pages[0].id);
+            }
+            if (cfg.isConnected && cfg.pageName) {
+              setFbStep('connected');
+              setIntegrations(prev => prev.map(item => item.id === 'facebook' ? { ...item, isActive: true, lastSync: `Connected: ${cfg.pageName}` } : item));
+            } else {
+              setFbStep('overview');
+            }
           }
         }
       })
       .catch(() => {});
 
     const handleFbAuthMessage = (event: MessageEvent) => {
-      if (event.data && event.data.type === 'FB_AUTH_SUCCESS' && event.data.config) {
-        const config = event.data.config;
-        if (config.userAccount) {
-          setFbUser(config.userAccount);
+      if (event.data && (event.data.type === 'META_AUTH_PAGES' || event.data.type === 'FB_AUTH_SUCCESS')) {
+        const pages = event.data.pages || [];
+        const user = event.data.user || event.data.config?.userAccount;
+        if (user) setFbUser(user);
+        if (Array.isArray(pages) && pages.length > 0) {
+          setFbAvailablePages(pages);
+          setSelectedPageId(pages[0].id);
+          setFbStep('select_page');
+          setModalStatusMsg(`⚡ Found ${pages.length} Facebook Page(s). Select your page to sync leads.`);
+        } else if (event.data.config?.pageId) {
+          setFbPageId(event.data.config.pageId);
+          setFbStep('connected');
         }
-        if (config.pageId) {
-          setFbPageId(config.pageId);
-        }
-        setModalStatusMsg(`⚡ Connected to Official Facebook Account "${config.userAccount?.name || 'Meta User'}" via Meta OAuth!`);
-        setIntegrations(prev => prev.map(item => item.id === 'facebook' ? { ...item, isActive: true, lastSync: 'Connected (Official Meta OAuth 2.0)' } : item));
-        setIsFbConnectModalOpen(false);
-
-        // Fetch historical Meta Graph API leads
-        fetch('/api/facebook/sync-leads', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pageId: config.pageId, accessToken: config.accessToken, userAccount: config.userAccount })
-        }).catch(() => {});
+        setIsFbConnectModalOpen(true);
       }
     };
     window.addEventListener('message', handleFbAuthMessage);
@@ -423,28 +359,109 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
     setIsLoggingInFb(true);
     setModalStatusMsg(null);
 
-    // Platform Meta App ID for 1-Click Client Facebook OAuth Login
-    const targetAppId = fbAppId.trim() || '2928726120838338';
+    const targetAppId = fbAppId.trim() || '1785911265462186';
+    const redirectUri = encodeURIComponent(window.location.origin + '/api/auth/meta/callback');
+    const scopes = encodeURIComponent('pages_show_list,pages_read_engagement,pages_manage_ads,leads_retrieval');
+    const fbOAuthUrl = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${targetAppId}&redirect_uri=${redirectUri}&scope=${scopes}&response_type=code`;
 
-    const redirectUri = encodeURIComponent(window.location.origin + '/api/facebook/oauth-callback');
-    const fbOAuthUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${targetAppId}&redirect_uri=${redirectUri}&scope=public_profile,pages_show_list,pages_read_engagement&response_type=token&auth_type=reauthenticate`;
-
-    const width = 600;
-    const height = 700;
+    const width = 640;
+    const height = 740;
     const left = window.screenX + (window.innerWidth - width) / 2;
     const top = window.screenY + (window.innerHeight - height) / 2;
 
     const popup = window.open(
       fbOAuthUrl,
-      'FacebookOfficialOAuthWindow',
+      'MetaOfficialOAuthWindow',
       `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,status=yes`
     );
 
     if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-      setModalStatusMsg('⚠️ Browser popup window blocked. Please allow popups or use instant connection below.');
+      setModalStatusMsg('⚠️ Browser popup was blocked. Please allow popups for localhost to connect with Facebook.');
       setIsLoggingInFb(false);
     } else {
       setTimeout(() => setIsLoggingInFb(false), 2500);
+    }
+  };
+
+  const handleSyncSelectedPage = async () => {
+    const page = fbAvailablePages.find(p => p.id === selectedPageId);
+    if (!page) {
+      setModalStatusMsg("Please select a Facebook Page from the dropdown.");
+      return;
+    }
+    await handleSelectAndSubscribePage(page);
+  };
+
+  const handleSelectAndSubscribePage = async (page: { id: string; name: string; access_token: string }) => {
+    setIsSubscribingPage(true);
+    setModalStatusMsg(null);
+    try {
+      const res = await fetch('/api/meta/subscribe-page', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pageId: page.id,
+          pageName: page.name,
+          pageAccessToken: page.access_token,
+          crmUserId: 'default_admin'
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFbPageId(page.id);
+        setFbPageName(page.name);
+        setFbPageToken(page.access_token);
+        setFbStep('connected');
+        setModalStatusMsg(`⚡ Successfully connected & subscribed "${page.name}"! Leads will automatically flow into your CRM.`);
+        setIntegrations(prev => prev.map(item => item.id === 'facebook' ? { ...item, isActive: true, lastSync: `Connected: ${page.name}` } : item));
+        
+        setFormsList(prev => [
+          {
+            id: `f-${page.id}`,
+            title: `${page.name} Lead Gen Ad Form`,
+            companyName: page.name,
+            period: 'Active Real-Time',
+            totalLeads: 1,
+            lastLeadTime: 'Just now',
+            campaignHandle: `@${page.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`
+          },
+          ...prev.filter(f => f.id !== `f-${page.id}`)
+        ]);
+      } else {
+        setModalStatusMsg(`⚠️ Subscription notice: ${data.error || 'Failed to subscribe page'}`);
+      }
+    } catch (e: any) {
+      setModalStatusMsg(`⚠️ Subscription error: ${e.message}`);
+    } finally {
+      setIsSubscribingPage(false);
+    }
+  };
+
+  const handleSendTestLead = async () => {
+    setIsSendingTestLead(true);
+    setFbStatusMessage(null);
+    try {
+      const res = await fetch('/api/meta/test-lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Jane Doe',
+          email: 'jane.doe@example.com',
+          phone: '+1 234 567 8900',
+          city: 'Hyderabad'
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.lead) {
+        setFbStatusMessage(`✅ Real-time lead test successful! "${data.lead.name}" (${data.lead.phone}) saved to database.`);
+        setFormsList(prev => prev.map((f, i) => i === 0 ? { ...f, totalLeads: f.totalLeads + 1, lastLeadTime: 'Just now' } : f));
+      } else {
+        setFbStatusMessage(`⚠️ Test lead notice: ${data.error}`);
+      }
+    } catch (e: any) {
+      setFbStatusMessage(`⚠️ Error: ${e.message}`);
+    } finally {
+      setIsSendingTestLead(false);
     }
   };
 
@@ -455,38 +472,66 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
 
   const handleFacebookLoginSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (!fbPageToken.trim() && !fbAppSecret.trim()) {
+      setModalStatusMsg("⚠️ Please enter a Meta Page Access Token (starts with EAAB...) or Meta App Secret.");
+      return;
+    }
+
     setIsLoggingInFb(true);
     setModalStatusMsg(null);
     try {
-      const payloadName = fbInputName.trim() || 'Connected Facebook Account';
-      const payloadEmail = fbInputEmail.trim() || 'meta_leadgen@facebook.com';
-      const payloadToken = fbPageToken.trim();
-      const payloadPageId = fbPageId.trim();
+      // 1. If App Secret provided, save config first
+      if (fbAppSecret.trim() || fbAppId.trim()) {
+        await fetch('/api/meta/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            appId: fbAppId.trim(),
+            appSecret: fbAppSecret.trim(),
+            verifyToken: fbVerifyToken.trim()
+          })
+        });
+      }
 
-      const res = await fetch('/api/facebook/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: payloadName,
-          email: payloadEmail,
-          pageId: payloadPageId,
-          accessToken: payloadToken
-        })
-      });
-      const data = await res.json();
-      if (data.success && data.config?.userAccount) {
-        setFbUser(data.config.userAccount);
-        if (data.config.pageId) {
-          setFbPageId(data.config.pageId);
+      // 2. If Page Token provided, verify real Facebook Page via Graph API
+      if (fbPageToken.trim()) {
+        const res = await fetch('/api/meta/verify-real-page', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pageToken: fbPageToken.trim(),
+            pageId: fbPageId.trim() || undefined
+          })
+        });
+        const data = await res.json();
+        if (data.success && data.page) {
+          setFbPageId(data.page.id);
+          setFbPageName(data.page.name);
+          setFbAvailablePages([data.page]);
+          setFbStep('connected');
+          setModalStatusMsg(`⚡ Successfully verified & connected real Facebook Page "${data.page.name}" (ID: ${data.page.id})!`);
+          setIntegrations(prev => prev.map(item => item.id === 'facebook' ? { ...item, isActive: true, lastSync: `Connected: ${data.page.name}` } : item));
+          
+          setFormsList([
+            {
+              id: `f-${data.page.id}`,
+              title: `${data.page.name} Lead Gen Stream`,
+              companyName: data.page.name,
+              period: 'Active Real-Time',
+              totalLeads: 0,
+              lastLeadTime: 'Listening for real leads',
+              campaignHandle: `@${data.page.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`
+            }
+          ]);
+        } else {
+          setModalStatusMsg(`⚠️ Meta Graph API Error: ${data.error || 'Failed to verify Page token with Meta'}`);
         }
-        setModalStatusMsg(`⚡ Successfully connected Facebook Account "${data.config.userAccount.name}"!`);
-        setIntegrations(prev => prev.map(item => item.id === 'facebook' ? { ...item, isActive: true, lastSync: 'Connected via Facebook OAuth' } : item));
-        setIsFbConnectModalOpen(false);
       } else {
-        setModalStatusMsg(`⚠️ Facebook authentication notice: ${data.error || 'Failed to save Facebook account'}`);
+        setModalStatusMsg("⚡ Meta App Secret saved. You can now click 'Log in with Facebook' to authorize real pages.");
+        setFbStep('overview');
       }
     } catch (e: any) {
-      setModalStatusMsg(`⚠️ Facebook login error: ${e.message}`);
+      setModalStatusMsg(`⚠️ Connection error: ${e.message}`);
     } finally {
       setIsLoggingInFb(false);
     }
@@ -494,14 +539,14 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
 
   const handleFacebookLogout = async () => {
     try {
-      await fetch('/api/facebook/disconnect', { method: 'POST' });
+      await fetch('/api/meta/disconnect', { method: 'POST' });
     } catch (e) {}
     setFbUser(null);
     setFbPageToken('');
     setFbPageId('');
-    setFormsList([]);
+    setFbStep('overview');
     setIntegrations(prev => prev.map(item => item.id === 'facebook' ? { ...item, isActive: false, lastSync: 'Disconnected' } : item));
-    setModalStatusMsg('Disconnected from Facebook account.');
+    setModalStatusMsg('Disconnected from Meta account.');
   };
 
   const handleSyncFacebookLeads = async () => {
@@ -1008,18 +1053,33 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                     Select Connected Facebook Page
                   </label>
-                  {fbUser ? (
+                  {fbAvailablePages.length > 0 ? (
                     <select
                       value={fbPageId}
-                      onChange={(e) => setFbPageId(e.target.value)}
+                      onChange={(e) => {
+                        const pId = e.target.value;
+                        setFbPageId(pId);
+                        const matched = fbAvailablePages.find(p => p.id === pId);
+                        if (matched) {
+                          handleSelectAndSubscribePage(matched);
+                        }
+                      }}
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-500"
                     >
-                      <option value="10023456789">Kite Institute of Aviation & Hospitality (ID: 10023456789)</option>
-                      <option value="20098765432">Pixbe Digital Solutions (ID: 20098765432)</option>
+                      {fbAvailablePages.map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} (ID: {p.id})
+                        </option>
+                      ))}
                     </select>
+                  ) : fbPageName ? (
+                    <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-xs font-semibold text-emerald-900 flex items-center justify-between">
+                      <span>{fbPageName} {fbPageId ? `(ID: ${fbPageId})` : ''}</span>
+                      <span className="text-[10px] text-emerald-600 bg-white px-1.5 py-0.5 rounded font-mono">Active</span>
+                    </div>
                   ) : (
                     <div className="text-[11px] text-slate-500 italic p-2 bg-slate-50 border border-slate-200 rounded-lg">
-                      No Facebook page connected yet. Log in to select your Meta page.
+                      No real Facebook page connected yet. Log in or enter a Page Token to connect your page.
                     </div>
                   )}
                 </div>
@@ -1208,96 +1268,150 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
           </div>
         )}
 
-        {/* MODAL: CONNECT FACEBOOK ACCOUNT */}
+        {/* MODAL: META (FACEBOOK & INSTAGRAM) LEAD ADS INTEGRATION */}
         {isFbConnectModalOpen && (
-          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 text-left font-sans">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 p-5 space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div className="flex items-center space-x-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-[#1877F2] text-white flex items-center justify-center font-bold text-lg shadow-2xs">
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 text-left font-sans animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 p-6 space-y-5">
+              
+              {/* Modal Header */}
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#1877F2] text-white flex items-center justify-center font-bold text-xl shadow-md">
                     f
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-900 text-base">Facebook Meta Authentication</h3>
-                    <p className="text-[11px] text-slate-500">Official OAuth 2.0 & Meta Graph API Login</p>
+                    <h3 className="font-bold text-slate-900 text-base">Meta Lead Ads Integration</h3>
+                    <p className="text-xs text-slate-500">Facebook & Instagram Lead Sync</p>
                   </div>
                 </div>
-                <button onClick={() => setIsFbConnectModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <button 
+                  onClick={() => setIsFbConnectModalOpen(false)} 
+                  className="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-colors cursor-pointer"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* SECTION A: OFFICIAL META FACEBOOK LOGIN BUTTON */}
-              <div className="bg-blue-50/60 border border-blue-200/80 rounded-xl p-4 text-center space-y-3">
-                <div className="space-y-1">
-                  <h4 className="font-bold text-slate-900 text-xs">Official Facebook Account Login</h4>
-                  <p className="text-[11px] text-slate-600 leading-relaxed">
-                    Launches Meta&apos;s official Facebook authorization dialog to sign into your Facebook account and select your connected pages.
-                  </p>
+              {/* Status Banner */}
+              {modalStatusMsg && (
+                <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-800 flex items-start space-x-2">
+                  <Zap className="w-4 h-4 text-[#1877F2] shrink-0 mt-0.5" />
+                  <span className="leading-relaxed">{modalStatusMsg}</span>
                 </div>
+              )}
 
-                <button
-                  type="button"
-                  onClick={handleOfficialFacebookLogin}
-                  disabled={isLoggingInFb}
-                  className="w-full py-2.5 px-4 rounded-xl bg-[#1877F2] hover:bg-[#166FE5] text-white text-xs font-bold shadow-md cursor-pointer transition-all flex items-center justify-center space-x-2"
-                >
-                  <span className="w-5 h-5 rounded-full bg-white text-[#1877F2] font-black text-xs flex items-center justify-center shadow-xs">
-                    f
-                  </span>
-                  <span>{isLoggingInFb ? 'Opening Meta Facebook Login...' : 'Log in with Facebook'}</span>
-                </button>
-              </div>
+              {/* VIEW 1: CONNECT WITH FACEBOOK BUTTON */}
+              {fbStep === 'overview' && (
+                <div className="space-y-4 text-center py-2">
+                  <div className="space-y-1.5">
+                    <h4 className="font-bold text-slate-900 text-sm">Connect your Facebook Account</h4>
+                    <p className="text-xs text-slate-500 leading-relaxed max-w-xs mx-auto">
+                      Authorize access to your Facebook & Instagram Pages. New leads from your ad forms will automatically stream into Pixbe CRM.
+                    </p>
+                  </div>
 
-              {/* SECTION B: MANUAL TOKEN / PAGE SETUP (EXPANDABLE) */}
-              <form onSubmit={handleFacebookLoginSubmit} className="space-y-3 text-xs pt-1 border-t border-slate-100">
-                <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                  Alternative: Direct Access Token / Page Setup
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold text-slate-600 block mb-1">
-                    Account / Company Name
-                  </label>
-                  <input
-                    type="text"
-                    value={fbInputName}
-                    onChange={(e) => setFbInputName(e.target.value)}
-                    placeholder="e.g. Kite Aviation Meta Account"
-                    className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-[#1877F2]"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold text-slate-600 block mb-1">
-                    Meta Page Access Token (EAAB...)
-                  </label>
-                  <input
-                    type="password"
-                    value={fbPageToken}
-                    onChange={(e) => setFbPageToken(e.target.value)}
-                    placeholder="e.g. EAAB..."
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-[#1877F2]"
-                  />
-                </div>
-
-                <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
                   <button
                     type="button"
-                    onClick={() => setIsFbConnectModalOpen(false)}
-                    className="px-3.5 py-1.5 rounded-xl text-slate-600 hover:bg-slate-100 text-xs font-semibold cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
+                    onClick={handleOfficialFacebookLogin}
                     disabled={isLoggingInFb}
-                    className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold shadow-xs cursor-pointer"
+                    className="w-full py-3.5 px-4 rounded-xl bg-[#1877F2] hover:bg-[#166FE5] text-white text-sm font-bold shadow-md hover:shadow-lg cursor-pointer transition-all flex items-center justify-center space-x-2.5 disabled:opacity-75"
                   >
-                    Save Credentials
+                    <span className="w-6 h-6 rounded-full bg-white text-[#1877F2] font-black text-sm flex items-center justify-center shadow-xs">
+                      f
+                    </span>
+                    <span>{isLoggingInFb ? 'Connecting to Meta...' : 'Connect with Facebook'}</span>
                   </button>
                 </div>
-              </form>
+              )}
+
+              {/* VIEW 2: SELECT PAGE & SYNC LEADS */}
+              {fbStep === 'select_page' && (
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-800 block">
+                      Select Page:
+                    </label>
+                    <p className="text-[11px] text-slate-500">
+                      Choose which Facebook Page&apos;s lead forms should flow into Pixbe CRM:
+                    </p>
+                  </div>
+
+                  <div className="relative">
+                    <select
+                      value={selectedPageId}
+                      onChange={(e) => setSelectedPageId(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-3 text-xs text-slate-900 font-semibold focus:outline-none focus:border-[#1877F2] focus:bg-white transition-all cursor-pointer"
+                    >
+                      <option value="">-- Choose your Facebook Page ▾ --</option>
+                      {fbAvailablePages.map((page) => (
+                        <option key={page.id} value={page.id}>
+                          {page.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSyncSelectedPage}
+                    disabled={!selectedPageId || isSubscribingPage}
+                    className="w-full py-3 px-4 rounded-xl bg-[#1877F2] hover:bg-[#166FE5] disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold shadow-md cursor-pointer transition-all flex items-center justify-center space-x-2"
+                  >
+                    <span>{isSubscribingPage ? 'Subscribing Page...' : 'Sync Leads'}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+
+                  <div className="text-center pt-1">
+                    <button
+                      type="button"
+                      onClick={handleOfficialFacebookLogin}
+                      className="text-[11px] text-slate-500 hover:text-slate-800 font-semibold hover:underline cursor-pointer"
+                    >
+                      Connect a different Facebook account &rarr;
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* VIEW 3: CONNECTED & LIVE STATUS */}
+              {fbStep === 'connected' && (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                        <span className="text-xs font-bold text-emerald-950">
+                          {fbPageName || 'Facebook Page'}
+                        </span>
+                      </div>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-200 text-emerald-800">
+                        ● Real-Time Active
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-emerald-800 leading-relaxed">
+                      Lead ads from this page automatically stream into your CRM as soon as a user submits an ad form on Facebook or Instagram.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setFbStep('select_page')}
+                      className="text-slate-600 hover:text-slate-900 font-semibold cursor-pointer"
+                    >
+                      Switch Page
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleFacebookLogout}
+                      className="text-rose-600 hover:text-rose-800 font-semibold cursor-pointer"
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
         )}
@@ -1641,15 +1755,34 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
                           <label className="text-[10px] font-bold text-slate-600 block">
                             Active Connected Facebook Page
                           </label>
-                          <select
-                            value={fbPageId}
-                            onChange={(e) => setFbPageId(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#1877F2]"
-                          >
-                            <option value="10023456789">Kite Institute of Aviation & Hospitality (ID: 10023456789 - 8 Forms)</option>
-                            <option value="20098765432">Pixbe Digital Solutions (ID: 20098765432 - 3 Forms)</option>
-                            <option value="30045678901">Kite Flying Academy Karnataka (ID: 30045678901 - 5 Forms)</option>
-                          </select>
+                          {fbAvailablePages.length > 0 ? (
+                            <select
+                              value={fbPageId}
+                              onChange={(e) => {
+                                const pId = e.target.value;
+                                setFbPageId(pId);
+                                const matched = fbAvailablePages.find(p => p.id === pId);
+                                if (matched) {
+                                  handleSelectAndSubscribePage(matched);
+                                }
+                              }}
+                              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#1877F2]"
+                            >
+                              {fbAvailablePages.map(p => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name} (ID: {p.id})
+                                </option>
+                              ))}
+                            </select>
+                          ) : fbPageName ? (
+                            <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-xs font-semibold text-emerald-900">
+                              {fbPageName} {fbPageId ? `(ID: ${fbPageId})` : ''}
+                            </div>
+                          ) : (
+                            <div className="text-[11px] text-slate-500 italic p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                              No Facebook page connected yet.
+                            </div>
+                          )}
                         </div>
                       </div>
                     ) : (

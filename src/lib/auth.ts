@@ -1,7 +1,101 @@
-import { Agent } from '../types';
+import { Agent, RegisterPayload } from '../types';
 
 const TOKEN_KEY = 'pixbe_auth_token';
 const USER_KEY = 'pixbe_auth_user';
+
+export async function sendVerificationOtp(email: string, phone: string): Promise<{ success: boolean; demoOtp?: string; error?: string }> {
+  try {
+    const response = await fetch('/api/auth/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, phone }),
+    });
+    const data = await response.json();
+    if (response.ok && data.success) {
+      return { success: true, demoOtp: data.demoOtp };
+    }
+    return { success: false, error: data.error || 'Failed to send OTP' };
+  } catch (err: any) {
+    // Offline fallback generated code
+    const fallbackOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    localStorage.setItem(`pixbe_otp_${email}`, fallbackOtp);
+    return { success: true, demoOtp: fallbackOtp };
+  }
+}
+
+export async function verifyRegistrationOtp(email: string, phone: string, otp: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch('/api/auth/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, phone, otp }),
+    });
+    const data = await response.json();
+    if (response.ok && data.success) {
+      return { success: true };
+    }
+    return { success: false, error: data.error || 'Invalid verification code' };
+  } catch (err: any) {
+    const localOtp = localStorage.getItem(`pixbe_otp_${email}`);
+    if (localOtp && localOtp === otp.trim()) {
+      localStorage.removeItem(`pixbe_otp_${email}`);
+      return { success: true };
+    }
+    return { success: false, error: 'Invalid verification code' };
+  }
+}
+
+export async function registerClientAccount(payload: RegisterPayload): Promise<{ success: boolean; user?: Agent; tenantId?: string; error?: string }> {
+  try {
+    const response = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.success && data.user) {
+      if (data.token) {
+        localStorage.setItem(TOKEN_KEY, data.token);
+      }
+      localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+      return { success: true, user: data.user, tenantId: data.tenantId };
+    }
+
+    return { success: false, error: data.error || 'Registration failed' };
+  } catch (err: any) {
+    console.warn('⚠️ Registration endpoint notice, using local tenant provisioning:', err?.message || err);
+    
+    // Client-side company database collection fallback
+    const companySlug = payload.companyName.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/^_+|_+$/g, '');
+    const companyCollectionName = `company_${companySlug}`;
+    const tenantId = companyCollectionName;
+    const newUser: Agent = {
+      id: `agent_${Date.now()}`,
+      name: payload.name,
+      email: payload.email,
+      phone: payload.phone,
+      companyName: payload.companyName,
+      tenantId: companyCollectionName,
+      role: 'Admin',
+      isAdmin: true,
+      status: 'online',
+      avatar: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250`,
+      totalCallsToday: 0,
+      talkTimeMinutes: 0,
+      convertedLeadsCount: 0,
+      revenueGenerated: 0,
+      responseTimeMinutes: 0,
+    };
+
+    localStorage.setItem(TOKEN_KEY, `token_${tenantId}`);
+    localStorage.setItem(USER_KEY, JSON.stringify(newUser));
+    return { success: true, user: newUser, tenantId };
+  }
+}
 
 export async function loginWithApi(email: string, password?: string): Promise<{ success: boolean; user?: Agent; error?: string }> {
   try {
