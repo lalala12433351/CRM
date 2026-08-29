@@ -868,6 +868,148 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
   };
 
   {/* ========================================================================= */}
+  {/* MANAGE FACEBOOK VIEW (CLEAN & SIMPLE THEMED MATCHING DESIGN SYSTEM) */}
+  {/* ========================================================================= */}
+  if (selectedManageIntegration?.id === 'facebook') {
+    return (
+      <div className="text-slate-900 font-sans space-y-4 select-none animate-in fade-in duration-150">
+        
+        {/* TOP HEADER CARD */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-xl bg-[#1877F2] flex items-center justify-center text-white font-black text-xl shadow-xs">
+              f
+            </div>
+            <div className="text-left">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 leading-tight">
+                Manage Facebook Lead Ads
+              </h2>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Official Meta Graph API v22.0 real-time webhook lead integration
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setSelectedManageIntegration(null)}
+              className="px-4 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer shadow-xs flex items-center space-x-1.5"
+            >
+              <ChevronLeft className="w-4 h-4 text-slate-500" />
+              <span>Back to Integrations</span>
+            </button>
+          </div>
+        </div>
+
+        {/* MAIN 2-COLUMN SECTION CARDS */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          
+          {/* CARD 1: 1. FACEBOOK SYNC & OAUTH */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-4 text-left">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center space-x-2">
+                <span className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold">1</span>
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Facebook Account & Sync
+                </h3>
+              </div>
+              {fbAvailablePages.length > 0 ? (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse" />
+                  Connected ({fbAvailablePages.length} Page{fbAvailablePages.length > 1 ? 's' : ''})
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                  Not Connected
+                </span>
+              )}
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Click below to authenticate your Facebook account. The system will automatically subscribe your Facebook pages to the CRM real-time lead webhook.
+            </p>
+
+            {/* THE SINGLE BUTTON */}
+            <button
+              onClick={handleConnectMeta}
+              className="w-full py-3.5 px-4 rounded-xl bg-[#1877F2] hover:bg-[#166FE5] text-white text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center space-x-2.5 cursor-pointer"
+            >
+              <span className="w-6 h-6 rounded-full bg-white text-[#1877F2] font-black text-sm flex items-center justify-center shadow-xs">
+                f
+              </span>
+              <span>Connect Facebook</span>
+            </button>
+
+            {fbAvailablePages.length > 0 && (
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-xs text-slate-500 font-medium">
+                  Active Page: <strong className="text-slate-900">{fbPageName || fbAvailablePages[0]?.name}</strong>
+                </span>
+                <button
+                  onClick={handleFacebookLogout}
+                  className="text-xs text-rose-600 hover:text-rose-800 font-bold hover:underline cursor-pointer"
+                >
+                  Disconnect
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* CARD 2: 2. REAL-TIME WEBHOOK DETAILS */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-4 text-left">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center space-x-2">
+                <span className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold">2</span>
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Live Webhook Endpoint
+                </h3>
+              </div>
+              <span className="text-[10px] font-bold text-slate-500 uppercase font-mono">
+                Graph API v22.0
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-700 block">
+                Callback URL (CloudFront HTTPS)
+              </label>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  readOnly
+                  value="https://d3pcv3wpcxqhl2.cloudfront.net/api/webhooks/meta"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-800 select-all"
+                />
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText("https://d3pcv3wpcxqhl2.cloudfront.net/api/webhooks/meta");
+                    setCopiedUrl(true);
+                    setTimeout(() => setCopiedUrl(false), 2000);
+                  }}
+                  className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors shrink-0 cursor-pointer"
+                >
+                  {copiedUrl ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+            </div>
+
+            <div className="p-3 bg-blue-50/60 border border-blue-100 rounded-xl text-xs text-blue-900 leading-relaxed space-y-1">
+              <div className="font-bold flex items-center space-x-1.5 text-blue-950">
+                <span>⚡ Automatic Page Subscription</span>
+              </div>
+              <p className="text-[11px] text-blue-800">
+                When you click <strong>Connect Facebook</strong>, your selected Facebook Pages are automatically registered with the Lead Ads webhook. Any new form submissions will instantly flow into your CRM.
+              </p>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    );
+  }
+
+  {/* ========================================================================= */}
   {/* INTEGRATIONS CATALOG VIEW (ALL INTEGRATIONS LIST) */}
   {/* ========================================================================= */}
   return (
