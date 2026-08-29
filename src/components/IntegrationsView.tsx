@@ -357,11 +357,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
 
   const handleConnectMeta = () => {
     const appId = "1785911265462186";
-    const origin = window.location.origin;
-    const callbackUrl = origin.includes("localhost")
-      ? `${origin}/api/auth/meta/callback`
-      : "https://d3pcv3wpcxqhl2.cloudfront.net/api/auth/meta/callback";
-    const redirectUri = encodeURIComponent(callbackUrl);
+    const redirectUri = encodeURIComponent("https://d3pcv3wpcxqhl2.cloudfront.net/api/auth/meta/callback");
     const scope = "leads_retrieval,pages_show_list,pages_read_engagement,pages_manage_ads";
 
     window.location.href = `https://www.facebook.com/v22.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
