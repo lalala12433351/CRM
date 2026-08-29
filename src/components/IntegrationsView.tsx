@@ -289,7 +289,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
   const [fbUser, setFbUser] = useState<{ id?: string; name: string; email: string; avatar?: string } | null>(null);
   const [isLoggingInFb, setIsLoggingInFb] = useState(false);
   const [isFbConnectModalOpen, setIsFbConnectModalOpen] = useState(false);
-  const [fbAppId, setFbAppId] = useState('1785911265462186');
+  const [fbAppId, setFbAppId] = useState('');
   const [fbAppSecret, setFbAppSecret] = useState('');
   const [fbVerifyToken, setFbVerifyToken] = useState('pixbe_meta_verify_token');
   const [fbWebhookUrl, setFbWebhookUrl] = useState('');
@@ -359,7 +359,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
     setIsLoggingInFb(true);
     setModalStatusMsg(null);
 
-    const targetAppId = fbAppId.trim() || '1785911265462186';
+    const targetAppId = fbAppId.trim();
     const redirectUri = encodeURIComponent(window.location.origin + '/api/auth/meta/callback');
     const scopes = encodeURIComponent('pages_show_list,pages_read_engagement,pages_manage_ads,leads_retrieval');
     const fbOAuthUrl = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${targetAppId}&redirect_uri=${redirectUri}&scope=${scopes}&response_type=code`;

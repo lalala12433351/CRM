@@ -62,6 +62,7 @@ initializeAwsDbTables().catch(err => console.warn('AWS Aurora table initializati
 
 async function startServer() {
   const app = express();
+  app.set("trust proxy", 1);
   const PORT = process.env.PORT || 8080;
 
   app.use(express.json({ limit: "10mb" }));
@@ -205,7 +206,7 @@ async function startServer() {
   }
 
   const activeMetaConfig: MetaIntegrationState = {
-    appId: process.env.META_APP_ID || "1785911265462186",
+    appId: process.env.META_APP_ID || "",
     appSecret: process.env.META_APP_SECRET || "",
     verifyToken: process.env.META_WEBHOOK_VERIFY_TOKEN || process.env.FB_VERIFY_TOKEN || "pixbe_meta_verify_token",
     pageId: process.env.META_PAGE_ID || "",
@@ -226,7 +227,7 @@ async function startServer() {
         const row = res.configs.find((c: any) => c.id === "facebook" || c.id === "meta_lead_ads");
         if (row && row.credentials) {
           const creds = typeof row.credentials === "string" ? JSON.parse(row.credentials) : row.credentials;
-          activeMetaConfig.appId = process.env.META_APP_ID || creds.app_id || creds.appId || "1785911265462186";
+          activeMetaConfig.appId = process.env.META_APP_ID || creds.app_id || creds.appId || "";
           activeMetaConfig.appSecret = process.env.META_APP_SECRET || creds.app_secret || creds.appSecret || "";
           if (creds.verify_token || creds.verifyToken) activeMetaConfig.verifyToken = process.env.META_WEBHOOK_VERIFY_TOKEN || creds.verify_token || creds.verifyToken;
           if (creds.meta_page_id || creds.pageId) activeMetaConfig.pageId = creds.meta_page_id || creds.pageId;
@@ -480,9 +481,10 @@ async function startServer() {
   // 3. Launch Meta OAuth URL Endpoint
   app.get("/api/auth/meta/url", (req, res) => {
     const host = req.get("host");
-    const protocol = req.protocol === "https" || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+    const isHttps = req.protocol === "https" || req.headers["x-forwarded-proto"] === "https" || req.headers["cloudfront-forwarded-proto"] === "https" || (host && host.includes("cloudfront.net"));
+    const protocol = isHttps ? "https" : "http";
     const redirectUri = `${protocol}://${host}/api/auth/meta/callback`;
-    const appId = activeMetaConfig.appId || process.env.META_APP_ID || "1785911265462186";
+    const appId = activeMetaConfig.appId || process.env.META_APP_ID || "";
     const scopes = "pages_show_list,pages_read_engagement,pages_manage_ads,leads_retrieval";
     const authUrl = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes}&response_type=code`;
 
@@ -498,7 +500,8 @@ async function startServer() {
   const handleMetaOAuthCallback = async (req: any, res: any) => {
     const { code, error, error_description } = req.query;
     const host = req.get("host");
-    const protocol = req.protocol === "https" || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+    const isHttps = req.protocol === "https" || req.headers["x-forwarded-proto"] === "https" || req.headers["cloudfront-forwarded-proto"] === "https" || (host && host.includes("cloudfront.net"));
+    const protocol = isHttps ? "https" : "http";
     const redirectUri = `${protocol}://${host}${req.path}`;
 
     if (error) {
@@ -522,7 +525,7 @@ async function startServer() {
     }
 
     try {
-      const appId = activeMetaConfig.appId || process.env.META_APP_ID || "1785911265462186";
+      const appId = activeMetaConfig.appId || process.env.META_APP_ID || "";
       const appSecret = activeMetaConfig.appSecret || process.env.META_APP_SECRET || "";
 
       let userAccessToken = "";
@@ -1519,7 +1522,7 @@ async function startServer() {
     res.json({
       success: true,
       config: activeFbConfig,
-      metaAppId: activeFbConfig.appId || process.env.META_APP_ID || "1785911265462186",
+      metaAppId: activeFbConfig.appId || process.env.META_APP_ID || "",
       webhookUrl: `${process.env.APP_URL || 'http://localhost:3000'}/api/webhooks/facebook`,
       verifyToken: process.env.META_WEBHOOK_VERIFY_TOKEN || "pixbe_meta_verify_token"
     });
