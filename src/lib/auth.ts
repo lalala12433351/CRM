@@ -115,7 +115,14 @@ export async function loginWithApi(email: string, password?: string): Promise<{ 
     const data = await response.json();
 
     if (response.ok && data.success && data.user) {
+      if (data.token) localStorage.setItem(TOKEN_KEY, data.token);
+      localStorage.setItem(USER_KEY, JSON.stringify(data.user));
       return { success: true, user: data.user };
+    }
+
+    // If server returned 401 Unauthorized with valid credentials error, return error
+    if (response.status === 401) {
+      return { success: false, error: data.error || 'Invalid email or password.' };
     }
 
     return { success: false, error: data.error || 'Invalid email or password.' };
@@ -148,12 +155,21 @@ export async function loginWithApi(email: string, password?: string): Promise<{ 
       responseTimeMinutes: 0,
     };
 
+    localStorage.setItem(TOKEN_KEY, `token_${adminUser.id}`);
+    localStorage.setItem(USER_KEY, JSON.stringify(adminUser));
     return { success: true, user: adminUser };
   }
 }
 
 export async function verifyCurrentSession(): Promise<Agent | null> {
-  return null;
+  const storedUser = localStorage.getItem(USER_KEY) || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(USER_KEY) : null);
+  if (!storedUser) return null;
+
+  try {
+    return JSON.parse(storedUser) as Agent;
+  } catch (err) {
+    return null;
+  }
 }
 
 export async function logoutWithApi(): Promise<void> {

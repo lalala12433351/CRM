@@ -146,21 +146,22 @@ export function App() {
     { id: 'followup_leads', name: 'Followup Leads', iconType: 'filter' },
   ];
 
-  // Real-World Authentication & Session State (strictly requires explicit login)
-  const [currentUser, setCurrentUser] = useState<Agent | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  // Real-World Authentication & Session State
+  const [currentUser, setCurrentUser] = useState<Agent | null>(() => {
+    const stored = localStorage.getItem('pixbe_auth_user') || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pixbe_auth_user') : null);
+    if (stored) {
+      try {
+        return JSON.parse(stored) as Agent;
+      } catch (e) {}
+    }
+    return null;
+  });
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    const stored = localStorage.getItem('pixbe_auth_user') || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pixbe_auth_user') : null);
+    return !!stored;
+  });
   const [authScreen, setAuthScreen] = useState<'login' | 'signup'>('login');
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
-
-  // Clear stale cached credentials from previous sessions on initial mount
-  React.useEffect(() => {
-    try {
-      sessionStorage.removeItem('pixbe_auth_user');
-      sessionStorage.removeItem('pixbe_auth_token');
-      localStorage.removeItem('pixbe_auth_user');
-      localStorage.removeItem('pixbe_auth_token');
-    } catch (e) {}
-  }, []);
 
   // Active authenticated tenant id
   const activeTenantId = currentUser?.tenantId || 'default_tenant';
