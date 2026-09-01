@@ -155,43 +155,45 @@ export class AuthService {
   public loginUser(email: string, password?: string) {
     const targetEmail = (email || '').trim().toLowerCase();
     if (!targetEmail) throw new Error('Email address is required');
+    const inputPass = (password || '').trim();
 
-    let user = AUTH_USERS.find((u) => u.email.toLowerCase() === targetEmail);
+    // Check Kite Aviation Admin
+    if (targetEmail === 'admin@kiteaviation') {
+      if (inputPass !== 'admin' && inputPass !== 'admin@123') {
+        throw new Error('Invalid password for admin@kiteaviation.');
+      }
+      let kiteUser = AUTH_USERS.find(u => u.email.toLowerCase() === 'admin@kiteaviation');
+      if (!kiteUser) {
+        kiteUser = {
+          id: 'agent_kiteaviation_admin',
+          name: 'Kite Aviation Admin',
+          email: 'admin@kiteaviation',
+          phone: '+91 98765 43210',
+          companyName: 'Kite Aviation',
+          tenantId: 'company_kite_aviation',
+          databaseCollection: 'company_kite_aviation',
+          role: 'Master Admin',
+          isAdmin: true,
+          status: 'online',
+          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+          totalCallsToday: 0,
+          talkTimeMinutes: 0,
+          convertedLeadsCount: 0,
+          revenueGenerated: 0,
+          responseTimeMinutes: 1.0
+        };
+        AUTH_USERS.push(kiteUser);
+      }
+      const token = `pixbe_token_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      activeSessions.set(token, kiteUser);
+      return { token, user: kiteUser };
+    }
+
+    // Check existing registered users
+    const user = AUTH_USERS.find((u) => u.email.toLowerCase() === targetEmail);
 
     if (!user) {
-      const isAdmin = targetEmail.includes('admin') || targetEmail.includes('owner');
-      const emailDomain = targetEmail.split('@')[1]?.split('.')[0] || 'Company';
-      const fallbackCompany = emailDomain.charAt(0).toUpperCase() + emailDomain.slice(1);
-      const companySlug = fallbackCompany.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/^_+|_+$/g, '');
-      const tenantId = companySlug ? `company_${companySlug}` : 'default_tenant';
-
-      user = {
-        id: `agent-${Date.now().toString().slice(-5)}`,
-        name: targetEmail.split('@')[0].replace('.', ' ').toUpperCase(),
-        email: targetEmail,
-        phone: '+91 98000 00000',
-        companyName: fallbackCompany,
-        tenantId,
-        databaseCollection: tenantId,
-        role: isAdmin ? 'Master Admin' : 'Sales Representative',
-        isAdmin,
-        status: 'online',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-        totalCallsToday: 0,
-        talkTimeMinutes: 0,
-        convertedLeadsCount: 0,
-        revenueGenerated: 0,
-        responseTimeMinutes: 1.0
-      };
-    }
-
-    if (!user.companyName) {
-      user.companyName = 'My Organization';
-    }
-
-    if (!user.tenantId) {
-      const slug = user.companyName.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/^_+|_+$/g, '');
-      user.tenantId = slug ? `company_${slug}` : 'default_tenant';
+      throw new Error('Invalid email or password. Only registered accounts can log in.');
     }
 
     const token = `pixbe_token_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
