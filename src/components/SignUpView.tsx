@@ -838,7 +838,7 @@ export const SignUpView: React.FC<SignUpViewProps> = ({ onSignUpSuccess, onSwitc
 
       {/* ================= OTP VERIFICATION MODAL COMPONENT ================= */}
       {showOtpModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+        <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl border border-gray-100 relative text-center space-y-4">
             
             {/* Close Button */}

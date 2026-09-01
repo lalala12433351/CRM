@@ -302,7 +302,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Bottom Footer Section (Help Center & Settings Button matching reference) */}
-      <div className="p-3 border-t border-white/50 bg-white/40 backdrop-blur-md space-y-1">
+      <div className="p-3 border-t border-white/50 bg-white/40 space-y-1">
         {/* Help Center Button */}
         <button
           onClick={() => { if (onOpenVoiceBot) onOpenVoiceBot(); }}

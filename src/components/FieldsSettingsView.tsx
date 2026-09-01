@@ -47,17 +47,17 @@ interface FieldsSettingsViewProps {
 }
 
 const FIELD_TYPE_CONFIG: Record<CustomFieldType, { label: string; icon: any; color: string; bg: string }> = {
-  text: { label: 'Text', icon: null, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
-  phone: { label: 'Phone', icon: null, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
-  email: { label: 'Email', icon: null, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
-  number: { label: 'Number', icon: null, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
-  dropdown: { label: 'Dropdown', icon: null, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
-  multiselect: { label: 'Multi-Select', icon: null, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
-  date: { label: 'Date', icon: null, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
-  currency: { label: 'Currency', icon: null, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
-  textarea: { label: 'Textarea', icon: null, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
-  boolean: { label: 'Checkbox', icon: null, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
-  url: { label: 'URL', icon: null, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
+  text:        { label: 'Text',        icon: TypeIcon,    color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
+  phone:       { label: 'Phone',       icon: Phone,       color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
+  email:       { label: 'Email',       icon: Mail,        color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
+  number:      { label: 'Number',      icon: Hash,        color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
+  dropdown:    { label: 'Dropdown',    icon: ListFilter,  color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
+  multiselect: { label: 'Multi-Select',icon: Layers,      color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
+  date:        { label: 'Date',        icon: Calendar,    color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
+  currency:    { label: 'Currency',    icon: DollarSign,  color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
+  textarea:    { label: 'Textarea',    icon: FileText,    color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
+  boolean:     { label: 'Checkbox',    icon: CheckSquare, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
+  url:         { label: 'URL',         icon: LinkIcon,    color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
 };
 
 export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
@@ -762,7 +762,7 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
       {/* MODAL 1: ADD / EDIT FIELD                                 */}
       {/* ========================================================= */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 md:p-6 overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-3 md:p-6 overflow-y-auto">
           <div className="bg-white rounded-2xl border border-slate-200 max-w-xl w-full p-5 md:p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in-95 my-8">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
@@ -1001,7 +1001,7 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
       {/* MODAL 2: CHANGE PRIMARY UNIQUE IDENTIFIER                */}
       {/* ========================================================= */}
       {showChangeIdModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
@@ -1068,7 +1068,7 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
       {/* MODAL 3: SLOT ASSIGN (H1 / H2)                            */}
       {/* ========================================================= */}
       {showSlotAssignModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center space-x-2.5">
@@ -1129,7 +1129,7 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
       {/* MODAL 4: DELETE FIELD CONFIRMATION                         */}
       {/* ========================================================= */}
       {fieldToDelete && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl border border-slate-200 max-w-sm w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95">
             <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mx-auto">
               <Trash2 className="w-5 h-5" />

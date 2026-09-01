@@ -310,7 +310,7 @@ export const PermissionsSettingsView: React.FC<PermissionsSettingsViewProps> = (
 
       {/* SCREENSHOT 2 & 3: PERMISSION TEMPLATE EDITOR OVERLAY DRAWER / MODAL */}
       {isEditorOpen && editingTemplate && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 font-sans animate-in fade-in">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-2 sm:p-4 font-sans animate-in fade-in">
           <div className="bg-white rounded-2xl border border-slate-200 max-w-5xl w-full h-[90vh] flex flex-col shadow-2xl overflow-hidden">
             
             {/* Modal Top Header */}

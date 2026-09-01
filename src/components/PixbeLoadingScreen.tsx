@@ -71,7 +71,7 @@ export const PixbeLoadingScreen: React.FC<PixbeLoadingScreenProps> = ({ companyN
 
         {/* Minimal Progress Bar & Status Text */}
         <div className="space-y-3 pt-2 max-w-xs mx-auto">
-          <div className="w-full bg-white/20 rounded-full h-1.5 overflow-hidden backdrop-blur-xs">
+          <div className="w-full bg-white/20 rounded-full h-1.5 overflow-hidden">
             <div 
               className="bg-white h-full rounded-full transition-all duration-500 ease-out shadow-sm"
               style={{ width: `${progress}%` }}

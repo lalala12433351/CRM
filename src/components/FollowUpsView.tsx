@@ -582,7 +582,7 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
 
       {/* Schedule / Mark Lead into Follow-Up Modal */}
       {showScheduleModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 font-sans">
+        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-3 sm:p-4 font-sans">
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-xl p-4 space-y-4 font-sans text-xs max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 font-sans">
               <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2 font-sans tracking-tight">

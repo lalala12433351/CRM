@@ -1196,7 +1196,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
 
       {/* UNIVERSAL ACTIVATION / CONFIGURATION / WEBHOOK MODAL */}
       {isModalOpen && selectedIntegration && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 font-sans animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4 font-sans animate-in fade-in duration-150">
           <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full border border-slate-200 overflow-hidden space-y-0 max-h-[90vh] flex flex-col">
             
             {/* Modal Header */}

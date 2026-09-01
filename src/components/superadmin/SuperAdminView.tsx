@@ -869,7 +869,7 @@ export function SuperAdminView({ onExitSuperAdmin, onImpersonateTenant }: SuperA
 
               {/* Table Schema Modal */}
               {selectedTableSchema && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60">
                   <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 max-w-lg w-full font-poppins space-y-4">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                       <div>

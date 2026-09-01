@@ -51,7 +51,7 @@ export const AiVoiceBotModal: React.FC<AiVoiceBotModalProps> = ({ lead, onClose 
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-4">
       <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-xl p-6 space-y-4 shadow-2xl flex flex-col max-h-[85vh]">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center space-x-2">

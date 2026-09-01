@@ -319,7 +319,7 @@ The goal of this project is to build a high-performance, full-stack TeleCRM & Sa
 
       {/* Modal for Client Proposal */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
           <form onSubmit={handleCreate} className="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-base font-bold text-slate-900">Generate Client Quotation</h3>

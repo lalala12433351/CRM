@@ -2019,7 +2019,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
 
       {/* MODAL: Change Lead Access & Reassign */}
       {reassignModalLead && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 font-sans">
+        <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 font-sans">
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-2xl p-5 space-y-4 text-xs animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-base font-bold text-slate-900 tracking-tight">Change Lead Access & Assignee</h3>
@@ -2090,7 +2090,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
 
       {/* MODAL: Schedule Lead as Follow-Up */}
       {followUpLead && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 font-sans">
+        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 font-sans">
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-xl p-4 space-y-4 font-sans text-xs animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 font-sans">
               <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2 font-sans tracking-tight">
@@ -2259,7 +2259,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
 
       {/* MODAL 2: CSV Bulk Import */}
       {showImportModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2">
@@ -2327,7 +2327,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
 
       {/* MODAL 3: Merge Duplicates */}
       {showMergeModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2">
@@ -2355,7 +2355,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
 
       {/* MODAL 4: Create / Save Filter View */}
       {showNewViewModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2">

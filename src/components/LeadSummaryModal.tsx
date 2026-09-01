@@ -37,7 +37,7 @@ export const LeadSummaryModal: React.FC<LeadSummaryModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 font-sans">
+    <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 font-sans">
       <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg shadow-xl overflow-hidden font-sans text-xs animate-in fade-in zoom-in-95">
         
         {/* Header - Plain text, no icons */}

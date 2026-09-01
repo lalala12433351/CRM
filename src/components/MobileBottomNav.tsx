@@ -118,7 +118,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   return (
     <>
       {/* FIXED iOS BOTTOM NAVIGATION BAR */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40 md:hidden pb-safe shadow-lg">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 border-t border-slate-200 z-40 md:hidden pb-safe shadow-lg">
         <div className="grid grid-cols-5 items-center h-14 px-1">
           {/* Tab 1: Dashboard */}
           <button
@@ -213,7 +213,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       {isDrawerOpen && (
         <div 
           onClick={() => setIsDrawerOpen(false)}
-          className="fixed inset-0 z-50 md:hidden bg-slate-900/60 backdrop-blur-xs flex flex-col justify-end animate-in fade-in duration-200 cursor-pointer"
+          className="fixed inset-0 z-50 md:hidden bg-slate-900/60 flex flex-col justify-end animate-in fade-in duration-200 cursor-pointer"
         >
           <div 
             className="bg-white rounded-t-3xl max-h-[88vh] flex flex-col w-full shadow-2xl animate-in slide-in-from-bottom duration-300 pb-safe font-noto cursor-default"

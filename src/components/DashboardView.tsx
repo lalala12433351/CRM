@@ -700,7 +700,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       {/* SCHEDULE FOLLOW-UP MODAL */}
       {followUpLead && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 font-sans animate-in fade-in">
+        <div className="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4 font-sans animate-in fade-in">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-5 animate-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>

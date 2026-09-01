@@ -610,7 +610,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
       {/* Subtle Gray Backdrop */}
       <div 
         onClick={onClose}
-        className="fixed inset-0 bg-slate-900/20 backdrop-blur-[2px] transition-opacity z-40 cursor-pointer"
+        className="fixed inset-0 bg-slate-900/20 transition-opacity z-40 cursor-pointer"
       />
 
       {/* Wrapper for Drawer and Buttons */}
@@ -1678,7 +1678,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
 
         {/* Edit Form Modal (Unchanged structurally, just ensuring it still renders) */}
         {isEditingLead && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 animate-in fade-in duration-200">
             <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden font-sans">
               <div className="p-5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
                 <div className="flex items-center space-x-2">

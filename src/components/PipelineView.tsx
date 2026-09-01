@@ -768,7 +768,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
 
       {/* Modal: Add New Active Stage */}
       {showAddStageModal && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-slate-950/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-xl w-full max-w-sm shadow-xl p-4 space-y-4 font-sans text-xs">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <h3 className="font-bold text-slate-900 text-sm">Add New Active Pipeline Stage</h3>
@@ -824,7 +824,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
 
       {/* Modal: Schedule Follow-Up from Pipeline */}
       {followUpLead && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 font-sans">
+        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 font-sans">
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-xl p-4 space-y-4 font-sans text-xs animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 font-sans">
               <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2 font-sans tracking-tight">
@@ -981,7 +981,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
 
       {/* Modal: Add New Reason for Lost Leads */}
       {showAddReasonModal && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-slate-950/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-xl w-full max-w-sm shadow-xl p-4 space-y-4 font-sans text-xs">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <h3 className="font-bold text-slate-900 text-sm">Add Reason for Lost Leads</h3>

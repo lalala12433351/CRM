@@ -1243,7 +1243,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
               {/* ADD STAGE MODAL */}
               {showAddStageModal && (
-                <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
                   <div className="bg-white rounded-2xl border border-slate-200 max-w-md w-full p-5 space-y-4 shadow-2xl animate-in fade-in zoom-in-95">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                       <h3 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
@@ -2093,7 +2093,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {/* CHECKOUT MODAL */}
       {showCheckoutModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 font-noto">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4 font-noto">
           <div className="bg-white rounded-xl border border-slate-200 max-w-sm w-full p-4 space-y-3 shadow-2xl animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <div className="flex items-center space-x-2">
@@ -2200,7 +2200,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {/* EDIT BILLING DETAILS MODAL */}
       {showEditBillingModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 font-noto">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4 font-noto">
           <div className="bg-white rounded-xl border border-slate-200 max-w-sm w-full p-4 space-y-3 shadow-2xl animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <h3 className="text-xs font-bold text-slate-900 font-sans">Edit Billing Details & GSTIN</h3>
@@ -2274,7 +2274,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {/* PAYMENT SUCCESS MODAL */}
       {paymentSuccessModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 font-noto">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4 font-noto">
           <div className="bg-white rounded-xl border border-slate-200 max-w-xs w-full p-4 text-center space-y-3 shadow-2xl animate-in fade-in zoom-in-95">
             <div className="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-600 flex items-center justify-center mx-auto">
               <CheckCircle2 className="w-6 h-6" />
@@ -2301,7 +2301,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {/* ADD ASSIGNEE MODAL */}
       {showAddAssigneeModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 font-noto">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4 font-noto">
           <div className="bg-white rounded-xl border border-slate-200 max-w-sm w-full p-4 space-y-3 shadow-2xl animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <div className="flex items-center space-x-2">

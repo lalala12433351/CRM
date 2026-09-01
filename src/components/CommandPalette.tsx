@@ -139,7 +139,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-start justify-center pt-20 px-4 animate-in fade-in duration-150 font-sans">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-start justify-center pt-20 px-4 animate-in fade-in duration-150 font-sans">
       <div 
         className="w-full max-w-2xl bg-white rounded-2xl border border-slate-200/90 shadow-2xl overflow-hidden flex flex-col max-h-[80vh] font-sans"
         onClick={e => e.stopPropagation()}

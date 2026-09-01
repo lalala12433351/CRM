@@ -472,7 +472,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
 
         {/* MODAL: Create Task */}
         {showCreateModal && isAdmin && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 font-sans">
+          <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 font-sans">
             <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg shadow-2xl p-6 space-y-4 animate-in fade-in">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2">
@@ -589,7 +589,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
 
         {/* MODAL: Edit Task & Task Value */}
         {editingTask && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 font-sans">
+          <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 font-sans">
             <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg shadow-2xl p-6 space-y-4 animate-in fade-in">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2">

@@ -486,6 +486,78 @@
         "isActive": true,
         "tenantId": "default_tenant"
       }
+    ],
+    "company_kiteaviation": [
+      {
+        "id": "stage-1",
+        "name": "Fresh",
+        "color": "#3B82F6",
+        "order": 1,
+        "category": "initial",
+        "winProbability": 10,
+        "isActive": true,
+        "tenantId": "company_kiteaviation"
+      },
+      {
+        "id": "stage-2",
+        "name": "Contacted",
+        "color": "#8B5CF6",
+        "order": 2,
+        "category": "active",
+        "winProbability": 25,
+        "isActive": true,
+        "tenantId": "company_kiteaviation"
+      },
+      {
+        "id": "stage-3",
+        "name": "Follow Up",
+        "color": "#F59E0B",
+        "order": 3,
+        "category": "active",
+        "winProbability": 40,
+        "isActive": true,
+        "tenantId": "company_kiteaviation"
+      },
+      {
+        "id": "stage-4",
+        "name": "Demo Scheduled",
+        "color": "#06B6D4",
+        "order": 4,
+        "category": "active",
+        "winProbability": 60,
+        "isActive": true,
+        "tenantId": "company_kiteaviation"
+      },
+      {
+        "id": "stage-5",
+        "name": "Proposal Sent",
+        "color": "#10B981",
+        "order": 5,
+        "category": "active",
+        "winProbability": 80,
+        "isActive": true,
+        "tenantId": "company_kiteaviation"
+      },
+      {
+        "id": "stage-6",
+        "name": "Converted",
+        "color": "#059669",
+        "order": 6,
+        "category": "closed",
+        "winProbability": 100,
+        "isActive": true,
+        "tenantId": "company_kiteaviation"
+      },
+      {
+        "id": "stage-7",
+        "name": "Lost",
+        "color": "#EF4444",
+        "order": 7,
+        "category": "closed",
+        "winProbability": 0,
+        "isActive": true,
+        "tenantId": "company_kiteaviation"
+      }
     ]
   },
   "fields": {
@@ -817,6 +889,85 @@
         "category": "Primary",
         "isHidden": false,
         "tenantId": "default_tenant"
+      }
+    ],
+    "company_kiteaviation": [
+      {
+        "id": "f-h1",
+        "name": "name",
+        "label": "Name",
+        "type": "text",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H1",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_kiteaviation"
+      },
+      {
+        "id": "f-h2",
+        "name": "phone",
+        "label": "Number",
+        "type": "phone",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H2",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_kiteaviation"
+      },
+      {
+        "id": "f-status",
+        "name": "status",
+        "label": "Status",
+        "type": "dropdown",
+        "options": [
+          "Fresh",
+          "Contacted",
+          "Follow Up",
+          "Demo Scheduled",
+          "Proposal Sent",
+          "Converted",
+          "Lost"
+        ],
+        "required": true,
+        "isPrimary": true,
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_kiteaviation"
+      },
+      {
+        "id": "f-deal-val",
+        "name": "deal_value",
+        "label": "Deal Value (₹)",
+        "type": "currency",
+        "required": false,
+        "category": "General",
+        "isHidden": false,
+        "tenantId": "company_kiteaviation"
+      },
+      {
+        "id": "f-source",
+        "name": "source",
+        "label": "Lead Source",
+        "type": "dropdown",
+        "options": [
+          "Facebook Ads",
+          "Google Ads",
+          "Meta Ads",
+          "IndiaMart",
+          "JustDial",
+          "WhatsApp",
+          "Website Inbound",
+          "Instagram",
+          "Referral",
+          "Direct"
+        ],
+        "required": false,
+        "isPrimary": true,
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_kiteaviation"
       }
     ]
   },

@@ -239,7 +239,7 @@ export const CallingLogsView: React.FC<CallingLogsViewProps> = ({ callRecords, o
 
       {/* AI Call Transcript, Recording & Assignee Remarks Modal */}
       {selectedCall && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4">
+        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-3 sm:p-4">
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
             {/* Modal Header */}
             <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">

@@ -115,7 +115,7 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
 
   if (!currentLead) {
     return (
-      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 font-sans font-normal">
+      <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 font-sans font-normal">
         <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-4 text-center animate-in fade-in">
           <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center mx-auto border border-slate-200">
             <PhoneCall className="w-6 h-6" />
@@ -176,7 +176,7 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-150 font-sans font-normal">
+    <div className="fixed inset-0 z-50 bg-slate-900/70 flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-150 font-sans font-normal">
       <div 
         className="w-full max-w-5xl bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[95vh]"
         onClick={e => e.stopPropagation()}
@@ -427,7 +427,7 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
 
       {/* WORKING INTERACTIVE AI SUMMARY MODAL */}
       {showAiSummaryModal && (
-        <div className="fixed inset-0 z-60 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-60 bg-slate-900/60 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 space-y-4 animate-in fade-in">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center space-x-2">
