@@ -51,11 +51,100 @@
     font-family: 'Merriweather', Georgia, Cambria, 'Times New Roman', Times, serif !important;
   }
 
-  /* Prevent auto-zoom on focus in iOS Safari for form fields */
+  /* Prevent auto-zoom on focus in iOS Safari for form fields while preserving compact dropdown options */
   @media (max-width: 768px) {
-    input, select, textarea {
+    input, textarea {
       font-size: 16px !important;
     }
+    select {
+      font-size: 14px !important;
+    }
+  }
+}
+
+/* ========================================================================== */
+/* MOBILE & DESKTOP OPTIMIZED DROPDOWN SYSTEM (<select>, <option>, <optgroup>) */
+/* ========================================================================== */
+select {
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  color: #0f172a !important;
+  background-color: #ffffff !important;
+  border-color: #cbd5e1;
+  border-radius: 0.75rem !important; /* rounded-xl */
+  cursor: pointer !important;
+  font-weight: 500 !important;
+  font-size: 13px !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%20%2364748b' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.75rem center !important;
+  background-size: 1rem !important;
+  padding-right: 2.25rem !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04) !important;
+}
+
+select:focus {
+  outline: none !important;
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15) !important;
+}
+
+/* Option item styling across browsers & mobile webviews */
+select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 8px 12px !important;
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  line-height: 1.4 !important;
+}
+
+select option:hover,
+select option:focus,
+select option:active,
+select option:checked {
+  background-color: #e0e7ff !important; /* indigo-100 */
+  color: #3730a3 !important; /* indigo-900 */
+  font-weight: 600 !important;
+}
+
+select optgroup {
+  background-color: #f8fafc !important;
+  color: #475569 !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  padding: 6px 10px !important;
+}
+
+/* Optimized Mobile Date & Time Input Elements */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"] {
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  color: #0f172a !important;
+  background-color: #ffffff !important;
+  border-color: #cbd5e1;
+  border-radius: 0.75rem !important;
+  cursor: pointer !important;
+  font-weight: 500 !important;
+  font-size: 13px !important;
+}
+
+@media (max-width: 768px) {
+  select {
+    font-size: 14px !important;
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+  select option {
+    font-size: 13px !important;
+    padding: 8px 10px !important;
   }
 }
 

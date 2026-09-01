@@ -2045,8 +2045,8 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                   className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-600 cursor-pointer"
                 >
                   {agents.map((agent) => (
-                    <option key={agent.id} value={agent.id}>
-                      {agent.name}
+                    <option key={agent.id} value={agent.id} className="bg-white text-slate-900 font-medium py-1">
+                      {agent.name} {agent.role ? `(${agent.role})` : ''}
                     </option>
                   ))}
                 </select>
@@ -2113,9 +2113,9 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                     onChange={(e) => setFollowUpAssigneeId(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#5034a8] cursor-pointer font-sans"
                   >
-                    <option value="">Select Assignee</option>
+                    <option value="" className="bg-white text-slate-500 font-medium">Select Assignee</option>
                     {agents.map((ag) => (
-                      <option key={ag.id} value={ag.id}>
+                      <option key={ag.id} value={ag.id} className="bg-white text-slate-900 font-medium py-1">
                         {ag.name} ({ag.role})
                       </option>
                     ))}

@@ -608,13 +608,13 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
                   }}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 cursor-pointer font-sans font-medium"
                 >
-                  <option value="" className="font-sans">Choose a Lead</option>
+                  <option value="" className="bg-white text-slate-500 font-medium">Choose a Lead</option>
                   {(isAdmin
                     ? leads
                     : leads.filter((l) => l.ownerAgentId === activeAgent?.id || l.ownerAgentName === activeAgent?.name)
                   ).map((l) => (
-                    <option key={l.id} value={l.id} className="font-sans">
-                      {l.name} - {l.phone} ({l.company || l.source}) {l.ownerAgentName ? `[${l.ownerAgentName}]` : ''}
+                    <option key={l.id} value={l.id} className="bg-white text-slate-900 font-medium py-1">
+                      {l.name} {l.phone ? `(${l.phone})` : ''}
                     </option>
                   ))}
                 </select>
@@ -632,9 +632,9 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
                     onChange={(e) => setModalAssigneeId(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#3a2088] cursor-pointer font-sans"
                   >
-                    <option value="">Select Assignee</option>
+                    <option value="" className="bg-white text-slate-500 font-medium">Select Assignee</option>
                     {agents.map((ag) => (
-                      <option key={ag.id} value={ag.id}>
+                      <option key={ag.id} value={ag.id} className="bg-white text-slate-900 font-medium py-1">
                         {ag.name} ({ag.role})
                       </option>
                     ))}

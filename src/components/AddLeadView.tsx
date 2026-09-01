@@ -723,14 +723,14 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
                       onChange={(e) => setLeadSource(e.target.value as LeadSource)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-indigo-500"
                     >
-                      <option value="Facebook Ads">Facebook Ads</option>
-                      <option value="Google Ads">Google Ads</option>
-                      <option value="WhatsApp">WhatsApp</option>
-                      <option value="Website Form">Website Form</option>
-                      <option value="IndiaMart">IndiaMart</option>
-                      <option value="JustDial">JustDial</option>
-                      <option value="Referral">Referral</option>
-                      <option value="Other">Other</option>
+                      <option value="Facebook Ads" className="bg-white text-slate-900 font-medium py-1">Facebook Ads</option>
+                      <option value="Google Ads" className="bg-white text-slate-900 font-medium py-1">Google Ads</option>
+                      <option value="WhatsApp" className="bg-white text-slate-900 font-medium py-1">WhatsApp</option>
+                      <option value="Website Form" className="bg-white text-slate-900 font-medium py-1">Website Form</option>
+                      <option value="IndiaMart" className="bg-white text-slate-900 font-medium py-1">IndiaMart</option>
+                      <option value="JustDial" className="bg-white text-slate-900 font-medium py-1">JustDial</option>
+                      <option value="Referral" className="bg-white text-slate-900 font-medium py-1">Referral</option>
+                      <option value="Other" className="bg-white text-slate-900 font-medium py-1">Other</option>
                     </select>
                   </div>
 
@@ -741,12 +741,12 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
                       onChange={(e) => setLeadStatus(e.target.value as LeadStatus)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-indigo-500"
                     >
-                      <option value="New Lead">New Lead</option>
-                      <option value="Contacted">Contacted</option>
-                      <option value="Follow-Up Scheduled">Follow-Up Scheduled</option>
-                      <option value="Interested">Interested</option>
-                      <option value="Converted">Converted</option>
-                      <option value="Lost">Lost</option>
+                      <option value="New Lead" className="bg-white text-slate-900 font-medium py-1">New Lead</option>
+                      <option value="Contacted" className="bg-white text-slate-900 font-medium py-1">Contacted</option>
+                      <option value="Follow-Up Scheduled" className="bg-white text-slate-900 font-medium py-1">Follow-Up Scheduled</option>
+                      <option value="Interested" className="bg-white text-slate-900 font-medium py-1">Interested</option>
+                      <option value="Converted" className="bg-white text-slate-900 font-medium py-1">Converted</option>
+                      <option value="Lost" className="bg-white text-slate-900 font-medium py-1">Lost</option>
                     </select>
                   </div>
                 </div>
@@ -767,9 +767,9 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
                     onChange={(e) => setAssignedAgentId(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 font-medium focus:outline-none focus:border-indigo-500"
                   >
-                    <option value="">Auto-Assign to Me ({activeAgent?.name || 'Creator'})</option>
+                    <option value="" className="bg-white text-slate-500 font-medium">Auto-Assign to Me ({activeAgent?.name || 'Creator'})</option>
                     {agents.map((agent) => (
-                      <option key={agent.id} value={agent.id}>
+                      <option key={agent.id} value={agent.id} className="bg-white text-slate-900 font-medium py-1">
                         {agent.name}
                       </option>
                     ))}
