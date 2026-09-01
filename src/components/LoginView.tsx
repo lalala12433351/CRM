@@ -111,20 +111,20 @@ export const LoginView: React.FC<LoginViewProps> = ({ agents, onLogin, onSwitchT
               </div>
             )}
 
-            {/* Standard Credentials Form (Exact Pill Styling from Reference) */}
-            <form onSubmit={handleFormSubmit} className="space-y-4">
+            {/* Standard Credentials Form */}
+            <form onSubmit={handleFormSubmit} noValidate className="space-y-4">
               
-              {/* Email Pill Input */}
+              {/* Username / Email Pill Input */}
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
                   <Mail className="w-4 h-4 stroke-[1.8]" />
                 </div>
                 <input
-                  type="email"
+                  type="text"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Email Address"
+                  placeholder="Email or Username (e.g. admin@kiteaviation)"
                   className="w-full pl-11 pr-4 py-3.5 rounded-full border border-gray-200 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-normal bg-white"
                 />
               </div>
