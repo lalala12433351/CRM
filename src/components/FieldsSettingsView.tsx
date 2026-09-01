@@ -404,17 +404,17 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
       {/* =========================================================== */}
       {/* FRESH LEAD RESPONSE TIMER CONFIG CARD                        */}
       {/* =========================================================== */}
-      <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl border border-orange-200/80 p-4 shadow-2xs font-sans">
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-2xs font-sans">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-start space-x-3">
-            <div className="w-9 h-9 rounded-xl bg-orange-100 border border-orange-200 flex items-center justify-center shrink-0">
-              <Timer className="w-4 h-4 text-orange-600" />
+            <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center shrink-0">
+              <Timer className="w-4 h-4 text-indigo-600" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 Fresh Lead Response Timer
                 {(existingTimerRecord?.freshLeadTimerMinutes ?? 0) > 0 && (
-                  <span className="px-2 py-0.5 rounded-full bg-orange-100 border border-orange-200 text-orange-700 text-[10px] font-bold">
+                  <span className="px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px] font-bold">
                     {existingTimerRecord?.freshLeadTimerMinutes}m active
                   </span>
                 )}
@@ -431,10 +431,14 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
                 type="number"
                 min={0}
                 max={1440}
-                value={timerMinutes}
-                onChange={(e) => setTimerMinutes(Number(e.target.value))}
-                className="w-24 bg-white border border-orange-300 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 text-center focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
-                placeholder="30"
+                value={timerMinutes === 0 ? '' : timerMinutes}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setTimerMinutes(val === '' ? 0 : Math.max(0, Math.min(1440, Number(val))));
+                }}
+                className="w-24 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 text-center focus:outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all"
+                placeholder="0"
               />
               <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-semibold pointer-events-none">min</span>
             </div>
@@ -443,7 +447,7 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
               className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm ${
                 timerSaved
                   ? 'bg-emerald-500 text-white shadow-emerald-200'
-                  : 'bg-orange-500 hover:bg-orange-600 text-white shadow-orange-200'
+                  : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200'
               }`}
             >
               {timerSaved ? (
@@ -457,9 +461,9 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
 
         {/* Visual preview */}
         {timerMinutes > 0 && (
-          <div className="mt-3 pt-3 border-t border-orange-200/60 flex items-center space-x-2">
+          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center space-x-2">
             <span className="text-[11px] text-slate-500 font-medium">Preview in leads table:</span>
-            <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-orange-500 text-white text-[11px] font-bold shadow-sm shadow-orange-300/40 animate-pulse">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-600 text-white text-[11px] font-bold shadow-sm shadow-indigo-300/40">
               <Timer className="w-3 h-3" />
               <span>{timerMinutes}m left · Call now</span>
             </span>
