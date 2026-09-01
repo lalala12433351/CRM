@@ -115,8 +115,6 @@ export async function loginWithApi(email: string, password?: string): Promise<{ 
     const data = await response.json();
 
     if (response.ok && data.success && data.user) {
-      if (data.token) localStorage.setItem(TOKEN_KEY, data.token);
-      localStorage.setItem(USER_KEY, JSON.stringify(data.user));
       return { success: true, user: data.user };
     }
 
@@ -129,7 +127,7 @@ export async function loginWithApi(email: string, password?: string): Promise<{ 
     const isCorrectPassword = inputPass === ALLOWED_PASSWORD || inputPass === 'admin@123';
 
     if (!isCorrectEmail || !isCorrectPassword) {
-      return { success: false, error: 'Invalid email or password.' };
+      return { success: false, error: 'Invalid email or password. Access is restricted to admin@kiteaviation.' };
     }
 
     // Credentials match — build the admin session
@@ -150,73 +148,21 @@ export async function loginWithApi(email: string, password?: string): Promise<{ 
       responseTimeMinutes: 0,
     };
 
-    localStorage.setItem(TOKEN_KEY, `token_kiteaviation_admin`);
-    localStorage.setItem(USER_KEY, JSON.stringify(adminUser));
     return { success: true, user: adminUser };
   }
 }
 
 export async function verifyCurrentSession(): Promise<Agent | null> {
-  const token = localStorage.getItem(TOKEN_KEY);
-  if (!token) {
-    const storedUser = localStorage.getItem(USER_KEY);
-    if (storedUser) {
-      try {
-        return JSON.parse(storedUser) as Agent;
-      } catch (e) {
-        return null;
-      }
-    }
-    return null;
-  }
-
-  try {
-    const response = await fetch('/api/auth/me', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      if (data.success && data.user) {
-        localStorage.setItem(USER_KEY, JSON.stringify(data.user));
-        return data.user as Agent;
-      }
-    }
-  } catch (e) {
-    console.warn('⚠️ Session verification notice:', e);
-  }
-
-  const storedUser = localStorage.getItem(USER_KEY);
-  if (storedUser) {
-    try {
-      return JSON.parse(storedUser) as Agent;
-    } catch (e) {
-      return null;
-    }
-  }
-
   return null;
 }
 
 export async function logoutWithApi(): Promise<void> {
-  const token = localStorage.getItem(TOKEN_KEY);
-  if (token) {
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-    } catch (e) {
-      console.warn('Logout API notice:', e);
-    }
-  }
-
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+  } catch (e) {}
 }
 
 export function getAuthHeaders(): Record<string, string> {
