@@ -154,15 +154,22 @@ export class AuthService {
 
   public async loginUser(email: string, password?: string) {
     const targetEmail = (email || '').trim().toLowerCase();
-    if (!targetEmail) throw new Error('Email address is required.');
-    const inputPass = (password || '').trim();
+    const inputPass   = (password || '').trim();
 
-    // 1. Check Kite Aviation Admin
-    if (targetEmail === 'admin@kiteaviation') {
-      if (inputPass !== 'admin' && inputPass !== 'admin@123') {
-        throw new Error('Invalid password for admin@kiteaviation.');
+    if (!targetEmail) {
+      throw new Error('Email address is required.');
+    }
+    if (!inputPass) {
+      throw new Error('Password is required.');
+    }
+
+    // 1. Kite Aviation Master Admin
+    if (targetEmail === 'admin@kiteaviation' || targetEmail === 'admin@kiteaviation.com') {
+      const isValidAdminPass = inputPass === 'admin' || inputPass === 'admin@123';
+      if (!isValidAdminPass) {
+        throw new Error('Invalid password. Incorrect credentials for admin@kiteaviation.');
       }
-      let kiteUser = AUTH_USERS.find(u => u.email.toLowerCase() === 'admin@kiteaviation');
+      let kiteUser = AUTH_USERS.find(u => u.email.toLowerCase() === 'admin@kiteaviation' || u.email.toLowerCase() === 'admin@kiteaviation.com');
       if (!kiteUser) {
         kiteUser = {
           id: 'agent_kiteaviation_admin',
@@ -189,10 +196,10 @@ export class AuthService {
       return { token, user: kiteUser };
     }
 
-    // 2. Check in-memory AUTH_USERS
+    // 2. Check registered users in-memory
     let user = AUTH_USERS.find((u) => u.email.toLowerCase() === targetEmail);
 
-    // 3. Check local multi-tenant database store (tenants & agents)
+    // 3. Check registered tenants/agents in multiTenantDb
     if (!user) {
       const tenantMatch = multiTenantDb.getTenantByOwnerEmail(targetEmail);
       if (tenantMatch) {
@@ -242,12 +249,20 @@ export class AuthService {
     }
 
     if (!user) {
-      throw new Error(`Invalid email or password. Account "${targetEmail}" is not registered in the database.`);
+      throw new Error(`Invalid email or password. User "${targetEmail}" does not exist in the database.`);
+    }
+
+    // Require valid password matching 'admin', 'admin@123', or user's stored password
+    const expectedPass = (user as any).password || 'admin';
+    const isPassValid  = inputPass === expectedPass || inputPass === 'admin' || inputPass === 'admin@123';
+
+    if (!isPassValid) {
+      throw new Error(`Invalid password for "${targetEmail}". Please check your password.`);
     }
 
     const token = `pixbe_token_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     activeSessions.set(token, user);
-    logger.info(`✅ Authenticated Database User: ${user.name} (${user.email}) -> Role: ${user.isAdmin ? 'Admin' : 'Employee'} [Tenant: ${user.tenantId}]`);
+    logger.info(`✅ Authenticated User: ${user.name} (${user.email}) -> Role: ${user.isAdmin ? 'Admin' : 'Employee'} [Tenant: ${user.tenantId}]`);
     return { token, user };
   }
 
