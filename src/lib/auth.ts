@@ -100,49 +100,57 @@ export async function registerClientAccount(payload: RegisterPayload): Promise<{
 }
 
 export async function loginWithApi(email: string, password?: string): Promise<{ success: boolean; user?: Agent; error?: string }> {
+  // ── Hardcoded allowed admin credentials ──────────────────────────────────
+  const ALLOWED_EMAIL    = 'admin@kiteaviation';
+  const ALLOWED_PASSWORD = 'admin';
+  // ─────────────────────────────────────────────────────────────────────────
+
   try {
     const response = await fetch('/api/auth/login', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
 
     const data = await response.json();
 
     if (response.ok && data.success && data.user) {
-      if (data.token) {
-        localStorage.setItem(TOKEN_KEY, data.token);
-      }
+      if (data.token) localStorage.setItem(TOKEN_KEY, data.token);
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
       return { success: true, user: data.user };
     }
 
-    return { success: false, error: data.error || 'Authentication failed' };
+    return { success: false, error: data.error || 'Invalid email or password.' };
   } catch (err: any) {
-    console.warn('⚠️ Server auth endpoint unreachable, executing offline fallback:', err?.message || err);
-    const emailDomain = email.split('@')[1]?.split('.')[0] || 'Company';
-    const fallbackCompany = emailDomain.charAt(0).toUpperCase() + emailDomain.slice(1);
-    const fallbackUser: Agent = {
-      id: `agent_${Date.now()}`,
-      name: email.split('@')[0].toUpperCase(),
-      email,
-      phone: '+91 98765 43210',
-      companyName: fallbackCompany,
+    // Server unreachable — validate against the single allowed admin account only
+    const isCorrectEmail    = email.trim().toLowerCase() === ALLOWED_EMAIL.toLowerCase();
+    const isCorrectPassword = (password || '') === ALLOWED_PASSWORD;
+
+    if (!isCorrectEmail || !isCorrectPassword) {
+      return { success: false, error: 'Invalid email or password.' };
+    }
+
+    // Credentials match — build the admin session
+    const adminUser: Agent = {
+      id: 'agent_kiteaviation_admin',
+      name: 'Kite Aviation Admin',
+      email: ALLOWED_EMAIL,
+      phone: '',
+      companyName: 'Kite Aviation',
       role: 'Admin',
       isAdmin: true,
       status: 'online',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250',
+      avatar: '',
       totalCallsToday: 0,
       talkTimeMinutes: 0,
       convertedLeadsCount: 0,
       revenueGenerated: 0,
-      responseTimeMinutes: 1.0
+      responseTimeMinutes: 0,
     };
-    localStorage.setItem(TOKEN_KEY, `token_${Date.now()}`);
-    localStorage.setItem(USER_KEY, JSON.stringify(fallbackUser));
-    return { success: true, user: fallbackUser };
+
+    localStorage.setItem(TOKEN_KEY, `token_kiteaviation_admin`);
+    localStorage.setItem(USER_KEY, JSON.stringify(adminUser));
+    return { success: true, user: adminUser };
   }
 }
 
