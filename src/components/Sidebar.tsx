@@ -18,7 +18,10 @@ import {
   Webhook,
   PhoneCall,
   UserCheck,
-  ChevronDown
+  ChevronDown,
+  FileText,
+  Code,
+  LayoutGrid
 } from 'lucide-react';
 import { ReportsSubTab } from './ReportsView';
 import { AutomationsSubTab } from './WorkflowsView';
@@ -180,7 +183,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-slate-600 hover:text-indigo-700 hover:bg-indigo-50/60 font-medium cursor-pointer"
                               >
                                 <Calendar className="w-3.5 h-3.5 text-indigo-500" />
-                                <span>Drip Schedules</span>
+                                <span>Schedules</span>
+                              </button>
+                              <button
+                                onClick={() => setActiveTab('workflows', 'salesform')}
+                                className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-slate-600 hover:text-indigo-700 hover:bg-indigo-50/60 font-medium cursor-pointer"
+                              >
+                                <FileText className="w-3.5 h-3.5 text-indigo-500" />
+                                <span>Salesforms</span>
+                              </button>
+                              <button
+                                onClick={() => setActiveTab('workflows', 'api_templates')}
+                                className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-slate-600 hover:text-indigo-700 hover:bg-indigo-50/60 font-medium cursor-pointer"
+                              >
+                                <Code className="w-3.5 h-3.5 text-indigo-500" />
+                                <span>API Templates</span>
                               </button>
                               <button
                                 onClick={() => setActiveTab('workflows', 'webhooks')}
@@ -188,6 +205,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               >
                                 <Webhook className="w-3.5 h-3.5 text-indigo-500" />
                                 <span>Webhooks</span>
+                              </button>
+                              <button
+                                onClick={() => setActiveTab('workflows', 'apps')}
+                                className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-slate-600 hover:text-indigo-700 hover:bg-indigo-50/60 font-medium cursor-pointer"
+                              >
+                                <LayoutGrid className="w-3.5 h-3.5 text-indigo-500" />
+                                <span>Apps</span>
                               </button>
                             </div>
                           )}
