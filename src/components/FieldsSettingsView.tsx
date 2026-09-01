@@ -33,7 +33,6 @@ import {
   ExternalLink,
   Lock,
   Layers,
-  Timer,
   Save
 } from 'lucide-react';
 import { CustomFieldDef, CustomFieldType, Agent, isAgentAdmin } from '../types';
@@ -96,43 +95,13 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
   const [fieldOptions, setFieldOptions] = useState<string[]>([]);
   const [optionInput, setOptionInput] = useState('');
 
-  // Fresh Lead Timer Config (stored as sentinel record in customFields)
-  const TIMER_SENTINEL_ID = '__fresh_lead_timer__';
-  const existingTimerRecord = customFields.find((f) => f.id === TIMER_SENTINEL_ID);
-  const [timerMinutes, setTimerMinutes] = useState<number>(existingTimerRecord?.freshLeadTimerMinutes ?? 30);
-  const [timerSaved, setTimerSaved] = useState(false);
-
-  const handleSaveTimerConfig = () => {
-    if (!isAdmin) {
-      onShowToast('Access Restricted: Only Admin accounts can change timer settings.');
-      return;
-    }
-    const mins = Math.max(0, Math.round(timerMinutes));
-    const sentinelRecord: CustomFieldDef = {
-      id: TIMER_SENTINEL_ID,
-      name: TIMER_SENTINEL_ID,
-      label: 'Fresh Lead Timer',
-      type: 'number',
-      required: false,
-      isHidden: true, // Hidden from normal field lists
-      freshLeadTimerMinutes: mins,
-    };
-    const withoutSentinel = customFields.filter((f) => f.id !== TIMER_SENTINEL_ID);
-    onUpdateFields([...withoutSentinel, sentinelRecord]);
-    setTimerSaved(true);
-    setTimeout(() => setTimerSaved(false), 2500);
-    onShowToast(mins === 0
-      ? 'Fresh Lead Timer disabled.'
-      : `Fresh Lead Timer set to ${mins} minutes.`);
-  };
-
   // Primary Fields H1 and H2
   const h1Field = customFields.find((f) => f.primarySlot === 'H1') || customFields.find((f) => f.name === 'name') || customFields[0];
   const h2Field = customFields.find((f) => f.primarySlot === 'H2') || customFields.find((f) => f.name === 'phone') || customFields[1];
 
-  // Other Fields (excluding H1, H2, and the internal timer sentinel record)
+  // Other Fields (excluding H1 and H2)
   const otherFields = useMemo(() => {
-    return customFields.filter((f) => f.primarySlot !== 'H1' && f.primarySlot !== 'H2' && f.id !== '__fresh_lead_timer__');
+    return customFields.filter((f) => f.primarySlot !== 'H1' && f.primarySlot !== 'H2');
   }, [customFields]);
 
   // Filtered & Sorted Other Fields
@@ -254,6 +223,8 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
       return;
     }
 
+    const nowIso = new Date().toISOString();
+
     if (editingField) {
       // Update existing
       const updatedList = customFields.map((f) => {
@@ -270,7 +241,7 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
             placeholder: fieldPlaceholder.trim(),
             description: fieldDescription.trim(),
             options: (fieldType === 'dropdown' || fieldType === 'multiselect') ? fieldOptions : undefined,
-            lastModified: 'Just now',
+            lastModified: nowIso,
           };
         }
         return f;
@@ -291,8 +262,8 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
         placeholder: fieldPlaceholder.trim(),
         description: fieldDescription.trim(),
         options: (fieldType === 'dropdown' || fieldType === 'multiselect') ? fieldOptions : undefined,
-        createdOn: 'Just now',
-        lastModified: 'Just now',
+        createdOn: nowIso,
+        lastModified: nowIso,
         isHidden: false,
       };
       onUpdateFields([...customFields, newField]);
@@ -307,11 +278,12 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
       onShowToast('Access Restricted: Only Admin accounts can change lead field status.');
       return;
     }
+    const nowIso = new Date().toISOString();
     const updated = customFields.map((f) => {
       if (f.id === field.id) {
         const nextState = !f.isHidden;
         onShowToast(nextState ? `Field "${f.label}" hidden from CRM` : `Field "${f.label}" unhidden and active!`);
-        return { ...f, isHidden: nextState, lastModified: 'Just now' };
+        return { ...f, isHidden: nextState, lastModified: nowIso };
       }
       return f;
     });
@@ -331,12 +303,13 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
   };
 
   const handleAssignSlot = (slot: 'H1' | 'H2', targetFieldId: string) => {
+    const nowIso = new Date().toISOString();
     const updated = customFields.map((f) => {
       if (f.id === targetFieldId) {
-        return { ...f, primarySlot: slot, isPrimary: true, isHidden: false, lastModified: 'Just now' };
+        return { ...f, primarySlot: slot, isPrimary: true, isHidden: false, lastModified: nowIso };
       }
       if (f.primarySlot === slot && f.id !== targetFieldId) {
-        return { ...f, primarySlot: null, isPrimary: false, lastModified: 'Just now' };
+        return { ...f, primarySlot: null, isPrimary: false, lastModified: nowIso };
       }
       return f;
     });
@@ -352,6 +325,18 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
       setSortField(col);
       setSortDirection('asc');
     }
+  };
+
+  const formatDateDisplay = (dateStr?: string) => {
+    if (!dateStr) return '—';
+    if (dateStr.includes('ago') || dateStr === 'Just now') return dateStr;
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
   };
 
   const renderFieldIcon = (_type: CustomFieldType) => {
@@ -399,76 +384,6 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
             <span>Add Field</span>
           </button>
         </div>
-      </div>
-
-      {/* =========================================================== */}
-      {/* FRESH LEAD RESPONSE TIMER CONFIG CARD                        */}
-      {/* =========================================================== */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-2xs font-sans">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-start space-x-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center shrink-0">
-              <Timer className="w-4 h-4 text-indigo-600" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                Fresh Lead Response Timer
-                {(existingTimerRecord?.freshLeadTimerMinutes ?? 0) > 0 && (
-                  <span className="px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px] font-bold">
-                    {existingTimerRecord?.freshLeadTimerMinutes}m active
-                  </span>
-                )}
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                When a new lead arrives a live countdown badge is shown in the leads table. Set 0 to disable.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-2 shrink-0">
-            <div className="relative">
-              <input
-                type="number"
-                min={0}
-                max={1440}
-                value={timerMinutes === 0 ? '' : timerMinutes}
-                onFocus={(e) => e.target.select()}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setTimerMinutes(val === '' ? 0 : Math.max(0, Math.min(1440, Number(val))));
-                }}
-                className="w-24 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 text-center focus:outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all"
-                placeholder="0"
-              />
-              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-semibold pointer-events-none">min</span>
-            </div>
-            <button
-              onClick={handleSaveTimerConfig}
-              className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm ${
-                timerSaved
-                  ? 'bg-emerald-500 text-white shadow-emerald-200'
-                  : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200'
-              }`}
-            >
-              {timerSaved ? (
-                <><Check className="w-3.5 h-3.5" /><span>Saved!</span></>
-              ) : (
-                <><Save className="w-3.5 h-3.5" /><span>Save</span></>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Visual preview */}
-        {timerMinutes > 0 && (
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center space-x-2">
-            <span className="text-[11px] text-slate-500 font-medium">Preview in leads table:</span>
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-600 text-white text-[11px] font-bold shadow-sm shadow-indigo-300/40">
-              <Timer className="w-3 h-3" />
-              <span>{timerMinutes}m left · Call now</span>
-            </span>
-          </div>
-        )}
       </div>
 
       {/* 2. UNIQUE IDENTIFIER BANNER CARD */}
@@ -628,21 +543,48 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-normal uppercase tracking-wider text-[11px]">
+                <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-medium uppercase tracking-wider text-[11px]">
                   <th 
                     onClick={() => toggleSort('label')}
-                    className="py-3 px-4 cursor-pointer hover:text-slate-900 transition-colors select-none"
+                    className="py-3 px-4 cursor-pointer hover:text-slate-900 transition-colors select-none font-medium"
                   >
-                    <span>Field Name</span>
+                    <div className="flex items-center space-x-1">
+                      <span>Field Name</span>
+                      {sortField === 'label' && (
+                        <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                    </div>
                   </th>
-                  <th className="py-3 px-4">Type</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th className="py-3 px-4 font-medium">Type</th>
+                  <th 
+                    onClick={() => toggleSort('createdOn')}
+                    className="py-3 px-4 cursor-pointer hover:text-slate-900 transition-colors select-none font-medium whitespace-nowrap"
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Creation Date</span>
+                      {sortField === 'createdOn' && (
+                        <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => toggleSort('lastModified')}
+                    className="py-3 px-4 cursor-pointer hover:text-slate-900 transition-colors select-none font-medium whitespace-nowrap"
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Last Modified</span>
+                      {sortField === 'lastModified' && (
+                        <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                    </div>
+                  </th>
+                  <th className="py-3 px-4 text-right font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredFields.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="py-12 text-center text-slate-400">
+                    <td colSpan={5} className="py-12 text-center text-slate-400">
                       <div className="max-w-sm mx-auto space-y-2">
                         <p className="text-sm font-semibold text-slate-700">No matching fields found</p>
                         <p className="text-xs text-slate-400">Try adjusting your search query or filter criteria.</p>
@@ -659,25 +601,25 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
                         key={field.id} 
                         className={`hover:bg-slate-50/80 transition-colors ${field.isHidden ? 'opacity-60 bg-slate-50/40' : ''}`}
                       >
-                        {/* Field Name */}
+                        {/* Field Name (Non-bold, clean styling) */}
                         <td className="py-3 px-4">
                           <div>
                             <div className="flex items-center space-x-2">
-                              <span className="font-semibold text-slate-900 text-sm">
+                              <span className="font-normal text-slate-800 text-sm">
                                 {field.label}
                               </span>
                               {field.required && (
-                                <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold">
+                                <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-medium">
                                   Required
                                 </span>
                               )}
                               {field.isUnique && (
-                                <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold">
+                                <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-medium">
                                   Unique
                                 </span>
                               )}
                               {field.isHidden && (
-                                <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 text-[10px] font-bold">
+                                <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 text-[10px] font-medium">
                                   Hidden
                                 </span>
                               )}
@@ -700,13 +642,27 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
                           </span>
                         </td>
 
+                        {/* Creation Date Column */}
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <span className="text-slate-600 text-xs font-normal">
+                            {formatDateDisplay(field.createdOn)}
+                          </span>
+                        </td>
+
+                        {/* Last Modified Column */}
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <span className="text-slate-600 text-xs font-normal">
+                            {formatDateDisplay(field.lastModified)}
+                          </span>
+                        </td>
+
                         {/* Actions */}
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end space-x-2 text-xs">
                             {/* Edit */}
                             <button
                               onClick={() => handleOpenEditModal(field)}
-                              className="font-semibold text-slate-700 hover:text-indigo-600 transition-colors cursor-pointer"
+                              className="font-medium text-slate-700 hover:text-indigo-600 transition-colors cursor-pointer"
                               title="Edit Field Configuration"
                             >
                               Edit
@@ -717,7 +673,7 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
                             {/* Hide / Unhide */}
                             <button
                               onClick={() => handleToggleHideField(field)}
-                              className={`font-semibold transition-colors cursor-pointer ${
+                              className={`font-medium transition-colors cursor-pointer ${
                                 field.isHidden
                                   ? 'text-indigo-600 hover:text-indigo-800'
                                   : 'text-slate-700 hover:text-rose-600'
@@ -733,13 +689,9 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
                                 <span className="text-slate-300">|</span>
                                 <button
                                   onClick={() => {
-                                    if (!isAdmin) {
-                                      onShowToast('Access Restricted: Only Admin accounts can delete lead fields.');
-                                      return;
-                                    }
                                     setFieldToDelete(field);
                                   }}
-                                  className="font-semibold text-rose-500 hover:text-rose-700 transition-colors cursor-pointer"
+                                  className="font-medium text-rose-600 hover:text-rose-800 transition-colors cursor-pointer"
                                   title="Delete Field"
                                 >
                                   Delete

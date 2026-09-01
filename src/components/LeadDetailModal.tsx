@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useRef, useEffect } from 'react';
 import { 
   X, 
   PhoneCall, 
@@ -55,7 +55,8 @@ import {
   Paperclip,
   IndianRupee,
   PhoneOutgoing,
-  CalendarPlus
+  CalendarPlus,
+  Eye
 } from 'lucide-react';
 import { Lead, ActivityLog, WhatsAppMessage, CallRecord, Agent, LeadStatus } from '../types';
 import { calculateLeadQualityScore } from '../utils/conversionEngine';
@@ -79,6 +80,9 @@ interface LeadDetailModalProps {
   onSendMessage: (leadId: string, text: string) => void;
   onDeleteLead?: (leadId: string) => void;
   onUpdateCallRecord?: (callId: string, updates: Partial<CallRecord>) => void;
+  lostReasons?: string[];
+  isEmbedded?: boolean;
+  campaignHandle?: string;
 }
 
 export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
@@ -96,6 +100,9 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   onSendMessage,
   onDeleteLead,
   onUpdateCallRecord,
+  lostReasons,
+  isEmbedded = false,
+  campaignHandle,
 }) => {
   if (!lead) return null;
 
@@ -290,6 +297,19 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   const [showCampaignMenu, setShowCampaignMenu] = useState(false);
   const [showTagMenu, setShowTagMenu] = useState(false);
   const [showAssigneeMenu, setShowAssigneeMenu] = useState(false);
+  const [isLostReasonMenuOpen, setIsLostReasonMenuOpen] = useState(false);
+  const lostReasonDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (lostReasonDropdownRef.current && !lostReasonDropdownRef.current.contains(e.target as Node)) {
+        setIsLostReasonMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const [campaignSearch, setCampaignSearch] = useState('');
   const [isAddingCampaign, setIsAddingCampaign] = useState(false);
 
@@ -605,28 +625,45 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
     return `${Math.round(diffHours/24)}d`;
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
-      {/* Subtle Gray Backdrop */}
-      <div 
-        onClick={onClose}
-        className="fixed inset-0 bg-slate-900/20 transition-opacity z-40 cursor-pointer"
-      />
+  const renderDrawerContent = () => (
+    <div className={`flex-1 w-full h-full bg-[#fafafa] flex flex-col overflow-hidden relative ${isEmbedded ? 'rounded-xl border border-slate-200/90 shadow-2xs' : 'shadow-2xl border-l border-slate-200'}`}>
+      
+      {/* Top Navigation Bar */}
+      {isEmbedded ? (
+        <div className="flex items-center justify-between px-3.5 py-2.5 bg-white border-b border-slate-200 z-10 shrink-0">
+          {campaignHandle ? (
+            <span className="px-2.5 py-1 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-mono font-bold truncate max-w-[200px]">
+              {campaignHandle}
+            </span>
+          ) : (
+            <span className="text-xs font-bold text-slate-800 truncate max-w-[160px]">{lead.name}</span>
+          )}
 
-      {/* Wrapper for Drawer and Buttons */}
-      <div className="relative w-full lg:w-[65%] xl:w-[60%] max-w-6xl h-full flex flex-col z-50 font-sans animate-in slide-in-from-right duration-300">
-        
-        {/* Floating Close Button */}
-        <button 
-          onClick={onClose} 
-          className="absolute -left-14 top-4 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-all cursor-pointer hidden md:flex z-50"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        {/* Main Drawer Panel */}
-        <div className="flex-1 w-full h-full bg-[#fafafa] flex flex-col overflow-hidden shadow-2xl border-l border-slate-200 relative">
-          
+          <div className="flex items-center space-x-1.5 text-xs font-semibold text-slate-600">
+            <button onClick={handlePrevLead} className="px-2 py-1 hover:text-slate-900 rounded-lg bg-slate-50 border border-slate-200 flex items-center space-x-1 cursor-pointer">
+              <ChevronLeft className="w-3.5 h-3.5" />
+              <span>Prev</span>
+            </button>
+            <span className="px-1.5 text-[11px] text-slate-700 font-mono">
+              {currentIndex + 1} of {totalLeadsCount}
+            </span>
+            <button onClick={handleNextLead} className="px-2.5 py-1 bg-[#3a2088] hover:bg-[#2c186b] text-white rounded-lg flex items-center space-x-1 cursor-pointer shadow-2xs active:scale-95 transition-all">
+              <PhoneCall className="w-3.5 h-3.5" />
+              <span>Next</span>
+            </button>
+            {onClose && (
+              <button 
+                onClick={onClose} 
+                className="p-1 text-slate-400 hover:text-indigo-600 rounded cursor-pointer ml-1" 
+                title="Expand full lead record"
+              >
+                <Eye className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <>
           {/* Mobile Top Close Header with Prev/Next Navigation */}
           <div className="md:hidden flex items-center justify-between px-3 py-2 bg-white border-b border-slate-200 z-20 shrink-0">
             <button 
@@ -658,11 +695,12 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
              <span>Next</span> <ChevronRight className="w-3.5 h-3.5"/>
            </button>
           </div>
+        </>
+      )}
 
-        {/* Scrollable Feed Container */}
-        <div className="flex-1 overflow-y-auto ios-scroll">
-          
-          <div className="max-w-4xl mx-auto pt-12 sm:pt-16 px-3 sm:px-8 pb-12">
+      {/* Scrollable Feed Container */}
+      <div className="flex-1 overflow-y-auto ios-scroll">
+        <div className={`max-w-4xl mx-auto px-3 sm:px-6 pb-12 ${isEmbedded ? 'pt-4' : 'pt-12 sm:pt-16'}`}>
             
             {/* Detailed Header */}
             <div className="mb-6 border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden mt-2 sm:mt-6">
@@ -692,6 +730,55 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                        })()}
                        <ChevronDown className="w-3.5 h-3.5 absolute right-2 top-1.5 text-slate-500 pointer-events-none" />
                      </div>
+                      {/* Dynamic Custom Lost Reason Selector if status is Lost */}
+                      {(lead.status === 'Lost' || lead.status?.toLowerCase() === 'lost') && (
+                        <div className="relative" ref={lostReasonDropdownRef}>
+                          <button
+                            type="button"
+                            onClick={() => setIsLostReasonMenuOpen(!isLostReasonMenuOpen)}
+                            className="flex items-center space-x-1.5 bg-rose-50 hover:bg-rose-100/80 border border-rose-200/90 px-2.5 py-1 rounded-md text-xs font-semibold text-rose-900 transition-all cursor-pointer shadow-2xs group"
+                            title="Select Reason for Lost Lead"
+                          >
+                            <span className="text-[11px] font-bold text-rose-700">Reason:</span>
+                            <span className="font-semibold text-rose-900 max-w-[130px] truncate">
+                              {lead.lostReason || 'Select Reason...'}
+                            </span>
+                            <ChevronDown className={`w-3.5 h-3.5 text-rose-600 transition-transform ${isLostReasonMenuOpen ? 'rotate-180' : ''}`} />
+                          </button>
+
+                          {isLostReasonMenuOpen && (
+                            <div className="absolute left-0 top-full mt-1.5 w-60 bg-white border border-slate-200/90 rounded-xl shadow-xl z-50 p-1.5 space-y-0.5 text-xs animate-in fade-in zoom-in-95 font-sans">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 py-1">
+                                Reason for Lost Lead
+                              </p>
+                              {(lostReasons || ['No Need', 'Unable to Connect', 'Budget Issues', 'Product does not fit need', 'Lost to competitor', 'Unknown Reason', 'Not eligible', 'Junk']).map((r) => {
+                                const isSelected = lead.lostReason === r;
+                                return (
+                                  <button
+                                    key={r}
+                                    type="button"
+                                    onClick={() => {
+                                      onUpdateLead({ ...lead, lostReason: r });
+                                      setIsLostReasonMenuOpen(false);
+                                    }}
+                                    className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
+                                      isSelected
+                                        ? 'bg-rose-50 text-rose-900 font-bold'
+                                        : 'text-slate-700 hover:bg-slate-50'
+                                    }`}
+                                  >
+                                    <div className="flex items-center space-x-2 truncate">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                                      <span className="truncate">{r}</span>
+                                    </div>
+                                    {isSelected && <Check className="w-3.5 h-3.5 text-rose-600 shrink-0" />}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
                      
                      {/* Star Rating */}
                      <div className="flex items-center space-x-0.5">
@@ -1674,7 +1761,6 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
             </div>
           </div>
         </div>
-        </div>
 
         {/* Edit Form Modal (Unchanged structurally, just ensuring it still renders) */}
         {isEditingLead && (
@@ -1729,6 +1815,36 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
             </div>
           </div>
         )}
+      </div>
+  );
+
+  if (isEmbedded) {
+    return (
+      <div className="w-full h-full min-h-[720px] flex flex-col font-sans">
+        {renderDrawerContent()}
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
+      {/* Subtle Gray Backdrop */}
+      <div 
+        onClick={onClose}
+        className="fixed inset-0 bg-slate-900/20 transition-opacity z-40 cursor-pointer"
+      />
+
+      {/* Wrapper for Drawer and Buttons */}
+      <div className="relative w-full lg:w-[65%] xl:w-[60%] max-w-6xl h-full flex flex-col z-50 font-sans animate-in slide-in-from-right duration-300">
+        {/* Floating Close Button */}
+        <button 
+          onClick={onClose} 
+          className="absolute -left-14 top-4 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-all cursor-pointer hidden md:flex z-50"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        {renderDrawerContent()}
       </div>
     </div>
   );

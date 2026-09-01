@@ -5,6 +5,7 @@ import { StagesContext } from '../App';
 
 interface StatusBadgeProps {
   status?: LeadStatus | string | null;
+  lostReason?: string | null;
   size?: 'xs' | 'sm' | 'md' | 'lg';
   showDot?: boolean;
   isDark?: boolean;
@@ -14,6 +15,7 @@ interface StatusBadgeProps {
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({
   status,
+  lostReason,
   size = 'sm',
   showDot = true,
   isDark = false,
@@ -24,6 +26,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   const config = getStatusStyle(status);
   
   const customStage = stages?.find(s => s.name.toLowerCase() === (status || '').toString().toLowerCase());
+  const isLost = (status || '').toString().toLowerCase() === 'lost';
 
   const sizeClasses = {
     xs: 'px-1.5 py-0.5 text-[10px] gap-1 rounded',
@@ -63,7 +66,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       className={`inline-flex items-center select-none font-medium tracking-tight transition-all duration-150 ${sizeClasses} ${colorStyles} ${
         onClick ? 'cursor-pointer hover:opacity-90 active:scale-95' : ''
       } ${className}`}
-      title={`Status: ${customStage ? customStage.name : config.label}`}
+      title={`Status: ${customStage ? customStage.name : config.label}${lostReason ? ` • Reason: ${lostReason}` : ''}`}
     >
       {showDot && (
         <span className="relative flex items-center justify-center shrink-0">
@@ -73,7 +76,14 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
           />
         </span>
       )}
-      <span className="truncate">{status || config.label}</span>
+      <span className="truncate">
+        {status || config.label}
+        {isLost && lostReason && (
+          <span className="opacity-80 font-normal ml-1 text-[11px] truncate">
+            • {lostReason}
+          </span>
+        )}
+      </span>
     </span>
   );
 };

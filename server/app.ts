@@ -17,14 +17,13 @@ import pipelineRoutes from './modules/pipelines/pipeline.routes';
 import aiRoutes from './modules/ai/ai.routes';
 import teamRoutes from './modules/team/team.routes';
 import tasksRoutes from './modules/tasks/tasks.routes';
-import superadminRoutes from './modules/superadmin/superadmin.routes';
 import { authMiddleware } from './middleware/auth';
 import { tenantContextMiddleware } from './middleware/tenantContext';
 
 export async function createApp() {
   const app = express();
-  app.set('trust proxy', 1);
-  app.use(express.json({ limit: '10mb' }));
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
   // Health check endpoints
   app.get(['/health', '/api/health'], (req, res) => {
@@ -61,7 +60,6 @@ export async function createApp() {
   app.use('/api', aiRoutes);
   app.use('/api', teamRoutes);
   app.use('/api', tasksRoutes);
-  app.use('/api', superadminRoutes);
 
   // Serve static files in production or Vite middleware in development
   const distPath = path.join(process.cwd(), 'dist');

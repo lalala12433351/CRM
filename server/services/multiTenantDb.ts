@@ -38,6 +38,7 @@ export interface TenantLead {
   aiRating?: string;
   aiReasoning?: string;
   notes?: string;
+  lostReason?: string;
   customFields?: Record<string, any>;
   tags?: string[];
   gclid?: string;
@@ -54,6 +55,7 @@ export interface TenantAgent {
   email: string;
   phone: string;
   role: string;
+  permission?: string;
   companyName: string;
   isAdmin: boolean;
   status: string;
@@ -89,6 +91,8 @@ export interface TenantFieldSetting {
   options?: string[];
   isHidden?: boolean;
   displayOrder?: number;
+  createdOn?: string;
+  lastModified?: string;
 }
 
 export interface TenantTask {
@@ -138,6 +142,7 @@ interface LocalStoreSchema {
   tasks: Record<string, TenantTask[]>;
   integrations: Record<string, TenantIntegration[]>;
   activities: Record<string, TenantActivity[]>;
+  lostReasons: Record<string, string[]>;
 }
 
 const DATA_DIR = path.join(process.cwd(), '.data');
@@ -154,11 +159,22 @@ const DEFAULT_STAGES: Omit<TenantStage, 'tenantId'>[] = [
 ];
 
 const DEFAULT_FIELDS: Omit<TenantFieldSetting, 'tenantId'>[] = [
-  { id: 'f-h1', name: 'name', label: 'Name', type: 'text', required: true, isPrimary: true, primarySlot: 'H1', category: 'Primary', isHidden: false },
-  { id: 'f-h2', name: 'phone', label: 'Number', type: 'phone', required: true, isPrimary: true, primarySlot: 'H2', category: 'Primary', isHidden: false },
-  { id: 'f-status', name: 'status', label: 'Status', type: 'dropdown', options: ['Fresh', 'Contacted', 'Follow Up', 'Demo Scheduled', 'Proposal Sent', 'Converted', 'Lost'], required: true, isPrimary: true, category: 'Primary', isHidden: false },
-  { id: 'f-deal-val', name: 'deal_value', label: 'Deal Value (₹)', type: 'currency', required: false, category: 'General', isHidden: false },
-  { id: 'f-source', name: 'source', label: 'Lead Source', type: 'dropdown', options: ['Facebook Ads', 'Google Ads', 'Meta Ads', 'IndiaMart', 'JustDial', 'WhatsApp', 'Website Inbound', 'Instagram', 'Referral', 'Direct'], required: false, isPrimary: true, category: 'Primary', isHidden: false },
+  { id: 'f-h1', name: 'name', label: 'Name', type: 'text', required: true, isPrimary: true, primarySlot: 'H1', category: 'Primary', isHidden: false, createdOn: '2026-04-01T09:00:00.000Z', lastModified: '2026-04-01T09:00:00.000Z' },
+  { id: 'f-h2', name: 'phone', label: 'Number', type: 'phone', required: true, isPrimary: true, primarySlot: 'H2', category: 'Primary', isHidden: false, createdOn: '2026-04-01T09:00:00.000Z', lastModified: '2026-04-01T09:00:00.000Z' },
+  { id: 'f-status', name: 'status', label: 'Status', type: 'dropdown', options: ['Fresh', 'Contacted', 'Follow Up', 'Demo Scheduled', 'Proposal Sent', 'Converted', 'Lost'], required: true, isPrimary: true, category: 'Primary', isHidden: false, createdOn: '2026-04-01T09:00:00.000Z', lastModified: '2026-04-01T09:00:00.000Z' },
+  { id: 'f-deal-val', name: 'deal_value', label: 'Deal Value (₹)', type: 'currency', required: false, category: 'General', isHidden: false, createdOn: '2026-04-01T09:00:00.000Z', lastModified: '2026-04-01T09:00:00.000Z' },
+  { id: 'f-source', name: 'source', label: 'Lead Source', type: 'dropdown', options: ['Facebook Ads', 'Google Ads', 'Meta Ads', 'IndiaMart', 'JustDial', 'WhatsApp', 'Website Inbound', 'Instagram', 'Referral', 'Direct'], required: false, isPrimary: true, category: 'Primary', isHidden: false, createdOn: '2026-04-01T09:00:00.000Z', lastModified: '2026-04-01T09:00:00.000Z' },
+];
+
+const DEFAULT_LOST_REASONS = [
+  'No Need',
+  'Unable to Connect',
+  'Budget Issues',
+  'Product does not fit need',
+  'Lost to competitor',
+  'Unknown Reason',
+  'Not eligible',
+  'Junk'
 ];
 
 export class MultiTenantDatabase {
@@ -170,7 +186,8 @@ export class MultiTenantDatabase {
     fields: {},
     tasks: {},
     integrations: {},
-    activities: {}
+    activities: {},
+    lostReasons: {}
   };
 
   constructor() {
@@ -194,7 +211,8 @@ export class MultiTenantDatabase {
           fields: parsed.fields || {},
           tasks: parsed.tasks || {},
           integrations: parsed.integrations || {},
-          activities: parsed.activities || {}
+          activities: parsed.activities || {},
+          lostReasons: parsed.lostReasons || {}
         };
       } else {
         this.saveStore();
@@ -306,7 +324,7 @@ export class MultiTenantDatabase {
       companyName: data.companyName,
       isAdmin: true,
       status: 'online',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      avatar: '',
       totalCallsToday: 0,
       talkTimeMinutes: 0,
       convertedLeadsCount: 0,
@@ -400,8 +418,9 @@ export class MultiTenantDatabase {
         ownerAgentName: leadData.ownerAgentName || leadData.assignee_name || 'Admin',
         aiScore: leadData.aiScore || 80,
         aiRating: leadData.aiRating || 'Hot',
-        aiReasoning: leadData.aiReasoning || 'Direct entry',
+        aiReasoning: leadData.aiReasoning || 'Direct CRM capture',
         notes: leadData.notes || '',
+        lostReason: leadData.lostReason || undefined,
         customFields: leadData.customFields || {},
         tags: leadData.tags || [],
         createdAt: now,
@@ -437,16 +456,22 @@ export class MultiTenantDatabase {
       this.store.agents[tenantId] = [];
     }
 
-    const existingIndex = this.store.agents[tenantId].findIndex((a) => a.id === agentData.id);
+    const index = this.store.agents[tenantId].findIndex((a) => a.id === agentData.id);
     let agent: TenantAgent;
 
-    if (existingIndex >= 0) {
+    const defaultRole = agentData.role || 'Caller';
+    const defaultPermission = agentData.permission || (agentData.isAdmin ? 'Admin' : (defaultRole === 'Marketing' ? 'Marketer' : defaultRole));
+
+    if (index >= 0) {
       agent = {
-        ...this.store.agents[tenantId][existingIndex],
+        ...this.store.agents[tenantId][index],
         ...agentData,
+        role: defaultRole,
+        permission: defaultPermission,
+        isAdmin: agentData.isAdmin !== undefined ? Boolean(agentData.isAdmin) : (defaultPermission.toLowerCase() === 'admin'),
         tenantId
       };
-      this.store.agents[tenantId][existingIndex] = agent;
+      this.store.agents[tenantId][index] = agent;
     } else {
       agent = {
         id: agentData.id || `agent-${Date.now()}`,
@@ -454,11 +479,12 @@ export class MultiTenantDatabase {
         name: agentData.name || 'New Team Member',
         email: agentData.email || '',
         phone: agentData.phone || '',
-        role: agentData.role || 'Telecaller',
+        role: defaultRole,
+        permission: defaultPermission,
         companyName: agentData.companyName || this.store.tenants[tenantId]?.companyName || 'Company',
-        isAdmin: Boolean(agentData.isAdmin),
+        isAdmin: Boolean(agentData.isAdmin) || defaultPermission.toLowerCase() === 'admin',
         status: agentData.status || 'online',
-        avatar: agentData.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+        avatar: agentData.avatar || '',
         totalCallsToday: 0,
         talkTimeMinutes: 0,
         convertedLeadsCount: 0,
@@ -479,6 +505,76 @@ export class MultiTenantDatabase {
     return true;
   }
 
+  public async updateAgentProfile(
+    tenantId: string,
+    currentId: string,
+    data: { name: string; id?: string; email?: string; phone?: string; avatar?: string }
+  ): Promise<TenantAgent | null> {
+    if (!this.store.agents[tenantId]) {
+      this.store.agents[tenantId] = [];
+    }
+
+    const agentIndex = this.store.agents[tenantId].findIndex((a) => a.id === currentId);
+    let agent: TenantAgent;
+
+    const targetId = data.id || currentId;
+
+    if (agentIndex >= 0) {
+      agent = {
+        ...this.store.agents[tenantId][agentIndex],
+        id: targetId,
+        name: data.name,
+        email: data.email !== undefined ? data.email : this.store.agents[tenantId][agentIndex].email,
+        phone: data.phone !== undefined ? data.phone : this.store.agents[tenantId][agentIndex].phone,
+        avatar: data.avatar !== undefined ? data.avatar : this.store.agents[tenantId][agentIndex].avatar,
+        tenantId
+      };
+      this.store.agents[tenantId][agentIndex] = agent;
+    } else {
+      agent = {
+        id: targetId,
+        tenantId,
+        name: data.name,
+        email: data.email || '',
+        phone: data.phone || '',
+        role: 'Master Admin',
+        companyName: this.store.tenants[tenantId]?.companyName || 'Company',
+        isAdmin: true,
+        status: 'online',
+        avatar: data.avatar || '',
+        totalCallsToday: 0,
+        talkTimeMinutes: 0,
+        convertedLeadsCount: 0,
+        revenueGenerated: 0,
+        responseTimeMinutes: 1.0
+      };
+      this.store.agents[tenantId].push(agent);
+    }
+
+    // If ID or name changed, update corresponding leads
+    if (this.store.leads[tenantId]) {
+      this.store.leads[tenantId].forEach((lead) => {
+        if (lead.ownerAgentId === currentId) {
+          lead.ownerAgentId = data.id;
+          lead.ownerAgentName = data.name;
+        }
+      });
+    }
+
+    // Also update tasks
+    if (this.store.tasks[tenantId]) {
+      this.store.tasks[tenantId].forEach((task) => {
+        if (task.assigneeAgentId === currentId) {
+          task.assigneeAgentId = data.id;
+          task.assigneeAgentName = data.name;
+        }
+      });
+    }
+
+    this.saveStore();
+    return agent;
+  }
+
   // =========================================================================
   // 4. PIPELINE STAGES (STRICTLY SCOPED TO tenantId)
   // =========================================================================
@@ -497,6 +593,29 @@ export class MultiTenantDatabase {
   }
 
   // =========================================================================
+  // 4B. LOST REASONS (STRICTLY SCOPED TO tenantId)
+  // =========================================================================
+  public async getLostReasons(tenantId: string): Promise<string[]> {
+    if (!this.store.lostReasons) {
+      this.store.lostReasons = {};
+    }
+    if (!this.store.lostReasons[tenantId] || this.store.lostReasons[tenantId].length === 0) {
+      this.store.lostReasons[tenantId] = [...DEFAULT_LOST_REASONS];
+      this.saveStore();
+    }
+    return this.store.lostReasons[tenantId];
+  }
+
+  public async saveLostReasons(tenantId: string, reasons: string[]): Promise<string[]> {
+    if (!this.store.lostReasons) {
+      this.store.lostReasons = {};
+    }
+    this.store.lostReasons[tenantId] = reasons;
+    this.saveStore();
+    return this.store.lostReasons[tenantId];
+  }
+
+  // =========================================================================
   // 5. FIELD SETTINGS (STRICTLY SCOPED TO tenantId)
   // =========================================================================
   public async getFieldSettings(tenantId: string): Promise<TenantFieldSetting[]> {
@@ -508,7 +627,13 @@ export class MultiTenantDatabase {
   }
 
   public async saveFieldSettings(tenantId: string, fields: TenantFieldSetting[]): Promise<TenantFieldSetting[]> {
-    this.store.fields[tenantId] = fields.map((f) => ({ ...f, tenantId }));
+    const now = new Date().toISOString();
+    this.store.fields[tenantId] = fields.map((f) => ({
+      ...f,
+      tenantId,
+      createdOn: f.createdOn || now,
+      lastModified: f.lastModified || now
+    }));
     this.saveStore();
     return this.store.fields[tenantId];
   }

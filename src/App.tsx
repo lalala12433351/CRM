@@ -22,6 +22,7 @@ import { IntegrationsView } from './components/IntegrationsView';
 import { SettingsView, SettingsTab } from './components/SettingsView';
 import { CampaignsView } from './components/CampaignsView';
 import { FieldsSettingsView } from './components/FieldsSettingsView';
+import { CallFeedbackSettingsView } from './components/CallFeedbackSettingsView';
 import { TasksView } from './components/TasksView';
 
 import { LeadDetailModal } from './components/LeadDetailModal';
@@ -33,8 +34,6 @@ import { PowerDialerQueueModal } from './components/PowerDialerQueueModal';
 import { LoginView } from './components/LoginView';
 import { SignUpView } from './components/SignUpView';
 import { PixbeLoadingScreen } from './components/PixbeLoadingScreen';
-import { SuperAdminView } from './components/superadmin/SuperAdminView';
-import { ImpersonationBanner } from './components/superadmin/ImpersonationBanner';
 import { PhoneCall, X, Users } from 'lucide-react';
 import { verifyCurrentSession, logoutWithApi, fetchWithTenantAuth } from './lib/auth';
 import { formatArcleName } from './utils/brandUtils';
@@ -78,64 +77,12 @@ import { ShieldCheck } from 'lucide-react';
 export const StagesContext = React.createContext<PipelineStage[]>(INITIAL_STAGES);
 
 export function App() {
-  // Navigation & Active View State (defaulting to 'leads', supports ?view=superadmin)
-  const [currentView, setCurrentView] = useState<string>(() => {
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('view') === 'superadmin') return 'superadmin';
-    } catch (e) {}
-    return 'leads';
-  });
+  // Navigation & Active View State (defaulting to 'leads')
+  const [currentView, setCurrentView] = useState<string>('leads');
   const [reportsSubTab, setReportsSubTab] = useState<ReportsSubTab>('call_logs');
   const [automationsSubTab, setAutomationsSubTab] = useState<AutomationsSubTab>('workflows');
   const [settingsSubTab, setSettingsSubTab] = useState<SettingsTab>('general');
   const [activeAgentId, setActiveAgentId] = useState<string>('agent-ms');
-
-  // Super Admin Impersonation Session
-  const [impersonationSession, setImpersonationSession] = useState<{
-    isImpersonating: boolean;
-    tenantId: string;
-    tenantName: string;
-    originalUser: Agent | null;
-  } | null>(() => {
-    const stored = sessionStorage.getItem('pixbe_impersonation_session');
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch (e) {}
-    }
-    return null;
-  });
-
-  const handleImpersonateTenant = (targetTenantId: string, companyName: string, token: string, user: any) => {
-    const sessionInfo = {
-      isImpersonating: true,
-      tenantId: targetTenantId,
-      tenantName: companyName,
-      originalUser: currentUser
-    };
-    setImpersonationSession(sessionInfo);
-    sessionStorage.setItem('pixbe_impersonation_session', JSON.stringify(sessionInfo));
-    
-    // Switch active user & tenant
-    setCurrentUser(user);
-    sessionStorage.setItem('pixbe_auth_user', JSON.stringify(user));
-    sessionStorage.setItem('pixbe_auth_token', token);
-    
-    showToast(`⚡ Impersonating ${companyName} (${targetTenantId})`);
-    setCurrentView('leads');
-  };
-
-  const handleExitImpersonation = () => {
-    if (impersonationSession?.originalUser) {
-      setCurrentUser(impersonationSession.originalUser);
-      sessionStorage.setItem('pixbe_auth_user', JSON.stringify(impersonationSession.originalUser));
-    }
-    setImpersonationSession(null);
-    sessionStorage.removeItem('pixbe_impersonation_session');
-    setCurrentView('superadmin');
-    showToast('Exited impersonation mode. Returned to Super Admin.');
-  };
   const [selectedCampaignHandle, setSelectedCampaignHandle] = useState<string>('@master-form-iata-cargo');
   const [activeFilterId, setActiveFilterId] = useState<string>('all_leads');
 
@@ -325,7 +272,36 @@ export function App() {
         }
       })
       .catch((err) => console.warn('Tasks DB fetch notice:', err));
+
+    // Fetch Lost Reasons from multi-tenant store
+    fetchWithTenantAuth('/api/pipelines/lost-reasons')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.lostReasons)) {
+          setLostReasons(data.lostReasons);
+        }
+      })
+      .catch((err) => console.warn('Lost reasons DB fetch notice:', err));
   }, [activeTenantId]);
+
+  const [lostReasons, setLostReasons] = useState<string[]>([
+    'No Need',
+    'Unable to Connect',
+    'Budget Issues',
+    'Product does not fit need',
+    'Lost to competitor',
+    'Unknown Reason',
+    'Not eligible',
+    'Junk'
+  ]);
+
+  const handleUpdateLostReasons = (updatedReasons: string[]) => {
+    setLostReasons(updatedReasons);
+    fetchWithTenantAuth('/api/pipelines/lost-reasons', {
+      method: 'POST',
+      body: JSON.stringify(updatedReasons)
+    }).catch((err) => console.warn('Lost reasons DB save notice:', err));
+  };
 
   const handleSaveFieldsToDb = (updatedFields: CustomFieldDef[]) => {
     setCustomFields(updatedFields);
@@ -868,27 +844,23 @@ export function App() {
     );
   }
 
-  if (currentView === 'superadmin') {
-    return (
-      <SuperAdminView
-        onExitSuperAdmin={() => setCurrentView('leads')}
-        onImpersonateTenant={handleImpersonateTenant}
-      />
-    );
-  }
+  const pendingTasksCount = useMemo(() => {
+    const pendingFromTasks = (crmTasks || []).filter(t => t.status === 'Pending' || !t.status);
+    const pendingFollowups = (leads || []).filter(l => l.followUpAt || l.status === 'Follow Up');
+
+    if (isAgentAdmin(activeAgent)) {
+      return pendingFromTasks.length + pendingFollowups.length;
+    }
+
+    const agentTasks = pendingFromTasks.filter(t => t.assigneeAgentId === activeAgent?.id || t.assigneeAgentName?.toLowerCase() === activeAgent?.name?.toLowerCase()).length;
+    const agentFollowups = pendingFollowups.filter(l => l.ownerAgentId === activeAgent?.id || l.ownerAgentName?.toLowerCase() === activeAgent?.name?.toLowerCase()).length;
+
+    return agentTasks + agentFollowups;
+  }, [crmTasks, leads, activeAgent]);
 
   return (
     <StagesContext.Provider value={activeStages}>
     <div className="min-h-screen glass-mesh-bg text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
-      {/* Active Impersonation Banner */}
-      {impersonationSession?.isImpersonating && (
-        <ImpersonationBanner
-          tenantName={impersonationSession.tenantName}
-          tenantId={impersonationSession.tenantId}
-          onExit={handleExitImpersonation}
-        />
-      )}
-
       {/* Toast Alert Banner */}
       {toastMessage && (
         <div className="fixed top-16 right-6 z-50 glass-card text-slate-800 px-4 py-2.5 rounded-xl text-xs font-sans font-semibold flex items-center">
@@ -910,6 +882,7 @@ export function App() {
         onOpenAiCopilot={() => setIsAiCopilotOpen(true)}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         pendingFollowUpsCount={leads.filter((l) => l.followUpAt || l.status === 'Follow Up').length}
+        pendingTasksCount={pendingTasksCount}
         onNavigateToFollowUps={() => setCurrentView('followups')}
         onNavigateToSettings={() => setCurrentView('settings')}
         onNavigateToTab={(tab, subTab) => {
@@ -1019,16 +992,6 @@ export function App() {
             />
           )}
 
-          {currentView === 'campaigns' && (
-            <CampaignsView
-              leads={leads}
-              agents={agents}
-              initialCampaignHandle={selectedCampaignHandle}
-              onOpenLeadDetail={(lead) => setDetailLead(lead)}
-              onUpdateLead={handleUpdateLead}
-            />
-          )}
-
           {currentView === 'dashboard' && (
             activeAgentRights.dashboardView ? (
               <DashboardView
@@ -1080,6 +1043,8 @@ export function App() {
               customFields={activeCustomFields}
               activeAgent={activeAgent}
               currency={activeCurrency}
+              lostReasons={lostReasons}
+              onUpdateLostReasons={handleUpdateLostReasons}
               onOpenLeadDetail={(lead) => setDetailLead(lead)}
               onAddNewLead={handleAddNewLead}
               onImportCsv={handleImportCsv}
@@ -1199,15 +1164,37 @@ export function App() {
             <CampaignsView
               leads={visibleLeads}
               agents={agents}
+              activities={activities}
+              messages={messages}
+              callRecords={callRecords}
               initialCampaignHandle={selectedCampaignHandle}
               onOpenLeadDetail={(lead) => setDetailLead(lead)}
-              onUpdateLead={handlePartialUpdateLead}
+              onUpdateLead={handleUpdateLead}
+              onAddActivity={(act) => setActivities((prev) => [{
+                id: `act-${Date.now()}`,
+                leadId: act.leadId || '',
+                agentId: activeAgent.id,
+                agentName: activeAgent.name,
+                type: act.type || 'note',
+                title: act.title || 'Note',
+                description: act.description || '',
+                timestamp: new Date().toISOString()
+              }, ...prev])}
+              onSendMessage={handleSendMessage}
+              onOpenPowerDialerForLead={(ld) => {
+                showToast(`Dialing ${ld.name} (${ld.phone})...`);
+                window.location.href = `tel:${ld.phone}`;
+              }}
+              onDeleteLead={handleDeleteLead}
+              onUpdateCallRecord={handleUpdateCallRecord}
+              lostReasons={lostReasons}
               onNavigateToTab={(tab, subTab) => {
                 setCurrentView(tab);
                 if (tab === 'settings' && subTab) {
                   setSettingsSubTab(subTab as any);
                 }
               }}
+              onShowToast={(msg) => showToast(msg)}
             />
           )}
 
@@ -1234,6 +1221,13 @@ export function App() {
                 handleSaveFieldsToDb(updatedFields);
                 showToast('Custom fields database updated successfully!');
               }}
+              onShowToast={(msg) => showToast(msg)}
+            />
+          )}
+
+          {currentView === 'call_feedback' && (
+            <CallFeedbackSettingsView
+              activeAgent={activeAgent}
               onShowToast={(msg) => showToast(msg)}
             />
           )}
@@ -1267,6 +1261,13 @@ export function App() {
               onUpdateAgents={(updatedAgents) => {
                 setAgents(updatedAgents);
               }}
+              onUpdateCurrentUser={(updatedUser) => {
+                setCurrentUser(updatedUser);
+                setActiveAgentId(updatedUser.id);
+                setAgents((prev) => prev.map((a) => (a.id === activeAgent?.id ? updatedUser : a)));
+                localStorage.setItem('pixbe_auth_user', JSON.stringify(updatedUser));
+                sessionStorage.setItem('pixbe_auth_user', JSON.stringify(updatedUser));
+              }}
               customFields={activeCustomFields}
               onUpdateFields={(updatedFields) => {
                 handleSaveFieldsToDb(updatedFields);
@@ -1276,6 +1277,8 @@ export function App() {
                 setPermissionTemplates(updatedTemplates);
                 showToast('Permission templates updated successfully!');
               }}
+              lostReasons={lostReasons}
+              onUpdateLostReasons={handleUpdateLostReasons}
               initialTab={settingsSubTab}
               onShowToast={(msg) => showToast(msg)} 
             />
@@ -1292,6 +1295,7 @@ export function App() {
           activities={activities}
           messages={messages}
           callRecords={callRecords}
+          lostReasons={lostReasons}
           onClose={() => setDetailLead(null)}
           onSelectLead={(nextLead) => setDetailLead(nextLead)}
           onUpdateLead={handleUpdateLead}

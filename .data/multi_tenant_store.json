@@ -134,6 +134,42 @@
         "revenueGenerated": 0,
         "responseTimeMinutes": 1
       }
+    ],
+    "company_kite_aviation": [
+      {
+        "id": "agent-1788264287313",
+        "tenantId": "company_kite_aviation",
+        "name": "adad",
+        "email": "rwew@gmail.com",
+        "phone": "+91 24243 33333",
+        "role": "Marketing",
+        "companyName": "Kite Aviation",
+        "isAdmin": false,
+        "status": "online",
+        "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
+        "totalCallsToday": 0,
+        "talkTimeMinutes": 0,
+        "convertedLeadsCount": 0,
+        "revenueGenerated": 0,
+        "responseTimeMinutes": 1
+      },
+      {
+        "id": "agent-1788267823412",
+        "tenantId": "company_kite_aviation",
+        "name": "SFSF",
+        "email": "SFS@GMAIL.COM",
+        "phone": "+91 42342 54255",
+        "role": "Caller",
+        "companyName": "Kite Aviation",
+        "isAdmin": false,
+        "status": "online",
+        "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
+        "totalCallsToday": 0,
+        "talkTimeMinutes": 0,
+        "convertedLeadsCount": 0,
+        "revenueGenerated": 0,
+        "responseTimeMinutes": 1
+      }
     ]
   },
   "leads": {
@@ -164,7 +200,69 @@
       }
     ],
     "company_zenith_aviation": [],
-    "company_wfwwfwf": []
+    "company_wfwwfwf": [],
+    "company_kite_aviation": [
+      {
+        "id": "lead-1788257663855",
+        "tenantId": "company_kite_aviation",
+        "name": "werwe",
+        "phone": "+91 2432423424",
+        "email": "",
+        "company": "",
+        "city": "Not Specified",
+        "state": "Not Specified",
+        "source": "Facebook Ads",
+        "status": "Converted",
+        "pipelineStageId": "stage-1",
+        "dealValue": 0,
+        "ownerAgentId": "agent-ms",
+        "ownerAgentName": "Madhava sai nagendra",
+        "aiScore": 88,
+        "aiRating": "Hot",
+        "aiReasoning": "Inbound lead entry",
+        "notes": "Added manually.",
+        "customFields": {},
+        "tags": [
+          "HighIntent"
+        ],
+        "createdAt": "Just Now",
+        "updatedAt": "2026-09-01T13:12:33.714Z",
+        "pincode": "",
+        "priority": "Hot",
+        "whatsappOptIn": true,
+        "lostReason": "Budget Issues",
+        "rating": 4
+      },
+      {
+        "id": "lead-1788255886311",
+        "tenantId": "company_kite_aviation",
+        "name": "sfsd",
+        "phone": "+91 3424234324",
+        "email": "",
+        "company": "",
+        "city": "Not Specified",
+        "state": "Not Specified",
+        "source": "Facebook Ads",
+        "status": "Fresh",
+        "pipelineStageId": "stage-1",
+        "dealValue": 0,
+        "ownerAgentId": "agent_kiteaviation_admin",
+        "ownerAgentName": "Kite Aviation Admin",
+        "aiScore": 88,
+        "aiRating": "Hot",
+        "aiReasoning": "Inbound lead entry",
+        "notes": "Added manually.",
+        "customFields": {},
+        "tags": [
+          "HighIntent"
+        ],
+        "createdAt": "Just Now",
+        "updatedAt": "Just Now",
+        "pincode": "",
+        "priority": "Hot",
+        "whatsappOptIn": true
+      }
+    ]
   },
   "stages": {
     "company_dgdgdgdrt": [
@@ -558,6 +656,582 @@
         "isActive": true,
         "tenantId": "company_kiteaviation"
       }
+    ],
+    "company_g": [
+      {
+        "id": "stage-1",
+        "name": "Fresh",
+        "color": "#3B82F6",
+        "order": 1,
+        "category": "initial",
+        "winProbability": 10,
+        "isActive": true,
+        "tenantId": "company_g"
+      },
+      {
+        "id": "stage-2",
+        "name": "Contacted",
+        "color": "#8B5CF6",
+        "order": 2,
+        "category": "active",
+        "winProbability": 25,
+        "isActive": true,
+        "tenantId": "company_g"
+      },
+      {
+        "id": "stage-3",
+        "name": "Follow Up",
+        "color": "#F59E0B",
+        "order": 3,
+        "category": "active",
+        "winProbability": 40,
+        "isActive": true,
+        "tenantId": "company_g"
+      },
+      {
+        "id": "stage-4",
+        "name": "Demo Scheduled",
+        "color": "#06B6D4",
+        "order": 4,
+        "category": "active",
+        "winProbability": 60,
+        "isActive": true,
+        "tenantId": "company_g"
+      },
+      {
+        "id": "stage-5",
+        "name": "Proposal Sent",
+        "color": "#10B981",
+        "order": 5,
+        "category": "active",
+        "winProbability": 80,
+        "isActive": true,
+        "tenantId": "company_g"
+      },
+      {
+        "id": "stage-6",
+        "name": "Converted",
+        "color": "#059669",
+        "order": 6,
+        "category": "closed",
+        "winProbability": 100,
+        "isActive": true,
+        "tenantId": "company_g"
+      },
+      {
+        "id": "stage-7",
+        "name": "Lost",
+        "color": "#EF4444",
+        "order": 7,
+        "category": "closed",
+        "winProbability": 0,
+        "isActive": true,
+        "tenantId": "company_g"
+      }
+    ],
+    "company_kitea": [
+      {
+        "id": "stage-1",
+        "name": "Fresh",
+        "color": "#3B82F6",
+        "order": 1,
+        "category": "initial",
+        "winProbability": 10,
+        "isActive": true,
+        "tenantId": "company_kitea"
+      },
+      {
+        "id": "stage-2",
+        "name": "Contacted",
+        "color": "#8B5CF6",
+        "order": 2,
+        "category": "active",
+        "winProbability": 25,
+        "isActive": true,
+        "tenantId": "company_kitea"
+      },
+      {
+        "id": "stage-3",
+        "name": "Follow Up",
+        "color": "#F59E0B",
+        "order": 3,
+        "category": "active",
+        "winProbability": 40,
+        "isActive": true,
+        "tenantId": "company_kitea"
+      },
+      {
+        "id": "stage-4",
+        "name": "Demo Scheduled",
+        "color": "#06B6D4",
+        "order": 4,
+        "category": "active",
+        "winProbability": 60,
+        "isActive": true,
+        "tenantId": "company_kitea"
+      },
+      {
+        "id": "stage-5",
+        "name": "Proposal Sent",
+        "color": "#10B981",
+        "order": 5,
+        "category": "active",
+        "winProbability": 80,
+        "isActive": true,
+        "tenantId": "company_kitea"
+      },
+      {
+        "id": "stage-6",
+        "name": "Converted",
+        "color": "#059669",
+        "order": 6,
+        "category": "closed",
+        "winProbability": 100,
+        "isActive": true,
+        "tenantId": "company_kitea"
+      },
+      {
+        "id": "stage-7",
+        "name": "Lost",
+        "color": "#EF4444",
+        "order": 7,
+        "category": "closed",
+        "winProbability": 0,
+        "isActive": true,
+        "tenantId": "company_kitea"
+      }
+    ],
+    "company_kiteavi": [
+      {
+        "id": "stage-1",
+        "name": "Fresh",
+        "color": "#3B82F6",
+        "order": 1,
+        "category": "initial",
+        "winProbability": 10,
+        "isActive": true,
+        "tenantId": "company_kiteavi"
+      },
+      {
+        "id": "stage-2",
+        "name": "Contacted",
+        "color": "#8B5CF6",
+        "order": 2,
+        "category": "active",
+        "winProbability": 25,
+        "isActive": true,
+        "tenantId": "company_kiteavi"
+      },
+      {
+        "id": "stage-3",
+        "name": "Follow Up",
+        "color": "#F59E0B",
+        "order": 3,
+        "category": "active",
+        "winProbability": 40,
+        "isActive": true,
+        "tenantId": "company_kiteavi"
+      },
+      {
+        "id": "stage-4",
+        "name": "Demo Scheduled",
+        "color": "#06B6D4",
+        "order": 4,
+        "category": "active",
+        "winProbability": 60,
+        "isActive": true,
+        "tenantId": "company_kiteavi"
+      },
+      {
+        "id": "stage-5",
+        "name": "Proposal Sent",
+        "color": "#10B981",
+        "order": 5,
+        "category": "active",
+        "winProbability": 80,
+        "isActive": true,
+        "tenantId": "company_kiteavi"
+      },
+      {
+        "id": "stage-6",
+        "name": "Converted",
+        "color": "#059669",
+        "order": 6,
+        "category": "closed",
+        "winProbability": 100,
+        "isActive": true,
+        "tenantId": "company_kiteavi"
+      },
+      {
+        "id": "stage-7",
+        "name": "Lost",
+        "color": "#EF4444",
+        "order": 7,
+        "category": "closed",
+        "winProbability": 0,
+        "isActive": true,
+        "tenantId": "company_kiteavi"
+      }
+    ],
+    "company_fdfdfd": [
+      {
+        "id": "stage-1",
+        "name": "Fresh",
+        "color": "#3B82F6",
+        "order": 1,
+        "category": "initial",
+        "winProbability": 10,
+        "isActive": true,
+        "tenantId": "company_fdfdfd"
+      },
+      {
+        "id": "stage-2",
+        "name": "Contacted",
+        "color": "#8B5CF6",
+        "order": 2,
+        "category": "active",
+        "winProbability": 25,
+        "isActive": true,
+        "tenantId": "company_fdfdfd"
+      },
+      {
+        "id": "stage-3",
+        "name": "Follow Up",
+        "color": "#F59E0B",
+        "order": 3,
+        "category": "active",
+        "winProbability": 40,
+        "isActive": true,
+        "tenantId": "company_fdfdfd"
+      },
+      {
+        "id": "stage-4",
+        "name": "Demo Scheduled",
+        "color": "#06B6D4",
+        "order": 4,
+        "category": "active",
+        "winProbability": 60,
+        "isActive": true,
+        "tenantId": "company_fdfdfd"
+      },
+      {
+        "id": "stage-5",
+        "name": "Proposal Sent",
+        "color": "#10B981",
+        "order": 5,
+        "category": "active",
+        "winProbability": 80,
+        "isActive": true,
+        "tenantId": "company_fdfdfd"
+      },
+      {
+        "id": "stage-6",
+        "name": "Converted",
+        "color": "#059669",
+        "order": 6,
+        "category": "closed",
+        "winProbability": 100,
+        "isActive": true,
+        "tenantId": "company_fdfdfd"
+      },
+      {
+        "id": "stage-7",
+        "name": "Lost",
+        "color": "#EF4444",
+        "order": 7,
+        "category": "closed",
+        "winProbability": 0,
+        "isActive": true,
+        "tenantId": "company_fdfdfd"
+      }
+    ],
+    "company_kite": [
+      {
+        "id": "stage-1",
+        "name": "Fresh",
+        "color": "#3B82F6",
+        "order": 1,
+        "category": "initial",
+        "winProbability": 10,
+        "isActive": true,
+        "tenantId": "company_kite"
+      },
+      {
+        "id": "stage-2",
+        "name": "Contacted",
+        "color": "#8B5CF6",
+        "order": 2,
+        "category": "active",
+        "winProbability": 25,
+        "isActive": true,
+        "tenantId": "company_kite"
+      },
+      {
+        "id": "stage-3",
+        "name": "Follow Up",
+        "color": "#F59E0B",
+        "order": 3,
+        "category": "active",
+        "winProbability": 40,
+        "isActive": true,
+        "tenantId": "company_kite"
+      },
+      {
+        "id": "stage-4",
+        "name": "Demo Scheduled",
+        "color": "#06B6D4",
+        "order": 4,
+        "category": "active",
+        "winProbability": 60,
+        "isActive": true,
+        "tenantId": "company_kite"
+      },
+      {
+        "id": "stage-5",
+        "name": "Proposal Sent",
+        "color": "#10B981",
+        "order": 5,
+        "category": "active",
+        "winProbability": 80,
+        "isActive": true,
+        "tenantId": "company_kite"
+      },
+      {
+        "id": "stage-6",
+        "name": "Converted",
+        "color": "#059669",
+        "order": 6,
+        "category": "closed",
+        "winProbability": 100,
+        "isActive": true,
+        "tenantId": "company_kite"
+      },
+      {
+        "id": "stage-7",
+        "name": "Lost",
+        "color": "#EF4444",
+        "order": 7,
+        "category": "closed",
+        "winProbability": 0,
+        "isActive": true,
+        "tenantId": "company_kite"
+      }
+    ],
+    "company_kiteav": [
+      {
+        "id": "stage-1",
+        "name": "Fresh",
+        "color": "#3B82F6",
+        "order": 1,
+        "category": "initial",
+        "winProbability": 10,
+        "isActive": true,
+        "tenantId": "company_kiteav"
+      },
+      {
+        "id": "stage-2",
+        "name": "Contacted",
+        "color": "#8B5CF6",
+        "order": 2,
+        "category": "active",
+        "winProbability": 25,
+        "isActive": true,
+        "tenantId": "company_kiteav"
+      },
+      {
+        "id": "stage-3",
+        "name": "Follow Up",
+        "color": "#F59E0B",
+        "order": 3,
+        "category": "active",
+        "winProbability": 40,
+        "isActive": true,
+        "tenantId": "company_kiteav"
+      },
+      {
+        "id": "stage-4",
+        "name": "Demo Scheduled",
+        "color": "#06B6D4",
+        "order": 4,
+        "category": "active",
+        "winProbability": 60,
+        "isActive": true,
+        "tenantId": "company_kiteav"
+      },
+      {
+        "id": "stage-5",
+        "name": "Proposal Sent",
+        "color": "#10B981",
+        "order": 5,
+        "category": "active",
+        "winProbability": 80,
+        "isActive": true,
+        "tenantId": "company_kiteav"
+      },
+      {
+        "id": "stage-6",
+        "name": "Converted",
+        "color": "#059669",
+        "order": 6,
+        "category": "closed",
+        "winProbability": 100,
+        "isActive": true,
+        "tenantId": "company_kiteav"
+      },
+      {
+        "id": "stage-7",
+        "name": "Lost",
+        "color": "#EF4444",
+        "order": 7,
+        "category": "closed",
+        "winProbability": 0,
+        "isActive": true,
+        "tenantId": "company_kiteav"
+      }
+    ],
+    "company_gmail": [
+      {
+        "id": "stage-1",
+        "name": "Fresh",
+        "color": "#3B82F6",
+        "order": 1,
+        "category": "initial",
+        "winProbability": 10,
+        "isActive": true,
+        "tenantId": "company_gmail"
+      },
+      {
+        "id": "stage-2",
+        "name": "Contacted",
+        "color": "#8B5CF6",
+        "order": 2,
+        "category": "active",
+        "winProbability": 25,
+        "isActive": true,
+        "tenantId": "company_gmail"
+      },
+      {
+        "id": "stage-3",
+        "name": "Follow Up",
+        "color": "#F59E0B",
+        "order": 3,
+        "category": "active",
+        "winProbability": 40,
+        "isActive": true,
+        "tenantId": "company_gmail"
+      },
+      {
+        "id": "stage-4",
+        "name": "Demo Scheduled",
+        "color": "#06B6D4",
+        "order": 4,
+        "category": "active",
+        "winProbability": 60,
+        "isActive": true,
+        "tenantId": "company_gmail"
+      },
+      {
+        "id": "stage-5",
+        "name": "Proposal Sent",
+        "color": "#10B981",
+        "order": 5,
+        "category": "active",
+        "winProbability": 80,
+        "isActive": true,
+        "tenantId": "company_gmail"
+      },
+      {
+        "id": "stage-6",
+        "name": "Converted",
+        "color": "#059669",
+        "order": 6,
+        "category": "closed",
+        "winProbability": 100,
+        "isActive": true,
+        "tenantId": "company_gmail"
+      },
+      {
+        "id": "stage-7",
+        "name": "Lost",
+        "color": "#EF4444",
+        "order": 7,
+        "category": "closed",
+        "winProbability": 0,
+        "isActive": true,
+        "tenantId": "company_gmail"
+      }
+    ],
+    "company_kite_aviation": [
+      {
+        "id": "stage-1",
+        "name": "Fresh",
+        "color": "#3B82F6",
+        "order": 1,
+        "category": "initial",
+        "winProbability": 10,
+        "isActive": true,
+        "tenantId": "company_kite_aviation"
+      },
+      {
+        "id": "stage-2",
+        "name": "Contacted",
+        "color": "#8B5CF6",
+        "order": 2,
+        "category": "active",
+        "winProbability": 25,
+        "isActive": true,
+        "tenantId": "company_kite_aviation"
+      },
+      {
+        "id": "stage-3",
+        "name": "Follow Up",
+        "color": "#F59E0B",
+        "order": 3,
+        "category": "active",
+        "winProbability": 40,
+        "isActive": true,
+        "tenantId": "company_kite_aviation"
+      },
+      {
+        "id": "stage-4",
+        "name": "Demo Scheduled",
+        "color": "#06B6D4",
+        "order": 4,
+        "category": "active",
+        "winProbability": 60,
+        "isActive": true,
+        "tenantId": "company_kite_aviation"
+      },
+      {
+        "id": "stage-5",
+        "name": "Proposal Sent",
+        "color": "#10B981",
+        "order": 5,
+        "category": "active",
+        "winProbability": 80,
+        "isActive": true,
+        "tenantId": "company_kite_aviation"
+      },
+      {
+        "id": "stage-6",
+        "name": "Converted",
+        "color": "#059669",
+        "order": 6,
+        "category": "closed",
+        "winProbability": 100,
+        "isActive": true,
+        "tenantId": "company_kite_aviation"
+      },
+      {
+        "id": "stage-7",
+        "name": "Lost",
+        "color": "#EF4444",
+        "order": 7,
+        "category": "closed",
+        "winProbability": 0,
+        "isActive": true,
+        "tenantId": "company_kite_aviation"
+      }
     ]
   },
   "fields": {
@@ -893,30 +1567,6 @@
     ],
     "company_kiteaviation": [
       {
-        "id": "f-h1",
-        "name": "name",
-        "label": "Name",
-        "type": "text",
-        "required": true,
-        "isPrimary": true,
-        "primarySlot": "H1",
-        "category": "Primary",
-        "isHidden": false,
-        "tenantId": "company_kiteaviation"
-      },
-      {
-        "id": "f-h2",
-        "name": "phone",
-        "label": "Number",
-        "type": "phone",
-        "required": true,
-        "isPrimary": true,
-        "primarySlot": "H2",
-        "category": "Primary",
-        "isHidden": false,
-        "tenantId": "company_kiteaviation"
-      },
-      {
         "id": "f-status",
         "name": "status",
         "label": "Status",
@@ -933,16 +1583,6 @@
         "required": true,
         "isPrimary": true,
         "category": "Primary",
-        "isHidden": false,
-        "tenantId": "company_kiteaviation"
-      },
-      {
-        "id": "f-deal-val",
-        "name": "deal_value",
-        "label": "Deal Value (₹)",
-        "type": "currency",
-        "required": false,
-        "category": "General",
         "isHidden": false,
         "tenantId": "company_kiteaviation"
       },
@@ -968,6 +1608,703 @@
         "category": "Primary",
         "isHidden": false,
         "tenantId": "company_kiteaviation"
+      },
+      {
+        "id": "f-h2",
+        "name": "phone",
+        "label": "Number",
+        "type": "phone",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H2",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_kiteaviation"
+      },
+      {
+        "id": "f-h1",
+        "name": "name",
+        "label": "Name",
+        "type": "text",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H1",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_kiteaviation"
+      },
+      {
+        "id": "f-deal-val",
+        "name": "deal_value",
+        "label": "Deal Value (₹)",
+        "type": "currency",
+        "required": false,
+        "category": "General",
+        "isHidden": false,
+        "tenantId": "company_kiteaviation"
+      },
+      {
+        "id": "__fresh_lead_timer__",
+        "name": "__fresh_lead_timer__",
+        "label": "Fresh Lead Timer",
+        "type": "number",
+        "required": false,
+        "isHidden": true,
+        "freshLeadTimerMinutes": 30,
+        "tenantId": "company_kiteaviation"
+      }
+    ],
+    "company_g": [
+      {
+        "id": "f-h1",
+        "name": "name",
+        "label": "Name",
+        "type": "text",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H1",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_g"
+      },
+      {
+        "id": "f-h2",
+        "name": "phone",
+        "label": "Number",
+        "type": "phone",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H2",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_g"
+      },
+      {
+        "id": "f-status",
+        "name": "status",
+        "label": "Status",
+        "type": "dropdown",
+        "options": [
+          "Fresh",
+          "Contacted",
+          "Follow Up",
+          "Demo Scheduled",
+          "Proposal Sent",
+          "Converted",
+          "Lost"
+        ],
+        "required": true,
+        "isPrimary": true,
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_g"
+      },
+      {
+        "id": "f-deal-val",
+        "name": "deal_value",
+        "label": "Deal Value (₹)",
+        "type": "currency",
+        "required": false,
+        "category": "General",
+        "isHidden": false,
+        "tenantId": "company_g"
+      },
+      {
+        "id": "f-source",
+        "name": "source",
+        "label": "Lead Source",
+        "type": "dropdown",
+        "options": [
+          "Facebook Ads",
+          "Google Ads",
+          "Meta Ads",
+          "IndiaMart",
+          "JustDial",
+          "WhatsApp",
+          "Website Inbound",
+          "Instagram",
+          "Referral",
+          "Direct"
+        ],
+        "required": false,
+        "isPrimary": true,
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_g"
+      }
+    ],
+    "company_kitea": [
+      {
+        "id": "f-h1",
+        "name": "name",
+        "label": "Name",
+        "type": "text",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H1",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_kitea"
+      },
+      {
+        "id": "f-h2",
+        "name": "phone",
+        "label": "Number",
+        "type": "phone",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H2",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_kitea"
+      },
+      {
+        "id": "f-status",
+        "name": "status",
+        "label": "Status",
+        "type": "dropdown",
+        "options": [
+          "Fresh",
+          "Contacted",
+          "Follow Up",
+          "Demo Scheduled",
+          "Proposal Sent",
+          "Converted",
+          "Lost"
+        ],
+        "required": true,
+        "isPrimary": true,
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_kitea"
+      },
+      {
+        "id": "f-deal-val",
+        "name": "deal_value",
+        "label": "Deal Value (₹)",
+        "type": "currency",
+        "required": false,
+        "category": "General",
+        "isHidden": false,
+        "tenantId": "company_kitea"
+      },
+      {
+        "id": "f-source",
+        "name": "source",
+        "label": "Lead Source",
+        "type": "dropdown",
+        "options": [
+          "Facebook Ads",
+          "Google Ads",
+          "Meta Ads",
+          "IndiaMart",
+          "JustDial",
+          "WhatsApp",
+          "Website Inbound",
+          "Instagram",
+          "Referral",
+          "Direct"
+        ],
+        "required": false,
+        "isPrimary": true,
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_kitea"
+      }
+    ],
+    "company_kiteavi": [
+      {
+        "id": "f-h1",
+        "name": "name",
+        "label": "Name",
+        "type": "text",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H1",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_kiteavi"
+      },
+      {
+        "id": "f-h2",
+        "name": "phone",
+        "label": "Number",
+        "type": "phone",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H2",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_kiteavi"
+      },
+      {
+        "id": "f-status",
+        "name": "status",
+        "label": "Status",
+        "type": "dropdown",
+        "options": [
+          "Fresh",
+          "Contacted",
+          "Follow Up",
+          "Demo Scheduled",
+          "Proposal Sent",
+          "Converted",
+          "Lost"
+        ],
+        "required": true,
+        "isPrimary": true,
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_kiteavi"
+      },
+      {
+        "id": "f-deal-val",
+        "name": "deal_value",
+        "label": "Deal Value (₹)",
+        "type": "currency",
+        "required": false,
+        "category": "General",
+        "isHidden": false,
+        "tenantId": "company_kiteavi"
+      },
+      {
+        "id": "f-source",
+        "name": "source",
+        "label": "Lead Source",
+        "type": "dropdown",
+        "options": [
+          "Facebook Ads",
+          "Google Ads",
+          "Meta Ads",
+          "IndiaMart",
+          "JustDial",
+          "WhatsApp",
+          "Website Inbound",
+          "Instagram",
+          "Referral",
+          "Direct"
+        ],
+        "required": false,
+        "isPrimary": true,
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_kiteavi"
+      }
+    ],
+    "company_fdfdfd": [
+      {
+        "id": "f-h1",
+        "name": "name",
+        "label": "Name",
+        "type": "text",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H1",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_fdfdfd"
+      },
+      {
+        "id": "f-h2",
+        "name": "phone",
+        "label": "Number",
+        "type": "phone",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H2",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_fdfdfd"
+      },
+      {
+        "id": "f-status",
+        "name": "status",
+        "label": "Status",
+        "type": "dropdown",
+        "options": [
+          "Fresh",
+          "Contacted",
+          "Follow Up",
+          "Demo Scheduled",
+          "Proposal Sent",
+          "Converted",
+          "Lost"
+        ],
+        "required": true,
+        "isPrimary": true,
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_fdfdfd"
+      },
+      {
+        "id": "f-deal-val",
+        "name": "deal_value",
+        "label": "Deal Value (₹)",
+        "type": "currency",
+        "required": false,
+        "category": "General",
+        "isHidden": false,
+        "tenantId": "company_fdfdfd"
+      },
+      {
+        "id": "f-source",
+        "name": "source",
+        "label": "Lead Source",
+        "type": "dropdown",
+        "options": [
+          "Facebook Ads",
+          "Google Ads",
+          "Meta Ads",
+          "IndiaMart",
+          "JustDial",
+          "WhatsApp",
+          "Website Inbound",
+          "Instagram",
+          "Referral",
+          "Direct"
+        ],
+        "required": false,
+        "isPrimary": true,
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_fdfdfd"
+      }
+    ],
+    "company_kite": [
+      {
+        "id": "f-h1",
+        "name": "name",
+        "label": "Name",
+        "type": "text",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H1",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_kite"
+      },
+      {
+        "id": "f-h2",
+        "name": "phone",
+        "label": "Number",
+        "type": "phone",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H2",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_kite"
+      },
+      {
+        "id": "f-status",
+        "name": "status",
+        "label": "Status",
+        "type": "dropdown",
+        "options": [
+          "Fresh",
+          "Contacted",
+          "Follow Up",
+          "Demo Scheduled",
+          "Proposal Sent",
+          "Converted",
+          "Lost"
+        ],
+        "required": true,
+        "isPrimary": true,
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_kite"
+      },
+      {
+        "id": "f-deal-val",
+        "name": "deal_value",
+        "label": "Deal Value (₹)",
+        "type": "currency",
+        "required": false,
+        "category": "General",
+        "isHidden": false,
+        "tenantId": "company_kite"
+      },
+      {
+        "id": "f-source",
+        "name": "source",
+        "label": "Lead Source",
+        "type": "dropdown",
+        "options": [
+          "Facebook Ads",
+          "Google Ads",
+          "Meta Ads",
+          "IndiaMart",
+          "JustDial",
+          "WhatsApp",
+          "Website Inbound",
+          "Instagram",
+          "Referral",
+          "Direct"
+        ],
+        "required": false,
+        "isPrimary": true,
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_kite"
+      }
+    ],
+    "company_kiteav": [
+      {
+        "id": "f-h1",
+        "name": "name",
+        "label": "Name",
+        "type": "text",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H1",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_kiteav"
+      },
+      {
+        "id": "f-h2",
+        "name": "phone",
+        "label": "Number",
+        "type": "phone",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H2",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_kiteav"
+      },
+      {
+        "id": "f-status",
+        "name": "status",
+        "label": "Status",
+        "type": "dropdown",
+        "options": [
+          "Fresh",
+          "Contacted",
+          "Follow Up",
+          "Demo Scheduled",
+          "Proposal Sent",
+          "Converted",
+          "Lost"
+        ],
+        "required": true,
+        "isPrimary": true,
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_kiteav"
+      },
+      {
+        "id": "f-deal-val",
+        "name": "deal_value",
+        "label": "Deal Value (₹)",
+        "type": "currency",
+        "required": false,
+        "category": "General",
+        "isHidden": false,
+        "tenantId": "company_kiteav"
+      },
+      {
+        "id": "f-source",
+        "name": "source",
+        "label": "Lead Source",
+        "type": "dropdown",
+        "options": [
+          "Facebook Ads",
+          "Google Ads",
+          "Meta Ads",
+          "IndiaMart",
+          "JustDial",
+          "WhatsApp",
+          "Website Inbound",
+          "Instagram",
+          "Referral",
+          "Direct"
+        ],
+        "required": false,
+        "isPrimary": true,
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_kiteav"
+      }
+    ],
+    "company_gmail": [
+      {
+        "id": "f-h1",
+        "name": "name",
+        "label": "Name",
+        "type": "text",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H1",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_gmail"
+      },
+      {
+        "id": "f-h2",
+        "name": "phone",
+        "label": "Number",
+        "type": "phone",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H2",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_gmail"
+      },
+      {
+        "id": "f-status",
+        "name": "status",
+        "label": "Status",
+        "type": "dropdown",
+        "options": [
+          "Fresh",
+          "Contacted",
+          "Follow Up",
+          "Demo Scheduled",
+          "Proposal Sent",
+          "Converted",
+          "Lost"
+        ],
+        "required": true,
+        "isPrimary": true,
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_gmail"
+      },
+      {
+        "id": "f-deal-val",
+        "name": "deal_value",
+        "label": "Deal Value (₹)",
+        "type": "currency",
+        "required": false,
+        "category": "General",
+        "isHidden": false,
+        "tenantId": "company_gmail"
+      },
+      {
+        "id": "f-source",
+        "name": "source",
+        "label": "Lead Source",
+        "type": "dropdown",
+        "options": [
+          "Facebook Ads",
+          "Google Ads",
+          "Meta Ads",
+          "IndiaMart",
+          "JustDial",
+          "WhatsApp",
+          "Website Inbound",
+          "Instagram",
+          "Referral",
+          "Direct"
+        ],
+        "required": false,
+        "isPrimary": true,
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_gmail"
+      }
+    ],
+    "company_kite_aviation": [
+      {
+        "tenantId": "company_kite_aviation",
+        "isPrimary": true,
+        "name": "status",
+        "type": "dropdown",
+        "isHidden": false,
+        "label": "Status",
+        "category": "Primary",
+        "options": [
+          "Fresh",
+          "Contacted",
+          "Follow Up",
+          "Demo Scheduled",
+          "Proposal Sent",
+          "Converted",
+          "Lost"
+        ],
+        "required": true,
+        "id": "f-status"
+      },
+      {
+        "required": false,
+        "category": "Primary",
+        "label": "Lead Source",
+        "isPrimary": true,
+        "id": "f-source",
+        "isHidden": false,
+        "options": [
+          "Facebook Ads",
+          "Google Ads",
+          "Meta Ads",
+          "IndiaMart",
+          "JustDial",
+          "WhatsApp",
+          "Website Inbound",
+          "Instagram",
+          "Referral",
+          "Direct"
+        ],
+        "name": "source",
+        "tenantId": "company_kite_aviation",
+        "type": "dropdown",
+        "isUnique": true,
+        "showInQuickAdd": true,
+        "placeholder": "",
+        "description": "",
+        "lastModified": "Just now"
+      },
+      {
+        "required": true,
+        "isPrimary": true,
+        "category": "Primary",
+        "label": "Number",
+        "id": "f-h2",
+        "isHidden": false,
+        "name": "phone",
+        "primarySlot": "H2",
+        "type": "phone",
+        "tenantId": "company_kite_aviation"
+      },
+      {
+        "category": "Primary",
+        "required": true,
+        "tenantId": "company_kite_aviation",
+        "id": "f-h1",
+        "name": "name",
+        "primarySlot": "H1",
+        "isPrimary": true,
+        "type": "text",
+        "isHidden": false,
+        "label": "Name"
+      },
+      {
+        "tenantId": "company_kite_aviation",
+        "id": "f-deal-val",
+        "type": "currency",
+        "category": "General",
+        "name": "deal_value",
+        "label": "Deal Value (₹)",
+        "isHidden": false,
+        "required": false
+      },
+      {
+        "id": "f-1788262267774",
+        "name": "father",
+        "label": "FATHER",
+        "type": "text",
+        "category": "General",
+        "required": false,
+        "isUnique": true,
+        "showInQuickAdd": true,
+        "placeholder": "",
+        "description": "",
+        "createdOn": "2026-09-01T11:31:07.774Z",
+        "lastModified": "2026-09-01T11:31:07.774Z",
+        "isHidden": false,
+        "tenantId": "company_kite_aviation"
       }
     ]
   },
@@ -988,7 +2325,23 @@
       }
     ],
     "company_zenith_aviation": [],
-    "company_wfwwfwf": []
+    "company_wfwwfwf": [],
+    "company_kite_aviation": [
+      {
+        "id": "crm-task-1788267604125",
+        "tenantId": "company_kite_aviation",
+        "title": "adasd",
+        "description": "adsa",
+        "assigneeAgentId": "agent-1788264287313",
+        "assigneeAgentName": "adad",
+        "priority": "Medium",
+        "status": "Pending",
+        "dueDate": "2026-10-02T09:00:00",
+        "taskValue": 23,
+        "createdAt": "2026-09-01T13:00:04.434Z",
+        "createdByAdminId": "agent_kiteaviation_admin"
+      }
+    ]
   },
   "integrations": {
     "company_apex_dynamics": [],

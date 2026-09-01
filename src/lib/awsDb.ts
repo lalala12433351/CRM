@@ -571,19 +571,6 @@ export async function initializeAwsDbTables() {
       ALTER TABLE activity_logs ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(100) DEFAULT 'default_tenant';
       CREATE INDEX IF NOT EXISTS idx_activity_logs_tenant ON activity_logs(tenant_id);
 
-      -- Super Admin Platform Tables
-      CREATE TABLE IF NOT EXISTS superadmin_users (
-        id VARCHAR(255) PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
-        role VARCHAR(50) DEFAULT 'SUPER_ADMIN',
-        avatar_url TEXT,
-        is_active BOOLEAN DEFAULT TRUE,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        last_login TIMESTAMP WITH TIME ZONE
-      );
-
       CREATE TABLE IF NOT EXISTS tenant_subscriptions (
         id VARCHAR(255) PRIMARY KEY,
         tenant_id VARCHAR(100) NOT NULL,
@@ -603,32 +590,15 @@ export async function initializeAwsDbTables() {
       );
       CREATE INDEX IF NOT EXISTS idx_tenant_subscriptions_tenant ON tenant_subscriptions(tenant_id);
 
-      CREATE TABLE IF NOT EXISTS superadmin_audit_logs (
-        id VARCHAR(255) PRIMARY KEY,
-        admin_id VARCHAR(255) NOT NULL,
-        admin_email VARCHAR(255) NOT NULL,
-        action VARCHAR(100) NOT NULL,
-        target_tenant_id VARCHAR(100),
-        ip_address VARCHAR(50),
-        details JSONB DEFAULT '{}'::jsonb,
-        timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-      CREATE INDEX IF NOT EXISTS idx_superadmin_audit_tenant ON superadmin_audit_logs(target_tenant_id);
-
       CREATE TABLE IF NOT EXISTS platform_settings (
         key VARCHAR(100) PRIMARY KEY,
         value JSONB NOT NULL,
         updated_by VARCHAR(255),
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
-
-      -- Default Super Admin User Seed
-      INSERT INTO superadmin_users (id, name, email, password_hash, role, is_active)
-      VALUES ('superadmin-root', 'Master Super Admin', 'superadmin@pixbe.com', 'admin123', 'SUPER_ADMIN', TRUE)
-      ON CONFLICT (email) DO NOTHING;
     `);
 
-    console.log('⚡ AWS Aurora RDS database tables (26 Total Modules with Super Admin) initialized successfully.');
+    console.log('⚡ AWS Aurora RDS database tables initialized successfully.');
   } catch (err: any) {
     console.warn('⚠️ AWS Aurora RDS notice:', err.message);
   } finally {

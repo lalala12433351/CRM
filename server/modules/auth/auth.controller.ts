@@ -76,6 +76,26 @@ export class AuthController {
     }
   }
 
+  public async updateProfile(req: Request, res: Response) {
+    try {
+      const authHeader = req.headers.authorization || '';
+      const token = authHeader.replace('Bearer ', '').trim();
+      const currentSession = token ? authService.getSession(token) : null;
+      const tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string) || currentSession?.tenantId || 'company_kite_aviation';
+      const userId = req.body?.currentId || currentSession?.id || 'agent_kiteaviation_admin';
+
+      const updated = await authService.updateProfile(userId, req.body, tenantId);
+      res.json({
+        success: true,
+        message: 'User profile updated successfully',
+        user: updated
+      });
+    } catch (e: any) {
+      logger.error('Error updating user profile:', e);
+      res.status(400).json({ error: e.message || 'Failed to update user profile' });
+    }
+  }
+
   public logout(req: Request, res: Response) {
     try {
       const authHeader = req.headers.authorization || '';

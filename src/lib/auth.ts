@@ -85,7 +85,7 @@ export async function registerClientAccount(payload: RegisterPayload): Promise<{
       role: 'Admin',
       isAdmin: true,
       status: 'online',
-      avatar: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250`,
+      avatar: '',
       totalCallsToday: 0,
       talkTimeMinutes: 0,
       convertedLeadsCount: 0,

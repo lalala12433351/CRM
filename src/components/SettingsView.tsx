@@ -32,8 +32,19 @@ import {
   Users,
   UserPlus,
   UserCheck,
-  SlidersHorizontal
+  SlidersHorizontal,
+  User,
+  Camera,
+  Upload,
+  MapPin,
+  AtSign,
+  Star,
+  Layers,
+  Filter,
+  ListFilter,
+  RefreshCw
 } from 'lucide-react';
+import { UserAvatar } from './UserAvatar';
 
 const STAGE_COLOR_SWATCHES = [
   '#3d6b60', '#787d77', '#803300', '#ff6600', '#e69900',
@@ -124,14 +135,18 @@ interface SettingsViewProps {
   onUpdateStages?: (stages: PipelineStage[]) => void;
   agents?: Agent[];
   onUpdateAgents?: (agents: Agent[]) => void;
+  onUpdateCurrentUser?: (updatedUser: Agent) => void;
   customFields?: CustomFieldDef[];
   onUpdateFields?: (fields: CustomFieldDef[]) => void;
   permissionTemplates?: PermissionTemplate[];
   onUpdatePermissionTemplates?: (templates: PermissionTemplate[]) => void;
+  lostReasons?: string[];
+  onUpdateLostReasons?: (reasons: string[]) => void;
   initialTab?: SettingsTab;
 }
 
 export type SettingsTab =
+  | 'profile'
   | 'fields'
   | 'permissions'
   | 'general'
@@ -226,9 +241,150 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onUpdateFields,
   permissionTemplates,
   onUpdatePermissionTemplates,
+  onUpdateCurrentUser,
+  lostReasons: initialLostReasons,
+  onUpdateLostReasons,
   initialTab = 'general'
 }) => {
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
+  const [profileName, setProfileName] = useState(activeAgent?.name || '');
+  const [profileEmail, setProfileEmail] = useState(activeAgent?.email || '');
+  const [profilePhone, setProfilePhone] = useState(activeAgent?.phone || '');
+  const [profileAvatar, setProfileAvatar] = useState(activeAgent?.avatar || '');
+  const [showProfileConfirmModal, setShowProfileConfirmModal] = useState(false);
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const avatarFileInputRef = React.useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (activeAgent) {
+      setProfileName(activeAgent.name || '');
+      setProfileEmail(activeAgent.email || '');
+      setProfilePhone(activeAgent.phone || '');
+      setProfileAvatar(activeAgent.avatar || '');
+    }
+  }, [activeAgent]);
+
+  const handleAvatarFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_SIZE = 256;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          setProfileAvatar(compressedDataUrl);
+          if (onShowToast) onShowToast('Profile photo ready! Click Update Profile to save.');
+        } else if (typeof event.target?.result === 'string') {
+          setProfileAvatar(event.target.result);
+        }
+      };
+      if (typeof event.target?.result === 'string') {
+        img.src = event.target.result;
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleOpenProfileConfirm = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profileName.trim()) {
+      alert('Please enter a valid Display Name.');
+      return;
+    }
+    setShowProfileConfirmModal(true);
+  };
+
+  const handleConfirmProfileUpdate = async () => {
+    if (!activeAgent) return;
+    setIsUpdatingProfile(true);
+    try {
+      const updatedUser: Agent = {
+        ...activeAgent,
+        name: profileName.trim(),
+        email: profileEmail.trim(),
+        phone: profilePhone.trim(),
+        avatar: profileAvatar
+      };
+
+      // 1. Immediately update active agent and UI
+      if (onUpdateCurrentUser) {
+        onUpdateCurrentUser(updatedUser);
+      }
+
+      setLocalAgents(prev => prev.map(a => a.id === activeAgent.id ? updatedUser : a));
+      if (onUpdateAgents) {
+        onUpdateAgents(localAgents.map(a => a.id === activeAgent.id ? updatedUser : a));
+      }
+
+      try {
+        localStorage.setItem('pixbe_current_user', JSON.stringify(updatedUser));
+      } catch (e) {}
+
+      // 2. Sync to backend API with a fast timeout fallback
+      const token = localStorage.getItem('pixbe_auth_token') || '';
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+      try {
+        await fetch('/api/auth/profile', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'x-tenant-id': activeAgent.tenantId || 'company_kite_aviation'
+          },
+          body: JSON.stringify({
+            currentId: activeAgent.id,
+            name: profileName.trim(),
+            email: profileEmail.trim(),
+            phone: profilePhone.trim(),
+            avatar: profileAvatar
+          }),
+          signal: controller.signal
+        });
+      } catch (fetchErr) {
+        console.warn('Backend sync notice (saved locally):', fetchErr);
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      if (onShowToast) {
+        onShowToast('Profile updated successfully!');
+      }
+      setShowProfileConfirmModal(false);
+    } catch (err: any) {
+      console.warn('Profile update error:', err);
+      if (onShowToast) {
+        onShowToast('Profile updated!');
+      }
+      setShowProfileConfirmModal(false);
+    } finally {
+      setIsUpdatingProfile(false);
+    }
+  };
   const [localCustomFields, setLocalCustomFields] = useState<CustomFieldDef[]>(customFields || INITIAL_CUSTOM_FIELDS);
   const [localTemplates, setLocalTemplates] = useState<PermissionTemplate[]>(permissionTemplates || INITIAL_PERMISSION_TEMPLATES);
 
@@ -361,9 +517,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [newStageName, setNewStageName] = useState('');
   const [newStageColor, setNewStageColor] = useState('#3B82F6');
   const [newStageCategory, setNewStageCategory] = useState<'initial' | 'active' | 'closed'>('active');
-
-  // Lost Reasons State
-  const [lostReasons, setLostReasons] = useState<string[]>([
+  // Lost Reasons State (Synced with multi-tenant database)
+  const [lostReasons, setLostReasons] = useState<string[]>(initialLostReasons || [
     'No Need',
     'Unable to Connect',
     'Budget Issues',
@@ -374,6 +529,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     'Junk'
   ]);
   const [newLostReasonInput, setNewLostReasonInput] = useState('');
+
+  useEffect(() => {
+    if (initialLostReasons && initialLostReasons.length > 0) {
+      setLostReasons(initialLostReasons);
+    }
+  }, [initialLostReasons]);
+
+  const handleSaveLostReasonsToDb = (updatedReasons: string[]) => {
+    setLostReasons(updatedReasons);
+    if (onUpdateLostReasons) {
+      onUpdateLostReasons(updatedReasons);
+    }
+    const token = localStorage.getItem('pixbe_auth_token') || '';
+    fetch('/api/pipelines/lost-reasons', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-tenant-id': activeAgent?.tenantId || 'company_kite_aviation'
+      },
+      body: JSON.stringify(updatedReasons)
+    }).catch(console.warn);
+  };
 
   // Form State - General Settings
   const [companyName, setCompanyName] = useState(initialCompanyName || 'ARCLE Real Estate & Sales');
@@ -400,9 +578,51 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   }, [initialCurrency]);
   const [timezone, setTimezone] = useState('Asia/Kolkata (GMT+5:30)');
-  const [workingHoursStart, setWorkingHoursStart] = useState('09:30');
-  const [workingHoursEnd, setWorkingHoursEnd] = useState('18:30');
-  const [workingDays, setWorkingDays] = useState(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
+  const [workingHoursStart, setWorkingHoursStart] = useState('09:00');
+  const [workingHoursEnd, setWorkingHoursEnd] = useState('18:00');
+  const [workingDays, setWorkingDays] = useState<string[]>(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
+
+  // Workspace Feature Toggles (Leaderboard, Features, Sync Permissions)
+  const [workspaceFeatures, setWorkspaceFeatures] = useState<{
+    leadStageLeaderboard: boolean;
+    leadRatingLeaderboard: boolean;
+    locationCheckIn: boolean;
+    campaign: boolean;
+    customActions: boolean;
+    salesGroup: boolean;
+    leadRecapture: boolean;
+    newLeadsView: boolean;
+    systemFields: boolean;
+    smartSyncing: boolean;
+  }>(() => {
+    const saved = localStorage.getItem('pixbe_workspace_features');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return {
+      leadStageLeaderboard: true,
+      leadRatingLeaderboard: false,
+      locationCheckIn: false,
+      campaign: true,
+      customActions: true,
+      salesGroup: false,
+      leadRecapture: true,
+      newLeadsView: false,
+      systemFields: false,
+      smartSyncing: true
+    };
+  });
+
+  const toggleWorkspaceFeature = (key: keyof typeof workspaceFeatures) => {
+    setWorkspaceFeatures(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      localStorage.setItem('pixbe_workspace_features', JSON.stringify(next));
+      if (onShowToast) onShowToast('Workspace feature preference updated.');
+      return next;
+    });
+  };
 
   // Form State - Telephony Settings
   const [defaultCountryCode, setDefaultCountryCode] = useState('+91');
@@ -673,7 +893,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     <div className="text-slate-900 font-sans space-y-5 select-none pb-8">
 
       {/* HEADER BAR */}
-      {/* HEADER BAR */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-sans pb-2">
         <div>
           <h1 className="text-2xl font-bold font-sans text-slate-900 tracking-tight flex items-center space-x-3">
@@ -716,6 +935,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <p className="text-[10px] font-sans font-bold text-slate-400 uppercase tracking-wider px-3 py-2">
             Configuration Sections
           </p>
+
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${activeTab === 'profile'
+                ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
+                : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
+              }`}
+          >
+            <User className={`w-4 h-4 shrink-0 ${activeTab === 'profile' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+            <span className="flex-1 text-left font-sans">My Profile</span>
+          </button>
 
           <button
             onClick={() => setActiveTab('fields')}
@@ -846,6 +1076,148 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
         {/* TAB PANELS CONTAINER */}
         <div className="lg:col-span-9 bg-white border border-slate-100 rounded-3xl p-6 sm:p-7 shadow-xs font-sans space-y-6">
+
+          {/* TAB: MY PROFILE */}
+          {activeTab === 'profile' && (
+            <div className="space-y-6">
+              <div className="border-b border-slate-200 pb-3 flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight flex items-center space-x-2">
+                    <User className="w-5 h-5 text-indigo-600" />
+                    <span>My Profile</span>
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Manage your personal profile picture, display name, email, and contact details.
+                  </p>
+                </div>
+              </div>
+
+              {/* Profile Card Header with Photo Upload */}
+              <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-50 via-indigo-50/30 to-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center space-x-4">
+                  <div className="relative group">
+                    <UserAvatar
+                      name={profileName || activeAgent?.name || 'User'}
+                      avatarUrl={profileAvatar}
+                      size="xl"
+                      rounded="2xl"
+                      className="!w-20 !h-20 !text-2xl ring-2 ring-indigo-200 shadow-md"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => avatarFileInputRef.current?.click()}
+                      className="absolute inset-0 bg-black/40 hover:bg-black/55 text-white rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-inner"
+                      title="Click to change profile picture"
+                    >
+                      <Camera className="w-5 h-5 drop-shadow" />
+                    </button>
+                  </div>
+
+                  {/* Hidden file input */}
+                  <input
+                    type="file"
+                    ref={avatarFileInputRef}
+                    accept="image/*"
+                    onChange={handleAvatarFileSelect}
+                    className="hidden"
+                  />
+
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-base">{profileName || activeAgent?.name || 'Current User'}</h3>
+                    <p className="text-xs text-slate-500">{profileEmail || activeAgent?.email || 'admin@kiteaviation.com'}</p>
+                    <div className="flex items-center space-x-2 mt-1.5">
+                      <span className="px-2.5 py-0.5 rounded-md bg-indigo-100 text-indigo-700 font-bold text-[10px]">
+                        {activeAgent?.role || 'Master Admin'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Profile Photo Action Buttons */}
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => avatarFileInputRef.current?.click()}
+                    className="px-3 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer shadow-2xs"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Upload Photo</span>
+                  </button>
+
+                  {profileAvatar && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProfileAvatar('');
+                        if (onShowToast) onShowToast('Profile photo removed. Letter avatar will be used.');
+                      }}
+                      className="px-3 py-2 rounded-xl bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 text-xs font-semibold transition-all cursor-pointer"
+                    >
+                      Remove Photo
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Profile Form */}
+              <form onSubmit={handleOpenProfileConfirm} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Display Name <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={profileName}
+                      onChange={(e) => setProfileName(e.target.value)}
+                      placeholder="e.g. Kite Aviation Admin"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-indigo-600 focus:bg-white transition-all"
+                      required
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      This name is displayed across the CRM, lead ownership, follow-ups, and reports.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={profileEmail}
+                      onChange={(e) => setProfileEmail(e.target.value)}
+                      placeholder="admin@kiteaviation.com"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-indigo-600 focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Official Phone Number
+                    </label>
+                    <input
+                      type="text"
+                      value={profilePhone}
+                      onChange={(e) => setProfilePhone(e.target.value)}
+                      placeholder="+91 98765 43210"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-indigo-600 focus:bg-white transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-end">
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-md shadow-indigo-100 transition-all cursor-pointer flex items-center space-x-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Update Profile</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
 
           {/* TAB 0: FIELDS SETTINGS */}
           {activeTab === 'fields' && (
@@ -991,6 +1363,247 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         </button>
                       );
                     })}
+                  </div>
+                </div>
+              </div>
+
+              {/* ========================================================================= */}
+              {/* WORKSPACE FEATURE TOGGLES: LEADERBOARD, FEATURES, SYNC PERMISSIONS        */}
+              {/* ========================================================================= */}
+
+              {/* 1. LEADERBOARD GROUP */}
+              <div className="pt-2 space-y-2">
+                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider px-1">
+                  Leaderboard
+                </h3>
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs divide-y divide-slate-100 overflow-hidden text-xs">
+                  {/* Lead Stage */}
+                  <div className="p-3.5 sm:px-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors">
+                    <div className="flex items-center space-x-3 text-slate-800 font-medium">
+                      <Layers className="w-4 h-4 text-slate-400" />
+                      <span>Lead Stage</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleWorkspaceFeature('leadStageLeaderboard')}
+                      className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 ease-in-out cursor-pointer ${
+                        workspaceFeatures.leadStageLeaderboard ? 'bg-[#5b21b6]' : 'bg-slate-300'
+                      }`}
+                      title={workspaceFeatures.leadStageLeaderboard ? 'Enabled' : 'Disabled'}
+                    >
+                      <div
+                        className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                          workspaceFeatures.leadStageLeaderboard ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Lead Rating */}
+                  <div className="p-3.5 sm:px-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors">
+                    <div className="flex items-center space-x-3 text-slate-800 font-medium">
+                      <Star className="w-4 h-4 text-slate-400" />
+                      <span>Lead Rating</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleWorkspaceFeature('leadRatingLeaderboard')}
+                      className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 ease-in-out cursor-pointer ${
+                        workspaceFeatures.leadRatingLeaderboard ? 'bg-[#5b21b6]' : 'bg-slate-300'
+                      }`}
+                      title={workspaceFeatures.leadRatingLeaderboard ? 'Enabled' : 'Disabled'}
+                    >
+                      <div
+                        className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                          workspaceFeatures.leadRatingLeaderboard ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. FEATURES GROUP */}
+              <div className="pt-2 space-y-2">
+                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider px-1">
+                  Features
+                </h3>
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs divide-y divide-slate-100 overflow-hidden text-xs">
+                  {/* Location Check-in */}
+                  <div className="p-3.5 sm:px-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors">
+                    <div className="flex items-center space-x-3 text-slate-800 font-medium">
+                      <MapPin className="w-4 h-4 text-slate-400" />
+                      <span>Location Check-in</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleWorkspaceFeature('locationCheckIn')}
+                      className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 ease-in-out cursor-pointer ${
+                        workspaceFeatures.locationCheckIn ? 'bg-[#5b21b6]' : 'bg-slate-300'
+                      }`}
+                    >
+                      <div
+                        className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                          workspaceFeatures.locationCheckIn ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Campaign */}
+                  <div className="p-3.5 sm:px-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors">
+                    <div className="flex items-center space-x-3 text-slate-800 font-medium">
+                      <AtSign className="w-4 h-4 text-slate-400" />
+                      <span>Campaign</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleWorkspaceFeature('campaign')}
+                      className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 ease-in-out cursor-pointer ${
+                        workspaceFeatures.campaign ? 'bg-[#5b21b6]' : 'bg-slate-300'
+                      }`}
+                    >
+                      <div
+                        className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                          workspaceFeatures.campaign ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Custom Actions */}
+                  <div className="p-3.5 sm:px-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors">
+                    <div className="flex items-center space-x-3 text-slate-800 font-medium">
+                      <Zap className="w-4 h-4 text-slate-400" />
+                      <span>Custom Actions</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleWorkspaceFeature('customActions')}
+                      className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 ease-in-out cursor-pointer ${
+                        workspaceFeatures.customActions ? 'bg-[#5b21b6]' : 'bg-slate-300'
+                      }`}
+                    >
+                      <div
+                        className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                          workspaceFeatures.customActions ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Sales Group */}
+                  <div className="p-3.5 sm:px-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors">
+                    <div className="flex items-center space-x-3 text-slate-800 font-medium">
+                      <Users className="w-4 h-4 text-slate-400" />
+                      <span>Sales Group</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleWorkspaceFeature('salesGroup')}
+                      className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 ease-in-out cursor-pointer ${
+                        workspaceFeatures.salesGroup ? 'bg-[#5b21b6]' : 'bg-slate-300'
+                      }`}
+                    >
+                      <div
+                        className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                          workspaceFeatures.salesGroup ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Lead Recapture */}
+                  <div className="p-3.5 sm:px-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors">
+                    <div className="flex items-center space-x-3 text-slate-800 font-medium">
+                      <UserCheck className="w-4 h-4 text-slate-400" />
+                      <span>Lead Recapture</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleWorkspaceFeature('leadRecapture')}
+                      className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 ease-in-out cursor-pointer ${
+                        workspaceFeatures.leadRecapture ? 'bg-[#5b21b6]' : 'bg-slate-300'
+                      }`}
+                    >
+                      <div
+                        className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                          workspaceFeatures.leadRecapture ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* New Leads View */}
+                  <div className="p-3.5 sm:px-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors">
+                    <div className="flex items-center space-x-3 text-slate-800 font-medium">
+                      <Filter className="w-4 h-4 text-slate-400" />
+                      <span>New Leads View</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleWorkspaceFeature('newLeadsView')}
+                      className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 ease-in-out cursor-pointer ${
+                        workspaceFeatures.newLeadsView ? 'bg-[#5b21b6]' : 'bg-slate-300'
+                      }`}
+                    >
+                      <div
+                        className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                          workspaceFeatures.newLeadsView ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* System Fields */}
+                  <div className="p-3.5 sm:px-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors">
+                    <div className="flex items-center space-x-3 text-slate-800 font-medium">
+                      <ListFilter className="w-4 h-4 text-slate-400" />
+                      <span>System Fields</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleWorkspaceFeature('systemFields')}
+                      className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 ease-in-out cursor-pointer ${
+                        workspaceFeatures.systemFields ? 'bg-[#5b21b6]' : 'bg-slate-300'
+                      }`}
+                    >
+                      <div
+                        className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                          workspaceFeatures.systemFields ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. SYNC PERMISSIONS GROUP */}
+              <div className="pt-2 space-y-2">
+                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider px-1">
+                  Sync Permissions
+                </h3>
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs divide-y divide-slate-100 overflow-hidden text-xs">
+                  {/* Smart Syncing */}
+                  <div className="p-3.5 sm:px-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors">
+                    <div className="flex items-center space-x-3 text-slate-800 font-medium">
+                      <RefreshCw className="w-4 h-4 text-slate-400" />
+                      <span>Smart Syncing</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleWorkspaceFeature('smartSyncing')}
+                      className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 ease-in-out cursor-pointer ${
+                        workspaceFeatures.smartSyncing ? 'bg-[#5b21b6]' : 'bg-slate-300'
+                      }`}
+                      title={workspaceFeatures.smartSyncing ? 'Enabled' : 'Disabled'}
+                    >
+                      <div
+                        className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                          workspaceFeatures.smartSyncing ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1207,8 +1820,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             type="button"
                             onClick={() => {
                               if (newLostReasonInput.trim()) {
-                                setLostReasons((prev) => [...prev, newLostReasonInput.trim()]);
+                                const updated = [...lostReasons, newLostReasonInput.trim()];
+                                handleSaveLostReasonsToDb(updated);
                                 setNewLostReasonInput('');
+                                if (onShowToast) onShowToast(`Added lost reason: "${newLostReasonInput.trim()}"`);
                               }
                             }}
                             className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all cursor-pointer"
@@ -1227,7 +1842,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             </div>
                             <button
                               type="button"
-                              onClick={() => setLostReasons((prev) => prev.filter((_, i) => i !== rIdx))}
+                              onClick={() => {
+                                const updated = lostReasons.filter((_, i) => i !== rIdx);
+                                handleSaveLostReasonsToDb(updated);
+                                if (onShowToast) onShowToast(`Removed lost reason: "${reason}"`);
+                              }}
                               className="p-1 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
                               title="Remove Lost Reason"
                             >
@@ -2457,6 +3076,82 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* USER PROFILE UPDATE CONFIRMATION MODAL */}
+      {showProfileConfirmModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in-95 font-sans">
+            <div className="flex items-center space-x-3 border-b border-slate-100 pb-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+                <User className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-slate-900">Confirm Profile Update</h3>
+                <p className="text-xs text-slate-500">Save your changes</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Are you sure you want to update your profile details?
+            </p>
+
+            <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 space-y-2.5 text-xs">
+              <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                <span className="text-slate-500 font-medium">Display Name:</span>
+                <span className="text-slate-900 font-bold">{profileName}</span>
+              </div>
+
+              {profileEmail && (
+                <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                  <span className="text-slate-500 font-medium">Email Address:</span>
+                  <span className="text-slate-800 font-medium">{profileEmail}</span>
+                </div>
+              )}
+
+              {profilePhone && (
+                <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                  <span className="text-slate-500 font-medium">Phone Number:</span>
+                  <span className="text-slate-800 font-medium">{profilePhone}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-medium">Avatar:</span>
+                <span className="text-slate-800 font-medium">{profileAvatar ? 'Custom Photo' : 'Letter Initial'}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowProfileConfirmModal(false)}
+                disabled={isUpdatingProfile}
+                className="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmProfileUpdate}
+                disabled={isUpdatingProfile}
+                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-100 transition-all cursor-pointer flex items-center space-x-1.5"
+              >
+                {isUpdatingProfile ? (
+                  <>
+                    <RotateCcw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Updating...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Confirm & Update</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -147,7 +147,7 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
   const [country, setCountry] = useState('India');
 
   const [companyName, setCompanyName] = useState('');
-  const [dealValue, setDealValue] = useState<number>(0);
+  const [dealValue, setDealValue] = useState<string>('');
   const [requirement, setRequirement] = useState('');
 
   const [leadStatus, setLeadStatus] = useState<LeadStatus>('Fresh');
@@ -293,9 +293,7 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
     }
 
     const trimmedEmail = email.trim();
-    if (!trimmedEmail) {
-      errs.email = 'Email Address is required.';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       errs.email = 'Email must be a valid address containing "@" and domain (e.g. name@company.com).';
     }
 
@@ -371,6 +369,7 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
       setRawPhone('');
       setEmail('');
       setCompanyName('');
+      setDealValue('');
       setRequirement('');
       setNotes('');
       setDuplicateWarning(null);
@@ -644,7 +643,7 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
 
                 <div>
                   <label className="block text-slate-700 font-semibold mb-1">
-                    Email Address <span className="text-rose-500">*</span>
+                    Email Address <span className="text-slate-400 font-normal text-[11px]">(Optional)</span>
                   </label>
                   <input
                     type="email"
@@ -715,22 +714,22 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
               </div>
 
               <div className="space-y-3 text-xs">
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1">Lead Source</label>
                     <select
                       value={leadSource}
                       onChange={(e) => setLeadSource(e.target.value as LeadSource)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-indigo-500"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs sm:text-sm text-slate-900 font-medium focus:outline-none focus:border-indigo-500 max-w-full truncate"
                     >
-                      <option value="Facebook Ads" className="bg-white text-slate-900 font-medium py-1">Facebook Ads</option>
-                      <option value="Google Ads" className="bg-white text-slate-900 font-medium py-1">Google Ads</option>
-                      <option value="WhatsApp" className="bg-white text-slate-900 font-medium py-1">WhatsApp</option>
-                      <option value="Website Form" className="bg-white text-slate-900 font-medium py-1">Website Form</option>
-                      <option value="IndiaMart" className="bg-white text-slate-900 font-medium py-1">IndiaMart</option>
-                      <option value="JustDial" className="bg-white text-slate-900 font-medium py-1">JustDial</option>
-                      <option value="Referral" className="bg-white text-slate-900 font-medium py-1">Referral</option>
-                      <option value="Other" className="bg-white text-slate-900 font-medium py-1">Other</option>
+                      <option value="Facebook Ads" className="text-xs sm:text-sm py-1">Facebook Ads</option>
+                      <option value="Google Ads" className="text-xs sm:text-sm py-1">Google Ads</option>
+                      <option value="WhatsApp" className="text-xs sm:text-sm py-1">WhatsApp</option>
+                      <option value="Website Form" className="text-xs sm:text-sm py-1">Website Form</option>
+                      <option value="IndiaMart" className="text-xs sm:text-sm py-1">IndiaMart</option>
+                      <option value="JustDial" className="text-xs sm:text-sm py-1">JustDial</option>
+                      <option value="Referral" className="text-xs sm:text-sm py-1">Referral</option>
+                      <option value="Other" className="text-xs sm:text-sm py-1">Other</option>
                     </select>
                   </div>
 
@@ -739,14 +738,14 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
                     <select
                       value={leadStatus}
                       onChange={(e) => setLeadStatus(e.target.value as LeadStatus)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-indigo-500"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs sm:text-sm text-slate-900 font-medium focus:outline-none focus:border-indigo-500 max-w-full truncate"
                     >
-                      <option value="New Lead" className="bg-white text-slate-900 font-medium py-1">New Lead</option>
-                      <option value="Contacted" className="bg-white text-slate-900 font-medium py-1">Contacted</option>
-                      <option value="Follow-Up Scheduled" className="bg-white text-slate-900 font-medium py-1">Follow-Up Scheduled</option>
-                      <option value="Interested" className="bg-white text-slate-900 font-medium py-1">Interested</option>
-                      <option value="Converted" className="bg-white text-slate-900 font-medium py-1">Converted</option>
-                      <option value="Lost" className="bg-white text-slate-900 font-medium py-1">Lost</option>
+                      <option value="New Lead" className="text-xs sm:text-sm py-1">New Lead</option>
+                      <option value="Contacted" className="text-xs sm:text-sm py-1">Contacted</option>
+                      <option value="Follow-Up Scheduled" className="text-xs sm:text-sm py-1">Follow-Up Scheduled</option>
+                      <option value="Interested" className="text-xs sm:text-sm py-1">Interested</option>
+                      <option value="Converted" className="text-xs sm:text-sm py-1">Converted</option>
+                      <option value="Lost" className="text-xs sm:text-sm py-1">Lost</option>
                     </select>
                   </div>
                 </div>
@@ -804,9 +803,10 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1">Est. Deal Value (₹)</label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       value={dealValue}
-                      onChange={(e) => setDealValue(Number(e.target.value))}
+                      onChange={(e) => setDealValue(e.target.value.replace(/\D/g, ''))}
                       placeholder="0"
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-indigo-500"
                     />

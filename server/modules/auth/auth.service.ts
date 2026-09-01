@@ -107,7 +107,7 @@ export class AuthService {
       role: 'Master Admin',
       isAdmin: true,
       status: 'online',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      avatar: '',
       totalCallsToday: 0,
       talkTimeMinutes: 0,
       convertedLeadsCount: 0,
@@ -185,7 +185,7 @@ export class AuthService {
           role: 'Master Admin',
           isAdmin: true,
           status: 'online',
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+          avatar: '',
           totalCallsToday: 0,
           talkTimeMinutes: 0,
           convertedLeadsCount: 0,
@@ -221,6 +221,46 @@ export class AuthService {
 
   public logoutSession(token: string) {
     activeSessions.delete(token);
+  }
+
+  public async updateProfile(userId: string, data: { name: string; newId?: string; email?: string; phone?: string; avatar?: string }, tenantId?: string) {
+    const cleanName = (data.name || '').trim();
+    const newId = (data.newId || userId || '').trim();
+    if (!cleanName) throw new Error('User name is required.');
+
+    // 1. Update in activeSessions
+    for (const [token, sessionUser] of activeSessions.entries()) {
+      if (sessionUser.id === userId || (tenantId && sessionUser.tenantId === tenantId)) {
+        sessionUser.name = cleanName;
+        if (newId) sessionUser.id = newId;
+        if (data.email) sessionUser.email = data.email.trim();
+        if (data.phone) sessionUser.phone = data.phone.trim();
+        if (data.avatar !== undefined) sessionUser.avatar = data.avatar;
+        activeSessions.set(token, sessionUser);
+      }
+    }
+
+    // 2. Update in AUTH_USERS array
+    const userInAuth = AUTH_USERS.find(u => u.id === userId || (tenantId && u.tenantId === tenantId));
+    if (userInAuth) {
+      userInAuth.name = cleanName;
+      if (newId) userInAuth.id = newId;
+      if (data.email) userInAuth.email = data.email.trim();
+      if (data.phone) userInAuth.phone = data.phone.trim();
+      if (data.avatar !== undefined) userInAuth.avatar = data.avatar;
+    }
+
+    // 3. Update in multiTenantDb
+    const targetTenantId = tenantId || userInAuth?.tenantId || 'company_kite_aviation';
+    const updatedAgent = await multiTenantDb.updateAgentProfile(targetTenantId, userId, {
+      name: cleanName,
+      id: newId,
+      email: data.email,
+      phone: data.phone,
+      avatar: data.avatar
+    });
+
+    return updatedAgent || userInAuth || { id: newId, name: cleanName, email: data.email || '', avatar: data.avatar };
   }
 }
 

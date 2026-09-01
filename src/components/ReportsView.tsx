@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { CallRecord, Agent, Lead, ActivityLog } from '../types';
 import { CallRecordingPlayer } from './CallRecordingPlayer';
+import { UserAvatar } from './UserAvatar';
 
 export type ReportsSubTab = 'call_logs' | 'leaderboard' | 'user_report';
 
@@ -786,7 +787,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
                       <td className="px-4 py-3">
                         <div className="flex items-center space-x-2.5">
-                          <img src={ag.avatar} alt={ag.name} className="w-7 h-7 rounded-full object-cover border border-slate-200" />
+                          <UserAvatar name={ag.name} avatarUrl={ag.avatar} size="sm" rounded="full" />
                           <div>
                             <p className="font-bold text-slate-900">{ag.name}</p>
                             <p className="text-[10px] text-slate-500">{ag.role}</p>
@@ -836,7 +837,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           {/* Telecaller Selector Bar */}
           <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
             <div className="flex items-center space-x-3">
-              <img src={currentAgentReport.avatar} alt={currentAgentReport.name} className="w-10 h-10 rounded-full object-cover border border-slate-200" />
+              <UserAvatar name={currentAgentReport.name} size="lg" rounded="full" />
               <div>
                 <h3 className="font-bold text-sm text-slate-900">{currentAgentReport.name}</h3>
                 <p className="text-[10px] text-slate-500">{currentAgentReport.role} • {currentAgentReport.phone}</p>

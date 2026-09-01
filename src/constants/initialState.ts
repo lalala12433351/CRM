@@ -24,7 +24,7 @@ export const INITIAL_AGENTS: Agent[] = [
     companyName: 'My Organization',
     isAdmin: true,
     status: 'online',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    avatar: '',
     totalCallsToday: 0,
     talkTimeMinutes: 0,
     convertedLeadsCount: 0,

@@ -22,6 +22,7 @@ import {
   ChevronDown, 
   ChevronUp, 
   User, 
+  Users,
   Calendar, 
   ArrowUpDown, 
   TrendingUp, 
@@ -144,12 +145,19 @@ interface LeadsViewProps {
   globalSavedFilters?: { id: string; name: string; iconType: string }[];
   activeFilterId?: string;
   setActiveFilterId?: (id: string) => void;
+  lostReasons?: string[];
+  onUpdateLostReasons?: (reasons: string[]) => void;
 }
 
 type AnalyticsDimension = 
-  | 'assignee' 
   | 'created_on' 
-  | 'status';
+  | 'status' 
+  | 'lost_reasons' 
+  | 'assignee' 
+  | 'rating' 
+  | 'call_status' 
+  | 'calls_placed' 
+  | 'custom';
 
 export const LeadsView: React.FC<LeadsViewProps> = ({
   leads,
@@ -171,13 +179,24 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
   globalSavedFilters = [],
   activeFilterId = 'all_leads',
   setActiveFilterId,
+  lostReasons = [
+    'No Need',
+    'Unable to Connect',
+    'Budget Issues',
+    'Product does not fit need',
+    'Lost to competitor',
+    'Unknown Reason',
+    'Not eligible',
+    'Junk'
+  ],
+  onUpdateLostReasons,
 }) => {
   const stages = useContext(StagesContext);
 
   // Main View Toggle: 'chart' (Analytics/Graph) vs 'table' (Data Grid)
   const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
-  const [activeDimension, setActiveDimension] = useState<AnalyticsDimension>('assignee');
-  const [chartType, setChartType] = useState<'bar' | 'column' | 'donut'>('bar');
+  const [activeDimension, setActiveDimension] = useState<AnalyticsDimension>('status');
+  const [chartType, setChartType] = useState<'bar' | 'column' | 'donut'>('column');
   const [isChartTypeOpen, setIsChartTypeOpen] = useState(false);
   const [groupBy, setGroupBy] = useState<string>('none');
   const [isGroupByOpen, setIsGroupByOpen] = useState(false);
@@ -198,11 +217,22 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
   const [isAssigneeDropdownOpen, setIsAssigneeDropdownOpen] = useState(false);
 
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [selectedLostReason, setSelectedLostReason] = useState<string>('all');
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const [statusSearchQuery, setStatusSearchQuery] = useState('');
 
   const [selectedDateFilter, setSelectedDateFilter] = useState<string>('all');
   const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
-  const [createdOnDaysRange, setCreatedOnDaysRange] = useState<number>(5); // Default past 5 days (max 10)
+  const [createdOnDaysRange, setCreatedOnDaysRange] = useState<number>(5); // Default past 5 days
+  const [createdOnRangeType, setCreatedOnRangeType] = useState<'days' | 'custom'>('days');
+  const [customStartDate, setCustomStartDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 5);
+    return d.toISOString().split('T')[0];
+  });
+  const [customEndDate, setCustomEndDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [isDateRangePickerOpen, setIsDateRangePickerOpen] = useState(false);
+  const dateRangePickerRef = useRef<HTMLDivElement>(null);
 
   // Dynamically compute all unique lead statuses present in database + pipeline stages
   const availableStatuses = useMemo(() => {
@@ -423,6 +453,9 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
       if (exportChartRef.current && !exportChartRef.current.contains(event.target as Node)) {
         setIsExportChartOpen(false);
       }
+      if (dateRangePickerRef.current && !dateRangePickerRef.current.contains(event.target as Node)) {
+        setIsDateRangePickerOpen(false);
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -460,53 +493,43 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
   const filteredAndSortedLeads = useMemo(() => {
     let result = leads.filter((lead) => {
       // 1. Text Search Filter based on selected searchField (auto | phone | name | email | text | all)
-      const term = searchTerm.toLowerCase().trim();
-      if (term) {
+      const rawTerm = searchTerm.toLowerCase().trim();
+      if (rawTerm) {
+        const digitsTerm = rawTerm.replace(/\D/g, '');
+        const cleanPhone = (lead.phone || '').replace(/\D/g, '');
+        const cleanAltPhone = (lead.altPhone || '').replace(/\D/g, '');
+
+        const matchPhone = 
+          (lead.phone && lead.phone.toLowerCase().includes(rawTerm)) ||
+          (lead.altPhone && lead.altPhone.toLowerCase().includes(rawTerm)) ||
+          (digitsTerm.length >= 2 && (cleanPhone.includes(digitsTerm) || cleanAltPhone.includes(digitsTerm)));
+
+        const matchName = lead.name && lead.name.toLowerCase().includes(rawTerm);
+        const matchEmail = lead.email && lead.email.toLowerCase().includes(rawTerm);
+
         if (searchField === 'phone') {
-          const matchPhone = (lead.phone && lead.phone.includes(term)) || (lead.altPhone && lead.altPhone.includes(term));
           if (!matchPhone) return false;
         } else if (searchField === 'name') {
-          if (!lead.name?.toLowerCase().includes(term)) return false;
+          if (!matchName) return false;
         } else if (searchField === 'email') {
-          if (!lead.email?.toLowerCase().includes(term)) return false;
+          if (!matchEmail) return false;
         } else if (searchField === 'text') {
-          const matchNotes = lead.notes?.toLowerCase().includes(term);
-          const matchCompany = lead.company?.toLowerCase().includes(term);
-          const matchCity = lead.city?.toLowerCase().includes(term);
-          const matchAddress = lead.address?.toLowerCase().includes(term);
-          const matchSource = lead.source?.toLowerCase().includes(term);
-          const matchCustom = lead.customFields && Object.values(lead.customFields).some(val => String(val).toLowerCase().includes(term));
+          const matchNotes = lead.notes?.toLowerCase().includes(rawTerm);
+          const matchCompany = lead.company?.toLowerCase().includes(rawTerm);
+          const matchCity = lead.city?.toLowerCase().includes(rawTerm);
+          const matchAddress = lead.address?.toLowerCase().includes(rawTerm);
+          const matchSource = lead.source?.toLowerCase().includes(rawTerm);
+          const matchCustom = lead.customFields && Object.values(lead.customFields).some(val => String(val).toLowerCase().includes(rawTerm));
           if (!matchNotes && !matchCompany && !matchCity && !matchAddress && !matchSource && !matchCustom) return false;
-        } else if (searchField === 'auto') {
-          // Auto Smart Mode: Digits -> Phone, @ -> Email, Else -> Name / Notes / Company / All
-          const isNumeric = /^[0-9+\-\s()]+$/.test(term) && term.length >= 3;
-          const isEmailQuery = term.includes('@');
-
-          if (isNumeric) {
-            const matchPhone = (lead.phone && lead.phone.includes(term)) || (lead.altPhone && lead.altPhone.includes(term));
-            if (!matchPhone) return false;
-          } else if (isEmailQuery) {
-            if (!lead.email?.toLowerCase().includes(term)) return false;
-          } else {
-            const matchesText = 
-              (lead.name && lead.name.toLowerCase().includes(term)) ||
-              (lead.company && lead.company.toLowerCase().includes(term)) ||
-              (lead.notes && lead.notes.toLowerCase().includes(term)) ||
-              (lead.source && lead.source.toLowerCase().includes(term)) ||
-              (lead.ownerAgentName && lead.ownerAgentName.toLowerCase().includes(term));
-            if (!matchesText) return false;
-          }
         } else {
-          // All Fields Mode
-          const matchesAny = 
-            (lead.name && lead.name.toLowerCase().includes(term)) ||
-            (lead.phone && lead.phone.includes(term)) ||
-            (lead.altPhone && lead.altPhone.includes(term)) ||
-            (lead.email && lead.email.toLowerCase().includes(term)) ||
-            (lead.company && lead.company.toLowerCase().includes(term)) ||
-            (lead.notes && lead.notes.toLowerCase().includes(term)) ||
-            (lead.source && lead.source.toLowerCase().includes(term)) ||
-            (lead.ownerAgentName && lead.ownerAgentName.toLowerCase().includes(term));
+          // Auto (Smart) & All Fields Mode: Comprehensive matching across Name, Number/Phone, Email, Company, Notes, Custom Fields
+          const matchCompany = lead.company && lead.company.toLowerCase().includes(rawTerm);
+          const matchNotes = lead.notes && lead.notes.toLowerCase().includes(rawTerm);
+          const matchSource = lead.source && lead.source.toLowerCase().includes(rawTerm);
+          const matchOwner = lead.ownerAgentName && lead.ownerAgentName.toLowerCase().includes(rawTerm);
+          const matchCustom = lead.customFields && Object.values(lead.customFields).some(val => String(val).toLowerCase().includes(rawTerm));
+
+          const matchesAny = matchName || matchPhone || matchEmail || matchCompany || matchNotes || matchSource || matchOwner || matchCustom;
           if (!matchesAny) return false;
         }
       }
@@ -518,29 +541,49 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
         if (!isMine) return false;
       }
 
-      // 3. Active View Filter for Admin (All Leads, All Active Leads, Followup Leads)
-      if (isAdmin) {
-        if (activeFilterId === 'active_leads') {
-          const matchedStage = stages.find(s => s.name === lead.status || s.id === lead.pipelineStageId);
-          if (matchedStage && matchedStage.category) {
-            if (matchedStage.category === 'closed') return false;
-          } else {
-            const isClosed = lead.status === 'Lost' || lead.status === 'Converted';
-            if (isClosed) return false;
-          }
-        } else if (activeFilterId === 'followup_leads') {
-          if (lead.status !== 'Follow Up' && !lead.followUpAt) return false;
+      // 3. Active View Filter (All Leads = all stages, All Active Leads = all stages except closed, Followup Leads = follow ups)
+      if (activeFilterId === 'all_leads') {
+        // Show leads at ALL stages (no stage filtering)
+      } else if (activeFilterId === 'active_leads') {
+        // Show all leads other than closed stages
+        const matchedStage = stages.find(s => 
+          s.id === lead.pipelineStageId || 
+          s.name.toLowerCase() === (lead.status || '').toLowerCase()
+        );
+        if (matchedStage && matchedStage.category === 'closed') {
+          return false;
         }
+        const cleanStatus = (lead.status || '').toLowerCase().trim();
+        if (cleanStatus === 'lost' || cleanStatus === 'converted' || cleanStatus === 'closed' || cleanStatus.startsWith('lost') || cleanStatus.startsWith('converted')) {
+          return false;
+        }
+      } else if (activeFilterId === 'followup_leads') {
+        const isFollowUp = (lead.status || '').toLowerCase().includes('follow') || !!lead.followUpAt;
+        if (!isFollowUp) return false;
       }
 
       // 3. Assignee Filter
       if (selectedAssignee !== 'all') {
-        if (lead.ownerAgentId !== selectedAssignee) return false;
+        if (selectedAssignee === 'unassigned') {
+          const hasOwner = lead.ownerAgentId || (lead.ownerAgentName && lead.ownerAgentName !== 'Unassigned');
+          if (hasOwner) return false;
+        } else {
+          const selectedAgent = agents.find(a => a.id === selectedAssignee);
+          const isMatch = 
+            lead.ownerAgentId === selectedAssignee || 
+            (selectedAgent && lead.ownerAgentName && lead.ownerAgentName.toLowerCase() === selectedAgent.name.toLowerCase());
+          if (!isMatch) return false;
+        }
       }
 
-      // 4. Status Filter
+      // 4. Status Filter & Lost Reason Filter
       if (selectedStatus !== 'all') {
-        if (lead.status !== selectedStatus) return false;
+        const leadStatusLow = (lead.status || '').toLowerCase().trim();
+        const filterStatusLow = selectedStatus.toLowerCase().trim();
+        if (leadStatusLow !== filterStatusLow) return false;
+        if (selectedStatus.toLowerCase() === 'lost' && selectedLostReason !== 'all') {
+          if (lead.lostReason !== selectedLostReason) return false;
+        }
       }
 
       // 5. Date Filter (Creation Date Pill)
@@ -736,21 +779,64 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
   // Dynamic Graph Calculation from Actual Database
   const activeChartData = useMemo(() => {
     const total = filteredAndSortedLeads.length || 1;
-    const colors = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316', '#64748b', '#84cc16'];
+    // Palette with screenshot-matching Sage green (#628c83) and Slate brown (#8d8b83) as primary tones
+    const colors = [
+      '#628c83', // Sage green (Matches Fresh in screenshot)
+      '#8d8b83', // Slate grey/brown (Matches Interested in screenshot)
+      '#4f46e5', // Indigo
+      '#0d9488', // Teal
+      '#d97706', // Amber
+      '#e11d48', // Rose
+      '#7c3aed', // Violet
+      '#2563eb', // Blue
+      '#059669', // Emerald
+      '#db2777', // Pink
+      '#ca8a04', // Yellow
+      '#475569', // Slate
+    ];
 
-    if (activeDimension === 'assignee') {
+    if (activeDimension === 'status') {
       const counts: Record<string, number> = {};
-      
-      // Initialize counts for all created database agents
-      if (agents && agents.length > 0) {
-        agents.forEach((ag) => {
-          counts[ag.name] = 0;
-        });
-      }
+
+      // Initialize all available statuses
+      availableStatuses.forEach((stgName) => {
+        counts[stgName] = 0;
+      });
 
       filteredAndSortedLeads.forEach((l) => {
-        const name = l.ownerAgentName || activeAgent?.name || 'Madhava sai nagendra';
-        counts[name] = (counts[name] || 0) + 1;
+        const status = l.status || 'Fresh';
+        counts[status] = (counts[status] || 0) + 1;
+      });
+
+      return Object.entries(counts)
+        .filter(([_, count]) => count > 0 || availableStatuses.length <= 4)
+        .map(([label, count], idx) => {
+          const stageConfig = stages.find(s => s.name.toLowerCase() === label.toLowerCase());
+          return {
+            label,
+            value: count,
+            displayValue: count > 999 ? (count / 1000).toFixed(1) + 'k' : count.toString(),
+            displayCount: count.toString(),
+            percentage: ((count / total) * 100).toFixed(2) + '%',
+            color: stageConfig?.color || colors[idx % colors.length]
+          };
+        })
+        .sort((a, b) => b.value - a.value);
+
+    } else if (activeDimension === 'lost_reasons') {
+      const counts: Record<string, number> = {};
+
+      // Initialize default lost reasons
+      lostReasons.forEach((r) => {
+        counts[r] = 0;
+      });
+
+      const lostLeads = filteredAndSortedLeads.filter(l => (l.status || '').toLowerCase() === 'lost' || l.lostReason);
+      const lostTotal = lostLeads.length || 1;
+
+      lostLeads.forEach((l) => {
+        const r = l.lostReason || 'Unknown Reason';
+        counts[r] = (counts[r] || 0) + 1;
       });
 
       return Object.entries(counts)
@@ -759,32 +845,185 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
           value: count,
           displayValue: count > 999 ? (count / 1000).toFixed(1) + 'k' : count.toString(),
           displayCount: count.toString(),
-          percentage: ((count / total) * 100).toFixed(1) + '%',
+          percentage: ((count / lostTotal) * 100).toFixed(2) + '%',
           color: colors[idx % colors.length]
         }))
         .sort((a, b) => b.value - a.value);
 
-    } else if (activeDimension === 'created_on') {
-      const numDays = Math.min(Math.max(createdOnDaysRange || 5, 1), 10);
-      const now = new Date();
+    } else if (activeDimension === 'assignee') {
+      const counts: Record<string, number> = {};
       
-      // Pre-fill past N days array (from oldest to newest)
+      // Initialize counts for all created database agents
+      if (agents && agents.length > 0) {
+        agents.forEach((ag) => {
+          counts[ag.name] = 0;
+        });
+      }
+      counts['Unassigned'] = 0;
+
+      filteredAndSortedLeads.forEach((l) => {
+        const name = l.ownerAgentName || activeAgent?.name || 'Unassigned';
+        counts[name] = (counts[name] || 0) + 1;
+      });
+
+      return Object.entries(counts)
+        .filter(([_, count]) => count > 0 || (agents.length <= 5))
+        .map(([label, count], idx) => ({
+          label,
+          value: count,
+          displayValue: count > 999 ? (count / 1000).toFixed(1) + 'k' : count.toString(),
+          displayCount: count.toString(),
+          percentage: ((count / total) * 100).toFixed(2) + '%',
+          color: colors[idx % colors.length]
+        }))
+        .sort((a, b) => b.value - a.value);
+
+    } else if (activeDimension === 'rating') {
+      const ratingBuckets: Record<string, number> = {
+        '5 Stars': 0,
+        '4 Stars': 0,
+        '3 Stars': 0,
+        '2 Stars': 0,
+        '1 Star': 0,
+        'Unrated': 0
+      };
+
+      filteredAndSortedLeads.forEach((l) => {
+        const score = l.aiScore || (l.rating ? l.rating * 20 : 0);
+        if (score >= 90) ratingBuckets['5 Stars']++;
+        else if (score >= 70) ratingBuckets['4 Stars']++;
+        else if (score >= 50) ratingBuckets['3 Stars']++;
+        else if (score >= 30) ratingBuckets['2 Stars']++;
+        else if (score > 0) ratingBuckets['1 Star']++;
+        else ratingBuckets['Unrated']++;
+      });
+
+      return Object.entries(ratingBuckets).map(([label, count], idx) => ({
+        label,
+        value: count,
+        displayValue: count > 999 ? (count / 1000).toFixed(1) + 'k' : count.toString(),
+        displayCount: count.toString(),
+        percentage: ((count / total) * 100).toFixed(2) + '%',
+        color: colors[idx % colors.length]
+      }));
+
+    } else if (activeDimension === 'call_status') {
+      const statusBuckets: Record<string, number> = {
+        'Connected': 0,
+        'Follow-up Required': 0,
+        'Busy / No Answer': 0,
+        'Wrong Number': 0,
+        'Call Later': 0,
+        'Not Dialed': 0
+      };
+
+      filteredAndSortedLeads.forEach((l) => {
+        const history = l.callHistory || [];
+        if (history.length === 0) {
+          statusBuckets['Not Dialed']++;
+        } else {
+          const lastCall = history[history.length - 1];
+          const outcome = (lastCall.outcome || lastCall.status || '').toLowerCase();
+          if (outcome.includes('connect') || outcome.includes('interest')) statusBuckets['Connected']++;
+          else if (outcome.includes('follow')) statusBuckets['Follow-up Required']++;
+          else if (outcome.includes('busy') || outcome.includes('no answer')) statusBuckets['Busy / No Answer']++;
+          else if (outcome.includes('wrong')) statusBuckets['Wrong Number']++;
+          else if (outcome.includes('later')) statusBuckets['Call Later']++;
+          else statusBuckets['Connected']++;
+        }
+      });
+
+      return Object.entries(statusBuckets).map(([label, count], idx) => ({
+        label,
+        value: count,
+        displayValue: count > 999 ? (count / 1000).toFixed(1) + 'k' : count.toString(),
+        displayCount: count.toString(),
+        percentage: ((count / total) * 100).toFixed(2) + '%',
+        color: colors[idx % colors.length]
+      }));
+
+    } else if (activeDimension === 'calls_placed') {
+      const callsBuckets: Record<string, number> = {
+        '0 Calls': 0,
+        '1 Call': 0,
+        '2-3 Calls': 0,
+        '4-5 Calls': 0,
+        '6+ Calls': 0
+      };
+
+      filteredAndSortedLeads.forEach((l) => {
+        const numCalls = (l.callHistory || []).length;
+        if (numCalls === 0) callsBuckets['0 Calls']++;
+        else if (numCalls === 1) callsBuckets['1 Call']++;
+        else if (numCalls <= 3) callsBuckets['2-3 Calls']++;
+        else if (numCalls <= 5) callsBuckets['4-5 Calls']++;
+        else callsBuckets['6+ Calls']++;
+      });
+
+      return Object.entries(callsBuckets).map(([label, count], idx) => ({
+        label,
+        value: count,
+        displayValue: count > 999 ? (count / 1000).toFixed(1) + 'k' : count.toString(),
+        displayCount: count.toString(),
+        percentage: ((count / total) * 100).toFixed(2) + '%',
+        color: colors[idx % colors.length]
+      }));
+
+    } else if (activeDimension === 'custom') {
+      const sourceCounts: Record<string, number> = {};
+
+      filteredAndSortedLeads.forEach((l) => {
+        const src = l.source || 'Direct';
+        sourceCounts[src] = (sourceCounts[src] || 0) + 1;
+      });
+
+      return Object.entries(sourceCounts).map(([label, count], idx) => ({
+        label,
+        value: count,
+        displayValue: count > 999 ? (count / 1000).toFixed(1) + 'k' : count.toString(),
+        displayCount: count.toString(),
+        percentage: ((count / total) * 100).toFixed(2) + '%',
+        color: colors[idx % colors.length]
+      })).sort((a, b) => b.value - a.value);
+
+    } else if (activeDimension === 'created_on') {
       const pastDaysList: { label: string; isoDate: string; count: number }[] = [];
       
-      for (let i = numDays - 1; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-        const isoDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        const label = d.toLocaleDateString('en-IN', {
-          day: '2-digit',
-          month: 'short'
-        });
-        pastDaysList.push({ label, isoDate, count: 0 });
+      if (createdOnRangeType === 'custom' && customStartDate && customEndDate) {
+        const start = new Date(customStartDate + 'T00:00:00');
+        const end = new Date(customEndDate + 'T23:59:59');
+        const current = new Date(start);
+        
+        let countDays = 0;
+        while (current <= end && countDays < 60) {
+          const isoDate = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+          const label = current.toLocaleDateString('en-IN', {
+            day: '2-digit',
+            month: 'short'
+          });
+          pastDaysList.push({ label, isoDate, count: 0 });
+          current.setDate(current.getDate() + 1);
+          countDays++;
+        }
+      } else {
+        const numDays = Math.min(Math.max(createdOnDaysRange || 5, 1), 30);
+        const now = new Date();
+        
+        for (let i = numDays - 1; i >= 0; i--) {
+          const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+          const isoDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          const label = d.toLocaleDateString('en-IN', {
+            day: '2-digit',
+            month: 'short'
+          });
+          pastDaysList.push({ label, isoDate, count: 0 });
+        }
       }
 
       filteredAndSortedLeads.forEach((l) => {
         let d: Date;
         if (!l.createdAt || l.createdAt === 'Just Now') {
-          d = now;
+          d = new Date();
         } else if (l.createdAt.includes('ago')) {
           d = new Date();
           const match = l.createdAt.match(/(\d+)\s*(d|day|days|h|hour|hours|m|min|minute|minutes)/i);
@@ -799,7 +1038,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
           }
         } else {
           const parsed = new Date(l.createdAt);
-          d = isNaN(parsed.getTime()) ? now : parsed;
+          d = isNaN(parsed.getTime()) ? new Date() : parsed;
         }
         const leadIsoDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         const match = pastDaysList.find((item) => item.isoDate === leadIsoDate);
@@ -815,43 +1054,24 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
         value: item.count,
         displayValue: item.count > 999 ? (item.count / 1000).toFixed(1) + 'k' : item.count.toString(),
         displayCount: item.count.toString(),
-        percentage: ((item.count / daysTotal) * 100).toFixed(1) + '%',
+        percentage: ((item.count / daysTotal) * 100).toFixed(2) + '%',
         color: colors[idx % colors.length]
       }));
-
-    } else if (activeDimension === 'status') {
-      const counts: Record<string, number> = {};
-
-      // Initialize all available statuses
-      availableStatuses.forEach((stgName) => {
-        counts[stgName] = 0;
-      });
-
-      filteredAndSortedLeads.forEach((l) => {
-        const status = l.status || 'New Lead';
-        counts[status] = (counts[status] || 0) + 1;
-      });
-
-      return Object.entries(counts)
-        .map(([label, count], idx) => ({
-          label,
-          value: count,
-          displayValue: count > 999 ? (count / 1000).toFixed(1) + 'k' : count.toString(),
-          displayCount: count.toString(),
-          percentage: ((count / total) * 100).toFixed(1) + '%',
-          color: colors[idx % colors.length]
-        }))
-        .sort((a, b) => b.value - a.value);
     }
 
     return [];
-  }, [activeDimension, filteredAndSortedLeads, agents, stages, createdOnDaysRange, availableStatuses]);
+  }, [activeDimension, filteredAndSortedLeads, agents, stages, createdOnDaysRange, createdOnRangeType, customStartDate, customEndDate, availableStatuses, lostReasons]);
 
-  // Dimension Tabs Configuration (Assignee | Created on | Status)
+  // Dimension Tabs Configuration (Exact order from user's screenshot: Created on | Status | Lost Reasons | Assignee | Rating | Call status | Number of calls placed | Custom)
   const dimensionTabs: { id: AnalyticsDimension; label: string }[] = [
-    { id: 'assignee', label: 'Assignee' },
     { id: 'created_on', label: 'Created on' },
     { id: 'status', label: 'Status' },
+    { id: 'lost_reasons', label: 'Lost Reasons' },
+    { id: 'assignee', label: 'Assignee' },
+    { id: 'rating', label: 'Rating' },
+    { id: 'call_status', label: 'Call status' },
+    { id: 'calls_placed', label: 'Number of calls placed' },
+    { id: 'custom', label: 'Custom' },
   ];
 
   return (
@@ -977,8 +1197,8 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
       </div>
 
       {/* 2. FILTER PILLS ROW (Assignee | Status | Creation Date) */}
-      <div className="px-4 sm:px-6 mb-3">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1.5 sm:pb-0 ios-scroll no-scrollbar flex-nowrap sm:flex-wrap">
+      <div className="px-4 sm:px-6 mb-3 relative z-30">
+        <div className="flex items-center gap-2 flex-wrap">
           
           {/* In Table view, show the full unified search bar. In Chart view, show the clean filter pills as shown in screenshot */}
           {viewMode === 'table' && (
@@ -996,7 +1216,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                 </button>
 
                 {isSearchFieldOpen && (
-                  <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-1 space-y-0.5 text-xs font-sans">
+                  <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-2xl z-[9999] p-1 space-y-0.5 text-xs font-sans">
                     <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
                       Search By Mode
                     </div>
@@ -1040,7 +1260,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                placeholder="Search lead"
+                placeholder="Search by name, number or email"
                 className="flex-1 bg-transparent px-3 py-0.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none"
               />
 
@@ -1062,52 +1282,106 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
             <div className="relative" ref={assigneeDropdownRef}>
               <button
                 onClick={() => setIsAssigneeDropdownOpen(!isAssigneeDropdownOpen)}
-                className="bg-white border border-slate-200 hover:border-slate-300 rounded-full px-3 py-1.5 text-xs text-slate-700 font-medium flex items-center space-x-1.5 shadow-2xs cursor-pointer transition-colors"
+                className={`border rounded-full px-3 py-1.5 text-xs font-medium flex items-center space-x-1.5 shadow-2xs cursor-pointer transition-colors ${
+                  selectedAssignee !== 'all'
+                    ? 'bg-indigo-50 border-indigo-300 text-indigo-900 font-bold'
+                    : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700'
+                }`}
               >
                 <User className="w-3.5 h-3.5 text-slate-400" />
                 <span>
                   {selectedAssignee === 'all' 
                     ? 'Assignee' 
+                    : selectedAssignee === 'unassigned'
+                    ? 'Unassigned'
                     : (agents.find(a => a.id === selectedAssignee)?.name.split(' ')[0] || 'Assignee')}
                 </span>
-                <ChevronDown className="w-3 h-3 text-slate-400" />
+                <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${isAssigneeDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {isAssigneeDropdownOpen && (
-                <div className="absolute left-0 top-full mt-2 w-52 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-1.5 space-y-0.5 text-xs">
+                <div className="absolute left-0 top-full mt-1.5 w-60 bg-white border border-slate-200 rounded-xl shadow-2xl z-[9999] p-1.5 space-y-1 text-xs font-sans animate-in fade-in zoom-in-95">
+                  <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Filter by Assignee
+                  </div>
+
                   <button
                     onClick={() => {
                       setSelectedAssignee('all');
                       setIsAssigneeDropdownOpen(false);
                     }}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between cursor-pointer ${
-                      selectedAssignee === 'all' ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-700 hover:bg-slate-50'
+                    className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
+                      selectedAssignee === 'all' ? 'bg-indigo-50 text-indigo-900 font-bold' : 'text-slate-700 hover:bg-slate-50'
                     }`}
                   >
-                    <span>All Assignees</span>
-                    {selectedAssignee === 'all' && <Check className="w-3 h-3 text-indigo-600" />}
+                    <div className="flex items-center space-x-2">
+                      <Users className="w-3.5 h-3.5 text-slate-500" />
+                      <span>All Assignees</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span className="text-[10px] text-slate-400 font-medium px-1.5 py-0.2 rounded bg-slate-100">{leads.length}</span>
+                      {selectedAssignee === 'all' && <Check className="w-3 h-3 text-indigo-600" />}
+                    </div>
                   </button>
 
-                  {agents.map((ag) => (
-                    <button
-                      key={ag.id}
-                      onClick={() => {
-                        setSelectedAssignee(ag.id);
-                        setIsAssigneeDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between cursor-pointer ${
-                        selectedAssignee === ag.id ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      <span className="truncate">{ag.name}</span>
-                      {selectedAssignee === ag.id && <Check className="w-3 h-3 text-indigo-600" />}
-                    </button>
-                  ))}
+                  <div className="max-h-48 overflow-y-auto space-y-0.5 pr-0.5">
+                    {agents.map((ag) => {
+                      const count = leads.filter(l => l.ownerAgentId === ag.id || (l.ownerAgentName && l.ownerAgentName.toLowerCase() === ag.name.toLowerCase())).length;
+                      const isSelected = selectedAssignee === ag.id;
+                      return (
+                        <button
+                          key={ag.id}
+                          onClick={() => {
+                            setSelectedAssignee(ag.id);
+                            setIsAssigneeDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
+                            isSelected ? 'bg-indigo-50 text-indigo-900 font-bold' : 'text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-2 min-w-0">
+                            <div className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[9px] font-bold text-slate-700 shrink-0">
+                              {getAgentAvatar(ag.name).initials}
+                            </div>
+                            <div className="truncate">
+                              <p className="font-semibold text-slate-900 leading-tight truncate text-xs">{ag.name}</p>
+                              <p className="text-[9px] text-slate-400 leading-tight">{ag.role || 'Caller'}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-1 shrink-0">
+                            <span className="text-[10px] text-slate-400 font-medium px-1.5 py-0.2 rounded bg-slate-100">{count}</span>
+                            {isSelected && <Check className="w-3 h-3 text-indigo-600" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setSelectedAssignee('unassigned');
+                      setIsAssigneeDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between cursor-pointer transition-colors border-t border-slate-100 ${
+                      selectedAssignee === 'unassigned' ? 'bg-indigo-50 text-indigo-900 font-bold' : 'text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <User className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Unassigned</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span className="text-[10px] text-slate-400 font-medium px-1.5 py-0.2 rounded bg-slate-100">
+                        {leads.filter(l => !l.ownerAgentId || l.ownerAgentName === 'Unassigned').length}
+                      </span>
+                      {selectedAssignee === 'unassigned' && <Check className="w-3 h-3 text-indigo-600" />}
+                    </div>
+                  </button>
                 </div>
               )}
             </div>
 
-            {/* Status Filter Dropdown */}
+            {/* Status Filter Dropdown (Compact & Flush Right) */}
             <div className="relative" ref={statusDropdownRef}>
               {(() => {
                 const stageConfig = selectedStatus !== 'all' ? stages.find(s => s.name.toLowerCase() === selectedStatus.toLowerCase()) : null;
@@ -1126,43 +1400,132 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                     }`}
                   >
                     {selectedStatus !== 'all' && (
-                      <span style={dotStyles} className="w-2 h-2 rounded-full" />
+                      <span style={dotStyles} className="w-2 h-2 rounded-full shrink-0" />
                     )}
-                    <span>{selectedStatus === 'all' ? 'Status' : selectedStatus}</span>
-                    <ChevronDown className="w-3 h-3 opacity-60" />
+                    <span className="truncate max-w-[120px]">
+                      {selectedStatus === 'all' 
+                        ? 'Status' 
+                        : selectedStatus === 'Lost' && selectedLostReason !== 'all'
+                        ? `Lost • ${selectedLostReason}`
+                        : selectedStatus}
+                    </span>
+                    <ChevronDown className={`w-3 h-3 transition-transform duration-200 shrink-0 ${isStatusDropdownOpen ? 'rotate-180' : 'opacity-60'}`} />
                   </button>
                 );
               })()}
 
               {isStatusDropdownOpen && (
-                <div className="absolute left-0 top-full mt-2 w-52 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-1.5 space-y-0.5 text-xs max-h-80 overflow-y-auto">
-                  {['all', ...availableStatuses].map((st) => {
-                    const stageConfig = st !== 'all' ? stages.find(s => s.name === st) : null;
-                    const isSelected = selectedStatus === st;
-                    return (
+                <div className="absolute right-0 top-full mt-1.5 w-60 bg-white border border-slate-200 rounded-xl shadow-2xl z-[9999] p-1.5 space-y-1 text-xs font-sans max-h-80 overflow-y-auto animate-in fade-in zoom-in-95">
+                  {/* Dropdown Header & Quick Reset */}
+                  <div className="flex items-center justify-between px-1.5 pt-0.5 pb-1 border-b border-slate-100">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      Stage & Status
+                    </span>
+                    {selectedStatus !== 'all' && (
                       <button
-                        key={st}
                         onClick={() => {
-                          setSelectedStatus(st);
+                          setSelectedStatus('all');
+                          setSelectedLostReason('all');
+                          setStatusSearchQuery('');
                           setIsStatusDropdownOpen(false);
                         }}
-                        className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
-                          isSelected ? 'bg-indigo-50 text-indigo-900 font-bold' : 'text-slate-700 hover:bg-slate-50'
-                        }`}
+                        className="text-[10px] text-indigo-600 hover:underline font-semibold cursor-pointer"
                       >
-                        <div className="flex items-center space-x-2">
-                          {st !== 'all' && (
-                            <span 
-                              className="w-2 h-2 rounded-full" 
-                              style={{ backgroundColor: stageConfig?.color || getStatusStyle(st).hex }} 
-                            />
-                          )}
-                          <span>{st === 'all' ? 'All Statuses' : st}</span>
-                        </div>
-                        {isSelected && <Check className="w-3 h-3 text-indigo-600" />}
+                        Reset
                       </button>
-                    );
-                  })}
+                    )}
+                  </div>
+
+                  {/* "All Stages" Button */}
+                  <button
+                    onClick={() => {
+                      setSelectedStatus('all');
+                      setSelectedLostReason('all');
+                      setIsStatusDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
+                      selectedStatus === 'all' ? 'bg-indigo-50 text-indigo-900 font-bold' : 'text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <Layers className="w-3.5 h-3.5 text-slate-500" />
+                      <span>All Stages</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span className="text-[10px] text-slate-400 font-medium px-1.5 py-0.2 rounded bg-slate-100">{leads.length}</span>
+                      {selectedStatus === 'all' && <Check className="w-3 h-3 text-indigo-600" />}
+                    </div>
+                  </button>
+
+                  {/* Stage List */}
+                  <div className="space-y-0.5 border-t border-slate-100 pt-1">
+                    {availableStatuses.map((st) => {
+                      const stageConfig = stages.find(s => s.name.toLowerCase() === st.toLowerCase());
+                      const isSelected = selectedStatus.toLowerCase() === st.toLowerCase() && (st.toLowerCase() !== 'lost' || selectedLostReason === 'all');
+                      const count = leads.filter(l => (l.status || '').toLowerCase() === st.toLowerCase()).length;
+                      const colorHex = stageConfig?.color || getStatusStyle(st).hex;
+
+                      return (
+                        <div key={st} className="space-y-0.5">
+                          <button
+                            onClick={() => {
+                              setSelectedStatus(st);
+                              setSelectedLostReason('all');
+                              setIsStatusDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
+                              isSelected ? 'bg-indigo-50 text-indigo-900 font-bold' : 'text-slate-700 hover:bg-slate-50'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-2 min-w-0">
+                              <span 
+                                className="w-2 h-2 rounded-full shrink-0 shadow-2xs" 
+                                style={{ backgroundColor: colorHex }} 
+                              />
+                              <span className="font-medium text-slate-900 truncate">{st}</span>
+                            </div>
+                            <div className="flex items-center space-x-1 shrink-0">
+                              <span className="text-[10px] text-slate-400 font-medium px-1.5 py-0.2 rounded bg-slate-100">{count}</span>
+                              {isSelected && <Check className="w-3 h-3 text-indigo-600" />}
+                            </div>
+                          </button>
+
+                          {/* Indented Lost Reasons when viewing Lost status */}
+                          {st.toLowerCase() === 'lost' && (
+                            <div className="pl-2.5 pr-1 py-1 space-y-0.5 border-l-2 border-rose-300 ml-2.5 my-0.5 bg-rose-50/40 rounded-r-lg">
+                              <p className="text-[9px] font-bold uppercase tracking-wider text-rose-700 px-1">Reasons:</p>
+                              {lostReasons.map((reason) => {
+                                const isReasonSelected = selectedStatus.toLowerCase() === 'lost' && selectedLostReason === reason;
+                                const reasonCount = leads.filter(l => (l.status || '').toLowerCase() === 'lost' && l.lostReason === reason).length;
+                                return (
+                                  <button
+                                    key={reason}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedStatus('Lost');
+                                      setSelectedLostReason(reason);
+                                      setIsStatusDropdownOpen(false);
+                                    }}
+                                    className={`w-full text-left px-2 py-1 rounded text-[11px] flex items-center justify-between cursor-pointer transition-colors ${
+                                      isReasonSelected
+                                        ? 'bg-rose-100 text-rose-950 font-bold'
+                                        : 'text-slate-600 hover:bg-rose-100/60'
+                                    }`}
+                                  >
+                                    <span className="truncate">• {reason}</span>
+                                    <div className="flex items-center space-x-1 shrink-0">
+                                      <span className="text-[9px] font-medium text-rose-600">({reasonCount})</span>
+                                      {isReasonSelected && <Check className="w-2.5 h-2.5 text-rose-700" />}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
@@ -1177,21 +1540,21 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
       {viewMode === 'chart' && (
         <div className="px-4 sm:px-6 space-y-4">
           
-          {/* TAB BAR CARD: Dimension tabs on left, Export/Download on right */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-2xs px-4 py-2 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+          {/* TAB BAR CARD: Dimension tabs on left, Export/Download on right (Exact match to screenshot) */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xs px-4 pt-3 pb-0 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
             
             {/* Left Dimension Tabs: Created on | Status | Lost Reasons | Assignee | Rating | Call status | Number of calls placed | Custom */}
-            <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar text-xs py-1">
+            <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar text-xs md:text-sm">
               {dimensionTabs.map((tab) => {
                 const isActive = activeDimension === tab.id;
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveDimension(tab.id)}
-                    className={`px-3 py-1.5 rounded-lg whitespace-nowrap text-xs font-semibold cursor-pointer transition-all ${
+                    className={`pb-3 px-3 whitespace-nowrap text-xs md:text-sm font-medium border-b-2 transition-all cursor-pointer ${
                       isActive
-                        ? 'bg-[#3a2088] text-white shadow-xs font-bold'
-                        : 'bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200/80 hover:border-slate-300'
+                        ? 'text-[#3a2088] font-bold border-[#3a2088]'
+                        : 'text-slate-600 hover:text-slate-900 border-transparent'
                     }`}
                   >
                     <span>{tab.label}</span>
@@ -1200,27 +1563,167 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
               })}
 
               {activeDimension === 'created_on' && (
-                <div className="flex items-center space-x-1 pl-2 border-l border-slate-200 shrink-0">
-                  <span className="text-[11px] text-slate-500 font-medium whitespace-nowrap">Show Range:</span>
-                  <select
-                    value={createdOnDaysRange}
-                    onChange={(e) => setCreatedOnDaysRange(Number(e.target.value))}
-                    className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-900 font-bold focus:outline-none focus:border-indigo-600 cursor-pointer"
+                <div className="flex items-center space-x-1.5 pl-3 mb-2.5 border-l border-slate-200 shrink-0 relative" ref={dateRangePickerRef}>
+                  <span className="text-xs md:text-sm font-medium text-slate-500 whitespace-nowrap">Range:</span>
+                  
+                  {/* Range Dropdown Pill matching user screenshot */}
+                  <button
+                    onClick={() => setIsDateRangePickerOpen(!isDateRangePickerOpen)}
+                    className="bg-white border border-slate-300 rounded-full px-3.5 py-1 text-xs md:text-sm font-semibold text-slate-800 flex items-center space-x-1.5 shadow-2xs hover:border-slate-400 cursor-pointer transition-colors"
                   >
-                    <option value={5}>Past 5 Days (Default)</option>
-                    <option value={7}>Past 7 Days</option>
-                    <option value={10}>Past 10 Days (Max)</option>
-                  </select>
+                    <span>
+                      {createdOnRangeType === 'custom' && customStartDate && customEndDate
+                        ? `${new Date(customStartDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} - ${new Date(customEndDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}`
+                        : `Past ${createdOnDaysRange} Days`}
+                    </span>
+                    <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${isDateRangePickerOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* Custom Calendar & Presets Picker Popover */}
+                  {isDateRangePickerOpen && (
+                    <div className="absolute left-0 top-full mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[9999] p-3 space-y-3 text-xs font-sans animate-in fade-in zoom-in-95">
+                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                        <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">
+                          Select Date Range
+                        </span>
+                        <button
+                          onClick={() => setIsDateRangePickerOpen(false)}
+                          className="text-slate-400 hover:text-slate-600 p-0.5"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Quick Presets */}
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Quick Presets</p>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {[
+                            { label: 'Past 5 Days', days: 5 },
+                            { label: 'Past 7 Days', days: 7 },
+                            { label: 'Past 10 Days', days: 10 },
+                            { label: 'Past 30 Days', days: 30 },
+                          ].map((p) => {
+                            const isSelected = createdOnRangeType === 'days' && createdOnDaysRange === p.days;
+                            return (
+                              <button
+                                key={p.days}
+                                onClick={() => {
+                                  setCreatedOnRangeType('days');
+                                  setCreatedOnDaysRange(p.days);
+                                  setIsDateRangePickerOpen(false);
+                                }}
+                                className={`px-2.5 py-1.5 rounded-lg text-left text-xs font-medium cursor-pointer transition-colors ${
+                                  isSelected 
+                                    ? 'bg-indigo-50 text-indigo-900 font-bold border border-indigo-200' 
+                                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-100'
+                                }`}
+                              >
+                                {p.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Custom Calendar Date Selection */}
+                      <div className="space-y-2 pt-2 border-t border-slate-100">
+                        <div className="flex items-center space-x-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                          <p className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">Custom Date Window</p>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <div>
+                            <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">From Date</label>
+                            <input
+                              type="date"
+                              value={customStartDate}
+                              onChange={(e) => setCustomStartDate(e.target.value)}
+                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 font-semibold focus:outline-none focus:border-indigo-600"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">To Date</label>
+                            <input
+                              type="date"
+                              value={customEndDate}
+                              onChange={(e) => setCustomEndDate(e.target.value)}
+                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 font-semibold focus:outline-none focus:border-indigo-600"
+                            />
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            if (customStartDate && customEndDate) {
+                              setCreatedOnRangeType('custom');
+                              setIsDateRangePickerOpen(false);
+                            }
+                          }}
+                          className="w-full mt-1 bg-[#3a2088] hover:bg-[#2c186b] text-white text-xs font-semibold py-2 rounded-xl transition-all shadow-xs cursor-pointer flex items-center justify-center space-x-1.5"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Apply Custom Range</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
+            </div>
+
+            {/* Right: Export chart as CSV & Download buttons */}
+            <div className="flex items-center space-x-2 pb-3 md:pb-2.5 shrink-0 self-end md:self-auto">
+              <div className="relative" ref={exportChartRef}>
+                <button
+                  onClick={() => setIsExportChartOpen(!isExportChartOpen)}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium flex items-center space-x-1.5 cursor-pointer shadow-2xs"
+                >
+                  <span>Export chart as CSV</span>
+                  <ChevronDown className="w-3 h-3 text-slate-400" />
+                </button>
+
+                {isExportChartOpen && (
+                  <div className="absolute right-0 top-full mt-1.5 w-44 bg-white border border-slate-200 rounded-xl shadow-xl z-40 p-1 space-y-0.5 text-xs font-sans">
+                    <button
+                      onClick={() => {
+                        handleExportChartCsv();
+                        setIsExportChartOpen(false);
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-lg flex items-center space-x-2 text-slate-700 hover:bg-slate-50 cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Export Current CSV</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleExportCsv();
+                        setIsExportChartOpen(false);
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-lg flex items-center space-x-2 text-slate-700 hover:bg-slate-50 cursor-pointer"
+                    >
+                      <Layers className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Export All Leads CSV</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={handleExportChartCsv}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium cursor-pointer shadow-2xs"
+              >
+                Download
+              </button>
             </div>
           </div>
 
           {/* MAIN BAR CHART CARD (Exact match to screenshot) */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-2xs p-5 relative">
             
-            {/* Top Card Controls: [ 📊 Bar ⌵ ] [ Group By ⌵ ] -------- [ View 11100 leads ] */}
-            <div className="flex items-center justify-between mb-8">
+            {/* Top Card Controls: [ 📊 Bar ⌵ ] [ Group By ⌵ ] -------- [ View 1918 leads ] */}
+            <div className="flex items-center justify-between mb-6">
               
               {/* Left Controls */}
               <div className="flex items-center space-x-2">
@@ -1232,24 +1735,28 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                     className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium flex items-center space-x-1.5 cursor-pointer shadow-2xs"
                   >
                     <BarChart2 className="w-3.5 h-3.5 text-slate-500" />
-                    <span className="capitalize">{chartType}</span>
+                    <span className="capitalize">{chartType === 'column' ? 'Bar' : chartType}</span>
                     <ChevronDown className="w-3 h-3 text-slate-400" />
                   </button>
 
                   {isChartTypeOpen && (
                     <div className="absolute left-0 top-full mt-1.5 w-32 bg-white border border-slate-200 rounded-xl shadow-xl z-40 p-1 space-y-0.5 text-xs">
-                      {['bar', 'column', 'donut'].map((t) => (
+                      {[
+                        { id: 'column', label: 'Bar (Vertical)' },
+                        { id: 'bar', label: 'Horizontal Bar' },
+                        { id: 'donut', label: 'Donut' },
+                      ].map((t) => (
                         <button
-                          key={t}
+                          key={t.id}
                           onClick={() => {
-                            setChartType(t as any);
+                            setChartType(t.id as any);
                             setIsChartTypeOpen(false);
                           }}
-                          className={`w-full text-left px-2.5 py-1.5 rounded-lg capitalize cursor-pointer ${
-                            chartType === t ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-700 hover:bg-slate-50'
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg cursor-pointer ${
+                            chartType === t.id ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-700 hover:bg-slate-50'
                           }`}
                         >
-                          {t}
+                          {t.label}
                         </button>
                       ))}
                     </div>
@@ -1288,7 +1795,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
 
               </div>
 
-              {/* Right: [ View 11100 leads ] Solid Deep Purple Button */}
+              {/* Right: [ View 1918 leads ] Solid Deep Purple Button */}
               <button
                 onClick={() => setViewMode('table')}
                 className="bg-[#3a2088] hover:bg-[#2c186b] text-white text-xs font-semibold px-4 py-2 rounded-lg cursor-pointer transition-colors shadow-2xs flex items-center space-x-1.5"
@@ -1298,7 +1805,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
             </div>
 
             {/* CHART DISPLAY AREA */}
-            <div className="relative flex items-stretch min-h-[320px] p-4">
+            <div className="relative min-h-[340px] pt-4 pb-2">
               
               {chartType === 'donut' ? (
                 /* DONUT CHART MODE */
@@ -1327,7 +1834,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                               strokeDashoffset={strokeDashoffset}
                               className="transition-all duration-300 hover:opacity-80 cursor-pointer"
                               onClick={() => {
-                                setSelectedStatus(item.label);
+                                if (activeDimension === 'status') setSelectedStatus(item.label);
                                 setViewMode('table');
                               }}
                             />
@@ -1348,7 +1855,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                       <div
                         key={idx}
                         onClick={() => {
-                          setSelectedStatus(item.label);
+                          if (activeDimension === 'status') setSelectedStatus(item.label);
                           setViewMode('table');
                         }}
                         className="flex items-center space-x-2 p-2 rounded-lg border border-slate-100 bg-slate-50/80 hover:bg-indigo-50/50 hover:border-indigo-200 transition-all cursor-pointer"
@@ -1373,7 +1880,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                         <div
                           key={idx}
                           onClick={() => {
-                            setSelectedStatus(item.label);
+                            if (activeDimension === 'status') setSelectedStatus(item.label);
                             setViewMode('table');
                           }}
                           className="flex items-center space-x-3 text-xs group cursor-pointer"
@@ -1392,48 +1899,122 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                   })()}
                 </div>
               ) : (
-                /* VERTICAL COLUMN CHART MODE (DEFAULT) */
-                <div className="w-full flex flex-col h-72 justify-between">
-                  <div className="relative flex items-stretch h-64 pl-10 pr-2 pt-4">
-                    {/* Y-Axis Label */}
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 -rotate-90 text-[11px] font-medium text-slate-400 tracking-wide select-none origin-center whitespace-nowrap">
+                /* VERTICAL COLUMN CHART MODE (Exact match to screenshot) */
+                <div className="w-full flex flex-col justify-between">
+                  <div className="relative h-72 pl-14 pr-4">
+                    
+                    {/* Y-Axis Title ("Leads Count") */}
+                    <div className="absolute left-1 top-1/2 -translate-y-1/2 -rotate-90 text-[11px] font-medium text-slate-500 tracking-wide select-none origin-center whitespace-nowrap">
                       Leads Count
                     </div>
 
-                    {/* Bars Row */}
-                    <div className="relative z-10 w-full h-full flex items-end justify-between gap-1 sm:gap-2 px-1">
-                      {activeChartData.map((item, index) => {
-                        const maxVal = Math.max(...activeChartData.map(d => d.value), 1);
-                        const barHeightPercent = Math.max((item.value / maxVal) * 100, 3);
+                    {/* Background Grid Lines & Dynamic Ticks */}
+                    {(() => {
+                      const maxVal = Math.max(...activeChartData.map(d => d.value), 0);
 
-                        return (
-                          <div 
-                            key={index} 
-                            className="flex-1 flex flex-col items-center justify-end h-full group relative cursor-pointer"
-                            onClick={() => {
-                              setSelectedStatus(item.label);
-                              setViewMode('table');
-                            }}
-                            title={`${item.label}: ${item.displayCount || item.value} leads (${item.percentage})`}
-                          >
-                            <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 mb-1 select-none transition-transform group-hover:-translate-y-1">
-                              {item.displayValue}
-                            </span>
-                            <div 
-                              className="w-full max-w-[42px] rounded-t-sm transition-all duration-300 group-hover:opacity-90 group-hover:shadow-md"
-                              style={{
-                                height: `${barHeightPercent}%`,
-                                backgroundColor: item.color
-                              }}
-                            />
-                            <div className="h-7 pt-1 flex items-start justify-center text-center w-full">
-                              <span className="text-[10px] text-slate-700 font-medium truncate max-w-[54px] sm:max-w-none">
-                                {item.label}
+                      // Calculate dynamic nice ceiling based on exact data values
+                      const computeNiceScale = (max: number) => {
+                        if (max <= 0) return { topCeil: 5, ticks: [5, 4, 3, 2, 1, 0] };
+                        if (max <= 5) return { topCeil: 5, ticks: [5, 4, 3, 2, 1, 0] };
+                        if (max <= 10) return { topCeil: 10, ticks: [10, 8, 6, 4, 2, 0] };
+                        if (max <= 25) return { topCeil: 25, ticks: [25, 20, 15, 10, 5, 0] };
+                        if (max <= 50) return { topCeil: 50, ticks: [50, 40, 30, 20, 10, 0] };
+                        if (max <= 100) return { topCeil: 100, ticks: [100, 80, 60, 40, 20, 0] };
+                        if (max <= 250) return { topCeil: 250, ticks: [250, 200, 150, 100, 50, 0] };
+                        if (max <= 500) return { topCeil: 500, ticks: [500, 400, 300, 200, 100, 0] };
+                        if (max <= 1000) return { topCeil: 1000, ticks: [1000, 800, 600, 400, 200, 0] };
+                        if (max <= 2000) return { topCeil: 2000, ticks: [2000, 1600, 1200, 800, 400, 0] };
+                        if (max <= 5000) return { topCeil: 5000, ticks: [5000, 4000, 3000, 2000, 1000, 0] };
+                        if (max <= 10000) return { topCeil: 10000, ticks: [10000, 8000, 6000, 4000, 2000, 0] };
+                        
+                        const magnitude = Math.pow(10, Math.floor(Math.log10(max)));
+                        const factor = Math.ceil(max / magnitude);
+                        const topCeil = factor * magnitude;
+                        const step = topCeil / 5;
+                        const ticks = [topCeil, Math.round(step * 4), Math.round(step * 3), Math.round(step * 2), Math.round(step * 1), 0];
+                        return { topCeil, ticks };
+                      };
+
+                      const { topCeil, ticks } = computeNiceScale(maxVal);
+
+                      return (
+                        <div className="absolute inset-0 pl-12 pr-4 flex flex-col justify-between pointer-events-none">
+                          {ticks.map((t, idx) => (
+                            <div key={idx} className="w-full flex items-center space-x-2">
+                              <span className="w-9 text-[10px] text-slate-400 text-right font-mono">
+                                {t >= 1000 ? (t / 1000).toFixed(t % 1000 === 0 ? 0 : 1) + 'k' : t.toLocaleString()}
                               </span>
+                              <div className="flex-1 border-b border-slate-100" />
                             </div>
-                          </div>
-                        );
-                      })}
+                          ))}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Column Bars */}
+                    <div className="relative z-10 w-full h-full flex items-end justify-around gap-4 px-2 pb-1">
+                      {(() => {
+                        const maxVal = Math.max(...activeChartData.map(d => d.value), 0);
+                        const computeNiceTop = (max: number) => {
+                          if (max <= 0) return 5;
+                          if (max <= 5) return 5;
+                          if (max <= 10) return 10;
+                          if (max <= 25) return 25;
+                          if (max <= 50) return 50;
+                          if (max <= 100) return 100;
+                          if (max <= 250) return 250;
+                          if (max <= 500) return 500;
+                          if (max <= 1000) return 1000;
+                          if (max <= 2000) return 2000;
+                          if (max <= 5000) return 5000;
+                          if (max <= 10000) return 10000;
+                          const magnitude = Math.pow(10, Math.floor(Math.log10(max)));
+                          return Math.ceil(max / magnitude) * magnitude;
+                        };
+                        const topCeil = computeNiceTop(maxVal);
+
+                        return activeChartData.map((item, index) => {
+                          const barHeightPercent = Math.max((item.value / topCeil) * 100, item.value > 0 ? 3 : 0.5);
+
+                          return (
+                            <div 
+                              key={index} 
+                              className="flex-1 max-w-[120px] flex flex-col items-center justify-end h-full group relative cursor-pointer"
+                              onClick={() => {
+                                if (activeDimension === 'status') {
+                                  setSelectedStatus(item.label);
+                                } else if (activeDimension === 'assignee') {
+                                  const ag = agents.find(a => a.name === item.label);
+                                  if (ag) setSelectedAssignee(ag.id);
+                                }
+                                setViewMode('table');
+                              }}
+                              title={`${item.label}: ${item.displayCount || item.value} leads (${item.percentage})`}
+                            >
+                              {/* Value Above Bar */}
+                              <span className="text-[11px] font-bold text-slate-800 mb-1 select-none transition-transform group-hover:-translate-y-1 font-mono">
+                                {item.displayValue}
+                              </span>
+
+                              {/* Solid Bar */}
+                              <div 
+                                className="w-full max-w-[64px] rounded-t-sm transition-all duration-300 group-hover:opacity-90 group-hover:shadow-md"
+                                style={{
+                                  height: `${barHeightPercent}%`,
+                                  backgroundColor: item.color
+                                }}
+                              />
+
+                              {/* Label Below Bar */}
+                              <div className="h-6 pt-1 flex items-start justify-center text-center w-full">
+                                <span className="text-xs text-slate-700 font-medium truncate max-w-[90px]">
+                                  {item.label}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -1441,21 +2022,21 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
 
             </div>
 
-            {/* Bottom X-Axis Axis Title ("Status") */}
-            <div className="text-center text-[11px] font-medium text-slate-600 mt-2 select-none">
-              {activeDimension === 'status' ? 'Status' : dimensionTabs.find(t => t.id === activeDimension)?.label || 'Status'}
+            {/* Bottom X-Axis Axis Title ("Status" / "Assignee" / "Rating" etc.) */}
+            <div className="text-center text-xs font-medium text-slate-600 mt-2 select-none">
+              {dimensionTabs.find(t => t.id === activeDimension)?.label || 'Status'}
             </div>
 
           </div>
 
-          {/* STATS BREAKDOWN GRID CARD (Exact 5-Column Grid Layout matching screenshot) */}
+          {/* STATS BREAKDOWN GRID CARD (Exact match to screenshot bottom summary cards) */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-2xs p-5">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-y-5 gap-x-6">
+            <div className="flex items-center gap-8 flex-wrap">
               
               {activeChartData.map((item, idx) => (
                 <div 
                   key={idx} 
-                  className="space-y-1 cursor-pointer hover:bg-slate-50 p-2 -m-2 rounded-xl transition-all"
+                  className="flex items-center space-x-3 cursor-pointer hover:bg-slate-50 p-2 -m-2 rounded-xl transition-all"
                   onClick={() => {
                     if (activeDimension === 'status') {
                       setSelectedStatus(item.label);
@@ -1466,15 +2047,15 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                     setViewMode('table');
                   }}
                 >
-                  <div className="flex items-center space-x-1.5 text-xs text-slate-700 font-medium mb-1">
-                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                    <span className="truncate">{item.label}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm font-bold text-slate-900">{item.displayValue}</span>
-                    <span className="bg-[#ede9fe] text-[#5b21b6] text-[10px] font-semibold px-2 py-0.5 rounded-full">
-                      {item.percentage}
-                    </span>
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs" style={{ backgroundColor: item.color }} />
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-semibold text-slate-800">{item.label}</p>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-bold text-slate-900 font-mono">{item.displayValue}</span>
+                      <span className="bg-[#ede9fe] text-[#5b21b6] text-[11px] font-bold px-2 py-0.5 rounded-full">
+                        {item.percentage}
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1743,7 +2324,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                       </div>
 
                       <div className="text-right shrink-0 flex flex-col items-end">
-                        <StatusBadge status={lead.status || 'Fresh'} size="xs" />
+                        <StatusBadge status={lead.status || 'Fresh'} lostReason={lead.lostReason} size="xs" />
                         {lead.dealValue ? (
                           <span className="text-xs font-bold text-slate-800 font-mono mt-1">
                             {formatDealValue(lead.dealValue, currency)}
@@ -1932,7 +2513,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                               if (field.name === 'status') {
                                 return (
                                   <td key={field.id} className="px-3.5 py-2.5 whitespace-nowrap">
-                                    <StatusBadge status={lead.status || 'Fresh'} size="xs" />
+                                    <StatusBadge status={lead.status || 'Fresh'} lostReason={lead.lostReason} size="xs" />
                                   </td>
                                 );
                               }

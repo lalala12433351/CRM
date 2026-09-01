@@ -15,7 +15,11 @@ import {
   Check,
   Trash2,
   ChevronRight,
-  UserPlus
+  ChevronDown,
+  UserPlus,
+  User,
+  Layers,
+  ChevronsRight
 } from 'lucide-react';
 import { Lead, Agent, PipelineStage, HourlyMetric, isAgentAdmin, CustomFieldDef, formatDealValue } from '../types';
 
@@ -64,6 +68,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [followUpAmPm, setFollowUpAmPm] = useState('AM');
   const [followUpRemarks, setFollowUpRemarks] = useState('');
 
+  // Lead by Stages Widget State
+  const [stagesTimeframe, setStagesTimeframe] = useState<'today' | 'yesterday' | 'week' | 'month' | 'all'>('today');
+  const [stagesAssigneeSearch, setStagesAssigneeSearch] = useState('');
+  const [stagesSortCol, setStagesSortCol] = useState<'name' | 'fresh' | 'active' | 'won' | 'lost'>('name');
+  const [stagesSortDir, setStagesSortDir] = useState<'asc' | 'desc'>('asc');
+  const [stagesLastRefreshed, setStagesLastRefreshed] = useState('24m ago');
+  const [isAssigneeFilterOpen, setIsAssigneeFilterOpen] = useState(false);
+  const assigneeDropdownRef = React.useRef<HTMLDivElement>(null);
+
   const isAdmin = isAgentAdmin(activeAgent);
 
   const openFollowUpModal = (lead: Lead) => {
@@ -83,29 +96,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const handleSaveFollowUp = () => {
     if (!followUpLead || !onUpdateLead) return;
-    let h = parseInt(followUpHour, 10);
-    if (followUpAmPm === 'PM' && h !== 12) h += 12;
-    if (followUpAmPm === 'AM' && h === 12) h = 0;
-    const combinedDate = `${followUpDate}T${String(h).padStart(2, '0')}:${followUpMinute}:00`;
+    const combinedDate = new Date(`${followUpDate}T${followUpHour}:${followUpMinute}:00`);
+    if (followUpAmPm === 'PM' && parseInt(followUpHour, 10) < 12) {
+      combinedDate.setHours(combinedDate.getHours() + 12);
+    }
+    if (followUpAmPm === 'AM' && parseInt(followUpHour, 10) === 12) {
+      combinedDate.setHours(0);
+    }
 
-    const selectedAgent = agents.find((a) => a.id === followUpAssigneeId);
-    const finalAssigneeId = followUpAssigneeId || followUpLead.ownerAgentId || followUpLead.assignedTo;
-    const finalAssigneeName = selectedAgent ? selectedAgent.name : (followUpLead.ownerAgentName || 'Unassigned');
+    const assignedAgent = agents.find((a) => a.id === followUpAssigneeId);
 
     onUpdateLead(followUpLead.id, {
-      status: 'Follow Up',
-      followUpAt: combinedDate,
-      ownerAgentId: finalAssigneeId,
-      ownerAgentName: finalAssigneeName,
-      assignedTo: finalAssigneeId,
+      followUpAt: combinedDate.toISOString(),
+      ownerAgentId: followUpAssigneeId || followUpLead.ownerAgentId,
+      ownerAgentName: assignedAgent ? assignedAgent.name : followUpLead.ownerAgentName,
       notes: followUpRemarks
-        ? `${followUpLead.notes ? followUpLead.notes + '\n' : ''}[Follow-up Remark]: ${followUpRemarks}`
+        ? `${followUpLead.notes ? followUpLead.notes + '\n' : ''}[Follow-Up Scheduled]: ${followUpRemarks}`
         : followUpLead.notes,
       updatedAt: new Date().toISOString()
     });
 
     setFollowUpLead(null);
-    setFollowUpAssigneeId('');
   };
 
   // Helper to enforce assignee calling authority
@@ -120,15 +131,55 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     }
   };
 
-  // Compute stats
-  const totalLeads = leads.length;
-  const hotLeadsCount = leads.filter((l) => l.aiRating === 'Hot').length;
-  const totalEstimatedRevenue = leads.reduce((acc, curr) => acc + (Number(curr.dealValue) || 0), 0);
-  const totalCallsToday = agents.reduce((acc, a) => acc + a.totalCallsToday, 0);
-  const totalTalkTimeMin = agents.reduce((acc, a) => acc + a.talkTimeMinutes, 0);
+  // Filter leads based on selected assignee
+  const assigneeFilteredLeads = useMemo(() => {
+    if (selectedAssigneeId === 'ALL') return leads;
+    if (selectedAssigneeId === 'UNASSIGNED') return leads.filter((l) => !l.ownerAgentId);
+    const targetAgent = agents.find((a) => a.id === selectedAssigneeId);
+    return leads.filter(
+      (l) =>
+        l.ownerAgentId === selectedAssigneeId ||
+        (targetAgent && l.ownerAgentName && l.ownerAgentName.toLowerCase() === targetAgent.name.toLowerCase())
+    );
+  }, [leads, selectedAssigneeId, agents]);
 
-  // Follow ups due today
-  const pendingFollowUps = leads.filter((l) => l.followUpAt && l.status !== 'Converted' && l.status !== 'Lost');
+  // Compute dynamic stats for selected assignee
+  const totalLeads = assigneeFilteredLeads.length;
+  const hotLeadsCount = assigneeFilteredLeads.filter((l) => l.aiRating === 'Hot').length;
+  const totalEstimatedRevenue = assigneeFilteredLeads.reduce((acc, curr) => acc + (Number(curr.dealValue) || 0), 0);
+  
+  const totalCallsToday = useMemo(() => {
+    if (selectedAssigneeId === 'ALL') return agents.reduce((acc, a) => acc + a.totalCallsToday, 0);
+    const ag = agents.find((a) => a.id === selectedAssigneeId);
+    return ag ? ag.totalCallsToday : 0;
+  }, [agents, selectedAssigneeId]);
+
+  const totalTalkTimeMin = useMemo(() => {
+    if (selectedAssigneeId === 'ALL') return agents.reduce((acc, a) => acc + a.talkTimeMinutes, 0);
+    const ag = agents.find((a) => a.id === selectedAssigneeId);
+    return ag ? ag.talkTimeMinutes : 0;
+  }, [agents, selectedAssigneeId]);
+
+  // Follow ups due today (filtered by selected assignee)
+  const pendingFollowUps = useMemo(() => {
+    return assigneeFilteredLeads.filter((l) => l.followUpAt && l.status !== 'Converted' && l.status !== 'Lost');
+  }, [assigneeFilteredLeads]);
+
+  // Stage distribution metrics for the current assignee filter
+  const freshLeadsCount = assigneeFilteredLeads.filter(
+    (l) => (l.status || '').toLowerCase() === 'fresh' || (l.status || '').toLowerCase() === 'new lead'
+  ).length;
+
+  const activeLeadsCount = assigneeFilteredLeads.filter((l) => {
+    const st = (l.status || '').toLowerCase();
+    return st !== 'fresh' && st !== 'new lead' && st !== 'converted' && st !== 'won' && st !== 'lost';
+  }).length;
+
+  const wonLeadsCount = assigneeFilteredLeads.filter(
+    (l) => (l.status || '').toLowerCase() === 'converted' || (l.status || '').toLowerCase() === 'won'
+  ).length;
+
+  const lostLeadsCount = assigneeFilteredLeads.filter((l) => (l.status || '').toLowerCase() === 'lost').length;
 
   // Dynamically extract all available sources and stages from props & leads data
   const availableSources = React.useMemo(() => {
@@ -170,12 +221,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Filtered leads for the Master Dashboard Directory Table
   const filteredDashboardLeads = leads.filter((lead) => {
+    const rawSearch = (tableSearch || '').toLowerCase().trim();
+    const digitsSearch = rawSearch.replace(/\D/g, '');
+    const cleanPhone = (lead.phone || '').replace(/\D/g, '');
+    const cleanAltPhone = (lead.altPhone || '').replace(/\D/g, '');
+
     const matchesSearch =
-      !tableSearch ||
-      (lead.name || '').toLowerCase().includes(tableSearch.toLowerCase()) ||
-      (lead.company || '').toLowerCase().includes(tableSearch.toLowerCase()) ||
-      (lead.phone || '').includes(tableSearch) ||
-      (lead.ownerAgentName && lead.ownerAgentName.toLowerCase().includes(tableSearch.toLowerCase()));
+      !rawSearch ||
+      (lead.name || '').toLowerCase().includes(rawSearch) ||
+      (lead.email || '').toLowerCase().includes(rawSearch) ||
+      (lead.phone || '').toLowerCase().includes(rawSearch) ||
+      (digitsSearch.length >= 2 && (cleanPhone.includes(digitsSearch) || cleanAltPhone.includes(digitsSearch))) ||
+      (lead.company || '').toLowerCase().includes(rawSearch) ||
+      (lead.ownerAgentName && lead.ownerAgentName.toLowerCase().includes(rawSearch));
 
     const matchesSource =
       tableSourceFilter === 'ALL' ||
@@ -217,6 +275,111 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       return 0;
     });
   }, [customFields]);
+
+  // Lead by Stages Aggregation Data
+  const leadByStagesData = useMemo(() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const startOfYesterday = startOfToday - 86400000;
+    const startOfWeek = startOfToday - now.getDay() * 86400000;
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
+    const timeframeFilteredLeads = leads.filter(l => {
+      if (stagesTimeframe === 'all') return true;
+      const createdTime = l.createdAt ? new Date(l.createdAt).getTime() : 0;
+      if (!createdTime) return true;
+      if (stagesTimeframe === 'today') return createdTime >= startOfToday;
+      if (stagesTimeframe === 'yesterday') return createdTime >= startOfYesterday && createdTime < startOfToday;
+      if (stagesTimeframe === 'week') return createdTime >= startOfWeek;
+      if (stagesTimeframe === 'month') return createdTime >= startOfMonth;
+      return true;
+    });
+
+    const allAgentEntries: Agent[] = [...agents];
+    leads.forEach(l => {
+      if (l.ownerAgentName && !allAgentEntries.some(a => a.name.toLowerCase() === l.ownerAgentName?.toLowerCase())) {
+        allAgentEntries.push({
+          id: l.ownerAgentId || `agent-${l.ownerAgentName}`,
+          name: l.ownerAgentName,
+          email: '',
+          phone: '',
+          role: 'Caller',
+          companyName: '',
+          isAdmin: false,
+          status: 'online',
+          avatar: '',
+          totalCallsToday: 0,
+          talkTimeMinutes: 0,
+          convertedLeadsCount: 0,
+          revenueGenerated: 0,
+          responseTimeMinutes: 1.0
+        });
+      }
+    });
+
+    const rows = allAgentEntries.map(ag => {
+      const agLeads = timeframeFilteredLeads.filter(l => 
+        l.ownerAgentId === ag.id || 
+        (l.ownerAgentName && l.ownerAgentName.toLowerCase() === ag.name.toLowerCase())
+      );
+
+      const freshCount = agLeads.filter(l => l.status === 'Fresh' || l.status === 'New Lead').length;
+      const activeCount = agLeads.filter(l => {
+        const st = (l.status || '').toLowerCase();
+        return st !== 'fresh' && st !== 'new lead' && st !== 'converted' && st !== 'won' && st !== 'lost';
+      }).length;
+      const wonCount = agLeads.filter(l => l.status === 'Converted' || l.status === 'Won').length;
+      const lostCount = agLeads.filter(l => l.status === 'Lost').length;
+
+      return {
+        agent: ag,
+        name: ag.name,
+        fresh: freshCount,
+        active: activeCount,
+        won: wonCount,
+        lost: lostCount,
+        total: agLeads.length
+      };
+    });
+
+    const filtered = rows.filter(r => 
+      !stagesAssigneeSearch || r.name.toLowerCase().includes(stagesAssigneeSearch.toLowerCase())
+    );
+
+    filtered.sort((a, b) => {
+      let valA: any = a[stagesSortCol];
+      let valB: any = b[stagesSortCol];
+      if (typeof valA === 'string') {
+        return stagesSortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+      return stagesSortDir === 'asc' ? valA - valB : valB - valA;
+    });
+
+    const totalFresh = filtered.reduce((sum, r) => sum + r.fresh, 0);
+    const totalActive = filtered.reduce((sum, r) => sum + r.active, 0);
+    const totalWon = filtered.reduce((sum, r) => sum + r.won, 0);
+    const totalLost = filtered.reduce((sum, r) => sum + r.lost, 0);
+
+    return {
+      rows: filtered,
+      totals: {
+        fresh: totalFresh,
+        active: totalActive,
+        won: totalWon,
+        lost: totalLost
+      }
+    };
+  }, [leads, agents, stagesTimeframe, stagesAssigneeSearch, stagesSortCol, stagesSortDir]);
+
+  const getInitials = (name: string = '') => {
+    const clean = name.trim();
+    if (!clean) return 'US';
+    const parts = clean.split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return clean.slice(0, 2).toUpperCase();
+  };
 
   // Fetch AI Insights from server endpoint
   const handleFetchAiInsights = async () => {
@@ -373,6 +536,222 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
+      {/* ========================================================================= */}
+      {/* LEAD BY STAGES WIDGET (BELOW FOLLOW UP QUEUE MATCHING SCREENSHOT)          */}
+      {/* ========================================================================= */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-4 sm:p-5 font-sans space-y-4">
+        {/* Header Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div className="space-y-1">
+            <div className="flex items-center space-x-2">
+              <Layers className="w-4 h-4 text-slate-800" />
+              <h2 className="text-sm sm:text-base font-bold text-slate-900">Lead by stages</h2>
+              <span className="text-slate-300">|</span>
+              <button
+                onClick={() => onNavigateToTab('pipeline')}
+                className="text-indigo-600 hover:text-indigo-800 text-xs font-semibold hover:underline cursor-pointer"
+              >
+                Manage
+              </button>
+            </div>
+            <div className="flex items-center space-x-1.5 text-[11px] text-slate-400">
+              <span>{stagesLastRefreshed}</span>
+              <button
+                onClick={() => setStagesLastRefreshed('Just now')}
+                title="Refresh Lead Stages Data"
+                className="p-0.5 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
+              >
+                <RefreshCw className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-3 self-end sm:self-auto">
+            <div className="flex items-center space-x-1.5 text-xs text-slate-600">
+              <span className="text-[11px] text-slate-500 font-medium">Created on</span>
+              <div className="relative">
+                <select
+                  value={stagesTimeframe}
+                  onChange={(e) => setStagesTimeframe(e.target.value as any)}
+                  className="appearance-none bg-slate-50 border border-slate-200/80 rounded-xl px-2.5 py-1.5 pr-6 text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-600 cursor-pointer shadow-2xs"
+                >
+                  <option value="today">Today</option>
+                  <option value="yesterday">Yesterday</option>
+                  <option value="week">This Week</option>
+                  <option value="month">This Month</option>
+                  <option value="all">All Time</option>
+                </select>
+                <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+            </div>
+
+            <button
+              onClick={() => onNavigateToTab('pipeline')}
+              title="Expand & Open Pipeline Stages"
+              className="p-1 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+            >
+              <ChevronsRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Search by Assignee Input */}
+        <div className="relative">
+          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={stagesAssigneeSearch}
+            onChange={(e) => setStagesAssigneeSearch(e.target.value)}
+            placeholder="Search by assignee"
+            className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 transition-all shadow-2xs"
+          />
+        </div>
+
+        {/* Table Data */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="border-b border-slate-100 text-slate-600 font-semibold text-[11px]">
+                <th
+                  onClick={() => {
+                    setStagesSortCol('name');
+                    setStagesSortDir(stagesSortCol === 'name' && stagesSortDir === 'asc' ? 'desc' : 'asc');
+                  }}
+                  className="py-2.5 px-3 cursor-pointer hover:text-slate-900 select-none"
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Assignee</span>
+                    <span className="text-[10px] text-slate-400">▾</span>
+                  </div>
+                </th>
+                <th
+                  onClick={() => {
+                    setStagesSortCol('fresh');
+                    setStagesSortDir(stagesSortCol === 'fresh' && stagesSortDir === 'asc' ? 'desc' : 'asc');
+                  }}
+                  className="py-2.5 px-3 text-center cursor-pointer hover:text-slate-900 select-none"
+                >
+                  <div className="flex items-center justify-center space-x-1">
+                    <span>Fresh</span>
+                    <span className="text-[10px] text-slate-400">▾</span>
+                  </div>
+                </th>
+                <th
+                  onClick={() => {
+                    setStagesSortCol('active');
+                    setStagesSortDir(stagesSortCol === 'active' && stagesSortDir === 'asc' ? 'desc' : 'asc');
+                  }}
+                  className="py-2.5 px-3 text-center cursor-pointer hover:text-slate-900 select-none"
+                >
+                  <div className="flex items-center justify-center space-x-1">
+                    <span>Active</span>
+                    <span className="text-[10px] text-slate-400">▾</span>
+                  </div>
+                </th>
+                <th
+                  onClick={() => {
+                    setStagesSortCol('won');
+                    setStagesSortDir(stagesSortCol === 'won' && stagesSortDir === 'asc' ? 'desc' : 'asc');
+                  }}
+                  className="py-2.5 px-3 text-center cursor-pointer hover:text-slate-900 select-none"
+                >
+                  <div className="flex items-center justify-center space-x-1">
+                    <span>Won</span>
+                    <span className="text-[10px] text-slate-400">▾</span>
+                  </div>
+                </th>
+                <th
+                  onClick={() => {
+                    setStagesSortCol('lost');
+                    setStagesSortDir(stagesSortCol === 'lost' && stagesSortDir === 'asc' ? 'desc' : 'asc');
+                  }}
+                  className="py-2.5 px-3 text-center cursor-pointer hover:text-slate-900 select-none"
+                >
+                  <div className="flex items-center justify-center space-x-1">
+                    <span>Lost</span>
+                    <span className="text-[10px] text-slate-400">▾</span>
+                  </div>
+                </th>
+                <th className="py-2.5 px-3 w-8"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {leadByStagesData.rows.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-6 text-center text-slate-400 text-xs">
+                    No matching assignees found.
+                  </td>
+                </tr>
+              ) : (
+                leadByStagesData.rows.map((row) => (
+                  <tr
+                    key={row.agent.id}
+                    onClick={() => setSelectedAssigneeId(row.agent.id)}
+                    className="hover:bg-slate-50/80 transition-colors cursor-pointer"
+                  >
+                    {/* Assignee Name + Avatar */}
+                    <td className="py-3 px-3">
+                      <div className="flex items-center space-x-2.5">
+                        <div className="w-7 h-7 rounded-full bg-purple-100 text-purple-700 font-bold text-[11px] flex items-center justify-center shrink-0 border border-purple-200/60 uppercase">
+                          {row.agent.avatar ? (
+                            <img src={row.agent.avatar} alt={row.name} className="w-full h-full object-cover rounded-full" />
+                          ) : (
+                            <span>{getInitials(row.name)}</span>
+                          )}
+                        </div>
+                        <span className="font-semibold text-slate-900 truncate max-w-[160px] sm:max-w-xs">
+                          {row.name}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Fresh Count */}
+                    <td className="py-3 px-3 text-center font-medium text-slate-700">
+                      {row.fresh}
+                    </td>
+
+                    {/* Active Count */}
+                    <td className="py-3 px-3 text-center font-medium text-slate-700">
+                      {row.active}
+                    </td>
+
+                    {/* Won Count */}
+                    <td className="py-3 px-3 text-center font-semibold text-emerald-600">
+                      {row.won}
+                    </td>
+
+                    {/* Lost Count */}
+                    <td className="py-3 px-3 text-center font-semibold text-rose-600">
+                      {row.lost}
+                    </td>
+
+                    {/* Arrow */}
+                    <td className="py-3 px-3 text-right text-slate-400">
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+            {/* Total Footer Row */}
+            {leadByStagesData.rows.length > 0 && (
+              <tfoot>
+                <tr className="border-t border-slate-200 bg-slate-50/60 font-bold text-slate-900">
+                  <td className="py-3 px-3 font-bold">Total</td>
+                  <td className="py-3 px-3 text-center font-bold text-slate-900">{leadByStagesData.totals.fresh}</td>
+                  <td className="py-3 px-3 text-center font-bold text-slate-900">{leadByStagesData.totals.active}</td>
+                  <td className="py-3 px-3 text-center font-bold text-emerald-600">{leadByStagesData.totals.won}</td>
+                  <td className="py-3 px-3 text-center font-bold text-rose-600">{leadByStagesData.totals.lost}</td>
+                  <td className="py-3 px-3 text-right text-slate-400">
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      </div>
+
       {/* Main Section: Directory & Assignees' Leads */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4">
         {/* Directory (Full width expanded) */}
@@ -448,7 +827,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search lead, company, agent..."
+                placeholder="Search by name, number or email"
                 value={tableSearch}
                 onChange={(e) => setTableSearch(e.target.value)}
                 className="w-full bg-white border border-slate-200 rounded-lg pl-8 pr-6 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#3a2088] focus:ring-1 focus:ring-[#3a2088] shadow-2xs font-sans placeholder:text-slate-400"

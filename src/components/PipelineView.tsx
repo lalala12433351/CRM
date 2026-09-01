@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Kanban, 
   Pencil, 
@@ -11,6 +11,7 @@ import {
   X, 
   SlidersHorizontal,
   ChevronRight,
+  ChevronDown,
   Info,
   Sparkles,
   ArrowLeftRight,
@@ -18,7 +19,11 @@ import {
   Clock,
   Calendar,
   UserCheck,
-  FileText
+  FileText,
+  User,
+  Users,
+  Layers,
+  Search
 } from 'lucide-react';
 import { Lead, PipelineStage, LeadStatus, CustomFieldDef, Agent, formatDealValue, formatDealValueCompact } from '../types';
 import { LeadSummaryModal } from './LeadSummaryModal';
@@ -233,7 +238,68 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
     setLostReasons(lostReasons.filter(r => r.id !== id));
   };
 
-  const totalPipelineValue = leads.reduce((acc, l) => acc + (l.dealValue || 0), 0);
+  // Assignee and Stage Filter States for Pipeline & Kanban
+  const [selectedAssignee, setSelectedAssignee] = useState<string>('all');
+  const [selectedStageFilter, setSelectedStageFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isAssigneeDropdownOpen, setIsAssigneeDropdownOpen] = useState(false);
+  const [isStageDropdownOpen, setIsStageDropdownOpen] = useState(false);
+
+  const assigneeDropdownRef = useRef<HTMLDivElement>(null);
+  const stageDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (assigneeDropdownRef.current && !assigneeDropdownRef.current.contains(event.target as Node)) {
+        setIsAssigneeDropdownOpen(false);
+      }
+      if (stageDropdownRef.current && !stageDropdownRef.current.contains(event.target as Node)) {
+        setIsStageDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Filtered Leads according to search, assignee, and stage
+  const filteredLeads = useMemo(() => {
+    return leads.filter((lead) => {
+      // 1. Search Query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const nameMatch = (lead.name || '').toLowerCase().includes(q);
+        const phoneMatch = (lead.phone || '').includes(q);
+        const emailMatch = (lead.email || '').toLowerCase().includes(q);
+        const companyMatch = (lead.company || '').toLowerCase().includes(q);
+        if (!nameMatch && !phoneMatch && !emailMatch && !companyMatch) return false;
+      }
+
+      // 2. Assignee filter
+      if (selectedAssignee !== 'all') {
+        if (selectedAssignee === 'unassigned') {
+          const hasOwner = lead.ownerAgentId || (lead.ownerAgentName && lead.ownerAgentName !== 'Unassigned');
+          if (hasOwner) return false;
+        } else {
+          const selectedAgent = (agents || []).find(a => a.id === selectedAssignee);
+          const isMatch = 
+            lead.ownerAgentId === selectedAssignee || 
+            (selectedAgent && lead.ownerAgentName && lead.ownerAgentName.toLowerCase() === selectedAgent.name.toLowerCase());
+          if (!isMatch) return false;
+        }
+      }
+
+      // 3. Stage filter
+      if (selectedStageFilter !== 'all') {
+        const leadStatusLow = (lead.status || '').toLowerCase().trim();
+        const filterLow = selectedStageFilter.toLowerCase().trim();
+        if (leadStatusLow !== filterLow) return false;
+      }
+
+      return true;
+    });
+  }, [leads, searchQuery, selectedAssignee, selectedStageFilter, agents]);
+
+  const totalPipelineValue = filteredLeads.reduce((acc, l) => acc + (l.dealValue || 0), 0);
 
   return (
     <div className="min-h-screen bg-[#F3F4F6] text-slate-900 font-sans p-3 md:p-6 space-y-4">
@@ -283,6 +349,216 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
             <Kanban className="w-3.5 h-3.5" />
             <span>Kanban Board</span>
           </button>
+        </div>
+      </div>
+
+      {/* Filter Bar (Assignee | Status / Stage | Search) */}
+      <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        {/* Search Bar */}
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search leads by name, number or email..."
+            className="w-full bg-slate-50 border border-slate-200 rounded-full pl-9 pr-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white transition-all shadow-2xs"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Filter Pills: Assignee & Stage */}
+        <div className="flex items-center space-x-2 self-start sm:self-auto">
+          {/* Assignee Filter Dropdown */}
+          <div className="relative" ref={assigneeDropdownRef}>
+            <button
+              onClick={() => setIsAssigneeDropdownOpen(!isAssigneeDropdownOpen)}
+              className={`border rounded-full px-3.5 py-1.5 text-xs font-medium flex items-center space-x-1.5 shadow-2xs cursor-pointer transition-colors ${
+                selectedAssignee !== 'all'
+                  ? 'bg-indigo-50 border-indigo-300 text-indigo-900 font-bold'
+                  : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700'
+              }`}
+            >
+              <User className="w-3.5 h-3.5 text-slate-400" />
+              <span>
+                {selectedAssignee === 'all'
+                  ? 'Assignee'
+                  : selectedAssignee === 'unassigned'
+                  ? 'Unassigned'
+                  : ((agents || []).find((a) => a.id === selectedAssignee)?.name.split(' ')[0] || 'Assignee')}
+              </span>
+              <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${isAssigneeDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isAssigneeDropdownOpen && (
+              <div className="absolute left-0 top-full mt-1.5 w-60 bg-white border border-slate-200 rounded-xl shadow-2xl z-[9999] p-1.5 space-y-1 text-xs font-sans animate-in fade-in zoom-in-95">
+                <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Filter by Assignee
+                </div>
+
+                <button
+                  onClick={() => {
+                    setSelectedAssignee('all');
+                    setIsAssigneeDropdownOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between cursor-pointer transition-colors ${
+                    selectedAssignee === 'all' ? 'bg-indigo-50 text-indigo-900 font-bold' : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <Users className="w-3.5 h-3.5 text-slate-500" />
+                    <span>All Assignees ({leads.length})</span>
+                  </div>
+                  {selectedAssignee === 'all' && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+                </button>
+
+                <div className="max-h-56 overflow-y-auto space-y-0.5 pr-0.5">
+                  {(agents || []).map((ag) => {
+                    const count = leads.filter(l => l.ownerAgentId === ag.id || (l.ownerAgentName && l.ownerAgentName.toLowerCase() === ag.name.toLowerCase())).length;
+                    const isSelected = selectedAssignee === ag.id;
+                    return (
+                      <button
+                        key={ag.id}
+                        onClick={() => {
+                          setSelectedAssignee(ag.id);
+                          setIsAssigneeDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between cursor-pointer transition-colors ${
+                          isSelected ? 'bg-indigo-50 text-indigo-900 font-bold' : 'text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2.5 min-w-0">
+                          <div className="w-6 h-6 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-700 shrink-0">
+                            {ag.name.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="truncate">
+                            <p className="font-semibold text-slate-900 leading-tight truncate">{ag.name}</p>
+                            <p className="text-[10px] text-slate-500 leading-tight">{ag.role || 'Caller'}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-1.5 shrink-0">
+                          <span className="text-[11px] text-slate-400 font-medium">{count}</span>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  onClick={() => {
+                    setSelectedAssignee('unassigned');
+                    setIsAssigneeDropdownOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between cursor-pointer transition-colors border-t border-slate-100 ${
+                    selectedAssignee === 'unassigned' ? 'bg-indigo-50 text-indigo-900 font-bold' : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <User className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Unassigned</span>
+                  </div>
+                  <div className="flex items-center space-x-1.5">
+                    <span className="text-[11px] text-slate-400 font-medium">
+                      {leads.filter(l => !l.ownerAgentId || l.ownerAgentName === 'Unassigned').length}
+                    </span>
+                    {selectedAssignee === 'unassigned' && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Stage / Status Filter Dropdown */}
+          <div className="relative" ref={stageDropdownRef}>
+            <button
+              onClick={() => setIsStageDropdownOpen(!isStageDropdownOpen)}
+              className={`border rounded-full px-3.5 py-1.5 text-xs font-medium flex items-center space-x-1.5 shadow-2xs cursor-pointer transition-colors ${
+                selectedStageFilter !== 'all'
+                  ? 'bg-indigo-50 border-indigo-300 text-indigo-900 font-bold'
+                  : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5 text-slate-400" />
+              <span>{selectedStageFilter === 'all' ? 'Status' : selectedStageFilter}</span>
+              <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${isStageDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isStageDropdownOpen && (
+              <div className="absolute right-0 top-full mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[9999] p-2.5 space-y-1 text-xs font-sans max-h-96 overflow-y-auto animate-in fade-in zoom-in-95">
+                <div className="flex items-center justify-between px-1 border-b border-slate-100 pb-2">
+                  <span className="text-[11px] font-bold text-slate-900 uppercase tracking-wider">
+                    Filter by Stage
+                  </span>
+                  {selectedStageFilter !== 'all' && (
+                    <button
+                      onClick={() => {
+                        setSelectedStageFilter('all');
+                        setIsStageDropdownOpen(false);
+                      }}
+                      className="text-[11px] text-indigo-600 hover:underline font-semibold cursor-pointer"
+                    >
+                      Reset to All
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => {
+                    setSelectedStageFilter('all');
+                    setIsStageDropdownOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between cursor-pointer transition-colors ${
+                    selectedStageFilter === 'all' ? 'bg-indigo-50 text-indigo-900 font-bold' : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <Layers className="w-3.5 h-3.5 text-slate-500" />
+                    <span>All Stages</span>
+                  </div>
+                  <div className="flex items-center space-x-1.5">
+                    <span className="text-[11px] text-slate-400 font-medium px-2 py-0.5 rounded-full bg-slate-100">{filteredLeads.length}</span>
+                    {selectedStageFilter === 'all' && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+                  </div>
+                </button>
+
+                <div className="space-y-0.5 border-t border-slate-100 pt-1">
+                  {stages.map((stg) => {
+                    const isSelected = selectedStageFilter.toLowerCase() === stg.name.toLowerCase();
+                    const count = leads.filter(l => (l.status || '').toLowerCase() === stg.name.toLowerCase()).length;
+                    return (
+                      <button
+                        key={stg.id}
+                        onClick={() => {
+                          setSelectedStageFilter(stg.name);
+                          setIsStageDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between cursor-pointer transition-colors ${
+                          isSelected ? 'bg-indigo-50 text-indigo-900 font-bold' : 'text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2.5">
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs" style={{ backgroundColor: stg.color }} />
+                          <span className="font-medium text-slate-900">{stg.name}</span>
+                        </div>
+                        <div className="flex items-center space-x-2 shrink-0">
+                          <span className="text-[11px] text-slate-400 font-medium px-2 py-0.5 rounded-full bg-slate-100">{count}</span>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -608,7 +884,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
           <div className="block md:hidden overflow-x-auto pb-2 ios-scroll no-scrollbar">
             <div className="flex items-center space-x-2">
               {stages.map((stg) => {
-                const count = leads.filter((l) => l.status === stg.name).length;
+                const count = filteredLeads.filter((l) => (l.status || '').toLowerCase() === stg.name.toLowerCase()).length;
                 return (
                   <button
                     key={stg.id}
@@ -631,7 +907,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
 
           <div className="flex space-x-3 overflow-x-auto pb-4 pt-1 snap-x snap-mandatory ios-scroll">
             {stages.map((stage) => {
-              const stageLeads = leads.filter((l) => l.status === stage.name);
+              const stageLeads = filteredLeads.filter((l) => (l.status || '').toLowerCase() === stage.name.toLowerCase());
               const stageValue = stageLeads.reduce((acc, curr) => acc + (curr.dealValue || 0), 0);
 
               return (
@@ -701,7 +977,14 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
 
                         <div className="flex items-center justify-between text-[10px] font-mono">
                           <span className="font-bold text-emerald-600">{formatDealValue(lead.dealValue || 0, currency)}</span>
-                          <span className="text-[9px] text-slate-600 px-1 py-0.2 rounded bg-slate-100 border border-slate-200">{lead.source}</span>
+                          <div className="flex items-center space-x-1">
+                            {lead.status === 'Lost' && lead.lostReason && (
+                              <span className="text-[9px] text-rose-700 font-bold px-1.5 py-0.2 rounded bg-rose-50 border border-rose-200 truncate max-w-[100px]" title={`Lost Reason: ${lead.lostReason}`}>
+                                {lead.lostReason}
+                              </span>
+                            )}
+                            <span className="text-[9px] text-slate-600 px-1 py-0.2 rounded bg-slate-100 border border-slate-200">{lead.source}</span>
+                          </div>
                         </div>
 
                         <div className="flex items-center justify-between pt-1.5 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>

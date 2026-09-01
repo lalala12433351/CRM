@@ -502,7 +502,7 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
 
                         {/* Status (Clean Pill) */}
                         <td className="py-3.5 px-4 whitespace-nowrap">
-                          <StatusBadge status={lead.status || 'Follow Up'} size="xs" />
+                          <StatusBadge status={lead.status || 'Follow Up'} lostReason={lead.lostReason} size="xs" />
                         </td>
 
                         {/* Actions */}

@@ -27,6 +27,29 @@ router.post('/pipelines', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/pipelines/lost-reasons - Fetch lost reasons scoped to tenantId
+router.get('/pipelines/lost-reasons', async (req: Request, res: Response) => {
+  try {
+    const tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string) || process.env.DEFAULT_TENANT_ID || 'default_tenant';
+    const lostReasons = await multiTenantDb.getLostReasons(tenantId);
+    res.json({ success: true, tenantId, lostReasons });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/pipelines/lost-reasons - Save lost reasons scoped to tenantId
+router.post('/pipelines/lost-reasons', async (req: Request, res: Response) => {
+  try {
+    const tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string) || req.body?.tenantId || process.env.DEFAULT_TENANT_ID || 'default_tenant';
+    const reasons = Array.isArray(req.body) ? req.body : req.body.lostReasons || [];
+    const saved = await multiTenantDb.saveLostReasons(tenantId, reasons);
+    res.json({ success: true, tenantId, lostReasons: saved });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.get('/conversions/settings', (req, res) => pipelineController.getSettings(req, res));
 router.post('/conversions/settings', (req, res) => pipelineController.updateSettings(req, res));
 router.get('/conversions/queue', (req, res) => pipelineController.getQueue(req, res));

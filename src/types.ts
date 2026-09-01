@@ -359,7 +359,8 @@ export interface Agent {
   name: string;
   email: string;
   phone: string;
-  role: 'Admin' | 'Sales Manager' | 'Telecaller' | 'Senior Counselor' | 'Admissions Lead' | 'Counselor' | string;
+  role: 'Manager' | 'Marketing' | 'Caller' | string;
+  permission?: 'Admin' | 'Manager' | 'Caller' | 'Marketer' | 'admin' | 'manager' | 'caller' | 'marketer' | string;
   status: 'online' | 'on_call' | 'break' | 'offline';
   avatar: string;
   totalCallsToday: number;
@@ -374,14 +375,19 @@ export interface Agent {
   companyName?: string;
   companyDescription?: string;
   businessType?: string;
+  twoFactorEnabled?: boolean;
+  licenseExpiry?: string;
+  licenseType?: string;
 }
 
 export function isAgentAdmin(agent?: Agent | null): boolean {
   if (!agent) return false;
   const roleName = (agent.role || '').toLowerCase();
   const emailName = (agent.email || '').toLowerCase();
+  const permName = (agent.permission || '').toLowerCase();
   return (
     agent.isAdmin === true ||
+    permName === 'admin' ||
     roleName.includes('admin') ||
     roleName.includes('owner') ||
     emailName.includes('admin')
@@ -412,6 +418,7 @@ export interface Lead {
   customFields: Record<string, any>;
   tags: string[];
   notes: string;
+  lostReason?: string;
   rating?: number;
   altPhone?: string;
   batch?: string;
