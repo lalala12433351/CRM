@@ -709,7 +709,7 @@ export const IntegrationsView: React.FC<IntegrationsViewProps> = ({
     const newForm: ConnectedForm = {
       id: `f-${Date.now()}`,
       title: newFormTitle.trim(),
-      companyName: 'Kite Institute of Aviation & Hospitality',
+      companyName: 'Connected Organization Workspace',
       period: '1M',
       totalLeads: 0,
       lastLeadTime: 'Just now',

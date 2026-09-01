@@ -112,6 +112,12 @@ export const TasksView: React.FC<TasksViewProps> = ({
   const completedTasks = visibleTasks.filter(t => t.status === 'Completed');
   const totalPipelineTaskValue = pendingTasks.reduce((sum, t) => sum + (t.taskValue || 0), 0);
 
+  // Task Value Handler: Restrict to maximum 9 digits
+  const handleTaskValueChange = (val: string, setter: (v: number | '') => void) => {
+    const digitsOnly = val.replace(/\D/g, '').slice(0, 9);
+    setter(digitsOnly ? Number(digitsOnly) : '');
+  };
+
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     let h = parseInt(newHour, 10);
@@ -121,6 +127,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
     
     if (!newTitle.trim() || !newAssigneeId || !newDueDay) return;
     const assignee = agents.find(a => a.id === newAssigneeId);
+    const safeTaskValue = typeof newTaskValue === 'number' ? Math.min(newTaskValue, 999999999) : 0;
     
     const task: CrmTask = {
       id: `crm-task-${Date.now()}`,
@@ -131,7 +138,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
       dueDate: combinedDate,
       priority: newPriority,
       status: 'Pending',
-      taskValue: typeof newTaskValue === 'number' ? newTaskValue : 0,
+      taskValue: safeTaskValue,
       createdAt: new Date().toISOString(),
       createdByAdminId: activeAgent?.id,
     };
@@ -186,6 +193,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
     const combinedDate = `${editDueDay}T${String(h).padStart(2, '0')}:${editMinute}:00`;
 
     const assignee = agents.find(a => a.id === editAssigneeId);
+    const safeTaskValue = typeof editTaskValue === 'number' ? Math.min(editTaskValue, 999999999) : 0;
 
     onUpdateTask(editingTask.id, {
       title: editTitle.trim(),
@@ -195,7 +203,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
       priority: editPriority,
       status: editStatus,
       dueDate: combinedDate,
-      taskValue: typeof editTaskValue === 'number' ? editTaskValue : 0,
+      taskValue: safeTaskValue,
     });
 
     setEditingTask(null);
@@ -501,11 +509,16 @@ export const TasksView: React.FC<TasksViewProps> = ({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-slate-700 font-semibold mb-1 uppercase tracking-wider text-[10px]">Task Value ({currency})</label>
+                    <label className="block text-slate-700 font-semibold mb-1 uppercase tracking-wider text-[10px]">
+                      Task Value ({currency}) <span className="text-slate-400 font-normal lowercase">(max 9 digits)</span>
+                    </label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={9}
                       value={newTaskValue}
-                      onChange={(e) => setNewTaskValue(e.target.value ? Number(e.target.value) : '')}
+                      onChange={(e) => handleTaskValueChange(e.target.value, setNewTaskValue)}
                       placeholder="e.g. 50000"
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-indigo-600"
                     />
@@ -611,11 +624,17 @@ export const TasksView: React.FC<TasksViewProps> = ({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-slate-700 font-semibold mb-1 uppercase tracking-wider text-[10px]">Task Value ({currency})</label>
+                    <label className="block text-slate-700 font-semibold mb-1 uppercase tracking-wider text-[10px]">
+                      Task Value ({currency}) <span className="text-slate-400 font-normal lowercase">(max 9 digits)</span>
+                    </label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={9}
                       value={editTaskValue}
-                      onChange={(e) => setEditTaskValue(e.target.value ? Number(e.target.value) : '')}
+                      onChange={(e) => handleTaskValueChange(e.target.value, setEditTaskValue)}
+                      placeholder="e.g. 50000"
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-indigo-600"
                     />
                   </div>

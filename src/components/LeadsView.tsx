@@ -40,7 +40,8 @@ import {
   Phone,
   CalendarPlus,
   Clock,
-  UserCheck
+  UserCheck,
+  LayoutGrid
 } from 'lucide-react';
 import { 
   Lead, 
@@ -213,7 +214,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
     if (nameKey === 'address') return lead.address || '—';
     if (nameKey === 'source') return lead.source || '—';
     if (nameKey === 'status') return lead.status || '—';
-    if (nameKey === 'assignee' || nameKey === 'owner') return lead.ownerAgentName || activeAgent?.name || 'Madhava sai nagendra';
+    if (nameKey === 'assignee' || nameKey === 'owner') return lead.ownerAgentName || activeAgent?.name || 'System Administrator';
     if (nameKey === 'createdOn' || nameKey === 'createdAt' || nameKey === 'created_on') return formatCreatedDate(lead.createdAt);
     if (nameKey === 'deal_value' || nameKey === 'dealValue') return formatDealValue(lead.dealValue || 0, currency);
     if (nameKey === 'lead_score' || nameKey === 'aiScore') return String(lead.aiScore || 85);
@@ -227,8 +228,12 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
     return '—';
   };
 
+  // Mobile View Style: Cards (default on phone) vs Horizontal Table
+  const [mobileViewStyle, setMobileViewStyle] = useState<'cards' | 'table'>('cards');
+
   // Follow-Up Scheduling Modal State
   const [followUpLead, setFollowUpLead] = useState<Lead | null>(null);
+  const [followUpAssigneeId, setFollowUpAssigneeId] = useState('');
   const [summaryLead, setSummaryLead] = useState<Lead | null>(null);
   const [followUpDate, setFollowUpDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [followUpHour, setFollowUpHour] = useState('09');
@@ -284,6 +289,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
     setFollowUpAmPm(period);
     setFollowUpRemarks('');
     setFollowUpLead(lead);
+    setFollowUpAssigneeId(lead.ownerAgentId || lead.assignedTo || '');
   };
 
   const handleSaveFollowUp = () => {
@@ -293,15 +299,23 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
     if (followUpAmPm === 'AM' && h === 12) h = 0;
     const combinedDate = `${followUpDate}T${String(h).padStart(2, '0')}:${followUpMinute}:00`;
 
+    const selectedAgent = agents.find((a) => a.id === followUpAssigneeId);
+    const finalAssigneeId = followUpAssigneeId || followUpLead.ownerAgentId || followUpLead.assignedTo;
+    const finalAssigneeName = selectedAgent ? selectedAgent.name : (followUpLead.ownerAgentName || 'Unassigned');
+
     onUpdateLead(followUpLead.id, {
       status: 'Follow Up',
       followUpAt: combinedDate,
+      ownerAgentId: finalAssigneeId,
+      ownerAgentName: finalAssigneeName,
+      assignedTo: finalAssigneeId,
       notes: followUpRemarks
         ? `${followUpLead.notes ? followUpLead.notes + '\n' : ''}[Follow-up Remark]: ${followUpRemarks}`
         : followUpLead.notes,
       updatedAt: new Date().toISOString()
     });
     setFollowUpLead(null);
+    setFollowUpAssigneeId('');
   };
 
   // Custom Field Form State
@@ -466,6 +480,44 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
       // 4. Status Filter
       if (selectedStatus !== 'all') {
         if (lead.status !== selectedStatus) return false;
+      }
+
+      // 5. Date Filter (Creation Date Pill)
+      if (selectedDateFilter !== 'all') {
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        let leadDateMs = 0;
+        if (!lead.createdAt || lead.createdAt === 'Just Now') {
+          leadDateMs = Date.now();
+        } else if (lead.createdAt.includes('ago')) {
+          const match = lead.createdAt.match(/(\d+)\s*(d|day|days|h|hour|hours|m|min|minute|minutes)/i);
+          if (match) {
+            const val = parseInt(match[1], 10);
+            const unit = match[2].toLowerCase();
+            const d = new Date();
+            if (unit.startsWith('d')) d.setDate(d.getDate() - val);
+            else if (unit.startsWith('h')) d.setHours(d.getHours() - val);
+            leadDateMs = d.getTime();
+          } else {
+            leadDateMs = Date.now();
+          }
+        } else {
+          const parsed = new Date(lead.createdAt).getTime();
+          leadDateMs = isNaN(parsed) ? Date.now() : parsed;
+        }
+
+        if (selectedDateFilter === 'Today') {
+          if (leadDateMs < startOfToday) return false;
+        } else if (selectedDateFilter === 'Yesterday') {
+          const startOfYesterday = startOfToday - 86400000;
+          if (leadDateMs < startOfYesterday || leadDateMs >= startOfToday) return false;
+        } else if (selectedDateFilter === 'Last 7 Days') {
+          const sevenDaysAgo = startOfToday - 6 * 86400000;
+          if (leadDateMs < sevenDaysAgo) return false;
+        } else if (selectedDateFilter === 'This Month') {
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+          if (leadDateMs < startOfMonth) return false;
+        }
       }
 
       return true;
@@ -670,8 +722,20 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
 
       filteredAndSortedLeads.forEach((l) => {
         let d: Date;
-        if (!l.createdAt || l.createdAt === 'Just Now' || l.createdAt.includes('ago')) {
+        if (!l.createdAt || l.createdAt === 'Just Now') {
           d = now;
+        } else if (l.createdAt.includes('ago')) {
+          d = new Date();
+          const match = l.createdAt.match(/(\d+)\s*(d|day|days|h|hour|hours|m|min|minute|minutes)/i);
+          if (match) {
+            const val = parseInt(match[1], 10);
+            const unit = match[2].toLowerCase();
+            if (unit.startsWith('d')) {
+              d.setDate(d.getDate() - val);
+            } else if (unit.startsWith('h')) {
+              d.setHours(d.getHours() - val);
+            }
+          }
         } else {
           const parsed = new Date(l.createdAt);
           d = isNaN(parsed.getTime()) ? now : parsed;
@@ -683,12 +747,14 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
         }
       });
 
+      const daysTotal = pastDaysList.reduce((acc, p) => acc + p.count, 0) || total;
+
       return pastDaysList.map((item, idx) => ({
         label: item.label,
         value: item.count,
         displayValue: item.count > 999 ? (item.count / 1000).toFixed(1) + 'k' : item.count.toString(),
         displayCount: item.count.toString(),
-        percentage: ((item.count / total) * 100).toFixed(1) + '%',
+        percentage: ((item.count / daysTotal) * 100).toFixed(1) + '%',
         color: colors[idx % colors.length]
       }));
 
@@ -718,7 +784,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
     }
 
     return [];
-  }, [activeDimension, filteredAndSortedLeads, agents, stages]);
+  }, [activeDimension, filteredAndSortedLeads, agents, stages, createdOnDaysRange, availableStatuses]);
 
   // Dimension Tabs Configuration (Assignee | Created on | Status)
   const dimensionTabs: { id: AnalyticsDimension; label: string }[] = [
@@ -801,6 +867,28 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
 
         {/* Right: View Toggle (Analytics / Chart View & List View Switcher) */}
         <div className="flex items-center space-x-1.5">
+          {/* Mobile Card / Table Toggle */}
+          <div className="flex md:hidden items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 mr-1">
+            <button
+              onClick={() => setMobileViewStyle('cards')}
+              className={`p-1.5 rounded-md text-xs font-semibold flex items-center space-x-1 cursor-pointer transition-all ${
+                mobileViewStyle === 'cards' ? 'bg-white text-indigo-600 shadow-2xs font-bold' : 'text-slate-500'
+              }`}
+              title="Mobile Cards View"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setMobileViewStyle('table')}
+              className={`p-1.5 rounded-md text-xs font-semibold flex items-center space-x-1 cursor-pointer transition-all ${
+                mobileViewStyle === 'table' ? 'bg-white text-indigo-600 shadow-2xs font-bold' : 'text-slate-500'
+              }`}
+              title="Table View"
+            >
+              <List className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
           <button 
             onClick={() => setViewMode('chart')}
             className={`p-2 rounded-lg flex items-center justify-center cursor-pointer transition-all ${
@@ -829,7 +917,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
 
       {/* 2. FILTER PILLS ROW (Assignee | Status | Creation Date) */}
       <div className="px-4 sm:px-6 mb-3">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1.5 sm:pb-0 ios-scroll no-scrollbar flex-nowrap sm:flex-wrap">
           
           {/* In Table view, show the full unified search bar. In Chart view, show the clean filter pills as shown in screenshot */}
           {viewMode === 'table' && (
@@ -1018,38 +1106,6 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
               )}
             </div>
 
-            {/* Creation Date Filter Dropdown */}
-            <div className="relative" ref={dateDropdownRef}>
-              <button
-                onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
-                className="bg-white border border-slate-200 hover:border-slate-300 rounded-full px-3 py-1.5 text-xs text-slate-700 font-medium flex items-center space-x-1.5 shadow-2xs cursor-pointer transition-colors"
-              >
-                <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                <span>{selectedDateFilter === 'all' ? 'Creation Date' : selectedDateFilter}</span>
-                <ChevronDown className="w-3 h-3 text-slate-400" />
-              </button>
-
-              {isDateDropdownOpen && (
-                <div className="absolute left-0 top-full mt-2 w-44 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-1.5 space-y-0.5 text-xs">
-                  {['all', 'Today', 'Yesterday', 'Last 7 Days', 'This Month', 'All Time'].map((dt) => (
-                    <button
-                      key={dt}
-                      onClick={() => {
-                        setSelectedDateFilter(dt);
-                        setIsDateDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between cursor-pointer ${
-                        selectedDateFilter === dt ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      <span>{dt === 'all' ? 'Any Date' : dt}</span>
-                      {selectedDateFilter === dt && <Check className="w-3 h-3 text-indigo-600" />}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
           </div>
         </div>
       </div>
@@ -1096,51 +1152,6 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                   </select>
                 </div>
               )}
-            </div>
-
-            {/* Right: Export Chart as CSV ⌵ | Download */}
-            <div className="flex items-center space-x-0 border border-slate-200 rounded-lg overflow-hidden shrink-0 self-end md:self-auto bg-white shadow-2xs">
-              <div className="relative" ref={exportChartRef}>
-                <button
-                  onClick={() => setIsExportChartOpen(!isExportChartOpen)}
-                  className="px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 font-medium flex items-center space-x-1.5 border-r border-slate-200 cursor-pointer"
-                >
-                  <span>Export chart as CSV</span>
-                  <ChevronDown className="w-3 h-3 text-slate-400" />
-                </button>
-
-                {isExportChartOpen && (
-                  <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-1 space-y-0.5 text-xs">
-                    <button
-                      onClick={() => {
-                        handleExportChartCsv();
-                        setIsExportChartOpen(false);
-                      }}
-                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-50 font-medium flex items-center space-x-2 cursor-pointer"
-                    >
-                      <Download className="w-3 h-3 text-slate-500" />
-                      <span>Download CSV</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        window.print();
-                        setIsExportChartOpen(false);
-                      }}
-                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-50 font-medium flex items-center space-x-2 cursor-pointer"
-                    >
-                      <Printer className="w-3 h-3 text-slate-500" />
-                      <span>Print Summary</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <button
-                onClick={handleExportChartCsv}
-                className="px-3.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50 font-medium cursor-pointer"
-              >
-                Download
-              </button>
             </div>
           </div>
 
@@ -1616,8 +1627,123 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
 
           </div>
 
+          {/* MOBILE LEADS CARDS LIST (Visible on < md when mobileViewStyle === 'cards') */}
+          <div className={`space-y-2.5 px-3 sm:px-4 ${mobileViewStyle === 'table' ? 'hidden' : 'block md:hidden'}`}>
+            {currentPaginatedLeads.length === 0 ? (
+              <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400 text-xs shadow-2xs">
+                No leads match your current search or filter conditions.
+              </div>
+            ) : (
+              currentPaginatedLeads.map((lead) => {
+                const avatar = getAgentAvatar(lead.ownerAgentName);
+                const isSelected = selectedLeadIds.includes(lead.id);
+
+                return (
+                  <div
+                    key={lead.id}
+                    className={`bg-white rounded-2xl border ${isSelected ? 'border-indigo-400 ring-2 ring-indigo-50 bg-indigo-50/20' : 'border-slate-200'} p-3.5 shadow-2xs space-y-2.5 transition-all`}
+                  >
+                    {/* Header Row: Checkbox, Name, Status Badge, Deal Value */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start space-x-2.5 min-w-0">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleLeadSelect(lead.id);
+                          }}
+                          className="mt-0.5 cursor-pointer shrink-0"
+                        >
+                          {isSelected ? (
+                            <div className="w-4 h-4 rounded bg-[#5034a8] flex items-center justify-center border border-[#5034a8]">
+                              <Check className="w-3 h-3 text-white stroke-[3]" />
+                            </div>
+                          ) : (
+                            <div className="w-4 h-4 rounded border border-slate-300 bg-white hover:border-[#5034a8]"></div>
+                          )}
+                        </button>
+                        <div 
+                          onClick={() => onOpenLeadDetail(lead)}
+                          className="cursor-pointer min-w-0"
+                        >
+                          <h4 className="font-bold text-slate-900 text-sm truncate tracking-tight hover:text-indigo-600">
+                            {lead.name || 'Unnamed Lead'}
+                          </h4>
+                          <p className="text-[11px] text-slate-500 truncate">
+                            {lead.company || lead.source || 'Direct Lead'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0 flex flex-col items-end">
+                        <StatusBadge status={lead.status || 'Fresh'} size="xs" />
+                        {lead.dealValue ? (
+                          <span className="text-xs font-bold text-slate-800 font-mono mt-1">
+                            {formatDealValue(lead.dealValue, currency)}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {/* Metadata Row: Phone & Assignee */}
+                    <div className="flex items-center justify-between text-xs text-slate-600 pt-1 border-t border-slate-100">
+                      <a 
+                        href={`tel:${lead.phone}`} 
+                        className="font-mono text-slate-800 font-semibold hover:text-indigo-600 flex items-center space-x-1"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Phone className="w-3 h-3 text-slate-400" />
+                        <span>{lead.phone}</span>
+                      </a>
+                      
+                      <div className="flex items-center space-x-1.5">
+                        <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${avatar.bg}`}>
+                          {avatar.initials}
+                        </span>
+                        <span className="text-[11px] text-slate-600 truncate max-w-[100px]">
+                          {lead.ownerAgentName || 'Unassigned'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Action Bar (1-Tap Call, WhatsApp, Follow-up, Brief) */}
+                    <div className="grid grid-cols-4 gap-1.5 pt-1 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
+                      <a
+                        href={`tel:${lead.phone}`}
+                        className="py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-[11px] flex items-center justify-center space-x-1 transition-colors"
+                      >
+                        <Phone className="w-3 h-3" />
+                        <span>Call</span>
+                      </a>
+                      <button
+                        onClick={() => window.open(`https://wa.me/${lead.phone?.replace(/[^0-9]/g, '')}`, '_blank')}
+                        className="py-1.5 rounded-xl bg-green-50 hover:bg-green-100 text-green-700 font-bold text-[11px] flex items-center justify-center space-x-1 transition-colors cursor-pointer"
+                      >
+                        <MessageSquare className="w-3 h-3" />
+                        <span>Chat</span>
+                      </button>
+                      <button
+                        onClick={() => openFollowUpModal(lead)}
+                        className="py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold text-[11px] flex items-center justify-center space-x-1 transition-colors cursor-pointer"
+                      >
+                        <Calendar className="w-3 h-3" />
+                        <span>Follow</span>
+                      </button>
+                      <button
+                        onClick={() => setSummaryLead(lead)}
+                        className="py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[11px] flex items-center justify-center space-x-1 transition-colors cursor-pointer"
+                      >
+                        <FileText className="w-3 h-3" />
+                        <span>Brief</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
           {/* MAIN DATA TABLE */}
-          <div className="px-4 sm:px-6">
+          <div className={`px-4 sm:px-6 ${mobileViewStyle === 'cards' ? 'hidden md:block' : 'block'}`}>
             <div className="bg-white rounded-lg border border-slate-200 shadow-2xs overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs text-slate-700">
@@ -1900,6 +2026,31 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
             </div>
 
             <div className="space-y-3 font-sans">
+              {/* Assignee Selector */}
+              <div>
+                <label className="block text-[11px] font-sans uppercase text-slate-600 font-bold mb-1 tracking-wider">
+                  FOLLOW-UP ASSIGNEE
+                </label>
+                <div className="relative">
+                  <UserCheck className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                  <select
+                    value={followUpAssigneeId}
+                    onChange={(e) => setFollowUpAssigneeId(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#5034a8] cursor-pointer font-sans"
+                  >
+                    <option value="">Select Assignee</option>
+                    {agents.map((ag) => (
+                      <option key={ag.id} value={ag.id}>
+                        {ag.name} ({ag.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Directly assigned to the lead's owner ({followUpLead.ownerAgentName || 'Unassigned'}). You can reassign if needed.
+                </p>
+              </div>
+
               <div>
                 <label className="block text-[11px] font-sans uppercase text-slate-600 font-bold mb-2 tracking-wider">SCHEDULED FOLLOW-UP DATE & TIME</label>
                 <div className="space-y-2 font-sans text-xs">

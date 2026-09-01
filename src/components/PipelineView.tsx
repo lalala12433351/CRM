@@ -17,13 +17,15 @@ import {
   CalendarPlus,
   Clock,
   Calendar,
+  UserCheck,
   FileText
 } from 'lucide-react';
-import { Lead, PipelineStage, LeadStatus, CustomFieldDef, formatDealValue, formatDealValueCompact } from '../types';
+import { Lead, PipelineStage, LeadStatus, CustomFieldDef, Agent, formatDealValue, formatDealValueCompact } from '../types';
 import { LeadSummaryModal } from './LeadSummaryModal';
 
 interface PipelineViewProps {
   leads: Lead[];
+  agents?: Agent[];
   stages: PipelineStage[];
   customFields?: CustomFieldDef[];
   currency?: string;
@@ -55,6 +57,7 @@ export const STAGE_COLOR_PALETTE = [
 
 export const PipelineView: React.FC<PipelineViewProps> = ({
   leads,
+  agents = [],
   stages,
   customFields = [],
   currency = 'INR',
@@ -69,6 +72,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
 
   // Follow-Up Scheduling Modal State
   const [followUpLead, setFollowUpLead] = useState<Lead | null>(null);
+  const [followUpAssigneeId, setFollowUpAssigneeId] = useState('');
   const [summaryLead, setSummaryLead] = useState<Lead | null>(null);
   const [followUpDate, setFollowUpDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [followUpHour, setFollowUpHour] = useState('09');
@@ -88,6 +92,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
     setFollowUpAmPm(period);
     setFollowUpRemarks('');
     setFollowUpLead(lead);
+    setFollowUpAssigneeId(lead.ownerAgentId || lead.assignedTo || '');
   };
 
   const handleSaveFollowUp = () => {
@@ -103,10 +108,17 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
       return;
     }
 
+    const selectedAgent = (agents || []).find((a) => a.id === followUpAssigneeId);
+    const finalAssigneeId = followUpAssigneeId || followUpLead.ownerAgentId || followUpLead.assignedTo;
+    const finalAssigneeName = selectedAgent ? selectedAgent.name : (followUpLead.ownerAgentName || 'Unassigned');
+
     if (onUpdateLead) {
       onUpdateLead(followUpLead.id, {
         status: 'Follow Up',
         followUpAt: combinedDate,
+        ownerAgentId: finalAssigneeId,
+        ownerAgentName: finalAssigneeName,
+        assignedTo: finalAssigneeId,
         notes: followUpRemarks
           ? `${followUpLead.notes ? followUpLead.notes + '\n' : ''}[Follow-up Remark]: ${followUpRemarks}`
           : followUpLead.notes,
@@ -116,6 +128,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
       onUpdateLeadStage(followUpLead.id, 'Follow Up');
     }
     setFollowUpLead(null);
+    setFollowUpAssigneeId('');
   };
 
   // Active stage list state matching screenshot default pastel palette
@@ -590,13 +603,43 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
         </div>
       ) : (
         /* RENDER VIEW MODE 2: KANBAN BOARD */
-        <div className="flex space-x-3 overflow-x-auto pb-4 pt-1">
-          {stages.map((stage) => {
-            const stageLeads = leads.filter((l) => l.status === stage.name);
-            const stageValue = stageLeads.reduce((acc, curr) => acc + (curr.dealValue || 0), 0);
+        <div className="space-y-2">
+          {/* Mobile Quick Jump Stage Pill Strip */}
+          <div className="block md:hidden overflow-x-auto pb-2 ios-scroll no-scrollbar">
+            <div className="flex items-center space-x-2">
+              {stages.map((stg) => {
+                const count = leads.filter((l) => l.status === stg.name).length;
+                return (
+                  <button
+                    key={stg.id}
+                    onClick={() => {
+                      const el = document.getElementById(`kanban-col-${stg.id}`);
+                      el?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                    }}
+                    className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-semibold shrink-0 shadow-2xs hover:border-indigo-400 active:bg-indigo-50 cursor-pointer"
+                  >
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: stg.color }} />
+                    <span className="truncate">{stg.name}</span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-700 font-bold">
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-            return (
-              <div key={stage.id} className="w-68 shrink-0 bg-white border border-slate-200 rounded-xl p-3 flex flex-col max-h-[78vh] shadow-sm">
+          <div className="flex space-x-3 overflow-x-auto pb-4 pt-1 snap-x snap-mandatory ios-scroll">
+            {stages.map((stage) => {
+              const stageLeads = leads.filter((l) => l.status === stage.name);
+              const stageValue = stageLeads.reduce((acc, curr) => acc + (curr.dealValue || 0), 0);
+
+              return (
+                <div 
+                  id={`kanban-col-${stage.id}`}
+                  key={stage.id} 
+                  className="w-[84vw] sm:w-68 shrink-0 snap-center bg-white border border-slate-200 rounded-xl p-3 flex flex-col max-h-[78vh] shadow-sm"
+                >
                 <div className="p-1.5 border-b border-slate-200 space-y-1 mb-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-1.5">
@@ -664,7 +707,14 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                         <div className="flex items-center justify-between pt-1.5 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
                           <select
                             value={lead.status}
-                            onChange={(e) => { e.stopPropagation(); onUpdateLeadStage(lead.id, e.target.value as LeadStatus); }}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              if (e.target.value === 'Follow Up') {
+                                openFollowUpModal(lead);
+                              } else {
+                                onUpdateLeadStage(lead.id, e.target.value as LeadStatus);
+                              }
+                            }}
                             onClick={(e) => e.stopPropagation()}
                             className="bg-slate-50 text-[9px] font-mono text-slate-700 rounded px-1 py-0.5 focus:outline-none border border-slate-200 cursor-pointer"
                           >
@@ -713,6 +763,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
             );
           })}
         </div>
+      </div>
       )}
 
       {/* Modal: Add New Active Stage */}
@@ -784,6 +835,31 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
             </div>
 
             <div className="space-y-3 font-sans">
+              {/* Assignee Selector */}
+              <div>
+                <label className="block text-[11px] font-sans uppercase text-slate-600 font-bold mb-1 tracking-wider">
+                  FOLLOW-UP ASSIGNEE
+                </label>
+                <div className="relative">
+                  <UserCheck className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                  <select
+                    value={followUpAssigneeId}
+                    onChange={(e) => setFollowUpAssigneeId(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#5034a8] cursor-pointer font-sans"
+                  >
+                    <option value="">Select Assignee</option>
+                    {(agents || []).map((ag) => (
+                      <option key={ag.id} value={ag.id}>
+                        {ag.name} ({ag.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Directly assigned to the lead's owner ({followUpLead.ownerAgentName || 'Unassigned'}). You can reassign if needed.
+                </p>
+              </div>
+
               <div>
                 <label className="block text-[11px] font-sans uppercase text-slate-600 font-bold mb-2 tracking-wider">SCHEDULED FOLLOW-UP DATE & TIME</label>
                 <div className="space-y-2 font-sans text-xs">

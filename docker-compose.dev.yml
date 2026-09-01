@@ -1,0 +1,84 @@
+# ==============================================================================
+# Pixbe CRM - Development Docker Compose Setup
+# Live code reloading (Vite HMR & TSX server) with PostgreSQL
+# ==============================================================================
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: pixbe-crm:dev
+    container_name: pixbe-crm-dev-app
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      - NODE_ENV=development
+      - PORT=8080
+      - APP_URL=${APP_URL:-http://localhost:8080}
+      - DB_HOST=${DB_HOST:-db}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-pixbe_crm}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_SSL=${DB_SSL:-false}
+      - AWS_RDS_HOST=${AWS_RDS_HOST:-}
+      - AWS_RDS_PORT=${AWS_RDS_PORT:-}
+      - AWS_RDS_DATABASE=${AWS_RDS_DATABASE:-}
+      - AWS_RDS_USER=${AWS_RDS_USER:-}
+      - AWS_RDS_PASSWORD=${AWS_RDS_PASSWORD:-}
+      - AWS_RDS_SSL=${AWS_RDS_SSL:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - META_APP_ID=${META_APP_ID:-}
+      - META_APP_SECRET=${META_APP_SECRET:-}
+      - META_WEBHOOK_VERIFY_TOKEN=${META_WEBHOOK_VERIFY_TOKEN:-}
+      - META_REDIRECT_URI=${META_REDIRECT_URI:-}
+    volumes:
+      # Mount host source code into container for instant live reload
+      - ./src:/app/src
+      - ./server:/app/server
+      - ./public:/app/public
+      - ./index.html:/app/index.html
+      - ./vite.config.ts:/app/vite.config.ts
+      - ./tsconfig.json:/app/tsconfig.json
+      # Prevent host node_modules from overwriting container node_modules
+      - /app/node_modules
+      # Persist local CRM data
+      - pixbe_dev_data:/app/.data
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - pixbe-dev-network
+
+  db:
+    image: postgres:16-alpine
+    container_name: pixbe-crm-dev-db
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: ${DB_NAME:-pixbe_crm}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    volumes:
+      - pixbe_dev_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-pixbe_crm}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - pixbe-dev-network
+
+volumes:
+  pixbe_dev_data:
+    driver: local
+  pixbe_dev_postgres_data:
+    driver: local
+
+networks:
+  pixbe-dev-network:
+    driver: bridge

@@ -60,71 +60,14 @@ export const WorkflowsView: React.FC<WorkflowsViewProps> = ({
   const [modalTrigger, setModalTrigger] = useState('Lead Creation');
   const [modalEndpoint, setModalEndpoint] = useState('https://graph.facebook.com/v25.0/2...');
 
-  // Mock Data for Schedules
-  const [schedules, setSchedules] = useState([
-    {
-      id: 'sch-1',
-      name: 'Daily 9 AM Lead Re-Engagement Drip',
-      events: 'Scheduled Trigger',
-      status: true,
-      lastRun: '1h ago',
-      lastRunStatus: 'Success (142 leads)',
-      isDraft: false
-    },
-    {
-      id: 'sch-2',
-      name: 'Weekly Inactive Lead Broadcast',
-      events: 'Weekly Drip',
-      status: false,
-      lastRun: '3d ago',
-      lastRunStatus: 'Success (890 leads)',
-      isDraft: true
-    }
-  ]);
+  // Live Data for Schedules
+  const [schedules, setSchedules] = useState<any[]>([]);
 
-  // Mock Data for Salesforms
-  const [salesforms, setSalesforms] = useState([
-    {
-      id: 'sf-1',
-      name: 'On lead field update',
-      events: 'On Status update',
-      status: true,
-      statusUpdatedOn: '3M ago',
-      statusUpdatedBy: 'FC',
-      isDraft: false
-    },
-    {
-      id: 'sf-2',
-      name: 'Site Visit Confirmation Form',
-      events: 'On Form Submit',
-      status: true,
-      statusUpdatedOn: '1M ago',
-      statusUpdatedBy: 'FC',
-      isDraft: false
-    }
-  ]);
+  // Live Data for Salesforms
+  const [salesforms, setSalesforms] = useState<any[]>([]);
 
-  // Mock Data for API Templates
-  const [apiTemplates, setApiTemplates] = useState([
-    {
-      id: 'api-1',
-      name: 'CAPI',
-      endpoint: 'https://graph.facebook.com/v25.0/2...',
-      variablesUsed: 'Facebook Lead id +4',
-      workflow: 'On Lead Status Change',
-      lastModified: '3M ago',
-      lastModifiedBy: 'FC'
-    },
-    {
-      id: 'api-2',
-      name: 'CAPI - CTWA',
-      endpoint: 'https://graph.facebook.com/v25.0/2...',
-      variablesUsed: 'CTWA id +4',
-      workflow: 'None',
-      lastModified: '3M ago',
-      lastModifiedBy: 'FC'
-    }
-  ]);
+  // Live Data for API Templates
+  const [apiTemplates, setApiTemplates] = useState<any[]>([]);
 
   // Handle Toast
   const triggerToast = (msg: string) => {

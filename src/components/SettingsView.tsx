@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Settings, 
-  Building2, 
-  PhoneCall, 
-  Bot, 
-  MessageSquare, 
-  Bell, 
-  ShieldCheck, 
-  Save, 
-  RotateCcw, 
-  Check, 
+import {
+  Settings,
+  Building2,
+  PhoneCall,
+  Bot,
+  MessageSquare,
+  Bell,
+  ShieldCheck,
+  Save,
+  RotateCcw,
+  Check,
   Clock,
   Kanban,
   Plus,
@@ -91,11 +91,10 @@ const ColorPickerDropdown: React.FC<ColorPickerDropdownProps> = ({ color, onChan
                     onChange(c);
                     setIsOpen(false);
                   }}
-                  className={`w-6 h-6 rounded-full transition-transform cursor-pointer shadow-2xs ${
-                    isSelected
+                  className={`w-6 h-6 rounded-full transition-transform cursor-pointer shadow-2xs ${isSelected
                       ? 'scale-110 ring-2 ring-blue-600 ring-offset-2'
                       : 'hover:scale-110 opacity-95 hover:opacity-100'
-                  }`}
+                    }`}
                   style={{ backgroundColor: c }}
                   title={c}
                 />
@@ -132,16 +131,16 @@ interface SettingsViewProps {
   initialTab?: SettingsTab;
 }
 
-export type SettingsTab = 
+export type SettingsTab =
   | 'fields'
   | 'permissions'
-  | 'general' 
+  | 'general'
   | 'pipeline'
   | 'billing'
-  | 'telephony' 
-  | 'ai_scoring' 
-  | 'whatsapp' 
-  | 'notifications' 
+  | 'telephony'
+  | 'ai_scoring'
+  | 'whatsapp'
+  | 'notifications'
   | 'security';
 
 const COLOR_PALETTE = [
@@ -210,7 +209,7 @@ const INDUSTRY_PRESETS = [
   }
 ];
 
-export const SettingsView: React.FC<SettingsViewProps> = ({ 
+export const SettingsView: React.FC<SettingsViewProps> = ({
   companyName: initialCompanyName,
   onUpdateCompanyName,
   supportEmail: initialSupportEmail,
@@ -218,8 +217,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   currency: initialCurrency,
   onUpdateCurrency,
   activeAgent,
-  onShowToast, 
-  stages, 
+  onShowToast,
+  stages,
   onUpdateStages,
   agents,
   onUpdateAgents,
@@ -455,34 +454,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [showEditBillingModal, setShowEditBillingModal] = useState(false);
 
   // Billing Details State
-  const [billingOrg, setBillingOrg] = useState('SKYKITE INSTITUTE OF AVIATION AND AEROSPACE PVT LTD');
-  const [billingEmail, setBillingEmail] = useState('coo@kiteaviation.in');
-  const [billingGstin, setBillingGstin] = useState('07AABCS1429B1Z8');
-  const [billingAddress, setBillingAddress] = useState('Plot 42, Aviation Enclave, Dwarka Sec-8, New Delhi - 110077');
+  const [billingOrg, setBillingOrg] = useState(() => companyName || 'Primary Workspace Organization');
+  const [billingEmail, setBillingEmail] = useState(() => activeAgent?.email || 'admin@company.com');
+  const [billingGstin, setBillingGstin] = useState('');
+  const [billingAddress, setBillingAddress] = useState('');
 
-  // Mock Past Transactions
-  const [transactions, setTransactions] = useState([
-    {
-      id: 'TXN-2026-98124',
-      date: '13 Aug 2026',
-      item: 'Core CRM + WhatsApp Chat Sync (Annual License)',
-      amount: 14145.84,
-      tax: 2157.84,
-      status: 'Completed',
-      paymentMethod: 'Razorpay UPI (coo@okhdfcbank)',
-      invoiceUrl: '#'
-    },
-    {
-      id: 'TXN-2026-44102',
-      date: '10 May 2026',
-      item: 'Whatsapp Cloud API Setup Charges',
-      amount: 1998.92,
-      tax: 304.92,
-      status: 'Completed',
-      paymentMethod: 'Credit Card (HDFC **** 4242)',
-      invoiceUrl: '#'
-    }
-  ]);
+  // Live Past Transactions
+  const [transactions, setTransactions] = useState<any[]>([]);
 
   // Cart Helper Functions
   const handleAddToCart = (item: { id: string; title: string; price: number; category: 'license' | 'service' }) => {
@@ -693,7 +671,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   return (
     <div className="text-slate-900 font-sans space-y-5 select-none pb-8">
-      
+
       {/* HEADER BAR */}
       {/* HEADER BAR */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-sans pb-2">
@@ -732,7 +710,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {/* TABS & CONTENT LAYOUT */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 font-sans pt-2">
-        
+
         {/* SIDEBAR NAVIGATION TABS */}
         <div className="lg:col-span-3 space-y-1.5 bg-white border border-slate-100 rounded-3xl p-3 h-fit shadow-xs font-sans">
           <p className="text-[10px] font-sans font-bold text-slate-400 uppercase tracking-wider px-3 py-2">
@@ -741,45 +719,40 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
           <button
             onClick={() => setActiveTab('fields')}
-            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
-              activeTab === 'fields'
+            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${activeTab === 'fields'
                 ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
                 : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
-            }`}
+              }`}
           >
             <SlidersHorizontal className={`w-4 h-4 shrink-0 ${activeTab === 'fields' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
             <span className="flex-1 text-left font-sans">Fields Settings</span>
-            <span className={`text-[10px] font-sans px-2 py-0.5 rounded-full font-bold ${
-              activeTab === 'fields' ? 'bg-blue-100 text-[#2563eb]' : 'bg-slate-200/70 text-slate-600'
-            }`}>
+            <span className={`text-[10px] font-sans px-2 py-0.5 rounded-full font-bold ${activeTab === 'fields' ? 'bg-blue-100 text-[#2563eb]' : 'bg-slate-200/70 text-slate-600'
+              }`}>
               {localCustomFields.length}
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab('permissions')}
-            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
-              activeTab === 'permissions'
+            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${activeTab === 'permissions'
                 ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
                 : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
-            }`}
+              }`}
           >
             <ShieldCheck className={`w-4 h-4 shrink-0 ${activeTab === 'permissions' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
             <span className="flex-1 text-left font-sans">Permission Templates</span>
-            <span className={`text-[10px] font-sans px-2 py-0.5 rounded-full font-bold ${
-              activeTab === 'permissions' ? 'bg-blue-100 text-[#2563eb]' : 'bg-slate-200/70 text-slate-600'
-            }`}>
+            <span className={`text-[10px] font-sans px-2 py-0.5 rounded-full font-bold ${activeTab === 'permissions' ? 'bg-blue-100 text-[#2563eb]' : 'bg-slate-200/70 text-slate-600'
+              }`}>
               {localTemplates.length}
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab('general')}
-            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
-              activeTab === 'general'
+            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${activeTab === 'general'
                 ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
                 : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
-            }`}
+              }`}
           >
             <Building2 className={`w-4 h-4 shrink-0 ${activeTab === 'general' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
             <span className="font-sans">General & Business</span>
@@ -787,45 +760,40 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
           <button
             onClick={() => setActiveTab('pipeline')}
-            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
-              activeTab === 'pipeline'
+            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${activeTab === 'pipeline'
                 ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
                 : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
-            }`}
+              }`}
           >
             <Kanban className={`w-4 h-4 shrink-0 ${activeTab === 'pipeline' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
             <span className="flex-1 text-left font-sans">Pipeline Stages & Colors</span>
-            <span className={`text-[10px] font-sans px-2 py-0.5 rounded-full font-bold ${
-              activeTab === 'pipeline' ? 'bg-blue-100 text-[#2563eb]' : 'bg-amber-100 text-amber-700'
-            }`}>
+            <span className={`text-[10px] font-sans px-2 py-0.5 rounded-full font-bold ${activeTab === 'pipeline' ? 'bg-blue-100 text-[#2563eb]' : 'bg-amber-100 text-amber-700'
+              }`}>
               New
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab('billing')}
-            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
-              activeTab === 'billing'
+            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${activeTab === 'billing'
                 ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
                 : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
-            }`}
+              }`}
           >
             <CreditCard className={`w-4 h-4 shrink-0 ${activeTab === 'billing' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
             <span className="flex-1 text-left font-sans">Buy Licenses & Billing</span>
-            <span className={`text-[10px] font-sans px-2 py-0.5 rounded-full font-bold ${
-              activeTab === 'billing' ? 'bg-blue-100 text-[#2563eb]' : 'bg-emerald-100 text-emerald-700'
-            }`}>
+            <span className={`text-[10px] font-sans px-2 py-0.5 rounded-full font-bold ${activeTab === 'billing' ? 'bg-blue-100 text-[#2563eb]' : 'bg-emerald-100 text-emerald-700'
+              }`}>
               Billing
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab('telephony')}
-            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
-              activeTab === 'telephony'
+            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${activeTab === 'telephony'
                 ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
                 : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
-            }`}
+              }`}
           >
             <PhoneCall className={`w-4 h-4 shrink-0 ${activeTab === 'telephony' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
             <span className="font-sans">Telephony & Dialer</span>
@@ -833,11 +801,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
           <button
             onClick={() => setActiveTab('ai_scoring')}
-            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
-              activeTab === 'ai_scoring'
+            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${activeTab === 'ai_scoring'
                 ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
                 : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
-            }`}
+              }`}
           >
             <Bot className={`w-4 h-4 shrink-0 ${activeTab === 'ai_scoring' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
             <span className="font-sans">AI & Lead Scoring</span>
@@ -845,11 +812,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
           <button
             onClick={() => setActiveTab('whatsapp')}
-            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
-              activeTab === 'whatsapp'
+            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${activeTab === 'whatsapp'
                 ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
                 : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
-            }`}
+              }`}
           >
             <MessageSquare className={`w-4 h-4 shrink-0 ${activeTab === 'whatsapp' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
             <span className="font-sans">WhatsApp & Automation</span>
@@ -857,11 +823,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
           <button
             onClick={() => setActiveTab('notifications')}
-            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
-              activeTab === 'notifications'
+            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${activeTab === 'notifications'
                 ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
                 : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
-            }`}
+              }`}
           >
             <Bell className={`w-4 h-4 shrink-0 ${activeTab === 'notifications' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
             <span className="font-sans">Notifications & Alerts</span>
@@ -869,11 +834,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
           <button
             onClick={() => setActiveTab('security')}
-            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
-              activeTab === 'security'
+            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${activeTab === 'security'
                 ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
                 : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
-            }`}
+              }`}
           >
             <ShieldCheck className={`w-4 h-4 shrink-0 ${activeTab === 'security' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
             <span className="font-sans">Security & Permissions</span>
@@ -882,7 +846,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
         {/* TAB PANELS CONTAINER */}
         <div className="lg:col-span-9 bg-white border border-slate-100 rounded-3xl p-6 sm:p-7 shadow-xs font-sans space-y-6">
-          
+
           {/* TAB 0: FIELDS SETTINGS */}
           {activeTab === 'fields' && (
             <FieldsSettingsView
@@ -1018,11 +982,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           key={day}
                           type="button"
                           onClick={() => toggleDay(day)}
-                          className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
-                            isSel
+                          className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border ${isSel
                               ? 'bg-indigo-600 text-white border-indigo-600'
                               : 'bg-slate-50 text-slate-600 border-slate-300 hover:bg-slate-100 hover:text-slate-900'
-                          }`}
+                            }`}
                         >
                           {day}
                         </button>
@@ -1462,11 +1425,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         key={m.id}
                         type="button"
                         onClick={() => setAiSensitivity(m.id)}
-                        className={`p-3 rounded-lg text-left border transition-all cursor-pointer ${
-                          aiSensitivity === m.id
+                        className={`p-3 rounded-lg text-left border transition-all cursor-pointer ${aiSensitivity === m.id
                             ? 'bg-amber-50 border-amber-400 text-amber-900 font-medium'
                             : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300'
-                        }`}
+                          }`}
                       >
                         <p className="text-xs font-bold">{m.label}</p>
                         <p className="text-[10px] text-slate-500 mt-0.5">{m.desc}</p>
@@ -1743,10 +1705,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
               {/* Main Grid: Left Column (Licenses & Services), Right Column (Billing Details & Cart) */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                
+
                 {/* LEFT COLUMN: Licenses & Other Services */}
                 <div className="lg:col-span-7 space-y-4">
-                  
+
                   {/* Licenses Box */}
                   <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs space-y-3">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-2">
@@ -1758,17 +1720,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <div className="bg-slate-100 p-0.5 rounded-lg flex items-center space-x-1 text-[10px] font-medium text-slate-600 font-noto">
                         <button
                           onClick={() => setBillingPeriod('Quarterly')}
-                          className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer ${
-                            billingPeriod === 'Quarterly' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'hover:text-slate-900'
-                          }`}
+                          className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer ${billingPeriod === 'Quarterly' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'hover:text-slate-900'
+                            }`}
                         >
                           Quarterly
                         </button>
                         <button
                           onClick={() => setBillingPeriod('Annual')}
-                          className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer flex items-center space-x-1 ${
-                            billingPeriod === 'Annual' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'hover:text-slate-900'
-                          }`}
+                          className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer flex items-center space-x-1 ${billingPeriod === 'Annual' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'hover:text-slate-900'
+                            }`}
                         >
                           <span>Annual</span>
                           <span className="text-[8px] font-noto px-1 py-0.2 bg-emerald-100 text-emerald-800 rounded font-bold">
@@ -1806,11 +1766,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           price: billingPeriod === 'Annual' ? 9588 : 2899,
                           category: 'license'
                         })}
-                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold font-noto transition-all cursor-pointer shadow-2xs self-start sm:self-center ${
-                          cartItems.some(i => i.id === 'lic-core')
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold font-noto transition-all cursor-pointer shadow-2xs self-start sm:self-center ${cartItems.some(i => i.id === 'lic-core')
                             ? 'bg-purple-100 text-purple-800 border border-purple-300'
                             : 'bg-white border border-purple-600 text-purple-700 hover:bg-purple-600 hover:text-white'
-                        }`}
+                          }`}
                       >
                         {cartItems.some(i => i.id === 'lic-core') ? 'In Cart ✓' : 'Add'}
                       </button>
@@ -1850,11 +1809,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           price: billingPeriod === 'Annual' ? 11988 : 3499,
                           category: 'license'
                         })}
-                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold font-noto transition-all cursor-pointer shadow-2xs self-start sm:self-center ${
-                          cartItems.some(i => i.id === 'lic-wa-sync')
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold font-noto transition-all cursor-pointer shadow-2xs self-start sm:self-center ${cartItems.some(i => i.id === 'lic-wa-sync')
                             ? 'bg-purple-100 text-purple-800 border border-purple-300'
                             : 'bg-white border border-purple-600 text-purple-700 hover:bg-purple-600 hover:text-white'
-                        }`}
+                          }`}
                       >
                         {cartItems.some(i => i.id === 'lic-wa-sync') ? 'In Cart ✓' : 'Add'}
                       </button>
@@ -1887,11 +1845,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           price: 1694,
                           category: 'service'
                         })}
-                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold font-noto transition-all cursor-pointer shadow-2xs self-start sm:self-center ${
-                          cartItems.some(i => i.id === 'srv-wa-api')
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold font-noto transition-all cursor-pointer shadow-2xs self-start sm:self-center ${cartItems.some(i => i.id === 'srv-wa-api')
                             ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                             : 'bg-white border border-purple-600 text-purple-700 hover:bg-purple-600 hover:text-white'
-                        }`}
+                          }`}
                       >
                         {cartItems.some(i => i.id === 'srv-wa-api') ? 'In Cart ✓' : 'Add'}
                       </button>
@@ -1917,11 +1874,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           price: 4999,
                           category: 'service'
                         })}
-                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold font-noto transition-all cursor-pointer shadow-2xs self-start sm:self-center ${
-                          cartItems.some(i => i.id === 'srv-consulting')
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold font-noto transition-all cursor-pointer shadow-2xs self-start sm:self-center ${cartItems.some(i => i.id === 'srv-consulting')
                             ? 'bg-purple-100 text-purple-800 border border-purple-300'
                             : 'bg-white border border-purple-600 text-purple-700 hover:bg-purple-600 hover:text-white'
-                        }`}
+                          }`}
                       >
                         {cartItems.some(i => i.id === 'srv-consulting') ? 'In Cart ✓' : 'Add'}
                       </button>
@@ -1931,7 +1887,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                 {/* RIGHT COLUMN: Billing Details Box & Cart */}
                 <div className="lg:col-span-5 space-y-4">
-                  
+
                   {/* Billing Details Box */}
                   <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs space-y-2.5">
                     <h3 className="text-[10px] font-bold text-slate-500 font-noto uppercase tracking-wider">
@@ -1956,7 +1912,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           </button>
                         </div>
                       </div>
-                      
+
                       <div className="text-[9px] text-slate-500 pt-1 border-t border-slate-200 flex items-center justify-between">
                         <span>GSTIN: {billingGstin}</span>
                         <span className="text-emerald-700 font-bold">18% Input Tax Credit</span>
@@ -2160,16 +2116,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             <div className="space-y-2.5">
               <label className="text-[10px] font-semibold text-slate-700">Select Payment Method</label>
-              
+
               <div className="space-y-1.5 text-[10px]">
                 <button
                   type="button"
                   onClick={() => setSelectedPaymentMethod('upi')}
-                  className={`w-full p-2.5 rounded-lg border text-left flex items-center justify-between transition-all cursor-pointer ${
-                    selectedPaymentMethod === 'upi'
+                  className={`w-full p-2.5 rounded-lg border text-left flex items-center justify-between transition-all cursor-pointer ${selectedPaymentMethod === 'upi'
                       ? 'border-purple-600 bg-purple-50/50 text-purple-950 font-bold'
                       : 'border-slate-200 hover:bg-slate-50 text-slate-700'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center space-x-2">
                     <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-bold">UPI</span>
@@ -2181,11 +2136,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setSelectedPaymentMethod('card')}
-                  className={`w-full p-2.5 rounded-lg border text-left flex items-center justify-between transition-all cursor-pointer ${
-                    selectedPaymentMethod === 'card'
+                  className={`w-full p-2.5 rounded-lg border text-left flex items-center justify-between transition-all cursor-pointer ${selectedPaymentMethod === 'card'
                       ? 'border-purple-600 bg-purple-50/50 text-purple-950 font-bold'
                       : 'border-slate-200 hover:bg-slate-50 text-slate-700'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center space-x-2">
                     <CreditCard className="w-3.5 h-3.5 text-purple-600" />
@@ -2197,11 +2151,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setSelectedPaymentMethod('netbanking')}
-                  className={`w-full p-2.5 rounded-lg border text-left flex items-center justify-between transition-all cursor-pointer ${
-                    selectedPaymentMethod === 'netbanking'
+                  className={`w-full p-2.5 rounded-lg border text-left flex items-center justify-between transition-all cursor-pointer ${selectedPaymentMethod === 'netbanking'
                       ? 'border-purple-600 bg-purple-50/50 text-purple-950 font-bold'
                       : 'border-slate-200 hover:bg-slate-50 text-slate-700'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center space-x-2">
                     <Building2 className="w-3.5 h-3.5 text-indigo-600" />
@@ -2417,9 +2370,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       key={idx}
                       type="button"
                       onClick={() => setNewAssigneeAvatar(presetUrl)}
-                      className={`w-5 h-5 rounded-full overflow-hidden border shrink-0 transition-transform cursor-pointer ${
-                        newAssigneeAvatar === presetUrl ? 'ring-2 ring-indigo-600 scale-110 border-indigo-600' : 'border-slate-300 opacity-70 hover:opacity-100'
-                      }`}
+                      className={`w-5 h-5 rounded-full overflow-hidden border shrink-0 transition-transform cursor-pointer ${newAssigneeAvatar === presetUrl ? 'ring-2 ring-indigo-600 scale-110 border-indigo-600' : 'border-slate-300 opacity-70 hover:opacity-100'
+                        }`}
                     >
                       <img src={presetUrl} alt="Preset" className="w-full h-full object-cover" />
                     </button>

@@ -17,12 +17,14 @@ import {
 } from 'lucide-react';
 import { Lead, Agent, LeadStatus, formatDealValue } from '../types';
 import { StatusBadge } from './StatusBadge';
+import { formatArcleName } from '../utils/brandUtils';
 
 interface PowerDialerQueueModalProps {
   isOpen: boolean;
   onClose: () => void;
   leads: Lead[];
   activeAgent: Agent;
+  companyName?: string;
   currency?: string;
   onSaveCallLog: (leadId: string, disposition: LeadStatus, notes: string, durationSec: number) => void;
   onSendMessage?: (leadId: string, text: string) => void;
@@ -34,6 +36,7 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
   onClose,
   leads,
   activeAgent,
+  companyName,
   currency = 'INR',
   onSaveCallLog,
   onUpdateLeadStatus,
@@ -179,27 +182,29 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
         onClick={e => e.stopPropagation()}
       >
         {/* Top Header Bar (Bold Sans-Serif Theme) */}
-        <div className="px-6 py-4 bg-white text-slate-900 flex items-center justify-between border-b border-slate-200">
-          <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-indigo-600">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 bg-white text-slate-900 flex flex-wrap items-center justify-between border-b border-slate-200 gap-2">
+          <div className="flex items-center space-x-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-indigo-600 shrink-0">
               <PhoneCall className="w-5 h-5" />
             </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="font-bold font-sans text-base text-slate-900 tracking-tight">ARCLE Auto-Power Dialer Queue</span>
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
+            <div className="min-w-0">
+              <div className="flex items-center space-x-2 flex-wrap">
+                <span className="font-bold font-sans text-sm sm:text-base text-slate-900 tracking-tight truncate max-w-[160px] sm:max-w-none">
+                  {formatArcleName('ARCLE Auto-Power Dialer Queue', companyName)}
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200 shrink-0">
                   VoIP Active
                 </span>
               </div>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">
+              <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">
                 Lead {queueIndex + 1} of {queueLeads.length} • Agent: {activeAgent.name}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 sm:space-x-3 ml-auto">
             {/* Filter Mode Selector */}
-            <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-sans">
+            <div className="flex items-center space-x-0.5 sm:space-x-1 bg-slate-100 p-0.5 sm:p-1 rounded-xl border border-slate-200 text-xs font-sans">
               {(['all', 'fresh', 'rnr', 'hot'] as const).map(mode => (
                 <button
                   key={mode}
@@ -207,7 +212,7 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
                     setFilterMode(mode);
                     setQueueIndex(0);
                   }}
-                  className={`px-3 py-1 rounded-lg capitalize font-bold cursor-pointer transition-all ${
+                  className={`px-2 sm:px-3 py-1 rounded-lg capitalize font-bold cursor-pointer transition-all text-[11px] sm:text-xs ${
                     filterMode === mode ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -218,7 +223,7 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
 
             <button
               onClick={onClose}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
             >
               <X className="w-5 h-5" />
             </button>
@@ -348,10 +353,11 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
                 {callState === 'idle' || callState === 'ended' ? (
                   <button
                     onClick={handleStartCall}
+                    title="Call (Space)"
                     className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-md cursor-pointer transition-all flex items-center space-x-2"
                   >
                     <PhoneCall className="w-4 h-4" />
-                    <span>Start Call (Space)</span>
+                    <span>Call</span>
                   </button>
                 ) : (
                   <button
@@ -410,12 +416,12 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
         </div>
 
         {/* Footer Legend */}
-        <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
-          <div className="flex items-center space-x-4">
+        <div className="px-4 sm:px-6 py-2.5 sm:py-3 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-1 text-xs text-slate-500">
+          <div className="flex items-center space-x-3">
             <span><kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200 font-mono text-[10px]">Space</kbd> Call / Hangup</span>
-            <span><kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200 font-mono text-[10px]">N</kbd> Skip / Next</span>
+            <span><kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200 font-mono text-[10px]">N</kbd> Next</span>
           </div>
-          <span className="font-bold text-slate-700">Telecalling Velocity: 45 calls/hour</span>
+          <span className="font-bold text-slate-700 text-[11px] sm:text-xs">Velocity: 45 calls/hr</span>
         </div>
       </div>
 

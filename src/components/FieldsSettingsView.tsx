@@ -32,7 +32,9 @@ import {
   FolderTree,
   ExternalLink,
   Lock,
-  Layers
+  Layers,
+  Timer,
+  Save
 } from 'lucide-react';
 import { CustomFieldDef, CustomFieldType, Agent, isAgentAdmin } from '../types';
 
@@ -94,13 +96,43 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
   const [fieldOptions, setFieldOptions] = useState<string[]>([]);
   const [optionInput, setOptionInput] = useState('');
 
+  // Fresh Lead Timer Config (stored as sentinel record in customFields)
+  const TIMER_SENTINEL_ID = '__fresh_lead_timer__';
+  const existingTimerRecord = customFields.find((f) => f.id === TIMER_SENTINEL_ID);
+  const [timerMinutes, setTimerMinutes] = useState<number>(existingTimerRecord?.freshLeadTimerMinutes ?? 30);
+  const [timerSaved, setTimerSaved] = useState(false);
+
+  const handleSaveTimerConfig = () => {
+    if (!isAdmin) {
+      onShowToast('Access Restricted: Only Admin accounts can change timer settings.');
+      return;
+    }
+    const mins = Math.max(0, Math.round(timerMinutes));
+    const sentinelRecord: CustomFieldDef = {
+      id: TIMER_SENTINEL_ID,
+      name: TIMER_SENTINEL_ID,
+      label: 'Fresh Lead Timer',
+      type: 'number',
+      required: false,
+      isHidden: true, // Hidden from normal field lists
+      freshLeadTimerMinutes: mins,
+    };
+    const withoutSentinel = customFields.filter((f) => f.id !== TIMER_SENTINEL_ID);
+    onUpdateFields([...withoutSentinel, sentinelRecord]);
+    setTimerSaved(true);
+    setTimeout(() => setTimerSaved(false), 2500);
+    onShowToast(mins === 0
+      ? 'Fresh Lead Timer disabled.'
+      : `Fresh Lead Timer set to ${mins} minutes.`);
+  };
+
   // Primary Fields H1 and H2
   const h1Field = customFields.find((f) => f.primarySlot === 'H1') || customFields.find((f) => f.name === 'name') || customFields[0];
   const h2Field = customFields.find((f) => f.primarySlot === 'H2') || customFields.find((f) => f.name === 'phone') || customFields[1];
 
-  // Other Fields (excluding H1 and H2)
+  // Other Fields (excluding H1, H2, and the internal timer sentinel record)
   const otherFields = useMemo(() => {
-    return customFields.filter((f) => f.primarySlot !== 'H1' && f.primarySlot !== 'H2');
+    return customFields.filter((f) => f.primarySlot !== 'H1' && f.primarySlot !== 'H2' && f.id !== '__fresh_lead_timer__');
   }, [customFields]);
 
   // Filtered & Sorted Other Fields
@@ -367,6 +399,72 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
             <span>Add Field</span>
           </button>
         </div>
+      </div>
+
+      {/* =========================================================== */}
+      {/* FRESH LEAD RESPONSE TIMER CONFIG CARD                        */}
+      {/* =========================================================== */}
+      <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl border border-orange-200/80 p-4 shadow-2xs font-sans">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start space-x-3">
+            <div className="w-9 h-9 rounded-xl bg-orange-100 border border-orange-200 flex items-center justify-center shrink-0">
+              <Timer className="w-4 h-4 text-orange-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                Fresh Lead Response Timer
+                {(existingTimerRecord?.freshLeadTimerMinutes ?? 0) > 0 && (
+                  <span className="px-2 py-0.5 rounded-full bg-orange-100 border border-orange-200 text-orange-700 text-[10px] font-bold">
+                    {existingTimerRecord?.freshLeadTimerMinutes}m active
+                  </span>
+                )}
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                When a new lead arrives a live countdown badge is shown in the leads table. Set 0 to disable.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2 shrink-0">
+            <div className="relative">
+              <input
+                type="number"
+                min={0}
+                max={1440}
+                value={timerMinutes}
+                onChange={(e) => setTimerMinutes(Number(e.target.value))}
+                className="w-24 bg-white border border-orange-300 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 text-center focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
+                placeholder="30"
+              />
+              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-semibold pointer-events-none">min</span>
+            </div>
+            <button
+              onClick={handleSaveTimerConfig}
+              className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm ${
+                timerSaved
+                  ? 'bg-emerald-500 text-white shadow-emerald-200'
+                  : 'bg-orange-500 hover:bg-orange-600 text-white shadow-orange-200'
+              }`}
+            >
+              {timerSaved ? (
+                <><Check className="w-3.5 h-3.5" /><span>Saved!</span></>
+              ) : (
+                <><Save className="w-3.5 h-3.5" /><span>Save</span></>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Visual preview */}
+        {timerMinutes > 0 && (
+          <div className="mt-3 pt-3 border-t border-orange-200/60 flex items-center space-x-2">
+            <span className="text-[11px] text-slate-500 font-medium">Preview in leads table:</span>
+            <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-orange-500 text-white text-[11px] font-bold shadow-sm shadow-orange-300/40 animate-pulse">
+              <Timer className="w-3 h-3" />
+              <span>{timerMinutes}m left · Call now</span>
+            </span>
+          </div>
+        )}
       </div>
 
       {/* 2. UNIQUE IDENTIFIER BANNER CARD */}

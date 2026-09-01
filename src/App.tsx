@@ -33,8 +33,11 @@ import { PowerDialerQueueModal } from './components/PowerDialerQueueModal';
 import { LoginView } from './components/LoginView';
 import { SignUpView } from './components/SignUpView';
 import { PixbeLoadingScreen } from './components/PixbeLoadingScreen';
+import { SuperAdminView } from './components/superadmin/SuperAdminView';
+import { ImpersonationBanner } from './components/superadmin/ImpersonationBanner';
 import { PhoneCall, X, Users } from 'lucide-react';
-import { verifyCurrentSession, logoutWithApi } from './lib/auth';
+import { verifyCurrentSession, logoutWithApi, fetchWithTenantAuth } from './lib/auth';
+import { formatArcleName } from './utils/brandUtils';
 
 import { 
   INITIAL_LEADS, 
@@ -75,12 +78,64 @@ import { ShieldCheck } from 'lucide-react';
 export const StagesContext = React.createContext<PipelineStage[]>(INITIAL_STAGES);
 
 export function App() {
-  // Navigation & Active View State (defaulting to 'leads' to match screenshot view)
-  const [currentView, setCurrentView] = useState<string>('leads');
+  // Navigation & Active View State (defaulting to 'leads', supports ?view=superadmin)
+  const [currentView, setCurrentView] = useState<string>(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('view') === 'superadmin') return 'superadmin';
+    } catch (e) {}
+    return 'leads';
+  });
   const [reportsSubTab, setReportsSubTab] = useState<ReportsSubTab>('call_logs');
   const [automationsSubTab, setAutomationsSubTab] = useState<AutomationsSubTab>('workflows');
   const [settingsSubTab, setSettingsSubTab] = useState<SettingsTab>('general');
   const [activeAgentId, setActiveAgentId] = useState<string>('agent-ms');
+
+  // Super Admin Impersonation Session
+  const [impersonationSession, setImpersonationSession] = useState<{
+    isImpersonating: boolean;
+    tenantId: string;
+    tenantName: string;
+    originalUser: Agent | null;
+  } | null>(() => {
+    const stored = sessionStorage.getItem('pixbe_impersonation_session');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {}
+    }
+    return null;
+  });
+
+  const handleImpersonateTenant = (targetTenantId: string, companyName: string, token: string, user: any) => {
+    const sessionInfo = {
+      isImpersonating: true,
+      tenantId: targetTenantId,
+      tenantName: companyName,
+      originalUser: currentUser
+    };
+    setImpersonationSession(sessionInfo);
+    sessionStorage.setItem('pixbe_impersonation_session', JSON.stringify(sessionInfo));
+    
+    // Switch active user & tenant
+    setCurrentUser(user);
+    sessionStorage.setItem('pixbe_auth_user', JSON.stringify(user));
+    sessionStorage.setItem('pixbe_auth_token', token);
+    
+    showToast(`⚡ Impersonating ${companyName} (${targetTenantId})`);
+    setCurrentView('leads');
+  };
+
+  const handleExitImpersonation = () => {
+    if (impersonationSession?.originalUser) {
+      setCurrentUser(impersonationSession.originalUser);
+      sessionStorage.setItem('pixbe_auth_user', JSON.stringify(impersonationSession.originalUser));
+    }
+    setImpersonationSession(null);
+    sessionStorage.removeItem('pixbe_impersonation_session');
+    setCurrentView('superadmin');
+    showToast('Exited impersonation mode. Returned to Super Admin.');
+  };
   const [selectedCampaignHandle, setSelectedCampaignHandle] = useState<string>('@master-form-iata-cargo');
   const [activeFilterId, setActiveFilterId] = useState<string>('all_leads');
 
@@ -91,23 +146,45 @@ export function App() {
     { id: 'followup_leads', name: 'Followup Leads', iconType: 'filter' },
   ];
 
-  // Core CRM Collections State synchronized with Firebase
-  const [leads, setLeads] = useSyncState<Lead>('leads');
-  const [agents, setAgents] = useSyncState<Agent>('agents');
-  const [stages, setStages] = useSyncState<PipelineStage>('stages');
-  const [activities, setActivities] = useSyncState<ActivityLog>('activities');
-  const [messages, setMessages] = useSyncState<WhatsAppMessage>('messages');
-  const [callRecords, setCallRecords] = useSyncState<CallRecord>('callRecords');
-  const [templates, setTemplates] = useSyncState<WhatsAppTemplate>('templates');
-  const [campaigns, setCampaigns] = useSyncState<WhatsAppCampaign>('campaigns');
-  const [workflows, setWorkflows] = useSyncState<WorkflowRule>('workflows');
-  const [customFields, setCustomFields] = useSyncState<CustomFieldDef>('customFields');
-  const [permissionTemplates, setPermissionTemplates] = useSyncState<PermissionTemplate>('permissionTemplates');
-  const [taskCategories, setTaskCategories] = useSyncState<TaskTypeCategory>('taskCategories');
-  const [workspaceProfile, setWorkspaceProfile] = useSyncState<{ id: string; name: string }>('workspaceProfile');
-  const companyName = workspaceProfile?.[0]?.name || 'ARCLE Real Estate & Sales';
-  const [workspaceEmail, setWorkspaceEmail] = useSyncState<{ id: string; email: string }>('workspaceEmail');
-  const [workspaceCurrency, setWorkspaceCurrency] = useSyncState<{ id: string; code: string }>('workspaceCurrency');
+  // Real-World Authentication & Session State (strictly defaults to login page upon opening)
+  const [currentUser, setCurrentUser] = useState<Agent | null>(() => {
+    const stored = sessionStorage.getItem('pixbe_auth_user');
+    if (stored) {
+      try {
+        return JSON.parse(stored) as Agent;
+      } catch (e) {}
+    }
+    return null;
+  });
+
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return !!sessionStorage.getItem('pixbe_auth_user');
+  });
+  const [authScreen, setAuthScreen] = useState<'login' | 'signup'>('login');
+  const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
+
+  // Active authenticated tenant id
+  const activeTenantId = currentUser?.tenantId || 'default_tenant';
+
+  // Core CRM Collections State strictly scoped to activeTenantId
+  const [leads, setLeads] = useSyncState<Lead>('leads', activeTenantId);
+  const [agents, setAgents] = useSyncState<Agent>('agents', activeTenantId);
+  const [stages, setStages] = useSyncState<PipelineStage>('stages', activeTenantId);
+  const [activities, setActivities] = useSyncState<ActivityLog>('activities', activeTenantId);
+  const [messages, setMessages] = useSyncState<WhatsAppMessage>('messages', activeTenantId);
+  const [callRecords, setCallRecords] = useSyncState<CallRecord>('callRecords', activeTenantId);
+  const [templates, setTemplates] = useSyncState<WhatsAppTemplate>('templates', activeTenantId);
+  const [campaigns, setCampaigns] = useSyncState<WhatsAppCampaign>('campaigns', activeTenantId);
+  const [workflows, setWorkflows] = useSyncState<WorkflowRule>('workflows', activeTenantId);
+  const [customFields, setCustomFields] = useSyncState<CustomFieldDef>('customFields', activeTenantId);
+  const [permissionTemplates, setPermissionTemplates] = useSyncState<PermissionTemplate>('permissionTemplates', activeTenantId);
+  const [taskCategories, setTaskCategories] = useSyncState<TaskTypeCategory>('taskCategories', activeTenantId);
+  const [workspaceProfile, setWorkspaceProfile] = useSyncState<{ id: string; name: string }>('workspaceProfile', activeTenantId);
+  const [workspaceEmail, setWorkspaceEmail] = useSyncState<{ id: string; email: string }>('workspaceEmail', activeTenantId);
+  const [workspaceCurrency, setWorkspaceCurrency] = useSyncState<{ id: string; code: string }>('workspaceCurrency', activeTenantId);
+
+  const rawCompanyName = currentUser?.companyName || (workspaceProfile && workspaceProfile[0]?.name) || '';
+  const companyName = rawCompanyName;
 
   const INITIAL_TASK_CATEGORIES: TaskTypeCategory[] = [
     { id: 'task-type-call', name: 'Call Followups', color: 'indigo', isBuiltIn: true },
@@ -116,25 +193,41 @@ export function App() {
 
   const activeTaskCategories = taskCategories && taskCategories.length > 0 ? taskCategories : INITIAL_TASK_CATEGORIES;
 
-  const [crmTasks, setCrmTasks] = useSyncState<CrmTask>('crmTasks');
+  const [crmTasks, setCrmTasks] = useSyncState<CrmTask>('crmTasks', activeTenantId);
 
   const handleCreateCrmTask = (task: CrmTask) => {
-    setCrmTasks((prev) => [...(prev || []), task]);
+    const taskWithTenant = { ...task, tenantId: activeTenantId };
+    setCrmTasks((prev) => [...(prev || []), taskWithTenant]);
+    fetchWithTenantAuth('/api/tasks', {
+      method: 'POST',
+      body: JSON.stringify(taskWithTenant)
+    }).catch(console.warn);
     showToast(`Task "${task.title}" created for ${task.assigneeAgentName}!`);
   };
 
   const handleDeleteCrmTask = (taskId: string) => {
     setCrmTasks((prev) => (prev || []).filter(t => t.id !== taskId));
+    fetchWithTenantAuth(`/api/tasks/${taskId}`, {
+      method: 'DELETE'
+    }).catch(console.warn);
     showToast('Task deleted.');
   };
 
   const handleUpdateCrmTaskStatus = (taskId: string, status: 'Pending' | 'Completed' | 'Rejected') => {
     setCrmTasks((prev) => (prev || []).map(t => t.id === taskId ? { ...t, status } : t));
+    fetchWithTenantAuth(`/api/tasks/${taskId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status })
+    }).catch(console.warn);
     showToast(`Task marked as ${status}.`);
   };
 
   const handleUpdateCrmTask = (taskId: string, updates: Partial<CrmTask>) => {
     setCrmTasks((prev) => (prev || []).map(t => t.id === taskId ? { ...t, ...updates } : t));
+    fetchWithTenantAuth(`/api/tasks/${taskId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates)
+    }).catch(console.warn);
     showToast('Task updated in database!');
   };
 
@@ -162,31 +255,59 @@ export function App() {
   const activeStages = stages && stages.length > 0 ? stages : INITIAL_STAGES;
   const activeCustomFields = customFields && customFields.length > 0 ? customFields : INITIAL_CUSTOM_FIELDS;
 
-  // Real-World Authentication & Session State
-  const [currentUser, setCurrentUser] = useState<Agent | null>(() => {
-    const stored = localStorage.getItem('pixbe_auth_user');
-    if (stored) {
-      try {
-        return JSON.parse(stored) as Agent;
-      } catch (e) {}
+  // Dynamic Browser Tab / Document Title containing ARCLE & the given company name
+  useEffect(() => {
+    if (isAuthenticated && rawCompanyName) {
+      document.title = `${formatArcleName('ARCLE CRM', rawCompanyName)} & TeleSales Management`;
+    } else {
+      document.title = 'ARCLE CRM & TeleSales Management';
     }
-    return null;
-  });
+  }, [isAuthenticated, rawCompanyName]);
 
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [authScreen, setAuthScreen] = useState<'login' | 'signup'>('login');
-  const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
-
+  // Real database fetch strictly scoped to activeTenantId
   useEffect(() => {
     seedDatabase();
-    verifyCurrentSession().then((authenticatedUser) => {
-      if (authenticatedUser) {
-        setIsAuthenticated(true);
-        setCurrentUser(authenticatedUser);
-        setActiveAgentId(authenticatedUser.id);
-      }
-    });
-    fetch('/api/field-settings')
+    // Clear persistent storage so opening the app in a new window/tab or initial visit always presents the login page
+    localStorage.removeItem('pixbe_auth_user');
+    localStorage.removeItem('pixbe_auth_token');
+  }, []);
+
+  // Fetch all domain data from database when activeTenantId is ready
+  useEffect(() => {
+    if (!activeTenantId) return;
+
+    // 1. Fetch live Leads from DB
+    fetchWithTenantAuth('/api/leads')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.leads)) {
+          setLeads(data.leads);
+        }
+      })
+      .catch((err) => console.warn('Leads DB fetch notice:', err));
+
+    // 2. Fetch live Agents from DB
+    fetchWithTenantAuth('/api/agents')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.agents) && data.agents.length > 0) {
+          setAgents(data.agents);
+        }
+      })
+      .catch((err) => console.warn('Agents DB fetch notice:', err));
+
+    // 3. Fetch live Pipeline Stages from DB
+    fetchWithTenantAuth('/api/pipelines')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.stages) && data.stages.length > 0) {
+          setStages(data.stages);
+        }
+      })
+      .catch((err) => console.warn('Pipelines DB fetch notice:', err));
+
+    // 4. Fetch live Field Settings from DB
+    fetchWithTenantAuth('/api/field-settings')
       .then((res) => res.json())
       .then((data) => {
         if (data.success && Array.isArray(data.fields) && data.fields.length > 0) {
@@ -194,13 +315,22 @@ export function App() {
         }
       })
       .catch((err) => console.warn('Field settings DB fetch notice:', err));
-  }, []);
+
+    // 5. Fetch live Tasks from DB
+    fetchWithTenantAuth('/api/tasks')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.tasks)) {
+          setCrmTasks(data.tasks);
+        }
+      })
+      .catch((err) => console.warn('Tasks DB fetch notice:', err));
+  }, [activeTenantId]);
 
   const handleSaveFieldsToDb = (updatedFields: CustomFieldDef[]) => {
     setCustomFields(updatedFields);
-    fetch('/api/field-settings', {
+    fetchWithTenantAuth('/api/field-settings', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updatedFields)
     }).catch((err) => console.warn('Field settings DB save notice:', err));
   };
@@ -208,7 +338,10 @@ export function App() {
   const handleLoginSuccess = (agent: Agent) => {
     setCurrentUser(agent);
     setActiveAgentId(agent.id);
-    localStorage.setItem('pixbe_auth_user', JSON.stringify(agent));
+    sessionStorage.setItem('pixbe_auth_user', JSON.stringify(agent));
+    if (agent.companyName) {
+      setWorkspaceProfile([{ id: 'default_workspace', name: agent.companyName }]);
+    }
     setIsLoggingIn(true);
   };
 
@@ -216,7 +349,9 @@ export function App() {
     await logoutWithApi();
     setCurrentUser(null);
     setIsAuthenticated(false);
+    sessionStorage.removeItem('pixbe_auth_user');
     localStorage.removeItem('pixbe_auth_user');
+    localStorage.removeItem('pixbe_auth_token');
     showToast('Logged out of workspace.');
   };
 
@@ -225,7 +360,7 @@ export function App() {
     if (targetAgent) {
       setCurrentUser(targetAgent);
       setActiveAgentId(targetAgent.id);
-      localStorage.setItem('pixbe_auth_user', JSON.stringify(targetAgent));
+      sessionStorage.setItem('pixbe_auth_user', JSON.stringify(targetAgent));
       showToast(`Switched active user to ${targetAgent.name} (${isAgentAdmin(targetAgent) ? 'Admin' : 'Employee'})`);
     } else {
       setActiveAgentId(agentId);
@@ -239,7 +374,6 @@ export function App() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
   const [isAiCopilotOpen, setIsAiCopilotOpen] = useState<boolean>(false);
   const [isPowerDialerQueueOpen, setIsPowerDialerQueueOpen] = useState<boolean>(false);
-  const [isPowerDialerChoiceModalOpen, setIsPowerDialerChoiceModalOpen] = useState<boolean>(false);
 
   // Toast alert banner state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -266,11 +400,13 @@ export function App() {
   const sanitizedLeads = useMemo(() => {
     return leads.map((l) => {
       let updated = l;
-      if (!l.ownerAgentName || l.ownerAgentName === 'Unassigned' || !l.ownerAgentId) {
+      const hasOwnerName = l.ownerAgentName && l.ownerAgentName !== 'Unassigned';
+      const hasOwnerId = !!l.ownerAgentId;
+      if (!hasOwnerName || !hasOwnerId) {
         updated = {
           ...updated,
-          ownerAgentId: defaultOwnerId,
-          ownerAgentName: defaultOwnerName,
+          ownerAgentId: l.ownerAgentId || defaultOwnerId,
+          ownerAgentName: hasOwnerName ? l.ownerAgentName : defaultOwnerName,
         };
       }
       if (!updated.status) {
@@ -296,16 +432,23 @@ export function App() {
     const activeCompanyName = companyName || currentUser?.companyName || 'ARCLE Real Estate & Sales';
     const agentWithTenant: Agent = {
       ...newAgent,
-      tenantId: currentUser?.tenantId || 'tenant-default',
+      tenantId: activeTenantId,
       companyName: activeCompanyName,
     };
     setAgents((prev) => [agentWithTenant, ...(prev || [])]);
+    fetchWithTenantAuth('/api/agents', {
+      method: 'POST',
+      body: JSON.stringify(agentWithTenant)
+    }).catch(console.warn);
     showToast(`User account created for ${activeCompanyName}: ${newAgent.name} (${newAgent.role})`);
   };
 
   const handleRemoveAgent = (agentId: string) => {
     const targetAgent = agents.find((a) => a.id === agentId);
     setAgents((prev) => prev.filter((a) => a.id !== agentId));
+    fetchWithTenantAuth(`/api/agents/${agentId}`, {
+      method: 'DELETE'
+    }).catch(console.warn);
     showToast(`Removed user account: ${targetAgent?.name || agentId}`);
   };
 
@@ -315,8 +458,13 @@ export function App() {
         if (a.id === agentId) {
           const nextIsAdmin = !isAgentAdmin(a);
           const nextRole = nextIsAdmin ? 'Admin' : 'Counselor';
+          const updated = { ...a, isAdmin: nextIsAdmin, role: nextRole };
+          fetchWithTenantAuth(`/api/agents/${agentId}`, {
+            method: 'PUT',
+            body: JSON.stringify(updated)
+          }).catch(console.warn);
           showToast(`${nextIsAdmin ? 'Granted Admin powers to' : 'Revoked Admin powers from'} ${a.name}`);
-          return { ...a, isAdmin: nextIsAdmin, role: nextRole };
+          return updated;
         }
         return a;
       })
@@ -325,7 +473,17 @@ export function App() {
 
   const handleUpdateAgentRole = (agentId: string, newRole: string) => {
     setAgents((prev) =>
-      prev.map((a) => (a.id === agentId ? { ...a, role: newRole } : a))
+      prev.map((a) => {
+        if (a.id === agentId) {
+          const updated = { ...a, role: newRole };
+          fetchWithTenantAuth(`/api/agents/${agentId}`, {
+            method: 'PUT',
+            body: JSON.stringify(updated)
+          }).catch(console.warn);
+          return updated;
+        }
+        return a;
+      })
     );
     showToast(`Updated user role designation to: ${newRole}`);
   };
@@ -334,6 +492,10 @@ export function App() {
     setAgents((prev) =>
       prev.map((a) => (a.id === updatedAgent.id ? { ...a, ...updatedAgent } : a))
     );
+    fetchWithTenantAuth(`/api/agents/${updatedAgent.id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updatedAgent)
+    }).catch(console.warn);
     showToast(`Updated user account details for ${updatedAgent.name}`);
   };
 
@@ -434,9 +596,8 @@ export function App() {
       const targetLead = leadData || leads.find((l) => l.id === leadId);
       if (!targetLead) return;
       
-      const res = await fetch('/api/conversions/dispatch', {
+      const res = await fetchWithTenantAuth('/api/conversions/dispatch', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           leadId,
           stage,
@@ -458,6 +619,11 @@ export function App() {
     
     setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
     if (detailLead?.id === updated.id) setDetailLead(updated);
+
+    fetchWithTenantAuth('/api/leads', {
+      method: 'POST',
+      body: JSON.stringify(updated)
+    }).catch((err) => console.warn('Lead DB update notice:', err));
     
     if (stageChanged) {
       triggerConversionDispatch(updated.id, updated.status, updated);
@@ -468,6 +634,14 @@ export function App() {
     setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, ...updates, updatedAt: new Date().toISOString() } : l)));
     if (detailLead?.id === leadId) setDetailLead((prev) => prev ? { ...prev, ...updates } : null);
     showToast('Lead follow-up / details updated');
+
+    const existing = leads.find((l) => l.id === leadId);
+    if (existing) {
+      fetchWithTenantAuth('/api/leads', {
+        method: 'POST',
+        body: JSON.stringify({ ...existing, ...updates })
+      }).catch((err) => console.warn('Lead DB update notice:', err));
+    }
     
     if (updates.status) {
       triggerConversionDispatch(leadId, updates.status);
@@ -483,6 +657,9 @@ export function App() {
   const handleDeleteLead = (leadId: string) => {
     setLeads((prev) => prev.filter((l) => l.id !== leadId));
     if (detailLead?.id === leadId) setDetailLead(null);
+    fetchWithTenantAuth(`/api/leads/${leadId}`, {
+      method: 'DELETE'
+    }).catch(console.warn);
     showToast('Lead deleted successfully');
   };
 
@@ -570,9 +747,8 @@ export function App() {
     showToast(`🔄 Pushing simulated webhook from ${chosenSource}...`);
     
     try {
-      const res = await fetch('/api/webhooks/lead', {
+      const res = await fetchWithTenantAuth('/api/webhooks/lead', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: `Vikramaditya Rao (${chosenSource})`,
           phone: `+91 ${Math.floor(9000000000 + Math.random() * 999999999)}`,
@@ -692,9 +868,27 @@ export function App() {
     );
   }
 
+  if (currentView === 'superadmin') {
+    return (
+      <SuperAdminView
+        onExitSuperAdmin={() => setCurrentView('leads')}
+        onImpersonateTenant={handleImpersonateTenant}
+      />
+    );
+  }
+
   return (
     <StagesContext.Provider value={activeStages}>
     <div className="min-h-screen glass-mesh-bg text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
+      {/* Active Impersonation Banner */}
+      {impersonationSession?.isImpersonating && (
+        <ImpersonationBanner
+          tenantName={impersonationSession.tenantName}
+          tenantId={impersonationSession.tenantId}
+          onExit={handleExitImpersonation}
+        />
+      )}
+
       {/* Toast Alert Banner */}
       {toastMessage && (
         <div className="fixed top-16 right-6 z-50 glass-card text-slate-800 px-4 py-2.5 rounded-xl text-xs font-sans font-semibold flex items-center">
@@ -712,7 +906,7 @@ export function App() {
         onAddNewLead={() => setCurrentView('add_lead')}
         onPushTestLead={() => handlePushTestLead('IndiaMart')}
         onOpenVoiceBot={() => setVoiceBotLead(leads[0])}
-        onOpenPowerDialer={() => setIsPowerDialerChoiceModalOpen(true)}
+        onOpenPowerDialer={() => setIsPowerDialerQueueOpen(true)}
         onOpenAiCopilot={() => setIsAiCopilotOpen(true)}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         pendingFollowUpsCount={leads.filter((l) => l.followUpAt || l.status === 'Follow Up').length}
@@ -759,6 +953,11 @@ export function App() {
               activeAgent={activeAgent}
               onSaveLead={(newLead) => {
                 setLeads((prev) => [newLead, ...prev]);
+                fetchWithTenantAuth('/api/leads', {
+                  method: 'POST',
+                  body: JSON.stringify(newLead)
+                }).catch((err) => console.warn('Lead DB save notice:', err));
+
                 if (newLead.whatsappOptIn) {
                   const autoMsg: WhatsAppMessage = {
                     id: `msg-${Date.now()}`,
@@ -790,6 +989,11 @@ export function App() {
               }}
               onSaveAndCall={(newLead) => {
                 setLeads((prev) => [newLead, ...prev]);
+                fetchWithTenantAuth('/api/leads', {
+                  method: 'POST',
+                  body: JSON.stringify(newLead)
+                }).catch((err) => console.warn('Lead DB save notice:', err));
+
                 if (newLead.whatsappOptIn) {
                   const autoMsg: WhatsAppMessage = {
                     id: `msg-${Date.now()}`,
@@ -846,6 +1050,7 @@ export function App() {
           {currentView === 'pipeline' && (
             <PipelineView
               leads={visibleLeads}
+              agents={visibleAgents}
               stages={activeStages}
               customFields={activeCustomFields}
               currency={activeCurrency}
@@ -858,6 +1063,10 @@ export function App() {
               }}
               onUpdateStages={(updatedStages) => {
                 setStages(updatedStages);
+                fetchWithTenantAuth('/api/pipelines', {
+                  method: 'POST',
+                  body: JSON.stringify(updatedStages)
+                }).catch(console.warn);
                 showToast('Pipeline stages updated!');
               }}
               onUpdateLead={handlePartialUpdateLead}
@@ -1031,9 +1240,14 @@ export function App() {
 
           {currentView === 'settings' && (
             <SettingsView 
-              companyName={companyName}
+              companyName={rawCompanyName || 'ARCLE Real Estate & Sales'}
               onUpdateCompanyName={(newName) => {
                 setWorkspaceProfile([{ id: 'default_workspace', name: newName }]);
+                if (currentUser) {
+                  const updated = { ...currentUser, companyName: newName };
+                  setCurrentUser(updated);
+                  localStorage.setItem('pixbe_auth_user', JSON.stringify(updated));
+                }
               }}
               supportEmail={activeSupportEmail}
               onUpdateSupportEmail={(newEmail) => {
@@ -1123,6 +1337,7 @@ export function App() {
         onClose={() => setIsCommandPaletteOpen(false)}
         leads={visibleLeads}
         agents={agents}
+        companyName={rawCompanyName}
         onSelectLead={(lead) => setDetailLead(lead)}
         onNavigate={(view) => setCurrentView(view)}
         onAddNewLead={() => setCurrentView('add_lead')}
@@ -1139,6 +1354,7 @@ export function App() {
         lead={detailLead || leads[0]}
         leads={leads}
         activeAgent={activeAgent}
+        companyName={rawCompanyName}
         onSendMessage={handleSendMessage}
         onOpenLeadDetail={(lead) => setDetailLead(lead)}
       />
@@ -1149,6 +1365,7 @@ export function App() {
         onClose={() => setIsPowerDialerQueueOpen(false)}
         leads={visibleLeads}
         activeAgent={activeAgent}
+        companyName={rawCompanyName}
         currency={activeCurrency}
         onSaveCallLog={handlePowerDialerSaveCallLog}
         onSendMessage={handleSendMessage}
@@ -1156,85 +1373,6 @@ export function App() {
           setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status, updatedAt: new Date().toISOString() } : l));
         }}
       />
-
-      {/* MODAL: Choose Power Dialer Mode (Queue vs Lead Directory) */}
-      {isPowerDialerChoiceModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 font-sans font-normal">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 space-y-5 animate-in fade-in">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
-                  <PhoneCall className="w-4 h-4" />
-                </div>
-                <h3 className="text-base font-bold font-sans text-slate-900 tracking-tight">Choose Power Dialer Mode</h3>
-              </div>
-              <button 
-                onClick={() => setIsPowerDialerChoiceModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-500 font-medium">
-              Select how you would like to initiate your outbound telecalling session:
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              {/* Option 1: Power Dialer Queue */}
-              <button
-                onClick={() => {
-                  setIsPowerDialerChoiceModalOpen(false);
-                  setIsPowerDialerQueueOpen(true);
-                }}
-                className="p-4 rounded-2xl border border-slate-200 bg-white hover:border-indigo-600 hover:ring-2 hover:ring-indigo-100 transition-all text-left space-y-2 group cursor-pointer"
-              >
-                <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                  <PhoneCall className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-bold font-sans text-sm text-slate-900 group-hover:text-indigo-600 transition-colors">
-                    Power Dialer Queue
-                  </h4>
-                  <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                    Sequentially dial active leads in your automated queue with AI teleprompter assistance.
-                  </p>
-                </div>
-              </button>
-
-              {/* Option 2: Lead Directory */}
-              <button
-                onClick={() => {
-                  setIsPowerDialerChoiceModalOpen(false);
-                  setCurrentView('leads');
-                }}
-                className="p-4 rounded-2xl border border-slate-200 bg-white hover:border-emerald-600 hover:ring-2 hover:ring-emerald-100 transition-all text-left space-y-2 group cursor-pointer"
-              >
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                  <Users className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-bold font-sans text-sm text-slate-900 group-hover:text-emerald-600 transition-colors">
-                    Lead Directory
-                  </h4>
-                  <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                    Browse, filter, and manually trigger calls directly from the master lead table grid.
-                  </p>
-                </div>
-              </button>
-            </div>
-
-            <div className="flex justify-end pt-2 border-t border-slate-100">
-              <button
-                onClick={() => setIsPowerDialerChoiceModalOpen(false)}
-                className="px-4 py-2 border border-slate-200 rounded-xl text-slate-600 text-xs font-semibold hover:bg-slate-50 cursor-pointer"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* iOS & Mobile Bottom Navigation Bar & Slide-up Drawer Menu */}
       <MobileBottomNav
@@ -1250,10 +1388,11 @@ export function App() {
         pendingFollowUpsCount={leads.filter((l) => l.followUpAt || l.status === 'Follow Up').length}
         activeAgent={activeAgent}
         agents={agents}
+        companyName={rawCompanyName}
         onSelectAgent={(agentId) => setActiveAgentId(agentId)}
         onOpenAddLeadModal={handleAddNewLead}
         onOpenGoogleSheets={() => setIsGoogleSheetsModalOpen(true)}
-        onOpenPowerDialer={() => setIsPowerDialerChoiceModalOpen(true)}
+        onOpenPowerDialer={() => setIsPowerDialerQueueOpen(true)}
         onOpenAiCopilot={() => setIsAiCopilotOpen(true)}
       />
     </div>

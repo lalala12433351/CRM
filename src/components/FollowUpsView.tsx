@@ -55,6 +55,7 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [summaryLead, setSummaryLead] = useState<Lead | null>(null);
   const [modalLeadId, setModalLeadId] = useState('');
+  const [modalAssigneeId, setModalAssigneeId] = useState('');
   const [modalDateTime, setModalDateTime] = useState('');
   const [modalDueDay, setModalDueDay] = useState(() => new Date().toISOString().slice(0, 10));
   const [modalHour, setModalHour] = useState('09');
@@ -134,15 +135,23 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
       return;
     }
 
+    const selectedAgent = agents.find((a) => a.id === modalAssigneeId);
+    const finalAssigneeId = modalAssigneeId || targetLead.ownerAgentId || targetLead.assignedTo || activeAgent?.id;
+    const finalAssigneeName = selectedAgent ? selectedAgent.name : (targetLead.ownerAgentName || activeAgent?.name || 'Unassigned');
+
     onUpdateLead(modalLeadId, {
       status: 'Follow Up',
       followUpAt: combinedDate,
+      ownerAgentId: finalAssigneeId,
+      ownerAgentName: finalAssigneeName,
+      assignedTo: finalAssigneeId,
       notes: modalRemarks ? `${targetLead.notes ? targetLead.notes + '\n' : ''}[Follow-up Remark]: ${modalRemarks}` : targetLead.notes,
       updatedAt: new Date().toISOString()
     });
 
     setShowScheduleModal(false);
     setModalLeadId('');
+    setModalAssigneeId('');
     setModalDateTime('');
     setModalRemarks('');
   };
@@ -314,15 +323,110 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
             </p>
           </div>
         ) : (
-          <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs font-sans">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs font-sans border-collapse">
+          <div className="space-y-3 font-sans">
+            {/* MOBILE FOLLOW-UP CARDS (Visible on < md) */}
+            <div className="block md:hidden space-y-2.5">
+              {displayedLeads.map((lead) => {
+                const isOverdue = lead.followUpAt && lead.followUpAt.slice(0, 10) < todayStr;
+                const isToday = lead.followUpAt && lead.followUpAt.slice(0, 10) === todayStr;
+
+                return (
+                  <div
+                    key={lead.id}
+                    className={`bg-white border rounded-2xl p-4 shadow-2xs space-y-3 transition-all ${
+                      isOverdue ? 'border-rose-200 ring-1 ring-rose-100' : isToday ? 'border-emerald-200' : 'border-slate-200'
+                    }`}
+                  >
+                    {/* Header: Name, Deal Value, Scheduled Badge */}
+                    <div className="flex items-start justify-between gap-2" onClick={() => onOpenLeadDetail(lead)}>
+                      <div>
+                        <h4 className="font-bold text-slate-900 text-sm tracking-tight hover:text-indigo-600 cursor-pointer">
+                          {lead.name}
+                        </h4>
+                        <p className="text-xs text-slate-500 truncate">
+                          {lead.company && lead.company !== 'Individual' ? lead.company : lead.source || 'Direct Lead'}
+                        </p>
+                      </div>
+
+                      <span className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg border text-[10px] font-bold shrink-0 ${
+                        isOverdue ? 'bg-rose-50 border-rose-200 text-rose-800' :
+                        isToday ? 'bg-emerald-50 border-emerald-200 text-emerald-800' :
+                        'bg-slate-50 border-slate-200 text-slate-700'
+                      }`}>
+                        <Clock className="w-3 h-3" />
+                        <span>{formatFollowUpTime(lead.followUpAt)}</span>
+                      </span>
+                    </div>
+
+                    {/* Metadata: Phone, Assignee & Remarks */}
+                    <div className="space-y-1.5 text-xs text-slate-600 bg-slate-50/80 p-2.5 rounded-xl border border-slate-100">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono font-semibold text-slate-800">{lead.phone}</span>
+                        <div className="flex items-center space-x-1">
+                          <span className="w-4 h-4 rounded-full bg-purple-100 text-[#3a2088] text-[9px] font-bold flex items-center justify-center">
+                            {(lead.ownerAgentName || 'U')[0].toUpperCase()}
+                          </span>
+                          <span className="text-[11px] text-slate-700 truncate max-w-[110px]">
+                            {lead.ownerAgentName || 'Unassigned'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {lead.notes && (
+                        <p className="text-[11px] text-slate-600 line-clamp-2 pt-1 border-t border-slate-200/60">
+                          {lead.notes
+                            .replace(/Added manually\.?\s*/gi, '')
+                            .replace(/\[Follow-up Remark\]:\s*/gi, '')
+                            .trim()}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Quick Action Buttons */}
+                    <div className="grid grid-cols-3 gap-2 pt-1">
+                      <button
+                        onClick={() => onCallLead(lead)}
+                        className="py-2 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1 shadow-xs"
+                      >
+                        <PhoneCall className="w-3.5 h-3.5" />
+                        <span>Call</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setRescheduleLeadId(lead.id);
+                          setRescheduleDate(lead.followUpAt ? lead.followUpAt.slice(0, 16) : new Date().toISOString().slice(0, 16));
+                        }}
+                        className="py-2 px-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1"
+                      >
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>Reschedule</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleMarkCompleted(lead)}
+                        className="py-2 px-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Complete</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* DESKTOP TABLE VIEW (Visible on md+) */}
+            <div className="hidden md:block bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs font-sans">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs font-sans border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200/80 bg-slate-50/50 text-slate-500 font-semibold text-[11px] uppercase tracking-wider">
                     <th className="py-3.5 px-4 font-bold">Customer Name</th>
                     <th className="py-3.5 px-4 font-bold">Company</th>
                     <th className="py-3.5 px-4 font-bold">Phone Number</th>
                     <th className="py-3.5 px-4 font-bold">Email</th>
+                    <th className="py-3.5 px-4 font-bold">Assignee</th>
                     <th className="py-3.5 px-4 font-bold">Assignee Notes</th>
                     <th className="py-3.5 px-4 font-bold">Scheduled Time</th>
                     <th className="py-3.5 px-4 font-bold">Status</th>
@@ -358,6 +462,18 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
                         {/* Email */}
                         <td className="py-3.5 px-4 text-slate-600">
                           <span className="text-slate-800 font-medium truncate block max-w-[160px]">{lead.email || '-'}</span>
+                        </td>
+
+                        {/* Assignee */}
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-5 h-5 rounded-full bg-purple-100 text-[#3a2088] flex items-center justify-center text-[10px] font-bold">
+                              {(lead.ownerAgentName || 'U')[0].toUpperCase()}
+                            </div>
+                            <span className="font-semibold text-slate-800 text-xs truncate max-w-[120px]">
+                              {lead.ownerAgentName || 'Unassigned'}
+                            </span>
+                          </div>
                         </td>
 
                         {/* Assignee Notes (No pen icon, No / Intent) */}
@@ -451,7 +567,8 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
               </table>
             </div>
           </div>
-        )}
+        </div>
+      )}
       </div>
 
       {/* Modal: Lead Call Brief / Summary */}
@@ -465,8 +582,8 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
 
       {/* Schedule / Mark Lead into Follow-Up Modal */}
       {showScheduleModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 font-sans">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-xl p-4 space-y-4 font-sans text-xs">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 font-sans">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-xl p-4 space-y-4 font-sans text-xs max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 font-sans">
               <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2 font-sans tracking-tight">
                 <Phone className="w-4 h-4 text-slate-500" />
@@ -476,42 +593,59 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
             </div>
 
             <div className="space-y-3 font-sans">
-              {/* Lead Selector — admin only */}
-              {isAdmin ? (
-                <div>
-                  <label className="block text-[11px] font-sans uppercase text-slate-600 font-bold mb-1 tracking-wider">SELECT LEAD</label>
+              {/* Lead Selector */}
+              <div>
+                <label className="block text-[11px] font-sans uppercase text-slate-600 font-bold mb-1 tracking-wider">SELECT LEAD</label>
+                <select
+                  value={modalLeadId}
+                  onChange={(e) => {
+                    const selectedId = e.target.value;
+                    setModalLeadId(selectedId);
+                    const target = leads.find((l) => l.id === selectedId);
+                    if (target) {
+                      setModalAssigneeId(target.ownerAgentId || target.assignedTo || activeAgent?.id || '');
+                    }
+                  }}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 cursor-pointer font-sans font-medium"
+                >
+                  <option value="" className="font-sans">Choose a Lead</option>
+                  {(isAdmin
+                    ? leads
+                    : leads.filter((l) => l.ownerAgentId === activeAgent?.id || l.ownerAgentName === activeAgent?.name)
+                  ).map((l) => (
+                    <option key={l.id} value={l.id} className="font-sans">
+                      {l.name} - {l.phone} ({l.company || l.source}) {l.ownerAgentName ? `[${l.ownerAgentName}]` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Assignee Selector */}
+              <div>
+                <label className="block text-[11px] font-sans uppercase text-slate-600 font-bold mb-1 tracking-wider">
+                  FOLLOW-UP ASSIGNEE
+                </label>
+                <div className="relative">
+                  <UserCheck className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
                   <select
-                    value={modalLeadId}
-                    onChange={(e) => setModalLeadId(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 cursor-pointer font-sans font-medium"
+                    value={modalAssigneeId}
+                    onChange={(e) => setModalAssigneeId(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#3a2088] cursor-pointer font-sans"
                   >
-                    <option value="" className="font-sans">Choose a Lead</option>
-                    {leads.map((l) => (
-                      <option key={l.id} value={l.id} className="font-sans">
-                        {l.name} - {l.phone} ({l.company || l.source})
+                    <option value="">Select Assignee</option>
+                    {agents.map((ag) => (
+                      <option key={ag.id} value={ag.id}>
+                        {ag.name} ({ag.role})
                       </option>
                     ))}
                   </select>
                 </div>
-              ) : (
-                <div>
-                  <label className="block text-[11px] font-sans uppercase text-slate-600 font-bold mb-1 tracking-wider">SELECT LEAD</label>
-                  <select
-                    value={modalLeadId}
-                    onChange={(e) => setModalLeadId(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 cursor-pointer font-sans font-medium"
-                  >
-                    <option value="" className="font-sans">Choose a Lead</option>
-                    {leads
-                      .filter((l) => l.ownerAgentId === activeAgent?.id || l.ownerAgentName === activeAgent?.name)
-                      .map((l) => (
-                        <option key={l.id} value={l.id} className="font-sans">
-                          {l.name} - {l.phone} ({l.company || l.source})
-                        </option>
-                      ))}
-                  </select>
-                </div>
-              )}
+                {modalLeadId && (
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Directly assigned to the lead's owner. You can reassign if needed.
+                  </p>
+                )}
+              </div>
 
               <div>
                 <label className="block text-[11px] font-sans uppercase text-slate-600 font-bold mb-2 tracking-wider">SCHEDULED FOLLOW-UP DATE & TIME</label>

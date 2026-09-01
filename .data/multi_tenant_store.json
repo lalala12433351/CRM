@@ -1,0 +1,852 @@
+{
+  "tenants": {
+    "company_apex_dynamics": {
+      "tenantId": "company_apex_dynamics",
+      "companyName": "Apex Dynamics",
+      "ownerEmail": "alice@apexdynamics.io",
+      "ownerPhone": "+91 9988776655",
+      "companyDescription": "Enterprise AI & Automation",
+      "businessType": "Technology",
+      "businessTypeOther": "",
+      "referralSource": "",
+      "referralSourceOther": "",
+      "status": "ACTIVE",
+      "settings": {
+        "currency": "INR",
+        "autoDialer": true,
+        "whatsappCrm": true
+      },
+      "createdAt": "2026-08-30T10:40:13.569Z",
+      "updatedAt": "2026-08-30T10:40:13.569Z"
+    },
+    "company_zenith_aviation": {
+      "tenantId": "company_zenith_aviation",
+      "companyName": "Zenith Aviation",
+      "ownerEmail": "bob@zenithaviation.com",
+      "ownerPhone": "+91 9123456780",
+      "companyDescription": "Private Jet Charter & Flight School",
+      "businessType": "Aviation",
+      "businessTypeOther": "",
+      "referralSource": "",
+      "referralSourceOther": "",
+      "status": "ACTIVE",
+      "settings": {
+        "currency": "INR",
+        "autoDialer": true,
+        "whatsappCrm": true
+      },
+      "createdAt": "2026-08-30T10:40:23.856Z",
+      "updatedAt": "2026-08-30T10:40:23.856Z"
+    },
+    "company_wfwwfwf": {
+      "tenantId": "company_wfwwfwf",
+      "companyName": "wfwwfwf",
+      "ownerEmail": "ssf@gmail.com",
+      "ownerPhone": "4242424242",
+      "companyDescription": "fsfwfdsfwf",
+      "businessType": "Education & EdTech",
+      "businessTypeOther": "",
+      "referralSource": "YouTube / Webinar",
+      "referralSourceOther": "",
+      "status": "ACTIVE",
+      "settings": {
+        "currency": "INR",
+        "autoDialer": true,
+        "whatsappCrm": true
+      },
+      "createdAt": "2026-08-30T16:29:59.737Z",
+      "updatedAt": "2026-08-30T16:29:59.737Z"
+    }
+  },
+  "agents": {
+    "company_dgdgdgdrt": [
+      {
+        "id": "agent-31455",
+        "tenantId": "company_dgdgdgdrt",
+        "name": "sfsfsf",
+        "email": "wevvdfg@gmail.com",
+        "phone": "+91 12313 21313",
+        "role": "Telecaller & Course Counselor",
+        "companyName": "dgdgdgdrt",
+        "isAdmin": false,
+        "status": "online",
+        "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+        "totalCallsToday": 0,
+        "talkTimeMinutes": 0,
+        "convertedLeadsCount": 0,
+        "revenueGenerated": 0,
+        "responseTimeMinutes": 1
+      }
+    ],
+    "company_apex_dynamics": [
+      {
+        "id": "agent_413569",
+        "tenantId": "company_apex_dynamics",
+        "name": "Alice Cooper",
+        "email": "alice@apexdynamics.io",
+        "phone": "+91 9988776655",
+        "role": "Master Admin",
+        "companyName": "Apex Dynamics",
+        "isAdmin": true,
+        "status": "online",
+        "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
+        "totalCallsToday": 0,
+        "talkTimeMinutes": 0,
+        "convertedLeadsCount": 0,
+        "revenueGenerated": 0,
+        "responseTimeMinutes": 1
+      }
+    ],
+    "company_zenith_aviation": [
+      {
+        "id": "agent_423856",
+        "tenantId": "company_zenith_aviation",
+        "name": "Bob Vance",
+        "email": "bob@zenithaviation.com",
+        "phone": "+91 9123456780",
+        "role": "Master Admin",
+        "companyName": "Zenith Aviation",
+        "isAdmin": true,
+        "status": "online",
+        "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
+        "totalCallsToday": 0,
+        "talkTimeMinutes": 0,
+        "convertedLeadsCount": 0,
+        "revenueGenerated": 0,
+        "responseTimeMinutes": 1
+      }
+    ],
+    "company_wfwwfwf": [
+      {
+        "id": "agent_399737",
+        "tenantId": "company_wfwwfwf",
+        "name": "clement",
+        "email": "ssf@gmail.com",
+        "phone": "4242424242",
+        "role": "Master Admin",
+        "companyName": "wfwwfwf",
+        "isAdmin": true,
+        "status": "online",
+        "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
+        "totalCallsToday": 0,
+        "talkTimeMinutes": 0,
+        "convertedLeadsCount": 0,
+        "revenueGenerated": 0,
+        "responseTimeMinutes": 1
+      }
+    ]
+  },
+  "leads": {
+    "company_apex_dynamics": [
+      {
+        "id": "lead-apex-001",
+        "tenantId": "company_apex_dynamics",
+        "name": "Apex VIP Client",
+        "phone": "+91 9876543210",
+        "email": "vip@apexclient.com",
+        "company": "",
+        "city": "",
+        "state": "",
+        "source": "Manual Entry",
+        "status": "Fresh",
+        "pipelineStageId": "stage-1",
+        "dealValue": 500000,
+        "ownerAgentId": "agent-admin",
+        "ownerAgentName": "Admin",
+        "aiScore": 80,
+        "aiRating": "Hot",
+        "aiReasoning": "Direct entry",
+        "notes": "",
+        "customFields": {},
+        "tags": [],
+        "createdAt": "2026-08-30T10:40:33.881Z",
+        "updatedAt": "2026-08-30T10:40:33.881Z"
+      }
+    ],
+    "company_zenith_aviation": [],
+    "company_wfwwfwf": []
+  },
+  "stages": {
+    "company_dgdgdgdrt": [
+      {
+        "id": "stage-1",
+        "name": "Fresh",
+        "color": "#3B82F6",
+        "order": 1,
+        "category": "initial",
+        "winProbability": 10,
+        "isActive": true,
+        "tenantId": "company_dgdgdgdrt"
+      },
+      {
+        "id": "stage-2",
+        "name": "Contacted",
+        "color": "#8B5CF6",
+        "order": 2,
+        "category": "active",
+        "winProbability": 25,
+        "isActive": true,
+        "tenantId": "company_dgdgdgdrt"
+      },
+      {
+        "id": "stage-3",
+        "name": "Follow Up",
+        "color": "#F59E0B",
+        "order": 3,
+        "category": "active",
+        "winProbability": 40,
+        "isActive": true,
+        "tenantId": "company_dgdgdgdrt"
+      },
+      {
+        "id": "stage-4",
+        "name": "Demo Scheduled",
+        "color": "#06B6D4",
+        "order": 4,
+        "category": "active",
+        "winProbability": 60,
+        "isActive": true,
+        "tenantId": "company_dgdgdgdrt"
+      },
+      {
+        "id": "stage-5",
+        "name": "Proposal Sent",
+        "color": "#10B981",
+        "order": 5,
+        "category": "active",
+        "winProbability": 80,
+        "isActive": true,
+        "tenantId": "company_dgdgdgdrt"
+      },
+      {
+        "id": "stage-6",
+        "name": "Converted",
+        "color": "#059669",
+        "order": 6,
+        "category": "closed",
+        "winProbability": 100,
+        "isActive": true,
+        "tenantId": "company_dgdgdgdrt"
+      },
+      {
+        "id": "stage-7",
+        "name": "Lost",
+        "color": "#EF4444",
+        "order": 7,
+        "category": "closed",
+        "winProbability": 0,
+        "isActive": true,
+        "tenantId": "company_dgdgdgdrt"
+      }
+    ],
+    "company_apex_dynamics": [
+      {
+        "id": "stg-custom-1",
+        "name": "Prospecting",
+        "color": "#10B981",
+        "order": 1,
+        "category": "initial",
+        "winProbability": 15,
+        "isActive": true,
+        "tenantId": "company_apex_dynamics"
+      },
+      {
+        "id": "stg-custom-2",
+        "name": "Executive Pitch",
+        "color": "#3B82F6",
+        "order": 2,
+        "category": "active",
+        "winProbability": 50,
+        "isActive": true,
+        "tenantId": "company_apex_dynamics"
+      },
+      {
+        "id": "stg-custom-3",
+        "name": "Won Deal",
+        "color": "#059669",
+        "order": 3,
+        "category": "closed",
+        "winProbability": 100,
+        "isActive": true,
+        "tenantId": "company_apex_dynamics"
+      }
+    ],
+    "company_zenith_aviation": [
+      {
+        "id": "stage-1",
+        "name": "Fresh",
+        "color": "#3B82F6",
+        "order": 1,
+        "category": "initial",
+        "winProbability": 10,
+        "isActive": true,
+        "tenantId": "company_zenith_aviation"
+      },
+      {
+        "id": "stage-2",
+        "name": "Contacted",
+        "color": "#8B5CF6",
+        "order": 2,
+        "category": "active",
+        "winProbability": 25,
+        "isActive": true,
+        "tenantId": "company_zenith_aviation"
+      },
+      {
+        "id": "stage-3",
+        "name": "Follow Up",
+        "color": "#F59E0B",
+        "order": 3,
+        "category": "active",
+        "winProbability": 40,
+        "isActive": true,
+        "tenantId": "company_zenith_aviation"
+      },
+      {
+        "id": "stage-4",
+        "name": "Demo Scheduled",
+        "color": "#06B6D4",
+        "order": 4,
+        "category": "active",
+        "winProbability": 60,
+        "isActive": true,
+        "tenantId": "company_zenith_aviation"
+      },
+      {
+        "id": "stage-5",
+        "name": "Proposal Sent",
+        "color": "#10B981",
+        "order": 5,
+        "category": "active",
+        "winProbability": 80,
+        "isActive": true,
+        "tenantId": "company_zenith_aviation"
+      },
+      {
+        "id": "stage-6",
+        "name": "Converted",
+        "color": "#059669",
+        "order": 6,
+        "category": "closed",
+        "winProbability": 100,
+        "isActive": true,
+        "tenantId": "company_zenith_aviation"
+      },
+      {
+        "id": "stage-7",
+        "name": "Lost",
+        "color": "#EF4444",
+        "order": 7,
+        "category": "closed",
+        "winProbability": 0,
+        "isActive": true,
+        "tenantId": "company_zenith_aviation"
+      }
+    ],
+    "company_wfwwfwf": [
+      {
+        "id": "stage-1",
+        "name": "Fresh",
+        "color": "#3B82F6",
+        "order": 1,
+        "category": "initial",
+        "winProbability": 10,
+        "isActive": true,
+        "tenantId": "company_wfwwfwf"
+      },
+      {
+        "id": "stage-2",
+        "name": "Contacted",
+        "color": "#8B5CF6",
+        "order": 2,
+        "category": "active",
+        "winProbability": 25,
+        "isActive": true,
+        "tenantId": "company_wfwwfwf"
+      },
+      {
+        "id": "stage-3",
+        "name": "Follow Up",
+        "color": "#F59E0B",
+        "order": 3,
+        "category": "active",
+        "winProbability": 40,
+        "isActive": true,
+        "tenantId": "company_wfwwfwf"
+      },
+      {
+        "id": "stage-4",
+        "name": "Demo Scheduled",
+        "color": "#06B6D4",
+        "order": 4,
+        "category": "active",
+        "winProbability": 60,
+        "isActive": true,
+        "tenantId": "company_wfwwfwf"
+      },
+      {
+        "id": "stage-5",
+        "name": "Proposal Sent",
+        "color": "#10B981",
+        "order": 5,
+        "category": "active",
+        "winProbability": 80,
+        "isActive": true,
+        "tenantId": "company_wfwwfwf"
+      },
+      {
+        "id": "stage-6",
+        "name": "Converted",
+        "color": "#059669",
+        "order": 6,
+        "category": "closed",
+        "winProbability": 100,
+        "isActive": true,
+        "tenantId": "company_wfwwfwf"
+      },
+      {
+        "id": "stage-7",
+        "name": "Lost",
+        "color": "#EF4444",
+        "order": 7,
+        "category": "closed",
+        "winProbability": 0,
+        "isActive": true,
+        "tenantId": "company_wfwwfwf"
+      }
+    ],
+    "default_tenant": [
+      {
+        "id": "stage-1",
+        "name": "Fresh",
+        "color": "#3B82F6",
+        "order": 1,
+        "category": "initial",
+        "winProbability": 10,
+        "isActive": true,
+        "tenantId": "default_tenant"
+      },
+      {
+        "id": "stage-2",
+        "name": "Contacted",
+        "color": "#8B5CF6",
+        "order": 2,
+        "category": "active",
+        "winProbability": 25,
+        "isActive": true,
+        "tenantId": "default_tenant"
+      },
+      {
+        "id": "stage-3",
+        "name": "Follow Up",
+        "color": "#F59E0B",
+        "order": 3,
+        "category": "active",
+        "winProbability": 40,
+        "isActive": true,
+        "tenantId": "default_tenant"
+      },
+      {
+        "id": "stage-4",
+        "name": "Demo Scheduled",
+        "color": "#06B6D4",
+        "order": 4,
+        "category": "active",
+        "winProbability": 60,
+        "isActive": true,
+        "tenantId": "default_tenant"
+      },
+      {
+        "id": "stage-5",
+        "name": "Proposal Sent",
+        "color": "#10B981",
+        "order": 5,
+        "category": "active",
+        "winProbability": 80,
+        "isActive": true,
+        "tenantId": "default_tenant"
+      },
+      {
+        "id": "stage-6",
+        "name": "Converted",
+        "color": "#059669",
+        "order": 6,
+        "category": "closed",
+        "winProbability": 100,
+        "isActive": true,
+        "tenantId": "default_tenant"
+      },
+      {
+        "id": "stage-7",
+        "name": "Lost",
+        "color": "#EF4444",
+        "order": 7,
+        "category": "closed",
+        "winProbability": 0,
+        "isActive": true,
+        "tenantId": "default_tenant"
+      }
+    ]
+  },
+  "fields": {
+    "company_dgdgdgdrt": [
+      {
+        "id": "f-h1",
+        "name": "name",
+        "label": "Name",
+        "type": "text",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H1",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_dgdgdgdrt"
+      },
+      {
+        "id": "f-h2",
+        "name": "phone",
+        "label": "Number",
+        "type": "phone",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H2",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_dgdgdgdrt"
+      },
+      {
+        "id": "f-status",
+        "name": "status",
+        "label": "Status",
+        "type": "dropdown",
+        "options": [
+          "Fresh",
+          "Contacted",
+          "Follow Up",
+          "Demo Scheduled",
+          "Proposal Sent",
+          "Converted",
+          "Lost"
+        ],
+        "required": true,
+        "isPrimary": true,
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_dgdgdgdrt"
+      },
+      {
+        "id": "f-deal-val",
+        "name": "deal_value",
+        "label": "Deal Value (₹)",
+        "type": "currency",
+        "required": false,
+        "category": "General",
+        "isHidden": false,
+        "tenantId": "company_dgdgdgdrt"
+      },
+      {
+        "id": "f-source",
+        "name": "source",
+        "label": "Lead Source",
+        "type": "dropdown",
+        "options": [
+          "Facebook Ads",
+          "Google Ads",
+          "Meta Ads",
+          "IndiaMart",
+          "JustDial",
+          "WhatsApp",
+          "Website Inbound",
+          "Instagram",
+          "Referral",
+          "Direct"
+        ],
+        "required": false,
+        "isPrimary": true,
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_dgdgdgdrt"
+      }
+    ],
+    "company_apex_dynamics": [
+      {
+        "id": "field-apex-security-clearance",
+        "name": "security_clearance",
+        "label": "Security Clearance Level",
+        "type": "dropdown",
+        "options": [
+          "Top Secret",
+          "Secret",
+          "Confidential"
+        ],
+        "tenantId": "company_apex_dynamics"
+      }
+    ],
+    "company_zenith_aviation": [
+      {
+        "id": "f-h1",
+        "name": "name",
+        "label": "Name",
+        "type": "text",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H1",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_zenith_aviation"
+      },
+      {
+        "id": "f-h2",
+        "name": "phone",
+        "label": "Number",
+        "type": "phone",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H2",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_zenith_aviation"
+      },
+      {
+        "id": "f-status",
+        "name": "status",
+        "label": "Status",
+        "type": "dropdown",
+        "options": [
+          "Fresh",
+          "Contacted",
+          "Follow Up",
+          "Demo Scheduled",
+          "Proposal Sent",
+          "Converted",
+          "Lost"
+        ],
+        "required": true,
+        "isPrimary": true,
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_zenith_aviation"
+      },
+      {
+        "id": "f-deal-val",
+        "name": "deal_value",
+        "label": "Deal Value (₹)",
+        "type": "currency",
+        "required": false,
+        "category": "General",
+        "isHidden": false,
+        "tenantId": "company_zenith_aviation"
+      },
+      {
+        "id": "f-source",
+        "name": "source",
+        "label": "Lead Source",
+        "type": "dropdown",
+        "options": [
+          "Facebook Ads",
+          "Google Ads",
+          "Meta Ads",
+          "IndiaMart",
+          "JustDial",
+          "WhatsApp",
+          "Website Inbound",
+          "Instagram",
+          "Referral",
+          "Direct"
+        ],
+        "required": false,
+        "isPrimary": true,
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_zenith_aviation"
+      }
+    ],
+    "company_wfwwfwf": [
+      {
+        "id": "f-h1",
+        "name": "name",
+        "label": "Name",
+        "type": "text",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H1",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_wfwwfwf"
+      },
+      {
+        "id": "f-h2",
+        "name": "phone",
+        "label": "Number",
+        "type": "phone",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H2",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_wfwwfwf"
+      },
+      {
+        "id": "f-status",
+        "name": "status",
+        "label": "Status",
+        "type": "dropdown",
+        "options": [
+          "Fresh",
+          "Contacted",
+          "Follow Up",
+          "Demo Scheduled",
+          "Proposal Sent",
+          "Converted",
+          "Lost"
+        ],
+        "required": true,
+        "isPrimary": true,
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_wfwwfwf"
+      },
+      {
+        "id": "f-deal-val",
+        "name": "deal_value",
+        "label": "Deal Value (₹)",
+        "type": "currency",
+        "required": false,
+        "category": "General",
+        "isHidden": false,
+        "tenantId": "company_wfwwfwf"
+      },
+      {
+        "id": "f-source",
+        "name": "source",
+        "label": "Lead Source",
+        "type": "dropdown",
+        "options": [
+          "Facebook Ads",
+          "Google Ads",
+          "Meta Ads",
+          "IndiaMart",
+          "JustDial",
+          "WhatsApp",
+          "Website Inbound",
+          "Instagram",
+          "Referral",
+          "Direct"
+        ],
+        "required": false,
+        "isPrimary": true,
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "company_wfwwfwf"
+      }
+    ],
+    "default_tenant": [
+      {
+        "id": "f-h1",
+        "name": "name",
+        "label": "Name",
+        "type": "text",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H1",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "default_tenant"
+      },
+      {
+        "id": "f-h2",
+        "name": "phone",
+        "label": "Number",
+        "type": "phone",
+        "required": true,
+        "isPrimary": true,
+        "primarySlot": "H2",
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "default_tenant"
+      },
+      {
+        "id": "f-status",
+        "name": "status",
+        "label": "Status",
+        "type": "dropdown",
+        "options": [
+          "Fresh",
+          "Contacted",
+          "Follow Up",
+          "Demo Scheduled",
+          "Proposal Sent",
+          "Converted",
+          "Lost"
+        ],
+        "required": true,
+        "isPrimary": true,
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "default_tenant"
+      },
+      {
+        "id": "f-deal-val",
+        "name": "deal_value",
+        "label": "Deal Value (₹)",
+        "type": "currency",
+        "required": false,
+        "category": "General",
+        "isHidden": false,
+        "tenantId": "default_tenant"
+      },
+      {
+        "id": "f-source",
+        "name": "source",
+        "label": "Lead Source",
+        "type": "dropdown",
+        "options": [
+          "Facebook Ads",
+          "Google Ads",
+          "Meta Ads",
+          "IndiaMart",
+          "JustDial",
+          "WhatsApp",
+          "Website Inbound",
+          "Instagram",
+          "Referral",
+          "Direct"
+        ],
+        "required": false,
+        "isPrimary": true,
+        "category": "Primary",
+        "isHidden": false,
+        "tenantId": "default_tenant"
+      }
+    ]
+  },
+  "tasks": {
+    "company_apex_dynamics": [
+      {
+        "id": "task-apex-101",
+        "tenantId": "company_apex_dynamics",
+        "title": "Conduct confidential Apex Q3 demo",
+        "description": "",
+        "assigneeAgentId": "agent-alice",
+        "assigneeAgentName": "Alice Cooper",
+        "priority": "High",
+        "status": "Pending",
+        "dueDate": "2026-08-30T10:40:33.897Z",
+        "taskValue": 0,
+        "createdAt": "2026-08-30T10:40:33.897Z"
+      }
+    ],
+    "company_zenith_aviation": [],
+    "company_wfwwfwf": []
+  },
+  "integrations": {
+    "company_apex_dynamics": [],
+    "company_zenith_aviation": [],
+    "company_wfwwfwf": []
+  },
+  "activities": {
+    "company_apex_dynamics": [],
+    "company_zenith_aviation": [],
+    "company_wfwwfwf": []
+  }
+}

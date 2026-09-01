@@ -32,7 +32,7 @@ export const OmnichannelInboxView: React.FC<OmnichannelInboxProps> = ({
   onCallLead,
 }) => {
   const [selectedLeadId, setSelectedLeadId] = useState<string>(leads[0]?.id || '');
-  const [channelFilter, setChannelFilter] = useState<string>('ALL');
+  const [channelFilter, setChannelFilter] = useState<string>('whatsapp');
   const [searchQuery, setSearchQuery] = useState('');
   const [replyText, setReplyText] = useState('');
   const [generatingAi, setGeneratingAi] = useState(false);
@@ -46,17 +46,29 @@ export const OmnichannelInboxView: React.FC<OmnichannelInboxProps> = ({
     
     if (!matchesSearch) return false;
 
-    if (channelFilter === 'ALL') return true;
-    if (channelFilter === 'whatsapp') return lead.source.toLowerCase().includes('whatsapp') || true;
-    if (channelFilter === 'instagram') return lead.source.toLowerCase().includes('instagram') || lead.tags?.includes('Instagram');
-    if (channelFilter === 'facebook') return lead.source.toLowerCase().includes('facebook') || lead.tags?.includes('Facebook Ads');
-    if (channelFilter === 'email') return !!lead.email;
-    if (channelFilter === 'sms') return !!lead.phone;
+    const sourceLower = (lead.source || '').toLowerCase();
+    const tagsLower = (lead.tags || []).map(t => t.toLowerCase());
+
+    if (channelFilter === 'whatsapp') {
+      return sourceLower.includes('whatsapp') || tagsLower.some(t => t.includes('whatsapp'));
+    }
+    if (channelFilter === 'instagram') {
+      return sourceLower.includes('instagram') || tagsLower.some(t => t.includes('instagram'));
+    }
+    if (channelFilter === 'facebook') {
+      return sourceLower.includes('facebook') || sourceLower.includes('meta') || tagsLower.some(t => t.includes('facebook') || t.includes('meta'));
+    }
+    if (channelFilter === 'email') {
+      return Boolean(lead.email && lead.email.trim());
+    }
+    if (channelFilter === 'sms') {
+      return Boolean(lead.phone && lead.phone.trim());
+    }
     return true;
   });
 
-  const selectedLead = leads.find((l) => l.id === selectedLeadId) || filteredLeads[0] || leads[0];
-  const conversationMessages = messages.filter((m) => m.leadId === selectedLead?.id);
+  const selectedLead = (selectedLeadId ? filteredLeads.find((l) => l.id === selectedLeadId) : null) || filteredLeads[0] || null;
+  const conversationMessages = selectedLead ? messages.filter((m) => m.leadId === selectedLead.id) : [];
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,7 +87,7 @@ export const OmnichannelInboxView: React.FC<OmnichannelInboxProps> = ({
         body: JSON.stringify({
           leadName: selectedLead.name,
           company: selectedLead.company,
-          product: 'ARCLE CRM Omnichannel Suite',
+          product: 'CRM Omnichannel Suite',
           stage: selectedLead.status
         })
       });
@@ -104,9 +116,9 @@ export const OmnichannelInboxView: React.FC<OmnichannelInboxProps> = ({
           </div>
         </div>
 
-        {/* Channel filter chips */}
+        {/* Channel filter chips (Only actual channels, no 'All Channels') */}
         <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
-          {['ALL', 'whatsapp', 'instagram', 'facebook', 'email', 'sms'].map((ch) => (
+          {['whatsapp', 'instagram', 'facebook', 'email', 'sms'].map((ch) => (
             <button
               key={ch}
               onClick={() => setChannelFilter(ch)}
@@ -116,7 +128,7 @@ export const OmnichannelInboxView: React.FC<OmnichannelInboxProps> = ({
                   : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
               }`}
             >
-              {ch === 'ALL' ? 'All Channels' : ch}
+              {ch}
             </button>
           ))}
         </div>

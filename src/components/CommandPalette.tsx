@@ -18,12 +18,14 @@ import {
 } from 'lucide-react';
 import { Lead, Agent } from '../types';
 import { StatusBadge } from './StatusBadge';
+import { formatArcleName } from '../utils/brandUtils';
 
 interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
   leads: Lead[];
   agents: Agent[];
+  companyName?: string;
   onSelectLead: (lead: Lead) => void;
   onNavigate: (view: string) => void;
   onAddNewLead: () => void;
@@ -38,6 +40,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   onClose,
   leads,
   agents,
+  companyName,
   onSelectLead,
   onNavigate,
   onAddNewLead,
@@ -287,7 +290,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             <span>Use <kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200 font-sans text-[10px]">↑</kbd> <kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200 font-sans text-[10px]">↓</kbd> to navigate</span>
             <span><kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200 font-sans text-[10px]">↵</kbd> to select</span>
           </div>
-          <span className="font-semibold font-sans text-indigo-600">ARCLE CRM Command Center</span>
+          <span className="font-semibold font-sans text-indigo-600">
+            {formatArcleName('ARCLE CRM Command Center', companyName)}
+          </span>
         </div>
       </div>
     </div>

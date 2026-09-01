@@ -71,14 +71,14 @@ export const BulkEditModal: React.FC<BulkEditModalProps> = ({
       <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-150">
         
         {/* Header */}
-        <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between">
+        <div className="bg-white border-b border-slate-200 px-5 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2.5">
-            <div className="p-2 rounded-xl bg-indigo-500/20 border border-indigo-500/30 text-indigo-300">
+            <div className="p-2 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600">
               <CheckSquare className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm sm:text-base font-bold">Bulk Edit Leads</h3>
-              <p className="text-xs text-slate-400">
+              <h3 className="text-sm sm:text-base font-bold text-slate-900">Bulk Edit Leads</h3>
+              <p className="text-xs text-slate-500">
                 Updating <strong>{totalSelectedCount} selected leads</strong> simultaneously
               </p>
             </div>
@@ -86,7 +86,7 @@ export const BulkEditModal: React.FC<BulkEditModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>

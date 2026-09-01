@@ -53,51 +53,10 @@ export const GoogleSheetsIntegrationModal: React.FC<GoogleSheetsIntegrationModal
     notes: 'Inquiry Notes'
   });
 
-  // Mock sample rows fetched from the Google Sheet
+  // Live rows fetched from the Google Sheet
   const sampleHeaders = ['Full Name', 'Phone Number', 'Email Address', 'Company / Organization', 'City / Location', 'Budget / Deal Value', 'Lead Status', 'Inquiry Notes'];
   
-  const [sampleRows, setSampleRows] = useState([
-    {
-      'Full Name': 'Vikas Malhotra',
-      'Phone Number': '+91 98231 44556',
-      'Email Address': 'vikas.m@malhotratech.com',
-      'Company / Organization': 'Malhotra Tech Solutions',
-      'City / Location': 'Mumbai',
-      'Budget / Deal Value': '150000',
-      'Lead Status': 'New Lead',
-      'Inquiry Notes': 'Interested in enterprise WhatsApp API package and CRM automation'
-    },
-    {
-      'Full Name': 'Priya Sundaram',
-      'Phone Number': '+91 97112 33445',
-      'Email Address': 'priya@chennailogistics.in',
-      'Company / Organization': 'Chennai Express Cargo',
-      'City / Location': 'Chennai',
-      'Budget / Deal Value': '85000',
-      'Lead Status': 'Contacted',
-      'Inquiry Notes': 'Needs automated call recording and IndiaMart webhook lead sync'
-    },
-    {
-      'Full Name': 'Rohan Kulkarni',
-      'Phone Number': '+91 99887 66554',
-      'Email Address': 'rohan.k@kulkarniauto.com',
-      'Company / Organization': 'Kulkarni Auto Components',
-      'City / Location': 'Pune',
-      'Budget / Deal Value': '220000',
-      'Lead Status': 'Follow Up',
-      'Inquiry Notes': 'Follow-up requested on Monday morning at 11:00 AM'
-    },
-    {
-      'Full Name': 'Sneha Nair',
-      'Phone Number': '+91 94470 12345',
-      'Email Address': 'sneha@cochinestates.com',
-      'Company / Organization': 'Cochin Prime Estates',
-      'City / Location': 'Kochi',
-      'Budget / Deal Value': '350000',
-      'Lead Status': 'New Lead',
-      'Inquiry Notes': 'Luxury villa campaign lead from Facebook ad'
-    }
-  ]);
+  const [sampleRows, setSampleRows] = useState<Record<string, string>[]>([]);
 
   const [isImporting, setIsImporting] = useState(false);
   const [importCount, setImportCount] = useState<number | null>(null);
@@ -217,19 +176,19 @@ function onFormOrSheetSubmit(e) {
       <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200">
         
         {/* Modal Header */}
-        <div className="bg-emerald-900 text-white px-4 sm:px-6 py-4 flex items-center justify-between shrink-0">
+        <div className="bg-slate-900 text-white px-4 sm:px-6 py-4 flex items-center justify-between shrink-0 border-b border-slate-800">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-700/80 border border-emerald-500/50 flex items-center justify-center text-white shadow-xs">
-              <FileSpreadsheet className="w-6 h-6 text-emerald-200" />
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-300 shadow-xs">
+              <FileSpreadsheet className="w-6 h-6 text-indigo-300" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
                 <h2 className="text-base sm:text-lg font-bold">Google Sheets Two-Way Integration</h2>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 text-[10px] font-semibold">
+                <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 text-[10px] font-semibold">
                   Live Sync
                 </span>
               </div>
-              <p className="text-xs text-emerald-200/80">
+              <p className="text-xs text-slate-400">
                 Import leads, auto-map columns, and sync real-time spreadsheet rows directly to your CRM pipeline.
               </p>
             </div>
@@ -249,7 +208,7 @@ function onFormOrSheetSubmit(e) {
             onClick={() => setActiveTab('import')}
             className={`py-3 px-3 sm:px-4 border-b-2 flex items-center space-x-2 cursor-pointer transition-colors ${
               activeTab === 'import'
-                ? 'border-emerald-600 text-emerald-700 font-bold bg-white'
+                ? 'border-indigo-600 text-indigo-700 font-bold bg-white'
                 : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -261,7 +220,7 @@ function onFormOrSheetSubmit(e) {
             onClick={() => setActiveTab('export')}
             className={`py-3 px-3 sm:px-4 border-b-2 flex items-center space-x-2 cursor-pointer transition-colors ${
               activeTab === 'export'
-                ? 'border-emerald-600 text-emerald-700 font-bold bg-white'
+                ? 'border-indigo-600 text-indigo-700 font-bold bg-white'
                 : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -273,7 +232,7 @@ function onFormOrSheetSubmit(e) {
             onClick={() => setActiveTab('autosync')}
             className={`py-3 px-3 sm:px-4 border-b-2 flex items-center space-x-2 cursor-pointer transition-colors ${
               activeTab === 'autosync'
-                ? 'border-emerald-600 text-emerald-700 font-bold bg-white'
+                ? 'border-indigo-600 text-indigo-700 font-bold bg-white'
                 : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -293,7 +252,7 @@ function onFormOrSheetSubmit(e) {
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center space-x-2">
-                    <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+                    <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">1</span>
                     <h3 className="text-xs sm:text-sm font-bold text-slate-900">Connected Google Spreadsheet URL</h3>
                   </div>
                   <span className="text-[11px] text-slate-500 font-mono">Requires "Anyone with link can view" or Edit access</span>
@@ -307,7 +266,7 @@ function onFormOrSheetSubmit(e) {
                       value={sheetUrl}
                       onChange={(e) => setSheetUrl(e.target.value)}
                       placeholder="https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit"
-                      className="w-full bg-white border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-600"
+                      className="w-full bg-white border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
                     />
                   </div>
 
@@ -317,13 +276,13 @@ function onFormOrSheetSubmit(e) {
                       value={sheetTabName}
                       onChange={(e) => setSheetTabName(e.target.value)}
                       placeholder="Tab (e.g. Sheet1)"
-                      className="w-28 bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-600"
+                      className="w-28 bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
                     />
 
                     <button
                       onClick={handleTestConnection}
                       disabled={isTestingConnection}
-                      className="flex-1 py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center justify-center space-x-1.5 transition-colors cursor-pointer disabled:opacity-50 shadow-xs"
+                      className="flex-1 py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center justify-center space-x-1.5 transition-colors cursor-pointer disabled:opacity-50 shadow-xs"
                     >
                       <RefreshCw className={`w-3.5 h-3.5 ${isTestingConnection ? 'animate-spin' : ''}`} />
                       <span>{isTestingConnection ? 'Testing...' : 'Fetch Headers'}</span>
@@ -332,8 +291,8 @@ function onFormOrSheetSubmit(e) {
                 </div>
 
                 {connectionStatus === 'success' && (
-                  <div className="flex items-center space-x-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <div className="flex items-center space-x-2 text-xs text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2">
+                    <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" />
                     <span>Connected to Google Spreadsheet! Found <strong>{sampleHeaders.length} columns</strong> and <strong>{sampleRows.length} sample lead rows</strong> ready to ingest.</span>
                   </div>
                 )}
@@ -342,7 +301,7 @@ function onFormOrSheetSubmit(e) {
               {/* Step 2: Column Field Mapping */}
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
                 <div className="flex items-center space-x-2">
-                  <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">2</span>
+                  <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">2</span>
                   <h3 className="text-xs sm:text-sm font-bold text-slate-900">Map Google Sheet Columns to CRM Lead Fields</h3>
                 </div>
 
@@ -449,7 +408,7 @@ function onFormOrSheetSubmit(e) {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">3</span>
+                    <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">3</span>
                     <h3 className="text-xs sm:text-sm font-bold text-slate-900">Preview Data Rows ({sampleRows.length} leads)</h3>
                   </div>
                   <span className="text-xs text-slate-500">Auto-tagged with source <strong>"Google Sheets"</strong></span>
@@ -469,21 +428,29 @@ function onFormOrSheetSubmit(e) {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-normal text-slate-800">
-                      {sampleRows.map((r, i) => (
-                        <tr key={i} className="hover:bg-slate-50/80">
-                          <td className="py-2 px-3 font-semibold text-slate-900">{r['Full Name']}</td>
-                          <td className="py-2 px-3 font-mono text-[11px] text-slate-600">{r['Phone Number']}</td>
-                          <td className="py-2 px-3 text-slate-600">{r['Email Address']}</td>
-                          <td className="py-2 px-3">{r['Company / Organization']}</td>
-                          <td className="py-2 px-3">{r['City / Location']}</td>
-                          <td className="py-2 px-3 font-bold text-emerald-700 font-mono">₹{Number(r['Budget / Deal Value']).toLocaleString('en-IN')}</td>
-                          <td className="py-2 px-3">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800">
-                              {r['Lead Status']}
-                            </span>
+                      {sampleRows.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="py-8 text-center text-slate-400 text-xs font-medium">
+                            No sheet rows loaded. Connect your live Google Sheet above to preview real records.
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        sampleRows.map((r, i) => (
+                          <tr key={i} className="hover:bg-slate-50/80">
+                            <td className="py-2 px-3 font-semibold text-slate-900">{r['Full Name']}</td>
+                            <td className="py-2 px-3 font-mono text-[11px] text-slate-600">{r['Phone Number']}</td>
+                            <td className="py-2 px-3 text-slate-600">{r['Email Address']}</td>
+                            <td className="py-2 px-3">{r['Company / Organization']}</td>
+                            <td className="py-2 px-3">{r['City / Location']}</td>
+                            <td className="py-2 px-3 font-bold text-slate-900 font-mono">₹{Number(r['Budget / Deal Value']).toLocaleString('en-IN')}</td>
+                            <td className="py-2 px-3">
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800">
+                                {r['Lead Status']}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -495,11 +462,11 @@ function onFormOrSheetSubmit(e) {
           {/* TAB 2: EXPORT CRM LEADS TO CSV/SHEET */}
           {activeTab === 'export' && (
             <div className="space-y-4">
-              <div className="p-4 rounded-xl bg-emerald-50/50 border border-emerald-200 flex items-start space-x-3">
-                <FileSpreadsheet className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
+              <div className="p-4 rounded-xl bg-indigo-50/50 border border-indigo-200 flex items-start space-x-3">
+                <FileSpreadsheet className="w-5 h-5 text-indigo-700 shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <h4 className="text-xs sm:text-sm font-bold text-emerald-950">Export Active CRM Database</h4>
-                  <p className="text-xs text-emerald-800">
+                  <h4 className="text-xs sm:text-sm font-bold text-indigo-950">Export Active CRM Database</h4>
+                  <p className="text-xs text-indigo-800">
                     Download all <strong>{leads.length} leads</strong> with phone numbers, deal values, lead stages, and disposition history formatted for seamless import into Google Sheets or Microsoft Excel.
                   </p>
                 </div>
@@ -513,7 +480,7 @@ function onFormOrSheetSubmit(e) {
                     <p className="text-[10px] text-slate-500 uppercase font-semibold">Total Leads</p>
                   </div>
                   <div className="p-3 bg-white rounded-lg border border-slate-200">
-                    <span className="text-xl font-bold text-emerald-600 font-mono">₹{(leads.reduce((s, l) => s + (l.dealValue || 0), 0) / 100000).toFixed(1)}L</span>
+                    <span className="text-xl font-bold text-indigo-600 font-mono">₹{(leads.reduce((s, l) => s + (l.dealValue || 0), 0) / 100000).toFixed(1)}L</span>
                     <p className="text-[10px] text-slate-500 uppercase font-semibold">Pipeline Value</p>
                   </div>
                   <div className="p-3 bg-white rounded-lg border border-slate-200">
@@ -529,7 +496,7 @@ function onFormOrSheetSubmit(e) {
                 <div className="pt-2 flex justify-center">
                   <button
                     onClick={handleExportToCsv}
-                    className="py-2.5 px-6 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex items-center space-x-2 shadow-sm transition-transform hover:scale-105 cursor-pointer"
+                    className="py-2.5 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center space-x-2 shadow-sm transition-transform hover:scale-105 cursor-pointer"
                   >
                     <Download className="w-4 h-4" />
                     <span>Download .CSV for Google Sheets ({leads.length} records)</span>
@@ -605,7 +572,7 @@ function onFormOrSheetSubmit(e) {
         <div className="bg-slate-50 border-t border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between shrink-0">
           <div className="text-xs text-slate-500">
             {importCount ? (
-              <span className="text-emerald-700 font-bold">✓ Successfully imported {importCount} leads!</span>
+              <span className="text-indigo-700 font-bold">✓ Successfully imported {importCount} leads!</span>
             ) : (
               <span>Ready to ingest leads into CRM pipeline</span>
             )}
@@ -623,7 +590,7 @@ function onFormOrSheetSubmit(e) {
               <button
                 onClick={handleExecuteImport}
                 disabled={isImporting}
-                className="px-5 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center space-x-1.5 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center space-x-1.5 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
               >
                 <Upload className={`w-3.5 h-3.5 ${isImporting ? 'animate-spin' : ''}`} />
                 <span>{isImporting ? 'Ingesting Leads...' : `Import ${sampleRows.length} Leads Now`}</span>

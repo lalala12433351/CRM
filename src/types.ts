@@ -241,6 +241,8 @@ export interface CustomFieldDef {
   isUnique?: boolean;
   showInQuickAdd?: boolean;
   category?: 'Primary' | 'Contact' | 'Academic/Career' | 'General' | 'Custom';
+  /** Fresh Lead Response Timer: minutes after creation during which the call-now countdown badge is shown (stored on sentinel record id='__fresh_lead_timer__') */
+  freshLeadTimerMinutes?: number;
 }
 
 export interface ActivityLog {
@@ -345,6 +347,11 @@ export interface RegisterPayload {
   phone: string;
   companyName: string;
   password?: string;
+  companyDescription?: string;
+  businessType?: string;
+  businessTypeOther?: string;
+  referralSource?: string;
+  referralSourceOther?: string;
 }
 
 export interface Agent {
@@ -365,6 +372,8 @@ export interface Agent {
   isAdmin?: boolean;
   tenantId?: string;
   companyName?: string;
+  companyDescription?: string;
+  businessType?: string;
 }
 
 export function isAgentAdmin(agent?: Agent | null): boolean {
@@ -393,6 +402,7 @@ export interface Lead {
   dealValue: number;
   ownerAgentId: string;
   ownerAgentName: string;
+  assignedTo?: string;
   createdAt: string;
   updatedAt: string;
   aiScore: number;

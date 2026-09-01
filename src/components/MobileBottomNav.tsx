@@ -29,6 +29,7 @@ import { TabType } from './Sidebar';
 import { ReportsSubTab } from './ReportsView';
 import { AutomationsSubTab } from './WorkflowsView';
 import { Agent, isAgentAdmin } from '../types';
+import { formatArcleName } from '../utils/brandUtils';
 
 interface MobileBottomNavProps {
   activeTab: TabType;
@@ -37,6 +38,7 @@ interface MobileBottomNavProps {
   pendingFollowUpsCount: number;
   activeAgent: Agent;
   agents: Agent[];
+  companyName?: string;
   onSelectAgent: (agentId: string) => void;
   onOpenAddLeadModal?: () => void;
   onOpenGoogleSheets?: () => void;
@@ -51,6 +53,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   pendingFollowUpsCount,
   activeAgent,
   agents,
+  companyName,
   onSelectAgent,
   onOpenAddLeadModal,
   onOpenGoogleSheets,
@@ -208,9 +211,12 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
 
       {/* iOS NATIVE SLIDE-UP NAVIGATION SHEET / DRAWER */}
       {isDrawerOpen && (
-        <div className="fixed inset-0 z-50 md:hidden bg-slate-900/60 backdrop-blur-xs flex flex-col justify-end animate-in fade-in duration-200">
+        <div 
+          onClick={() => setIsDrawerOpen(false)}
+          className="fixed inset-0 z-50 md:hidden bg-slate-900/60 backdrop-blur-xs flex flex-col justify-end animate-in fade-in duration-200 cursor-pointer"
+        >
           <div 
-            className="bg-white rounded-t-3xl max-h-[88vh] flex flex-col w-full shadow-2xl animate-in slide-in-from-bottom duration-300 pb-safe font-noto"
+            className="bg-white rounded-t-3xl max-h-[88vh] flex flex-col w-full shadow-2xl animate-in slide-in-from-bottom duration-300 pb-safe font-noto cursor-default"
             onClick={(e) => e.stopPropagation()}
           >
             {/* iOS Drag Handle Header */}
@@ -219,10 +225,12 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               
               <div className="flex items-center space-x-2 pt-1">
                 <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                  A
+                  {companyName ? (companyName.replace(/^ARCLE\s*[-–|:]\s*/i, '').trim().charAt(0).toUpperCase() || 'A') : 'A'}
                 </div>
                 <div>
-                  <h3 className="text-xs font-bold text-slate-900 font-sans">ARCLE Mobile CRM</h3>
+                  <h3 className="text-xs font-bold text-slate-900 font-sans">
+                    {formatArcleName('ARCLE Mobile CRM', companyName)}
+                  </h3>
                   <p className="text-[9px] text-slate-500">iOS App Mode • All Views</p>
                 </div>
               </div>

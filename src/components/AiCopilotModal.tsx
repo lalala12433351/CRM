@@ -16,6 +16,7 @@ import {
   PhoneCall
 } from 'lucide-react';
 import { Lead, Agent } from '../types';
+import { formatArcleName } from '../utils/brandUtils';
 
 interface AiCopilotModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ interface AiCopilotModalProps {
   lead?: Lead | null;
   leads: Lead[];
   activeAgent: Agent;
+  companyName?: string;
   onSendMessage?: (leadId: string, text: string) => void;
   onOpenLeadDetail?: (lead: Lead) => void;
 }
@@ -33,6 +35,7 @@ export const AiCopilotModal: React.FC<AiCopilotModalProps> = ({
   lead,
   leads,
   activeAgent,
+  companyName,
   onSendMessage,
   onOpenLeadDetail,
 }) => {
@@ -119,7 +122,9 @@ export const AiCopilotModal: React.FC<AiCopilotModalProps> = ({
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h2 className="text-base font-bold tracking-tight">ARCLE AI Sales Copilot</h2>
+                <h2 className="text-base font-bold tracking-tight">
+                  {formatArcleName('ARCLE AI Sales Copilot', companyName)}
+                </h2>
                 <span className="px-2 py-0.5 rounded-full bg-violet-400/20 text-violet-200 text-[10px] font-semibold uppercase tracking-wider border border-violet-400/30">
                   Live Intelligence
                 </span>
@@ -315,7 +320,7 @@ export const AiCopilotModal: React.FC<AiCopilotModalProps> = ({
                 </div>
 
                 <div className="bg-white p-4 rounded-xl border border-indigo-100 text-xs sm:text-sm text-slate-800 leading-relaxed font-medium">
-                  “Hi {currentLead?.name?.split(' ')[0] || 'there'}, this is {activeAgent.name} from ARCLE CRM. I noticed your interest in scaling your sales outreach for {currentLead?.company || 'your team'}. We help high-velocity Indian sales teams replace disconnected calling and WhatsApp tools with a single auto-advancing dialer that triples lead conversions in the first 2 weeks. Do you have 3 minutes to see how this works for your {currentLead?.city || 'current'} operations?”
+                  “Hi {currentLead?.name?.split(' ')[0] || 'there'}, this is {activeAgent.name} from {formatArcleName('ARCLE CRM', companyName)}. I noticed your interest in scaling your sales outreach for {currentLead?.company || 'your team'}. We help high-velocity Indian sales teams replace disconnected calling and WhatsApp tools with a single auto-advancing dialer that triples lead conversions in the first 2 weeks. Do you have 3 minutes to see how this works for your {currentLead?.city || 'current'} operations?”
                 </div>
 
                 <div className="flex items-center justify-between pt-2">
@@ -323,7 +328,7 @@ export const AiCopilotModal: React.FC<AiCopilotModalProps> = ({
                     Target Deal Value: <strong className="text-slate-900">₹{(currentLead?.dealValue || 0).toLocaleString()}</strong>
                   </div>
                   <button
-                    onClick={() => handleCopy(`Hi ${currentLead?.name?.split(' ')[0]}, this is ${activeAgent.name} from ARCLE CRM...`, 'pitch-copy')}
+                    onClick={() => handleCopy(`Hi ${currentLead?.name?.split(' ')[0]}, this is ${activeAgent.name} from ${formatArcleName('ARCLE CRM', companyName)}...`, 'pitch-copy')}
                     className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 cursor-pointer shadow-2xs flex items-center space-x-1.5"
                   >
                     {copiedId === 'pitch-copy' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}

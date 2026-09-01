@@ -1,0 +1,98 @@
+# ==============================================================================
+# Pixbe CRM - Production Full-Stack Docker Compose Orchestration
+# Includes: Pixbe CRM Node.js Web Application + PostgreSQL 16 Database
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. PIXBE CRM APPLICATION SERVICE
+  # ----------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pixbe-crm:latest
+    container_name: pixbe-crm-app
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - APP_URL=${APP_URL:-http://localhost:8080}
+
+      # Database Configuration (Defaults to internal 'db' service)
+      - DB_HOST=${DB_HOST:-db}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-pixbe_crm}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_SSL=${DB_SSL:-false}
+
+      # Remote AWS RDS / Aurora Configuration (optional override)
+      - AWS_RDS_HOST=${AWS_RDS_HOST:-}
+      - AWS_RDS_PORT=${AWS_RDS_PORT:-}
+      - AWS_RDS_DATABASE=${AWS_RDS_DATABASE:-}
+      - AWS_RDS_USER=${AWS_RDS_USER:-}
+      - AWS_RDS_PASSWORD=${AWS_RDS_PASSWORD:-}
+      - AWS_RDS_SSL=${AWS_RDS_SSL:-}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_REGION=${AWS_REGION:-ap-south-2}
+
+      # AI Services
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+
+      # Meta / Facebook & Instagram Lead Ads
+      - META_APP_ID=${META_APP_ID:-}
+      - META_APP_SECRET=${META_APP_SECRET:-}
+      - META_WEBHOOK_VERIFY_TOKEN=${META_WEBHOOK_VERIFY_TOKEN:-}
+      - META_REDIRECT_URI=${META_REDIRECT_URI:-}
+      - META_PAGE_ID=${META_PAGE_ID:-}
+      - META_PAGE_ACCESS_TOKEN=${META_PAGE_ACCESS_TOKEN:-}
+    volumes:
+      # Persistent storage for multi-tenant state and json store
+      - pixbe_app_data:/app/.data
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true
+    networks:
+      - pixbe-network
+
+  # ----------------------------------------------------------------------------
+  # 2. POSTGRESQL DATABASE SERVICE
+  # ----------------------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: pixbe-crm-db
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: ${DB_NAME:-pixbe_crm}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    volumes:
+      - pixbe_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-pixbe_crm}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - pixbe-network
+
+# ------------------------------------------------------------------------------
+# VOLUMES & NETWORKS
+# ------------------------------------------------------------------------------
+volumes:
+  pixbe_app_data:
+    driver: local
+  pixbe_postgres_data:
+    driver: local
+
+networks:
+  pixbe-network:
+    driver: bridge

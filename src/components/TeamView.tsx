@@ -177,7 +177,7 @@ export const TeamView: React.FC<TeamViewProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {agents.map((ag) => {
           const agIsAdmin = isAgentAdmin(ag);
-          const isMasterOwner = ag.email === 'madhava@kiteaviation.edu' || ag.id === 'agent-ms';
+          const isMasterOwner = ag.role === 'Master Admin' || ag.role === 'Owner';
           const isEditingRole = editingRoleId === ag.id;
 
           return (

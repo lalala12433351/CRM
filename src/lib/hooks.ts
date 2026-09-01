@@ -2,12 +2,18 @@ import { useState, useEffect, useRef } from 'react';
 import { collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
-export function useSyncState<T extends { id: string }>(collectionName: string) {
+export function useSyncState<T extends { id: string }>(collectionName: string, tenantId?: string) {
   const [data, setData] = useState<T[]>([]);
   const initialized = useRef(false);
 
+  const activeTenantId = tenantId || 'default_tenant';
+  const getCollectionRef = () => {
+    return collection(db, 'tenants', activeTenantId, collectionName);
+  };
+
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, collectionName), (snapshot) => {
+    const colRef = getCollectionRef();
+    const unsubscribe = onSnapshot(colRef, (snapshot) => {
       const items: T[] = [];
       snapshot.forEach((docSnap) => {
         items.push(docSnap.data() as T);
@@ -21,9 +27,11 @@ export function useSyncState<T extends { id: string }>(collectionName: string) {
       
       setData(items);
       initialized.current = true;
+    }, (error) => {
+      console.warn(`Firestore sync notice for ${collectionName} (${activeTenantId}):`, error.message);
     });
     return () => unsubscribe();
-  }, [collectionName]);
+  }, [collectionName, activeTenantId]);
 
   const setSyncData = (action: T[] | ((prev: T[]) => T[])) => {
     setData((prev) => {
@@ -38,9 +46,11 @@ export function useSyncState<T extends { id: string }>(collectionName: string) {
         if (!prevItem || JSON.stringify(prevItem) !== JSON.stringify(item)) {
           // Strip undefined values which cause Firestore to crash synchronously
           const cleanItem = JSON.parse(JSON.stringify(item));
+          // Tag item with tenantId for safety
+          cleanItem.tenantId = activeTenantId;
           // Perform side effect outside of React's render phase
           setTimeout(() => {
-            setDoc(doc(db, collectionName, cleanItem.id), cleanItem).catch(console.error);
+            setDoc(doc(db, 'tenants', activeTenantId, collectionName, cleanItem.id), cleanItem).catch(() => {});
           }, 0);
         }
       });
@@ -48,7 +58,7 @@ export function useSyncState<T extends { id: string }>(collectionName: string) {
       prev.forEach((item: any) => {
         if (!nextMap.has(item.id)) {
           setTimeout(() => {
-            deleteDoc(doc(db, collectionName, item.id)).catch(console.error);
+            deleteDoc(doc(db, 'tenants', activeTenantId, collectionName, item.id)).catch(() => {});
           }, 0);
         }
       });
@@ -58,4 +68,8 @@ export function useSyncState<T extends { id: string }>(collectionName: string) {
   };
 
   return [data, setSyncData] as const;
+}
+
+export function useTenantSyncState<T extends { id: string }>(resourceName: string, tenantId?: string) {
+  return useSyncState<T>(resourceName, tenantId);
 }

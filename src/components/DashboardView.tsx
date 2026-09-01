@@ -57,6 +57,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [expandedAgentId, setExpandedAgentId] = useState<string | null>(agents[0]?.id || null);
   const [selectedDashboardLeadIds, setSelectedDashboardLeadIds] = useState<string[]>([]);
   const [followUpLead, setFollowUpLead] = useState<Lead | null>(null);
+  const [followUpAssigneeId, setFollowUpAssigneeId] = useState('');
   const [followUpDate, setFollowUpDate] = useState('');
   const [followUpHour, setFollowUpHour] = useState('10');
   const [followUpMinute, setFollowUpMinute] = useState('00');
@@ -77,6 +78,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     setFollowUpAmPm(period);
     setFollowUpRemarks('');
     setFollowUpLead(lead);
+    setFollowUpAssigneeId(lead.ownerAgentId || lead.assignedTo || '');
   };
 
   const handleSaveFollowUp = () => {
@@ -86,13 +88,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     if (followUpAmPm === 'AM' && h === 12) h = 0;
     const combinedDate = `${followUpDate}T${String(h).padStart(2, '0')}:${followUpMinute}:00`;
 
+    const selectedAgent = agents.find((a) => a.id === followUpAssigneeId);
+    const finalAssigneeId = followUpAssigneeId || followUpLead.ownerAgentId || followUpLead.assignedTo;
+    const finalAssigneeName = selectedAgent ? selectedAgent.name : (followUpLead.ownerAgentName || 'Unassigned');
+
     onUpdateLead(followUpLead.id, {
       status: 'Follow Up',
       followUpAt: combinedDate,
+      ownerAgentId: finalAssigneeId,
+      ownerAgentName: finalAssigneeName,
+      assignedTo: finalAssigneeId,
+      notes: followUpRemarks
+        ? `${followUpLead.notes ? followUpLead.notes + '\n' : ''}[Follow-up Remark]: ${followUpRemarks}`
+        : followUpLead.notes,
       updatedAt: new Date().toISOString()
     });
 
     setFollowUpLead(null);
+    setFollowUpAssigneeId('');
   };
 
   // Helper to enforce assignee calling authority
@@ -269,7 +282,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Minimal KPI Metric Strip (50% Width) */}
       <div className="grid grid-cols-2 gap-2 sm:gap-2.5 w-full sm:w-1/2">
         {/* Total Calls */}
-        <div className="bg-transparent border-2 border-slate-300 p-3 rounded-xl flex items-center justify-between shadow-2xs">
+        <div className="bg-white/60 p-3 rounded-xl flex items-center justify-between shadow-2xs">
           <div>
             <p className="text-[11px] font-medium text-slate-500">Calls Today</p>
             <p className="text-sm sm:text-base font-bold text-slate-900 mt-0.5">{totalCallsToday}</p>
@@ -280,7 +293,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Total Talk Time */}
-        <div className="bg-transparent border-2 border-slate-300 p-3 rounded-xl flex items-center justify-between shadow-2xs">
+        <div className="bg-white/60 p-3 rounded-xl flex items-center justify-between shadow-2xs">
           <div>
             <p className="text-[11px] font-medium text-slate-500">Talk Time</p>
             <p className="text-sm sm:text-base font-bold text-slate-900 mt-0.5">{Math.floor(totalTalkTimeMin / 60)}h {totalTalkTimeMin % 60}m</p>
@@ -703,6 +716,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
 
             <div className="space-y-4 text-xs font-sans">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">Follow-Up Assignee</label>
+                <div className="relative">
+                  <UserCheck className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                  <select
+                    value={followUpAssigneeId}
+                    onChange={(e) => setFollowUpAssigneeId(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-slate-900 font-medium focus:outline-none focus:border-indigo-600 cursor-pointer"
+                  >
+                    <option value="">Select Assignee</option>
+                    {agents.map((ag) => (
+                      <option key={ag.id} value={ag.id}>
+                        {ag.name} ({ag.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Directly pre-assigned to the lead's owner ({followUpLead.ownerAgentName || 'Unassigned'}).
+                </p>
+              </div>
+
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">Follow-Up Date</label>
                 <input

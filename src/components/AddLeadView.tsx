@@ -154,14 +154,16 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
   const [assignedAgentId, setAssignedAgentId] = useState(activeAgent?.id || agents[0]?.id || '');
   const [priority, setPriority] = useState<'Hot' | 'Warm' | 'Cold'>('Hot');
 
-  // Auto-sync default telecaller to current active logged-in agent
+  // Auto-sync default telecaller to current active logged-in agent on initial load only
   useEffect(() => {
-    if (activeAgent?.id) {
-      setAssignedAgentId(activeAgent.id);
-    } else if (agents.length > 0 && !assignedAgentId) {
-      setAssignedAgentId(agents[0].id);
+    if (!assignedAgentId) {
+      if (activeAgent?.id) {
+        setAssignedAgentId(activeAgent.id);
+      } else if (agents.length > 0) {
+        setAssignedAgentId(agents[0].id);
+      }
     }
-  }, [activeAgent, agents, assignedAgentId]);
+  }, [activeAgent, agents]);
 
   const [followUpDate, setFollowUpDate] = useState('');
   const [followUpNotes, setFollowUpNotes] = useState('');
@@ -308,8 +310,8 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
   const constructLead = (): Lead => {
     const assignedAgent = agents.find((a) => a.id === assignedAgentId);
     // If created without an assignee, automatically assign to current user account creating the lead
-    const finalOwnerId = assignedAgent ? assignedAgent.id : (activeAgent ? activeAgent.id : (agents[0]?.id || 'agent-admin'));
-    const finalOwnerName = assignedAgent ? assignedAgent.name : (activeAgent ? activeAgent.name : (agents[0]?.name || 'Madhava sai nagendra'));
+    const finalOwnerId = assignedAgent ? assignedAgent.id : (assignedAgentId || activeAgent?.id || agents[0]?.id || 'agent-admin');
+    const finalOwnerName = assignedAgent ? assignedAgent.name : (agents.find((a) => a.id === assignedAgentId)?.name || activeAgent?.name || agents[0]?.name || 'Madhava sai nagendra');
     const finalPhone = `${countryCode} ${rawPhone.trim()}`;
     const finalSource: LeadSource = leadSource === ('Other' as any) ? (customLeadSource as any || 'Manual Entry') : leadSource;
 
@@ -467,7 +469,7 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
       pipelineStageId: 'stage-1',
       dealValue: 150000,
       ownerAgentId: assigned?.id || activeAgent?.id || agents[0]?.id || 'agent-admin',
-      ownerAgentName: assigned?.name || activeAgent?.name || agents[0]?.name || 'Madhava sai nagendra',
+      ownerAgentName: assigned?.name || activeAgent?.name || agents[0]?.name || 'System Administrator',
       createdAt: 'Just Now',
       updatedAt: 'Just Now',
       aiScore: 92,

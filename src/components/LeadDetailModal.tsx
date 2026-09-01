@@ -138,11 +138,18 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDueDate, setTaskDueDate] = useState('');
   const [followupNote, setFollowupNote] = useState('');
+  const [followupAssigneeId, setFollowupAssigneeId] = useState(() => lead.ownerAgentId || lead.assignedTo || '');
   const [followupDateTime, setFollowupDateTime] = useState('');
   const [followupDueDay, setFollowupDueDay] = useState(() => new Date().toISOString().slice(0, 10));
   const [followupHour, setFollowupHour] = useState('09');
   const [followupMinute, setFollowupMinute] = useState('00');
   const [followupAmPm, setFollowupAmPm] = useState<'AM' | 'PM'>('AM');
+
+  React.useEffect(() => {
+    if (lead) {
+      setFollowupAssigneeId(lead.ownerAgentId || lead.assignedTo || '');
+    }
+  }, [lead?.id]);
 
   // Submit Handlers for Actions
   const handleSendEmailAction = () => {
@@ -249,15 +256,27 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
       return;
     }
 
+    const selectedAgent = agents.find((a) => a.id === followupAssigneeId);
+    const finalAssigneeId = followupAssigneeId || lead.ownerAgentId || lead.assignedTo;
+    const finalAssigneeName = selectedAgent ? selectedAgent.name : (lead.ownerAgentName || 'Unassigned');
+
     const activityText = followupNote.trim() || 'Follow-up scheduled.';
     onAddActivity({
       leadId: lead.id,
       type: 'note',
       title: `Follow-Up${combinedDate ? ': ' + new Date(combinedDate).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : ''}`,
-      description: activityText,
+      description: `${activityText} (Assigned to: ${finalAssigneeName})`,
     });
     if (combinedDate) {
-      onUpdateLead({ ...lead, followUpAt: combinedDate, status: 'Follow Up' });
+      onUpdateLead({
+        ...lead,
+        followUpAt: combinedDate,
+        status: 'Follow Up',
+        ownerAgentId: finalAssigneeId,
+        ownerAgentName: finalAssigneeName,
+        assignedTo: finalAssigneeId,
+        updatedAt: new Date().toISOString()
+      });
     }
     setFollowupNote('');
     setFollowupDueDay(new Date().toISOString().slice(0, 10));
@@ -608,8 +627,8 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
         {/* Main Drawer Panel */}
         <div className="flex-1 w-full h-full bg-[#fafafa] flex flex-col overflow-hidden shadow-2xl border-l border-slate-200 relative">
           
-          {/* Mobile Top Close Header */}
-          <div className="md:hidden flex items-center justify-between px-3 py-2.5 bg-white border-b border-slate-200 z-20 shrink-0">
+          {/* Mobile Top Close Header with Prev/Next Navigation */}
+          <div className="md:hidden flex items-center justify-between px-3 py-2 bg-white border-b border-slate-200 z-20 shrink-0">
             <button 
               onClick={onClose}
               className="flex items-center space-x-1 text-slate-600 hover:text-slate-900 text-xs font-semibold px-2 py-1 rounded-lg bg-slate-100 cursor-pointer"
@@ -617,19 +636,28 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
               <X className="w-4 h-4" />
               <span>Close</span>
             </button>
-            <span className="text-xs font-bold text-slate-800 font-serif truncate max-w-[180px]">{lead.name}</span>
+            <span className="text-xs font-bold text-slate-800 truncate max-w-[140px]">{lead.name}</span>
+            <div className="flex items-center space-x-1 text-xs font-semibold text-slate-600">
+              <button onClick={handlePrevLead} className="p-1 hover:text-slate-900 rounded-md bg-slate-50 border border-slate-200 cursor-pointer">
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <span className="px-1 text-[11px] text-slate-700">{currentIndex + 1}/{totalLeadsCount}</span>
+              <button onClick={handleNextLead} className="p-1 hover:text-slate-900 rounded-md bg-slate-50 border border-slate-200 cursor-pointer">
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
-          {/* Top Floating Navigation (Desktop & Mobile) */}
-          <div className="absolute top-2.5 right-3 sm:top-4 sm:right-6 z-10 flex items-center bg-white border border-slate-200 rounded-full px-1 py-0.5 sm:py-1 shadow-sm text-[11px] sm:text-xs font-semibold text-slate-600">
-           <button onClick={handlePrevLead} className="px-2 sm:px-3 py-0.5 sm:py-1 hover:text-slate-900 transition-colors flex items-center space-x-0.5 sm:space-x-1 cursor-pointer rounded-full hover:bg-slate-50">
+          {/* Desktop Top Floating Navigation */}
+          <div className="hidden md:flex absolute top-4 right-6 z-10 items-center bg-white border border-slate-200 rounded-full px-1 py-1 shadow-sm text-xs font-semibold text-slate-600">
+           <button onClick={handlePrevLead} className="px-3 py-1 hover:text-slate-900 transition-colors flex items-center space-x-1 cursor-pointer rounded-full hover:bg-slate-50">
              <ChevronLeft className="w-3.5 h-3.5"/> <span>Prev</span>
            </button>
-           <span className="px-2 sm:px-3 text-slate-800 border-x border-slate-200">{currentIndex + 1} <span className="text-slate-400 font-normal">of</span> {totalLeadsCount}</span>
-           <button onClick={handleNextLead} className="px-2 sm:px-3 py-0.5 sm:py-1 hover:text-slate-900 transition-colors flex items-center space-x-0.5 sm:space-x-1 cursor-pointer rounded-full hover:bg-slate-50">
+           <span className="px-3 text-slate-800 border-x border-slate-200">{currentIndex + 1} <span className="text-slate-400 font-normal">of</span> {totalLeadsCount}</span>
+           <button onClick={handleNextLead} className="px-3 py-1 hover:text-slate-900 transition-colors flex items-center space-x-1 cursor-pointer rounded-full hover:bg-slate-50">
              <span>Next</span> <ChevronRight className="w-3.5 h-3.5"/>
            </button>
-        </div>
+          </div>
 
         {/* Scrollable Feed Container */}
         <div className="flex-1 overflow-y-auto ios-scroll">
@@ -1042,42 +1070,42 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                           <span>date</span>
                        </div>
                        <div className="text-slate-300">DD/MM/YYYY HH:mm:ss</div>
-                     </div>
-                   </div>
-                 )}
+                      </div>
+                    </div>
+                  )}
                </div>
 
                {/* Action Bar */}
-               <div className="bg-[#fcfcfc] border-t border-slate-100 p-2 flex justify-between items-center text-[10px] font-medium text-slate-500">
-                 <button onClick={handleCallLead} className="flex-1 flex flex-col items-center justify-center space-y-1 hover:text-slate-800 transition-colors py-3 cursor-pointer">
-                   <Phone className="w-5 h-5 mb-1" strokeWidth={1.5} />
+               <div className="bg-[#fcfcfc] border-t border-slate-100 p-1.5 sm:p-2 flex justify-between items-center text-[10px] font-medium text-slate-500 overflow-x-auto ios-scroll no-scrollbar shrink-0">
+                 <button onClick={handleCallLead} className="min-w-[54px] flex-1 flex flex-col items-center justify-center space-y-1 hover:text-slate-800 transition-colors py-2 sm:py-3 cursor-pointer">
+                   <Phone className="w-4 sm:w-5 h-4 sm:h-5 mb-0.5 sm:mb-1" strokeWidth={1.5} />
                    <span>CALL</span>
                  </button>
-                 <button onClick={() => { const n = prompt('Add Task:'); if(n) onAddActivity({leadId: lead.id, type: 'note', title: 'Task', description: n}); }} className="flex-1 flex flex-col items-center justify-center space-y-1 hover:text-slate-800 transition-colors py-3 relative cursor-pointer">
-                   <CheckSquare className="w-5 h-5 mb-1" strokeWidth={1.5} />
+                 <button onClick={() => { const n = prompt('Add Task:'); if(n) onAddActivity({leadId: lead.id, type: 'note', title: 'Task', description: n}); }} className="min-w-[54px] flex-1 flex flex-col items-center justify-center space-y-1 hover:text-slate-800 transition-colors py-2 sm:py-3 relative cursor-pointer">
+                   <CheckSquare className="w-4 sm:w-5 h-4 sm:h-5 mb-0.5 sm:mb-1" strokeWidth={1.5} />
                    <div className="flex items-center">
                      <span>TASK</span>
                      <ChevronDown className="w-3 h-3 ml-0.5" />
                    </div>
                  </button>
-                 <button onClick={() => window.open(`https://wa.me/${lead.phone?.replace(/[^0-9]/g, '')}`, '_blank')} className="flex-1 flex flex-col items-center justify-center space-y-1 hover:text-slate-800 transition-colors py-3 cursor-pointer">
-                   <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" className="w-5 h-5 mb-1 opacity-70 grayscale hover:grayscale-0 transition-all"/>
+                 <button onClick={() => window.open(`https://wa.me/${lead.phone?.replace(/[^0-9]/g, '')}`, '_blank')} className="min-w-[54px] flex-1 flex flex-col items-center justify-center space-y-1 hover:text-slate-800 transition-colors py-2 sm:py-3 cursor-pointer">
+                   <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" className="w-4 sm:w-5 h-4 sm:h-5 mb-0.5 sm:mb-1 opacity-70 grayscale hover:grayscale-0 transition-all"/>
                    <span>WHATSAPP</span>
                  </button>
-                 <button onClick={() => { window.location.href = `sms:${lead.phone}`; }} className="flex-1 flex flex-col items-center justify-center space-y-1 hover:text-slate-800 transition-colors py-3 cursor-pointer">
-                   <MessageCircle className="w-5 h-5 mb-1" strokeWidth={1.5} />
+                 <button onClick={() => { window.location.href = `sms:${lead.phone}`; }} className="min-w-[54px] flex-1 flex flex-col items-center justify-center space-y-1 hover:text-slate-800 transition-colors py-2 sm:py-3 cursor-pointer">
+                   <MessageCircle className="w-4 sm:w-5 h-4 sm:h-5 mb-0.5 sm:mb-1" strokeWidth={1.5} />
                    <span>SMS</span>
                  </button>
-                 <button onClick={() => { const n = prompt('Add Note:'); if(n) onAddActivity({leadId: lead.id, type: 'note', title: 'Note', description: n}); }} className="flex-1 flex flex-col items-center justify-center space-y-1 hover:text-slate-800 transition-colors py-3 cursor-pointer">
-                   <Clipboard className="w-5 h-5 mb-1" strokeWidth={1.5} />
-                   <span>ADD NOTE</span>
+                 <button onClick={() => { const n = prompt('Add Note:'); if(n) onAddActivity({leadId: lead.id, type: 'note', title: 'Note', description: n}); }} className="min-w-[54px] flex-1 flex flex-col items-center justify-center space-y-1 hover:text-slate-800 transition-colors py-2 sm:py-3 cursor-pointer">
+                   <Clipboard className="w-4 sm:w-5 h-4 sm:h-5 mb-0.5 sm:mb-1" strokeWidth={1.5} />
+                   <span>NOTE</span>
                  </button>
-                 <button onClick={() => setActiveActionType('followup')} className="flex-1 flex flex-col items-center justify-center space-y-1 hover:text-indigo-700 transition-colors py-3 cursor-pointer">
-                    <CalendarPlus className="w-5 h-5 mb-1" strokeWidth={1.5} />
+                 <button onClick={() => setActiveActionType('followup')} className="min-w-[58px] flex-1 flex flex-col items-center justify-center space-y-1 hover:text-indigo-700 transition-colors py-2 sm:py-3 cursor-pointer">
+                    <CalendarPlus className="w-4 sm:w-5 h-4 sm:h-5 mb-0.5 sm:mb-1" strokeWidth={1.5} />
                     <span>FOLLOW UP</span>
                  </button>
-                 <button className="flex-1 flex flex-col items-center justify-center space-y-1 hover:text-slate-800 transition-colors py-3 cursor-pointer">
-                   <Sparkles className="w-5 h-5 mb-1" strokeWidth={1.5} />
+                 <button className="min-w-[54px] flex-1 flex flex-col items-center justify-center space-y-1 hover:text-slate-800 transition-colors py-2 sm:py-3 cursor-pointer">
+                   <Sparkles className="w-4 sm:w-5 h-4 sm:h-5 mb-0.5 sm:mb-1" strokeWidth={1.5} />
                    <span>LEAD-IQ</span>
                  </button>
                </div>
@@ -1339,6 +1367,27 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                   />
                 </div>
                 <div>
+                  <label className="text-[11px] font-semibold text-slate-400 block mb-1 uppercase tracking-wider font-mono">Assignee</label>
+                  <div className="relative">
+                    <UserCheck className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                    <select
+                      value={followupAssigneeId}
+                      onChange={(e) => setFollowupAssigneeId(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-400 cursor-pointer"
+                    >
+                      <option value="">Select Assignee</option>
+                      {agents.map((ag) => (
+                        <option key={ag.id} value={ag.id}>
+                          {ag.name} ({ag.role})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Directly assigned to this lead's owner ({lead.ownerAgentName || 'Unassigned'}).
+                  </p>
+                </div>
+                <div>
                   <label className="text-[11px] font-semibold text-slate-400 block mb-1.5 uppercase tracking-wider font-mono">Date & Time</label>
                   <div className="space-y-2">
                     {/* Date picker */}
@@ -1541,7 +1590,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                   </div>
                   <div className="flex-1 min-w-0 flex items-center pl-2">
                     <span className="text-[13px] text-slate-600 truncate">
-                      Lead Capture from <span className="font-semibold text-slate-800">Form: Master Form IATA Cargo</span> & <span className="font-semibold text-slate-800">Page: Kite Institute of Aviation & Hospitality</span>
+                      Lead Capture from <span className="font-semibold text-slate-800">Inbound Lead Form</span> & <span className="font-semibold text-slate-800">Connected Social Page</span>
                     </span>
                   </div>
                   <div className="flex-shrink-0 ml-4 flex items-center space-x-3">
