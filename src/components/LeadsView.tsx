@@ -41,8 +41,69 @@ import {
   CalendarPlus,
   Clock,
   UserCheck,
-  LayoutGrid
+  LayoutGrid,
+  Timer
 } from 'lucide-react';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FRESH LEAD RESPONSE TIMER BADGE
+// Shows a live countdown pill on new leads within the configured window.
+// Self-contained: ticks every 60 s, vanishes at 0 without any external state.
+// ─────────────────────────────────────────────────────────────────────────────
+const TIMER_SENTINEL_ID = '__fresh_lead_timer__';
+
+function parseleadCreatedMs(createdAt: string): number {
+  if (!createdAt || createdAt === 'Just Now' || createdAt === 'Just now') return Date.now();
+  const parsed = new Date(createdAt).getTime();
+  if (!isNaN(parsed)) return parsed;
+  // Handle relative strings like "2h ago", "30m ago"
+  const match = createdAt.match(/(\d+)\s*(m|min|h|hour|d|day)/i);
+  if (match) {
+    const val = parseInt(match[1], 10);
+    const unit = match[2].toLowerCase();
+    const now = Date.now();
+    if (unit.startsWith('m')) return now - val * 60_000;
+    if (unit.startsWith('h')) return now - val * 3_600_000;
+    if (unit.startsWith('d')) return now - val * 86_400_000;
+  }
+  return Date.now();
+}
+
+const FreshLeadTimerBadge: React.FC<{ lead: { createdAt: string }; timerMinutes: number }> = ({ lead, timerMinutes }) => {
+  const getMinutesLeft = () => {
+    const elapsedMs = Date.now() - parseleadCreatedMs(lead.createdAt);
+    return Math.ceil(timerMinutes - elapsedMs / 60_000);
+  };
+
+  const [minutesLeft, setMinutesLeft] = React.useState(getMinutesLeft);
+
+  React.useEffect(() => {
+    if (minutesLeft <= 0) return;
+    const id = setInterval(() => {
+      const left = getMinutesLeft();
+      setMinutesLeft(left);
+      if (left <= 0) clearInterval(id);
+    }, 30_000); // refresh every 30 s for accuracy
+    return () => clearInterval(id);
+  }, [timerMinutes, lead.createdAt]);
+
+  if (minutesLeft <= 0) return null;
+
+  const isUrgent = minutesLeft <= 5;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm ml-1.5 ${
+        isUrgent
+          ? 'bg-red-500 text-white animate-pulse shadow-red-300/50'
+          : 'bg-orange-500 text-white shadow-orange-300/40'
+      }`}
+      title={`Call within ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''} — fresh lead!`}
+    >
+      <Timer className="w-2.5 h-2.5" />
+      {minutesLeft}m
+    </span>
+  );
+};
 import { 
   Lead, 
   Agent, 
@@ -1665,8 +1726,15 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                           onClick={() => onOpenLeadDetail(lead)}
                           className="cursor-pointer min-w-0"
                         >
-                          <h4 className="font-bold text-slate-900 text-sm truncate tracking-tight hover:text-indigo-600">
-                            {lead.name || 'Unnamed Lead'}
+                          <h4 className="font-bold text-slate-900 text-sm truncate tracking-tight hover:text-indigo-600 flex items-center flex-wrap gap-1">
+                            <span className="truncate">{lead.name || 'Unnamed Lead'}</span>
+                            {(() => {
+                              const timerRecord = customFields.find(f => f.id === TIMER_SENTINEL_ID);
+                              const freshTimerMins = timerRecord?.freshLeadTimerMinutes ?? 0;
+                              return freshTimerMins > 0 ? (
+                                <FreshLeadTimerBadge lead={lead} timerMinutes={freshTimerMins} />
+                              ) : null;
+                            })()}
                           </h4>
                           <p className="text-[11px] text-slate-500 truncate">
                             {lead.company || lead.source || 'Direct Lead'}
@@ -1842,6 +1910,8 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                             {/* Dynamic Row Cells from Database Field Settings */}
                             {visibleFields.map((field) => {
                               const val = getLeadFieldValue(lead, field);
+                              const timerRecord = customFields.find(f => f.id === TIMER_SENTINEL_ID);
+                              const freshTimerMins = timerRecord?.freshLeadTimerMinutes ?? 0;
                               
                               if (field.primarySlot === 'H1' || field.name === 'name') {
                                 return (
@@ -1849,7 +1919,12 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                                     key={field.id}
                                     className="px-3.5 py-2.5 font-semibold text-slate-700 hover:text-slate-900 hover:underline cursor-pointer whitespace-nowrap"
                                   >
-                                    <span className="truncate max-w-[200px] inline-block capitalize">{val || '—'}</span>
+                                    <span className="flex items-center">
+                                      <span className="truncate max-w-[200px] inline-block capitalize">{val || '—'}</span>
+                                      {freshTimerMins > 0 && (
+                                        <FreshLeadTimerBadge lead={lead} timerMinutes={freshTimerMins} />
+                                      )}
+                                    </span>
                                   </td>
                                 );
                               }
