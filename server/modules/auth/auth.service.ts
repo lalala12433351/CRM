@@ -163,13 +163,16 @@ export class AuthService {
       throw new Error('Password is required.');
     }
 
-    // 1. Kite Aviation Master Admin
-    if (targetEmail === 'admin@kiteaviation' || targetEmail === 'admin@kiteaviation.com') {
+    const ALLOWED_ADMIN = 'admin@kiteaviation';
+    const ALLOWED_ADMIN_ALT = 'admin@kiteaviation.com';
+
+    // 1. Check Kite Aviation Master Admin
+    if (targetEmail === ALLOWED_ADMIN || targetEmail === ALLOWED_ADMIN_ALT) {
       const isValidAdminPass = inputPass === 'admin' || inputPass === 'admin@123';
       if (!isValidAdminPass) {
-        throw new Error('Invalid password. Incorrect credentials for admin@kiteaviation.');
+        throw new Error('Invalid password. Incorrect password for admin@kiteaviation.');
       }
-      let kiteUser = AUTH_USERS.find(u => u.email.toLowerCase() === 'admin@kiteaviation' || u.email.toLowerCase() === 'admin@kiteaviation.com');
+      let kiteUser = AUTH_USERS.find(u => u.email.toLowerCase() === ALLOWED_ADMIN || u.email.toLowerCase() === ALLOWED_ADMIN_ALT);
       if (!kiteUser) {
         kiteUser = {
           id: 'agent_kiteaviation_admin',
@@ -196,74 +199,20 @@ export class AuthService {
       return { token, user: kiteUser };
     }
 
-    // 2. Check registered users in-memory
-    let user = AUTH_USERS.find((u) => u.email.toLowerCase() === targetEmail);
-
-    // 3. Check registered tenants/agents in multiTenantDb
-    if (!user) {
-      const tenantMatch = multiTenantDb.getTenantByOwnerEmail(targetEmail);
-      if (tenantMatch) {
-        user = {
-          id: `agent_${tenantMatch.tenantId}`,
-          name: tenantMatch.companyName + ' Admin',
-          email: tenantMatch.ownerEmail,
-          phone: tenantMatch.ownerPhone || '+91 98000 00000',
-          companyName: tenantMatch.companyName,
-          tenantId: tenantMatch.tenantId,
-          databaseCollection: tenantMatch.tenantId,
-          role: 'Master Admin',
-          isAdmin: true,
-          status: 'online',
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-          totalCallsToday: 0,
-          talkTimeMinutes: 0,
-          convertedLeadsCount: 0,
-          revenueGenerated: 0,
-          responseTimeMinutes: 1.0
-        };
-        AUTH_USERS.push(user);
-      } else {
-        const agentMatch = multiTenantDb.getAgentByEmail(targetEmail);
-        if (agentMatch) {
-          user = {
-            id: agentMatch.id,
-            name: agentMatch.name,
-            email: agentMatch.email,
-            phone: agentMatch.phone || '+91 98000 00000',
-            companyName: agentMatch.companyName,
-            tenantId: agentMatch.tenantId,
-            databaseCollection: agentMatch.tenantId,
-            role: agentMatch.role || 'Sales Representative',
-            isAdmin: agentMatch.isAdmin || false,
-            status: 'online',
-            avatar: agentMatch.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-            totalCallsToday: agentMatch.totalCallsToday || 0,
-            talkTimeMinutes: agentMatch.talkTimeMinutes || 0,
-            convertedLeadsCount: agentMatch.convertedLeadsCount || 0,
-            revenueGenerated: agentMatch.revenueGenerated || 0,
-            responseTimeMinutes: agentMatch.responseTimeMinutes || 1.0
-          };
-          AUTH_USERS.push(user);
-        }
+    // 2. Check explicitly registered users from runtime registration
+    const registeredUser = AUTH_USERS.find((u) => u.email.toLowerCase() === targetEmail);
+    if (registeredUser) {
+      const expectedPass = (registeredUser as any).password || 'admin';
+      if (inputPass !== expectedPass && inputPass !== 'admin' && inputPass !== 'admin@123') {
+        throw new Error('Invalid password. Please check your credentials.');
       }
+      const token = `pixbe_token_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      activeSessions.set(token, registeredUser);
+      return { token, user: registeredUser };
     }
 
-    if (!user) {
-      throw new Error(`Invalid email or password. User "${targetEmail}" does not exist in the database.`);
-    }
-
-    // Require valid password matching 'admin', 'admin@123', or user's stored password
-    const expectedPass = (user as any).password || 'admin';
-    const isPassValid  = inputPass === expectedPass || inputPass === 'admin' || inputPass === 'admin@123';
-
-    if (!isPassValid) {
-      throw new Error(`Invalid password for "${targetEmail}". Please check your password.`);
-    }
-
-    const token = `pixbe_token_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    activeSessions.set(token, user);
-    logger.info(`✅ Authenticated User: ${user.name} (${user.email}) -> Role: ${user.isAdmin ? 'Admin' : 'Employee'} [Tenant: ${user.tenantId}]`);
-    return { token, user };
+    // All other credentials REJECTED
+    throw new Error('Invalid email address or password. Login is restricted to admin@kiteaviation.');
   }
 
   public getSession(token: string) {
