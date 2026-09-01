@@ -152,12 +152,12 @@ export class AuthService {
     return { token, tenantId, user: newUser };
   }
 
-  public loginUser(email: string, password?: string) {
+  public async loginUser(email: string, password?: string) {
     const targetEmail = (email || '').trim().toLowerCase();
-    if (!targetEmail) throw new Error('Email address is required');
+    if (!targetEmail) throw new Error('Email address is required.');
     const inputPass = (password || '').trim();
 
-    // Check Kite Aviation Admin
+    // 1. Check Kite Aviation Admin
     if (targetEmail === 'admin@kiteaviation') {
       if (inputPass !== 'admin' && inputPass !== 'admin@123') {
         throw new Error('Invalid password for admin@kiteaviation.');
@@ -189,16 +189,65 @@ export class AuthService {
       return { token, user: kiteUser };
     }
 
-    // Check existing registered users
-    const user = AUTH_USERS.find((u) => u.email.toLowerCase() === targetEmail);
+    // 2. Check in-memory AUTH_USERS
+    let user = AUTH_USERS.find((u) => u.email.toLowerCase() === targetEmail);
+
+    // 3. Check local multi-tenant database store (tenants & agents)
+    if (!user) {
+      const tenantMatch = multiTenantDb.getTenantByOwnerEmail(targetEmail);
+      if (tenantMatch) {
+        user = {
+          id: `agent_${tenantMatch.tenantId}`,
+          name: tenantMatch.companyName + ' Admin',
+          email: tenantMatch.ownerEmail,
+          phone: tenantMatch.ownerPhone || '+91 98000 00000',
+          companyName: tenantMatch.companyName,
+          tenantId: tenantMatch.tenantId,
+          databaseCollection: tenantMatch.tenantId,
+          role: 'Master Admin',
+          isAdmin: true,
+          status: 'online',
+          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+          totalCallsToday: 0,
+          talkTimeMinutes: 0,
+          convertedLeadsCount: 0,
+          revenueGenerated: 0,
+          responseTimeMinutes: 1.0
+        };
+        AUTH_USERS.push(user);
+      } else {
+        const agentMatch = multiTenantDb.getAgentByEmail(targetEmail);
+        if (agentMatch) {
+          user = {
+            id: agentMatch.id,
+            name: agentMatch.name,
+            email: agentMatch.email,
+            phone: agentMatch.phone || '+91 98000 00000',
+            companyName: agentMatch.companyName,
+            tenantId: agentMatch.tenantId,
+            databaseCollection: agentMatch.tenantId,
+            role: agentMatch.role || 'Sales Representative',
+            isAdmin: agentMatch.isAdmin || false,
+            status: 'online',
+            avatar: agentMatch.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+            totalCallsToday: agentMatch.totalCallsToday || 0,
+            talkTimeMinutes: agentMatch.talkTimeMinutes || 0,
+            convertedLeadsCount: agentMatch.convertedLeadsCount || 0,
+            revenueGenerated: agentMatch.revenueGenerated || 0,
+            responseTimeMinutes: agentMatch.responseTimeMinutes || 1.0
+          };
+          AUTH_USERS.push(user);
+        }
+      }
+    }
 
     if (!user) {
-      throw new Error('Invalid email or password. Only registered accounts can log in.');
+      throw new Error(`Invalid email or password. Account "${targetEmail}" is not registered in the database.`);
     }
 
     const token = `pixbe_token_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     activeSessions.set(token, user);
-    logger.info(`✅ Authenticated User: ${user.name} (${user.email}) -> Role: ${user.isAdmin ? 'Admin' : 'Employee'} [Tenant: ${user.tenantId}]`);
+    logger.info(`✅ Authenticated Database User: ${user.name} (${user.email}) -> Role: ${user.isAdmin ? 'Admin' : 'Employee'} [Tenant: ${user.tenantId}]`);
     return { token, user };
   }
 

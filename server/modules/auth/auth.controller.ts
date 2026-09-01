@@ -42,10 +42,10 @@ export class AuthController {
     }
   }
 
-  public login(req: Request, res: Response) {
+  public async login(req: Request, res: Response) {
     try {
       const { email, password } = req.body || {};
-      const result = authService.loginUser(email, password);
+      const result = await authService.loginUser(email, password);
       res.json({
         success: true,
         token: result.token,

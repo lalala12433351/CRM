@@ -331,6 +331,22 @@ export class MultiTenantDatabase {
     return tenant;
   }
 
+  public getTenantByOwnerEmail(email: string): ClientTenant | undefined {
+    const cleanEmail = (email || '').toLowerCase().trim();
+    return Object.values(this.store.tenants).find(
+      (t) => t.ownerEmail && t.ownerEmail.toLowerCase().trim() === cleanEmail
+    );
+  }
+
+  public getAgentByEmail(email: string): TenantAgent | undefined {
+    const cleanEmail = (email || '').toLowerCase().trim();
+    for (const agentList of Object.values(this.store.agents)) {
+      const match = agentList.find((a) => a.email && a.email.toLowerCase().trim() === cleanEmail);
+      if (match) return match;
+    }
+    return undefined;
+  }
+
   public getTenant(tenantId: string): ClientTenant | undefined {
     return this.store.tenants[tenantId];
   }
