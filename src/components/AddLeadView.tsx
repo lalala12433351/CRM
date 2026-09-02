@@ -39,7 +39,7 @@ interface AddLeadViewProps {
   agents: Agent[];
   customFields: CustomFieldDef[];
   activeAgent?: Agent;
-  onSaveLead: (lead: Lead) => void;
+  onSaveLead: (lead: Lead, stayOnPage?: boolean) => void;
   onSaveAndCall?: (lead: Lead) => void;
   onImportBulkLeads: (leads: Partial<Lead>[]) => void;
   onCancel: () => void;
@@ -357,15 +357,18 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
       if (onSaveAndCall) {
         onSaveAndCall(newLead);
       } else {
-        onSaveLead(newLead);
+        onSaveLead(newLead, false);
       }
+    } else if (action === 'save_and_add_another') {
+      onSaveLead(newLead, true);
     } else {
-      onSaveLead(newLead);
+      onSaveLead(newLead, false);
     }
 
     handleClearDraft();
 
     if (action === 'save_and_add_another') {
+      // Clear form inputs so the user can immediately add another lead on this same page
       setFullName('');
       setRawPhone('');
       setEmail('');
@@ -373,8 +376,17 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
       setDealValue('');
       setRequirement('');
       setNotes('');
+      setFollowUpNotes('');
+      setFollowUpDate('');
+      setAlternatePhone('');
+      setNewTagInput('');
+      setSelectedTags([]);
+      setCustomFieldValues({});
       setDuplicateWarning(null);
-      if (onShowToast) onShowToast('Lead saved successfully! Ready to add another.');
+      setFormErrors({});
+      if (onShowToast) {
+        onShowToast(`Lead "${newLead.name}" saved successfully! Ready to add another lead.`);
+      }
     } else if (action === 'save') {
       onCancel();
     }

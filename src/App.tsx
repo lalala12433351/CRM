@@ -928,7 +928,7 @@ export function App() {
               agents={agents}
               customFields={customFields}
               activeAgent={activeAgent}
-              onSaveLead={(newLead) => {
+              onSaveLead={(newLead, stayOnPage) => {
                 setLeads((prev) => [newLead, ...prev]);
                 fetchWithTenantAuth('/api/leads', {
                   method: 'POST',
@@ -962,7 +962,10 @@ export function App() {
                 } else {
                   showToast(`New Lead Ingested: ${newLead.name}`);
                 }
-                setCurrentView('leads');
+
+                if (!stayOnPage) {
+                  setCurrentView('leads');
+                }
               }}
               onSaveAndCall={(newLead) => {
                 setLeads((prev) => [newLead, ...prev]);
