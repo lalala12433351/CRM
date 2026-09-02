@@ -1197,7 +1197,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
       </div>
 
       {/* 2. FILTER PILLS ROW (Assignee | Status | Creation Date) */}
-      <div className="px-4 sm:px-6 mb-3 relative z-30">
+      <div className="px-4 sm:px-6 mb-3 relative z-50">
         <div className="flex items-center gap-2 flex-wrap">
           
           {/* In Table view, show the full unified search bar. In Chart view, show the clean filter pills as shown in screenshot */}
@@ -1541,7 +1541,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
         <div className="px-3 sm:px-6 space-y-4 max-w-full overflow-hidden">
           
           {/* TAB BAR CARD: Dimension tabs on left, Range/Export/Download on right */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-2xs px-3 sm:px-4 pt-3 pb-0 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 max-w-full relative z-30">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xs px-3 sm:px-4 pt-3 pb-0 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 max-w-full relative z-20">
             
             {/* Left Dimension Tabs: Created on | Status | Lost Reasons | Assignee | Rating | Call status | Number of calls placed | Custom */}
             <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar text-xs md:text-sm">
