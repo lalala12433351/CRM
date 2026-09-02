@@ -209,7 +209,8 @@ export class MultiTenantDatabase {
     tasks: {},
     integrations: {},
     activities: {},
-    lostReasons: {}
+    lostReasons: {},
+    calls: {}
   };
 
   constructor() {
@@ -234,7 +235,8 @@ export class MultiTenantDatabase {
           tasks: parsed.tasks || {},
           integrations: parsed.integrations || {},
           activities: parsed.activities || {},
-          lostReasons: parsed.lostReasons || {}
+          lostReasons: parsed.lostReasons || {},
+          calls: parsed.calls || {}
         };
       } else {
         this.saveStore();

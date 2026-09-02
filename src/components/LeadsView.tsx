@@ -756,6 +756,8 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
     document.body.removeChild(link);
   };
 
+  const isAllCurrentPageSelected = currentPaginatedLeads.length > 0 && currentPaginatedLeads.every(l => selectedLeadIds.includes(l.id));
+
   // Export Chart Data
   const handleExportChartCsv = () => {
     const headers = ['Category', 'Count', 'Percentage'];
@@ -768,7 +770,13 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `leads_${activeDimension}_chart_${new Date(  // Helper to extract group value for any lead when grouping
+    link.setAttribute('download', `leads_${activeDimension}_chart_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Helper to extract group value for any lead when grouping
   const getLeadGroupValue = (l: Lead, groupKey: string): string => {
     if (groupKey === 'Source') return l.source || 'Direct';
     if (groupKey === 'Assignee') return l.ownerAgentName || activeAgent?.name || 'Unassigned';
