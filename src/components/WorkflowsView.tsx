@@ -309,7 +309,7 @@ export const WorkflowsView: React.FC<WorkflowsViewProps> = ({
                 <span>Total Runs</span>
                 <Info className="w-3.5 h-3.5 text-slate-400" />
               </div>
-              <p className="text-2xl font-bold text-slate-900">462</p>
+              <p className="text-sm font-bold text-slate-900">462</p>
               <p className="text-[11px] text-slate-400 font-mono">last {timeRange}</p>
             </div>
 
@@ -318,7 +318,7 @@ export const WorkflowsView: React.FC<WorkflowsViewProps> = ({
                 <span>Success</span>
                 <Info className="w-3.5 h-3.5 text-slate-400" />
               </div>
-              <p className="text-2xl font-bold text-emerald-600">100%</p>
+              <p className="text-sm font-bold text-emerald-600">100%</p>
               <p className="text-[11px] text-slate-400 font-mono">last {timeRange}</p>
             </div>
 
@@ -327,7 +327,7 @@ export const WorkflowsView: React.FC<WorkflowsViewProps> = ({
                 <span>Failed</span>
                 <Info className="w-3.5 h-3.5 text-slate-400" />
               </div>
-              <p className="text-2xl font-bold text-[#DC2626]">0</p>
+              <p className="text-sm font-bold text-[#DC2626]">0</p>
               <p className="text-[11px] text-slate-400 font-mono">last {timeRange}</p>
             </div>
 
@@ -336,7 +336,7 @@ export const WorkflowsView: React.FC<WorkflowsViewProps> = ({
                 <span>Sleeping</span>
                 <Info className="w-3.5 h-3.5 text-slate-400" />
               </div>
-              <p className="text-2xl font-bold text-slate-900">0</p>
+              <p className="text-sm font-bold text-slate-900">0</p>
               <p className="text-[11px] text-slate-400 font-mono">last {timeRange}</p>
             </div>
 
@@ -345,7 +345,7 @@ export const WorkflowsView: React.FC<WorkflowsViewProps> = ({
                 <span>Waiting for Reply</span>
                 <Info className="w-3.5 h-3.5 text-slate-400" />
               </div>
-              <p className="text-2xl font-bold text-slate-900">0</p>
+              <p className="text-sm font-bold text-slate-900">0</p>
               <p className="text-[11px] text-slate-400 font-mono">last {timeRange}</p>
             </div>
           </div>
@@ -574,7 +574,7 @@ export const WorkflowsView: React.FC<WorkflowsViewProps> = ({
                 <span>Total Runs</span>
                 <Info className="w-3.5 h-3.5 text-slate-400" />
               </div>
-              <p className="text-2xl font-bold text-slate-900">0</p>
+              <p className="text-sm font-bold text-slate-900">0</p>
               <p className="text-[11px] text-slate-400 font-mono">last {timeRange}</p>
             </div>
 
@@ -583,7 +583,7 @@ export const WorkflowsView: React.FC<WorkflowsViewProps> = ({
                 <span>Success</span>
                 <Info className="w-3.5 h-3.5 text-slate-400" />
               </div>
-              <p className="text-2xl font-bold text-slate-900">0%</p>
+              <p className="text-sm font-bold text-slate-900">0%</p>
               <p className="text-[11px] text-slate-400 font-mono">last {timeRange}</p>
             </div>
 
@@ -592,7 +592,7 @@ export const WorkflowsView: React.FC<WorkflowsViewProps> = ({
                 <span>Failed</span>
                 <Info className="w-3.5 h-3.5 text-slate-400" />
               </div>
-              <p className="text-2xl font-bold text-[#DC2626]">0</p>
+              <p className="text-sm font-bold text-[#DC2626]">0</p>
               <p className="text-[11px] text-slate-400 font-mono">last {timeRange}</p>
             </div>
           </div>

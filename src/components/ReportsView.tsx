@@ -544,17 +544,17 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
                   <span className="text-[10px] font-mono font-bold uppercase text-slate-500 block tracking-wider">CALLS</span>
-                  <p className="text-2xl font-bold text-slate-900 mt-1">{totalCalls}</p>
+                  <p className="text-sm font-bold text-slate-900 mt-1">{totalCalls}</p>
                 </div>
 
                 <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
                   <span className="text-[10px] font-mono font-bold uppercase text-slate-500 block tracking-wider">TIME</span>
-                  <p className="text-2xl font-bold text-slate-900 mt-1">{formatSecs(totalTalkTimeSecs)}</p>
+                  <p className="text-sm font-bold text-slate-900 mt-1">{formatSecs(totalTalkTimeSecs)}</p>
                 </div>
 
                 <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
                   <span className="text-[10px] font-mono font-bold uppercase text-slate-500 block tracking-wider">SALES</span>
-                  <p className="text-2xl font-bold text-slate-900 mt-1">₹{totalSales.toLocaleString()}</p>
+                  <p className="text-sm font-bold text-slate-900 mt-1">₹{totalSales.toLocaleString()}</p>
                 </div>
               </div>
 
@@ -811,19 +811,19 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 text-xs font-mono">
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
               <span className="text-[10px] text-slate-500 font-bold uppercase">Active Telecallers</span>
-              <p className="text-sm font-normal text-slate-800 mt-0.5">{rankedAgents.length}</p>
+              <p className="text-sm font-bold text-slate-900 mt-0.5">{rankedAgents.length}</p>
             </div>
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
               <span className="text-[10px] text-slate-500 font-bold uppercase">Period Calls Made</span>
-              <p className="text-sm font-normal text-slate-800 mt-0.5">{totalCalls}</p>
+              <p className="text-sm font-bold text-slate-900 mt-0.5">{totalCalls}</p>
             </div>
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
               <span className="text-[10px] text-slate-500 font-bold uppercase">Period Talk Time</span>
-              <p className="text-sm font-normal text-slate-800 mt-0.5">{formatSecs(totalTalkTimeSecs)}</p>
+              <p className="text-sm font-bold text-slate-900 mt-0.5">{formatSecs(totalTalkTimeSecs)}</p>
             </div>
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
               <span className="text-[10px] text-slate-500 font-bold uppercase">Period Deals Won</span>
-              <p className="text-sm font-normal text-purple-700 mt-0.5">
+              <p className="text-sm font-bold text-purple-700 mt-0.5">
                 {rankedAgents.reduce((sum, a) => sum + a.calculatedConverted, 0)}
               </p>
             </div>
@@ -987,22 +987,22 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
               <span className="text-[10px] text-slate-500 font-bold uppercase block">Calls Logged</span>
-              <p className="text-xl font-bold text-slate-900 mt-1">{currentAgentReport.calculatedCalls}</p>
+              <p className="text-sm font-bold text-slate-900 mt-1">{currentAgentReport.calculatedCalls}</p>
             </div>
 
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
               <span className="text-[10px] text-slate-500 font-bold uppercase block">Talk Time</span>
-              <p className="text-xl font-bold text-slate-900 mt-1">{formatSecs(currentAgentReport.calculatedTalkTimeSecs)}</p>
+              <p className="text-sm font-bold text-slate-900 mt-1">{formatSecs(currentAgentReport.calculatedTalkTimeSecs)}</p>
             </div>
 
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
               <span className="text-[10px] text-slate-500 font-bold uppercase block">Deals Converted</span>
-              <p className="text-xl font-bold text-purple-700 mt-1">{currentAgentReport.calculatedConverted}</p>
+              <p className="text-sm font-bold text-purple-700 mt-1">{currentAgentReport.calculatedConverted}</p>
             </div>
 
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
               <span className="text-[10px] text-slate-500 font-bold uppercase block">Revenue Generated</span>
-              <p className="text-xl font-bold text-slate-900 mt-1">₹{currentAgentReport.calculatedRevenue.toLocaleString()}</p>
+              <p className="text-sm font-bold text-slate-900 mt-1">₹{currentAgentReport.calculatedRevenue.toLocaleString()}</p>
             </div>
           </div>
 

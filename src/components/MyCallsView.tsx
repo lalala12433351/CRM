@@ -383,7 +383,7 @@ export const MyCallsView: React.FC<MyCallsViewProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/80">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center space-x-2">
-              <span>{isAdmin ? 'All Calls & Telecaller Logs' : 'My Calls'}</span>
+              <span>{isAdmin ? 'All Calls' : 'My Calls'}</span>
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
               Comprehensive telecaller call histories, start/end timestamps, talk-times, and recording dispositions.

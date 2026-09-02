@@ -506,7 +506,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="bg-white/60 p-3 rounded-xl flex items-center justify-between shadow-2xs">
           <div>
             <p className="text-[11px] font-medium text-slate-500">Calls Today</p>
-            <p className="text-sm sm:text-base font-bold text-slate-900 mt-0.5">{totalCallsToday}</p>
+            <p className="text-xs sm:text-sm font-bold text-slate-900 mt-0.5">{totalCallsToday}</p>
           </div>
           <div className="w-8 h-8 rounded-lg bg-slate-100/70 border border-slate-200 flex items-center justify-center text-indigo-600">
             <PhoneCall className="w-3.5 h-3.5" />
@@ -517,7 +517,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="bg-white/60 p-3 rounded-xl flex items-center justify-between shadow-2xs">
           <div>
             <p className="text-[11px] font-medium text-slate-500">Talk Time</p>
-            <p className="text-sm sm:text-base font-bold text-slate-900 mt-0.5">{Math.floor(totalTalkTimeMin / 60)}h {totalTalkTimeMin % 60}m</p>
+            <p className="text-xs sm:text-sm font-bold text-slate-900 mt-0.5">{Math.floor(totalTalkTimeMin / 60)}h {totalTalkTimeMin % 60}m</p>
           </div>
           <div className="w-8 h-8 rounded-lg bg-slate-100/70 border border-slate-200 flex items-center justify-center text-indigo-600">
             <Clock className="w-3.5 h-3.5" />

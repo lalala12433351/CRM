@@ -237,7 +237,7 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
       </div>
 
       {/* Metrics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 font-sans font-normal">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 font-sans">
         <button
           onClick={() => setFilterType('today')}
           className={`p-3 rounded-xl text-left transition-all cursor-pointer ${
@@ -250,7 +250,7 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
             <span>Due Today</span>
             <Clock className="w-3.5 h-3.5 text-amber-600" />
           </div>
-          <p className="text-sm font-normal font-sans text-slate-800 mt-0.5">{dueTodayLeads.length}</p>
+          <p className="text-sm font-bold font-sans text-slate-900 mt-0.5">{dueTodayLeads.length}</p>
         </button>
 
         <button
@@ -265,7 +265,7 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
             <span>Overdue</span>
             <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
           </div>
-          <p className="text-sm font-normal font-sans text-slate-800 mt-0.5">{overdueLeads.length}</p>
+          <p className="text-sm font-bold font-sans text-slate-900 mt-0.5">{overdueLeads.length}</p>
         </button>
 
         <button
@@ -280,7 +280,7 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
             <span>All Scheduled</span>
             <Filter className="w-3.5 h-3.5 text-slate-500" />
           </div>
-          <p className="text-sm font-normal font-sans text-slate-800 mt-0.5">{followUpLeads.length}</p>
+          <p className="text-sm font-bold font-sans text-slate-900 mt-0.5">{followUpLeads.length}</p>
         </button>
       </div>
 
