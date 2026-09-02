@@ -954,11 +954,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <SlidersHorizontal className={`w-4 h-4 shrink-0 ${activeTab === 'fields' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
               <span className="truncate">Fields Settings</span>
             </div>
-            <span className={`shrink-0 ml-2 text-[10px] font-sans px-2 py-0.5 rounded-full font-bold ${
-              activeTab === 'fields' ? 'bg-blue-100 text-[#2563eb]' : 'bg-slate-200/70 text-slate-600'
-            }`}>
-              {localCustomFields.length}
-            </span>
           </button>
 
           <button
@@ -973,11 +968,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <ShieldCheck className={`w-4 h-4 shrink-0 ${activeTab === 'permissions' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
               <span className="truncate">Permission Templates</span>
             </div>
-            <span className={`shrink-0 ml-2 text-[10px] font-sans px-2 py-0.5 rounded-full font-bold ${
-              activeTab === 'permissions' ? 'bg-blue-100 text-[#2563eb]' : 'bg-slate-200/70 text-slate-600'
-            }`}>
-              {localTemplates.length}
-            </span>
           </button>
 
           <button
@@ -1006,11 +996,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <Kanban className={`w-4 h-4 shrink-0 ${activeTab === 'pipeline' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
               <span className="truncate">Pipeline Stages & Colors</span>
             </div>
-            <span className={`shrink-0 ml-2 text-[10px] font-sans px-2 py-0.5 rounded-full font-bold ${
-              activeTab === 'pipeline' ? 'bg-blue-100 text-[#2563eb]' : 'bg-amber-100 text-amber-700'
-            }`}>
-              New
-            </span>
           </button>
 
           <button
@@ -1025,11 +1010,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <CreditCard className={`w-4 h-4 shrink-0 ${activeTab === 'billing' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
               <span className="truncate">Buy Licenses & Billing</span>
             </div>
-            <span className={`shrink-0 ml-2 text-[10px] font-sans px-2 py-0.5 rounded-full font-bold ${
-              activeTab === 'billing' ? 'bg-blue-100 text-[#2563eb]' : 'bg-emerald-100 text-emerald-700'
-            }`}>
-              Billing
-            </span>
           </button>
 
           <button
@@ -1108,7 +1088,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
           {/* TAB: MY PROFILE */}
           {activeTab === 'profile' && (
-            <div className="space-y-6">
+            <div className="space-y-6 max-w-2xl">
               <div className="border-b border-slate-200 pb-3 flex items-center justify-between">
                 <div>
                   <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight">
@@ -1121,7 +1101,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
 
               {/* Profile Card Header with Photo Upload */}
-              <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-50 via-indigo-50/30 to-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-slate-50 via-indigo-50/30 to-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-4 max-w-2xl">
                 <div className="flex items-center space-x-4">
                   <div className="relative group">
                     <UserAvatar

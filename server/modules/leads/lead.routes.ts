@@ -12,5 +12,8 @@ router.put('/leads/:id', (req, res) => {
 router.delete('/leads/:id', (req, res) => leadController.deleteLead(req, res));
 router.get('/field-settings', (req, res) => leadController.getFieldSettings(req, res));
 router.post('/field-settings', (req, res) => leadController.saveFieldSettings(req, res));
+router.get('/activities', (req, res) => leadController.getActivities(req, res));
+router.post('/activities', (req, res) => leadController.logActivity(req, res));
+router.delete('/activities/:id', (req, res) => leadController.deleteActivity(req, res));
 
 export default router;

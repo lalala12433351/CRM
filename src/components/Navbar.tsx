@@ -199,7 +199,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const currentWorkspaceName = formatArcleName(activeAccount.name || 'Workspace', companyName);
 
   return (
-    <header className="h-14 glass-panel border-b border-white/60 px-3 md:px-5 flex items-center justify-between sticky top-0 z-30 text-slate-900 font-sans select-none">
+    <header className="h-14 glass-panel border-b border-slate-200 px-3 md:px-5 flex items-center justify-between sticky top-0 z-[100] text-slate-900 font-sans select-none relative shadow-xs">
       
       {/* LEFT: Institute / Workspace Selector & Settings Flyout Trigger */}
       <div className="flex items-center space-x-1.5 sm:space-x-2 min-w-0">
@@ -229,7 +229,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* EXACT WORKSPACE / TEAM / BILLING SETTINGS FLYOUT MENU */}
           {isSettingsMenuOpen && (
-            <div className="absolute left-0 top-full mt-2 w-[calc(100vw-24px)] max-w-xs glass-dropdown rounded-2xl p-2.5 z-[9999] animate-in fade-in text-xs font-sans shadow-2xl max-h-[80vh] overflow-y-auto">
+            <div className="absolute left-0 top-full mt-2 w-[calc(100vw-24px)] max-w-xs glass-dropdown rounded-2xl p-2.5 z-[99999] animate-in fade-in text-xs font-sans shadow-2xl max-h-[80vh] overflow-y-auto">
               
               {/* WORKSPACE SECTION */}
               <div className="px-2.5 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider font-sans">
@@ -399,7 +399,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* User Account Dropdown */}
           {isUserMenuOpen && (
-            <div className="absolute right-0 top-full mt-2 w-[calc(100vw-24px)] max-w-xs glass-dropdown rounded-2xl p-3 z-[9999] animate-in fade-in text-xs font-sans font-normal shadow-2xl">
+            <div className="absolute right-0 top-full mt-2 w-[calc(100vw-24px)] max-w-xs glass-dropdown rounded-2xl p-3 z-[99999] animate-in fade-in text-xs font-sans font-normal shadow-2xl">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 font-sans gap-2">
                 <div className="flex items-center space-x-3 truncate">
                   <UserAvatar name={activeAgent.name} avatarUrl={activeAgent.avatar} size="lg" rounded="xl" />

@@ -78,14 +78,63 @@ import { ShieldCheck } from 'lucide-react';
 export const StagesContext = React.createContext<PipelineStage[]>(INITIAL_STAGES);
 
 export function App() {
-  // Navigation & Active View State (defaulting to 'leads')
-  const [currentView, setCurrentView] = useState<string>('leads');
-  const [reportsSubTab, setReportsSubTab] = useState<ReportsSubTab>('call_logs');
-  const [automationsSubTab, setAutomationsSubTab] = useState<AutomationsSubTab>('workflows');
-  const [settingsSubTab, setSettingsSubTab] = useState<SettingsTab>('general');
+  // Navigation & Active View State (persisted so view is not lost on edits or refresh)
+  const [currentView, setCurrentView] = useState<string>(() => {
+    try {
+      return localStorage.getItem('pixbe_current_view') || 'leads';
+    } catch {
+      return 'leads';
+    }
+  });
+  const [reportsSubTab, setReportsSubTab] = useState<ReportsSubTab>(() => {
+    try {
+      return (localStorage.getItem('pixbe_reports_subtab') as ReportsSubTab) || 'call_logs';
+    } catch {
+      return 'call_logs';
+    }
+  });
+  const [automationsSubTab, setAutomationsSubTab] = useState<AutomationsSubTab>(() => {
+    try {
+      return (localStorage.getItem('pixbe_automations_subtab') as AutomationsSubTab) || 'workflows';
+    } catch {
+      return 'workflows';
+    }
+  });
+  const [settingsSubTab, setSettingsSubTab] = useState<SettingsTab>(() => {
+    try {
+      return (localStorage.getItem('pixbe_settings_subtab') as SettingsTab) || 'general';
+    } catch {
+      return 'general';
+    }
+  });
   const [activeAgentId, setActiveAgentId] = useState<string>('agent-ms');
   const [selectedCampaignHandle, setSelectedCampaignHandle] = useState<string>('@master-form-iata-cargo');
   const [activeFilterId, setActiveFilterId] = useState<string>('all_leads');
+
+  // Keep navigation states synchronized with localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('pixbe_current_view', currentView);
+    } catch {}
+  }, [currentView]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('pixbe_reports_subtab', reportsSubTab);
+    } catch {}
+  }, [reportsSubTab]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('pixbe_automations_subtab', automationsSubTab);
+    } catch {}
+  }, [automationsSubTab]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('pixbe_settings_subtab', settingsSubTab);
+    } catch {}
+  }, [settingsSubTab]);
 
   // Global filters synchronized with database query logic
   const globalSavedFilters = [
@@ -112,7 +161,12 @@ export function App() {
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
 
   // Active authenticated tenant id
-  const activeTenantId = currentUser?.tenantId || 'default_tenant';
+  const activeTenantId = currentUser?.tenantId || (typeof localStorage !== 'undefined' ? (() => {
+    try {
+      const u = localStorage.getItem('pixbe_auth_user');
+      return u ? JSON.parse(u)?.tenantId : 'default_tenant';
+    } catch { return 'default_tenant'; }
+  })() : 'default_tenant') || 'default_tenant';
 
   // Core CRM Collections State strictly scoped to activeTenantId
   const [leads, setLeads] = useSyncState<Lead>('leads', activeTenantId);
@@ -218,69 +272,64 @@ export function App() {
   }, []);
 
   // Fetch all domain data from database when authenticated and activeTenantId is ready
+  const loadTenantDomainData = React.useCallback(async (tenantId?: string) => {
+    let activeId = tenantId || currentUser?.tenantId;
+    if (!activeId) {
+      try {
+        const stored = localStorage.getItem('pixbe_auth_user') || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pixbe_auth_user') : null);
+        if (stored) {
+          activeId = JSON.parse(stored)?.tenantId;
+        }
+      } catch {}
+    }
+    activeId = activeId || activeTenantId || 'default_tenant';
+
+    try {
+      const headers = { 'x-tenant-id': activeId };
+      // Parallel high-performance multi-collection hydration with explicit tenant header
+      const [leadsRes, agentsRes, pipelinesRes, fieldsRes, tasksRes, lostReasonsRes, activitiesRes] = await Promise.all([
+        fetchWithTenantAuth('/api/leads', { headers }).then((r) => r.json()).catch(() => ({ success: false })),
+        fetchWithTenantAuth('/api/agents', { headers }).then((r) => r.json()).catch(() => ({ success: false })),
+        fetchWithTenantAuth('/api/pipelines', { headers }).then((r) => r.json()).catch(() => ({ success: false })),
+        fetchWithTenantAuth('/api/field-settings', { headers }).then((r) => r.json()).catch(() => ({ success: false })),
+        fetchWithTenantAuth('/api/tasks', { headers }).then((r) => r.json()).catch(() => ({ success: false })),
+        fetchWithTenantAuth('/api/pipelines/lost-reasons', { headers }).then((r) => r.json()).catch(() => ({ success: false })),
+        fetchWithTenantAuth('/api/activities', { headers }).then((r) => r.json()).catch(() => ({ success: false })),
+      ]);
+
+      if (leadsRes?.success && Array.isArray(leadsRes.leads)) {
+        setLeads(leadsRes.leads);
+      }
+      if (agentsRes?.success && Array.isArray(agentsRes.agents) && agentsRes.agents.length > 0) {
+        setAgents(agentsRes.agents);
+      }
+      if (pipelinesRes?.success && Array.isArray(pipelinesRes.stages) && pipelinesRes.stages.length > 0) {
+        setStages(pipelinesRes.stages);
+      }
+      if (fieldsRes?.success && Array.isArray(fieldsRes.fields) && fieldsRes.fields.length > 0) {
+        setCustomFields(fieldsRes.fields);
+      }
+      if (tasksRes?.success && Array.isArray(tasksRes.tasks)) {
+        setCrmTasks(tasksRes.tasks);
+      }
+      if (lostReasonsRes?.success && Array.isArray(lostReasonsRes.lostReasons)) {
+        setLostReasons(lostReasonsRes.lostReasons);
+      }
+      if (activitiesRes?.success && Array.isArray(activitiesRes.activities)) {
+        setActivities(activitiesRes.activities);
+      }
+    } catch (err) {
+      console.warn('Tenant data loading notice:', err);
+    }
+  }, []);
+
+  // Fetch all domain data from database when authenticated
   useEffect(() => {
-    if (!isAuthenticated || !currentUser || !activeTenantId || activeTenantId === 'default_tenant') return;
-
-    // 1. Fetch live Leads from DB
-    fetchWithTenantAuth('/api/leads')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && Array.isArray(data.leads)) {
-          setLeads(data.leads);
-        }
-      })
-      .catch((err) => console.warn('Leads DB fetch notice:', err));
-
-    // 2. Fetch live Agents from DB
-    fetchWithTenantAuth('/api/agents')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && Array.isArray(data.agents) && data.agents.length > 0) {
-          setAgents(data.agents);
-        }
-      })
-      .catch((err) => console.warn('Agents DB fetch notice:', err));
-
-    // 3. Fetch live Pipeline Stages from DB
-    fetchWithTenantAuth('/api/pipelines')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && Array.isArray(data.stages) && data.stages.length > 0) {
-          setStages(data.stages);
-        }
-      })
-      .catch((err) => console.warn('Pipelines DB fetch notice:', err));
-
-    // 4. Fetch live Field Settings from DB
-    fetchWithTenantAuth('/api/field-settings')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && Array.isArray(data.fields) && data.fields.length > 0) {
-          setCustomFields(data.fields);
-        }
-      })
-      .catch((err) => console.warn('Field settings DB fetch notice:', err));
-
-    // 5. Fetch live Tasks from DB
-    fetchWithTenantAuth('/api/tasks')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && Array.isArray(data.tasks)) {
-          setCrmTasks(data.tasks);
-        }
-      })
-      .catch((err) => console.warn('Tasks DB fetch notice:', err));
-
-    // Fetch Lost Reasons from multi-tenant store
-    fetchWithTenantAuth('/api/pipelines/lost-reasons')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && Array.isArray(data.lostReasons)) {
-          setLostReasons(data.lostReasons);
-        }
-      })
-      .catch((err) => console.warn('Lost reasons DB fetch notice:', err));
-  }, [activeTenantId]);
+    if (isAuthenticated) {
+      const targetTenant = currentUser?.tenantId || activeTenantId;
+      loadTenantDomainData(targetTenant);
+    }
+  }, [isAuthenticated, activeTenantId, loadTenantDomainData]);
 
   const [lostReasons, setLostReasons] = useState<string[]>([
     'No Need',
@@ -309,7 +358,7 @@ export function App() {
     }).catch((err) => console.warn('Field settings DB save notice:', err));
   };
 
-  const handleLoginSuccess = (agent: Agent) => {
+  const handleLoginSuccess = async (agent: Agent) => {
     localStorage.setItem('pixbe_auth_user', JSON.stringify(agent));
     sessionStorage.setItem('pixbe_auth_user', JSON.stringify(agent));
     setCurrentUser(agent);
@@ -319,6 +368,7 @@ export function App() {
     }
     setIsAuthenticated(true);
     setIsLoggingIn(false);
+    await loadTenantDomainData(agent.tenantId || 'default_tenant');
     showToast(`Welcome back, ${agent.name || 'User'}!`);
   };
 
@@ -330,6 +380,15 @@ export function App() {
     setCurrentUser(null);
     setIsAuthenticated(false);
     setIsLoggingIn(false);
+    setLeads([]);
+    setAgents([]);
+    setStages([]);
+    setCrmTasks([]);
+    setActivities([]);
+    setMessages([]);
+    setCallRecords([]);
+    setDetailLead(null);
+    setVoiceBotLead(null);
     logoutWithApi().catch(() => {});
     showToast('Logged out of workspace.');
   };
@@ -377,8 +436,9 @@ export function App() {
 
   // Automatically assign any unassigned leads to the active logged in user that created them & guarantee default status is Fresh
   const sanitizedLeads = useMemo(() => {
-    return leads.map((l) => {
-      let updated = l;
+    const curTenant = currentUser?.tenantId || activeTenantId;
+    return (leads || []).map((l) => {
+      let updated = { ...l, tenantId: l.tenantId || curTenant };
       const hasOwnerName = l.ownerAgentName && l.ownerAgentName !== 'Unassigned';
       const hasOwnerId = !!l.ownerAgentId;
       if (!hasOwnerName || !hasOwnerId) {
@@ -396,11 +456,9 @@ export function App() {
       }
       return updated;
     });
-  }, [leads, defaultOwnerId, defaultOwnerName]);
+  }, [leads, defaultOwnerId, defaultOwnerName, currentUser?.tenantId, activeTenantId]);
 
-  const companyLeads = currentUser?.tenantId 
-    ? sanitizedLeads.filter((l) => l.tenantId === currentUser.tenantId)
-    : sanitizedLeads;
+  const companyLeads = sanitizedLeads;
 
   // Scoped Lead list based on role: Admins see ALL company leads, Employees see ONLY assigned leads
   const visibleLeads = isAdmin
@@ -1185,6 +1243,7 @@ export function App() {
               activities={activities}
               messages={messages}
               callRecords={callRecords}
+              customFields={activeCustomFields}
               initialCampaignHandle={selectedCampaignHandle}
               onOpenLeadDetail={(lead) => setDetailLead(lead)}
               onUpdateLead={handleUpdateLead}
@@ -1314,19 +1373,40 @@ export function App() {
           messages={messages}
           callRecords={callRecords}
           lostReasons={lostReasons}
+          customFields={activeCustomFields}
           onClose={() => setDetailLead(null)}
           onSelectLead={(nextLead) => setDetailLead(nextLead)}
           onUpdateLead={handleUpdateLead}
-          onAddActivity={(act) => setActivities((prev) => [{
-            id: `act-${Date.now()}`,
-            leadId: detailLead.id,
-            agentId: activeAgent.id,
-            agentName: activeAgent.name,
-            type: act.type || 'note',
-            title: act.title || 'Note',
-            description: act.description || '',
-            timestamp: new Date().toISOString()
-          }, ...prev])}
+          onAddActivity={(act) => {
+            const newActivity: ActivityLog = {
+              id: act.id || `act-${Date.now()}`,
+              leadId: act.leadId || detailLead.id,
+              agentId: act.agentId || activeAgent.id,
+              agentName: act.agentName || activeAgent.name,
+              type: act.type || 'note',
+              title: act.title || 'Activity',
+              description: act.description || '',
+              timestamp: act.timestamp || new Date().toISOString(),
+              metadata: act.metadata
+            };
+            setActivities((prev) => [newActivity, ...prev]);
+
+            // Persist activity inside the lead's own record in database
+            const currentLead = leads.find((l) => l.id === newActivity.leadId) || detailLead;
+            if (currentLead) {
+              const updatedLead: Lead = {
+                ...currentLead,
+                activities: [newActivity, ...(currentLead.activities || []).filter((a) => a.id !== newActivity.id)]
+              };
+              handleUpdateLead(updatedLead);
+            }
+
+            // Also post to backend /api/activities
+            fetchWithTenantAuth('/api/activities', {
+              method: 'POST',
+              body: JSON.stringify(newActivity)
+            }).catch((err) => console.warn('Activity sync notice:', err));
+          }}
           onSendMessage={handleSendMessage}
           onDeleteLead={handleDeleteLead}
           onUpdateCallRecord={handleUpdateCallRecord}

@@ -222,18 +222,18 @@
     "company_wfwwfwf": [],
     "company_kite_aviation": [
       {
-        "id": "lead-1788329656975",
+        "id": "lead-1788342797388",
         "tenantId": "company_kite_aviation",
-        "name": "FSDF",
-        "phone": "+91 3455555555",
+        "name": "hello",
+        "phone": "+91 1111111111",
         "email": "",
         "company": "",
         "city": "Not Specified",
         "state": "Not Specified",
-        "source": "Website Form",
-        "status": "Contacted",
+        "source": "Facebook Ads",
+        "status": "Fresh",
         "pipelineStageId": "stage-1",
-        "dealValue": 2123,
+        "dealValue": 0,
         "ownerAgentId": "agent_kiteaviation_admin",
         "ownerAgentName": "Kite Aviation Admin",
         "aiScore": 88,
@@ -245,11 +245,128 @@
           "HighIntent"
         ],
         "createdAt": "Just Now",
-        "updatedAt": "2026-09-02T06:52:38.660Z",
+        "updatedAt": "2026-09-02T11:32:42.292Z",
+        "pincode": "",
+        "priority": "Hot",
+        "whatsappOptIn": true
+      },
+      {
+        "id": "lead-1788342781533",
+        "tenantId": "company_kite_aviation",
+        "name": "anup",
+        "phone": "+91 1234567890",
+        "email": "",
+        "company": "",
+        "city": "Not Specified",
+        "state": "Not Specified",
+        "source": "Facebook Ads",
+        "status": "Fresh",
+        "pipelineStageId": "stage-1",
+        "dealValue": 0,
+        "ownerAgentId": "agent_kiteaviation_admin",
+        "ownerAgentName": "Kite Aviation Admin",
+        "aiScore": 88,
+        "aiRating": "Hot",
+        "aiReasoning": "Inbound lead entry",
+        "notes": "Added manually.",
+        "customFields": {},
+        "tags": [
+          "HighIntent"
+        ],
+        "createdAt": "Just Now",
+        "updatedAt": "Just Now",
+        "pincode": "",
+        "priority": "Hot",
+        "whatsappOptIn": true
+      },
+      {
+        "id": "lead-1788334867413",
+        "tenantId": "company_kite_aviation",
+        "name": "Anup",
+        "phone": "+91 1234567890",
+        "email": "",
+        "company": "",
+        "city": "Not Specified",
+        "state": "Not Specified",
+        "source": "Facebook Ads",
+        "status": "Fresh",
+        "pipelineStageId": "stage-1",
+        "dealValue": 0,
+        "ownerAgentId": "agent_kiteaviation_admin",
+        "ownerAgentName": "Kite Aviation Admin",
+        "aiScore": 88,
+        "aiRating": "Hot",
+        "aiReasoning": "Inbound lead entry",
+        "notes": "Added manually.",
+        "customFields": {},
+        "tags": [
+          "HighIntent"
+        ],
+        "createdAt": "Just Now",
+        "updatedAt": "Just Now",
+        "pincode": "",
+        "priority": "Hot",
+        "whatsappOptIn": true
+      },
+      {
+        "id": "lead-1788334402873",
+        "tenantId": "company_kite_aviation",
+        "name": "anup",
+        "phone": "+91 1234567890",
+        "email": "",
+        "company": "",
+        "city": "Not Specified",
+        "state": "Not Specified",
+        "source": "Facebook Ads",
+        "status": "New Lead",
+        "pipelineStageId": "stage-1",
+        "dealValue": 0,
+        "ownerAgentId": "agent_kiteaviation_admin",
+        "ownerAgentName": "Kite Aviation Admin",
+        "aiScore": 88,
+        "aiRating": "Hot",
+        "aiReasoning": "Inbound lead entry",
+        "notes": "Added manually.",
+        "customFields": {},
+        "tags": [
+          "HighIntent"
+        ],
+        "createdAt": "Just Now",
+        "updatedAt": "Just Now",
+        "pincode": "",
+        "priority": "Hot",
+        "whatsappOptIn": true
+      },
+      {
+        "id": "lead-1788329656975",
+        "tenantId": "company_kite_aviation",
+        "name": "FSDF",
+        "phone": "+91 3455555555",
+        "email": "",
+        "company": "",
+        "city": "Not Specified",
+        "state": "Not Specified",
+        "source": "Website Form",
+        "status": "Fresh",
+        "pipelineStageId": "stage-1",
+        "dealValue": 2123,
+        "ownerAgentId": "agent-1788331750812",
+        "ownerAgentName": "DSSFSD",
+        "aiScore": 88,
+        "aiRating": "Hot",
+        "aiReasoning": "Inbound lead entry",
+        "notes": "Added manually.",
+        "customFields": {},
+        "tags": [
+          "HighIntent"
+        ],
+        "createdAt": "Just Now",
+        "updatedAt": "2026-09-02T11:27:24.499Z",
         "pincode": "",
         "priority": "Hot",
         "whatsappOptIn": true,
-        "followUpAt": "2026-09-03T07:50:00.000Z"
+        "followUpAt": "2026-09-02T16:30:00",
+        "assignedTo": "agent-1788331750812"
       },
       {
         "id": "lead-1788329296907",
@@ -290,7 +407,7 @@
         "city": "Not Specified",
         "state": "Not Specified",
         "source": "Facebook Ads",
-        "status": "Lost",
+        "status": "Follow Up",
         "pipelineStageId": "stage-1",
         "dealValue": 0,
         "ownerAgentId": "agent_kiteaviation_admin",
@@ -305,10 +422,22 @@
           "HighIntent"
         ],
         "createdAt": "Just Now",
-        "updatedAt": "2026-09-02T05:19:15.549Z",
+        "updatedAt": "2026-09-02T11:19:31.394Z",
         "pincode": "",
         "priority": "Hot",
-        "whatsappOptIn": true
+        "whatsappOptIn": true,
+        "activities": [
+          {
+            "id": "act-1788345771892",
+            "leadId": "lead-1788323122427",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "edit",
+            "title": "Updated Deal Value (₹)",
+            "description": "Changed to \"400\"",
+            "timestamp": "2026-09-02T10:42:51.892Z"
+          }
+        ]
       },
       {
         "id": "lead-1788257663855",
@@ -320,7 +449,7 @@
         "city": "Not Specified",
         "state": "Not Specified",
         "source": "Facebook Ads",
-        "status": "Converted",
+        "status": "Fresh",
         "pipelineStageId": "stage-1",
         "dealValue": 0,
         "ownerAgentId": "agent_kiteaviation_admin",
@@ -329,17 +458,124 @@
         "aiRating": "Hot",
         "aiReasoning": "Inbound lead entry",
         "notes": "Added manually.",
-        "customFields": {},
+        "customFields": {
+          "car": "HELLO"
+        },
         "tags": [
           "HighIntent"
         ],
         "createdAt": "Just Now",
-        "updatedAt": "2026-09-01T13:12:33.714Z",
+        "updatedAt": "2026-09-02T11:07:19.357Z",
         "pincode": "",
         "priority": "Hot",
         "whatsappOptIn": true,
         "lostReason": "Budget Issues",
-        "rating": 4
+        "rating": 4,
+        "followUpAt": "2026-09-10T15:58",
+        "activities": [
+          {
+            "id": "act-1788347239018",
+            "leadId": "lead-1788257663855",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "task",
+            "title": "Task Created: rrwer",
+            "description": "Due Date: 2026-09-02T13:07. Assigned to Kite Aviation Admin.",
+            "timestamp": "2026-09-02T11:07:19.018Z"
+          },
+          {
+            "id": "act-1788346518596",
+            "leadId": "lead-1788257663855",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "task",
+            "title": "Task Created: fsfssf",
+            "description": "Due Date: 2026-09-03T10:54. Assigned to Kite Aviation Admin.",
+            "timestamp": "2026-09-02T10:55:18.596Z"
+          },
+          {
+            "id": "act-1788346511730",
+            "leadId": "lead-1788257663855",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "task",
+            "title": "Task Created: hello",
+            "description": "Due Date: 2026-09-03T10:54. Assigned to Kite Aviation Admin.",
+            "timestamp": "2026-09-02T10:55:11.730Z"
+          },
+          {
+            "id": "act-1788346340678",
+            "leadId": "lead-1788257663855",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "note",
+            "title": "Internal Note",
+            "description": "SFSDFSF",
+            "timestamp": "2026-09-02T10:52:20.678Z"
+          },
+          {
+            "id": "act-1788346323807",
+            "leadId": "lead-1788257663855",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "note",
+            "title": "Task Scheduled: FSFSFDDSF",
+            "description": "Due Date: Today. Assigned to active team representative.",
+            "timestamp": "2026-09-02T10:52:03.807Z"
+          },
+          {
+            "id": "act-1788345788667",
+            "leadId": "lead-1788257663855",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "edit",
+            "title": "Updated car",
+            "description": "Changed to \"HEL\"",
+            "timestamp": "2026-09-02T10:43:08.667Z"
+          },
+          {
+            "id": "act-1788345784953",
+            "leadId": "lead-1788257663855",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "edit",
+            "title": "Updated car",
+            "description": "Changed to \"HEL\"",
+            "timestamp": "2026-09-02T10:43:04.953Z"
+          },
+          {
+            "id": "act-1788345749508",
+            "leadId": "lead-1788257663855",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "edit",
+            "title": "Updated Deal Value (₹)",
+            "description": "Changed to \"24\"",
+            "timestamp": "2026-09-02T10:42:29.508Z"
+          },
+          {
+            "id": "act-1788345743916",
+            "leadId": "lead-1788257663855",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "edit",
+            "title": "Updated Deal Value (₹)",
+            "description": "Changed to \"11\"",
+            "timestamp": "2026-09-02T10:42:23.916Z"
+          }
+        ],
+        "tasks": [
+          {
+            "id": "task-1788346518595",
+            "leadId": "lead-1788257663855",
+            "title": "fsfssf",
+            "dueDate": "2026-09-03T10:54",
+            "assigneeId": "agent_kiteaviation_admin",
+            "assigneeName": "Kite Aviation Admin",
+            "status": "Pending",
+            "createdAt": "2026-09-02T10:55:18.595Z"
+          }
+        ]
       }
     ]
   },
@@ -2305,7 +2541,9 @@
           "Lost"
         ],
         "required": true,
-        "id": "f-status"
+        "id": "f-status",
+        "createdOn": "2026-09-02T09:50:11.187Z",
+        "lastModified": "2026-09-02T09:50:11.187Z"
       },
       {
         "required": false,
@@ -2333,7 +2571,8 @@
         "showInQuickAdd": true,
         "placeholder": "",
         "description": "",
-        "lastModified": "Just now"
+        "lastModified": "Just now",
+        "createdOn": "2026-09-02T09:50:11.187Z"
       },
       {
         "required": true,
@@ -2345,7 +2584,9 @@
         "name": "phone",
         "primarySlot": "H2",
         "type": "phone",
-        "tenantId": "company_kite_aviation"
+        "tenantId": "company_kite_aviation",
+        "createdOn": "2026-09-02T09:50:11.187Z",
+        "lastModified": "2026-09-02T09:50:11.187Z"
       },
       {
         "category": "Primary",
@@ -2357,7 +2598,9 @@
         "isPrimary": true,
         "type": "text",
         "isHidden": false,
-        "label": "Name"
+        "label": "Name",
+        "createdOn": "2026-09-02T09:50:11.187Z",
+        "lastModified": "2026-09-02T09:50:11.187Z"
       },
       {
         "tenantId": "company_kite_aviation",
@@ -2367,21 +2610,30 @@
         "name": "deal_value",
         "label": "Deal Value (₹)",
         "isHidden": false,
-        "required": false
+        "required": false,
+        "createdOn": "2026-09-02T09:50:11.187Z",
+        "lastModified": "2026-09-02T09:50:11.187Z"
       },
       {
-        "id": "f-1788262267774",
-        "name": "father",
-        "label": "FATHER",
+        "id": "f-1788343133996",
+        "name": "car",
+        "label": "car",
         "type": "text",
         "category": "General",
         "required": false,
-        "isUnique": true,
+        "isUnique": false,
         "showInQuickAdd": true,
+        "showInImport": true,
+        "lockAfterCreate": false,
+        "canUseVariable": true,
+        "variableDefaultValue": "NA",
+        "minLength": 1,
+        "maxLength": 102,
+        "isSearchable": false,
         "placeholder": "",
-        "description": "",
-        "createdOn": "2026-09-01T11:31:07.774Z",
-        "lastModified": "2026-09-01T11:31:07.774Z",
+        "description": "what car they drive",
+        "createdOn": "2026-09-02T09:58:53.996Z",
+        "lastModified": "2026-09-02T09:58:53.996Z",
         "isHidden": false,
         "tenantId": "company_kite_aviation"
       }
@@ -2406,6 +2658,20 @@
     "company_zenith_aviation": [],
     "company_wfwwfwf": [],
     "company_kite_aviation": [
+      {
+        "id": "crm-task-1788333395085",
+        "tenantId": "company_kite_aviation",
+        "title": "dasd",
+        "description": "adad",
+        "assigneeAgentId": "agent_kiteaviation_admin",
+        "assigneeAgentName": "Kite Aviation Admin",
+        "priority": "Medium",
+        "status": "Pending",
+        "dueDate": "2026-09-02T09:00:00",
+        "taskValue": 231,
+        "createdAt": "2026-09-02T07:16:35.636Z",
+        "createdByAdminId": "agent_kiteaviation_admin"
+      },
       {
         "id": "crm-task-1788267604125",
         "tenantId": "company_kite_aviation",
@@ -2453,5 +2719,6 @@
       "Not eligible",
       "Junk"
     ]
-  }
+  },
+  "calls": {}
 }

@@ -43,7 +43,7 @@ import {
   Pause,
   Trash2
 } from 'lucide-react';
-import { Lead, Agent, LeadStatus, ActivityLog, WhatsAppMessage, CallRecord } from '../types';
+import { Lead, Agent, LeadStatus, ActivityLog, WhatsAppMessage, CallRecord, CustomFieldDef } from '../types';
 import { StatusBadge } from './StatusBadge';
 import { getStatusStyle, getStatusBadgeClasses } from '../utils/statusStyles';
 import { StagesContext } from '../App';
@@ -55,6 +55,7 @@ interface CampaignsViewProps {
   activities?: ActivityLog[];
   messages?: WhatsAppMessage[];
   callRecords?: CallRecord[];
+  customFields?: CustomFieldDef[];
   initialCampaignHandle?: string;
   onOpenLeadDetail?: (lead: Lead) => void;
   onUpdateLead?: (lead: Lead) => void;
@@ -248,6 +249,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
   activities = [],
   messages = [],
   callRecords = [],
+  customFields = [],
   initialCampaignHandle,
   onOpenLeadDetail,
   onUpdateLead,
@@ -1206,6 +1208,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({
               activities={activities}
               messages={messages}
               callRecords={callRecords}
+              customFields={customFields}
               onClose={() => onOpenLeadDetail && onOpenLeadDetail(selectedLead)}
               onSelectLead={(ld) => setSelectedLead(ld)}
               onOpenPowerDialerForLead={onOpenPowerDialerForLead}

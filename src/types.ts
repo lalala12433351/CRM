@@ -240,6 +240,13 @@ export interface CustomFieldDef {
   placeholder?: string;
   isUnique?: boolean;
   showInQuickAdd?: boolean;
+  showInImport?: boolean;
+  lockAfterCreate?: boolean;
+  canUseVariable?: boolean;
+  variableDefaultValue?: string;
+  minLength?: number;
+  maxLength?: number;
+  isSearchable?: boolean;
   category?: 'Primary' | 'Contact' | 'Academic/Career' | 'General' | 'Custom';
   /** Fresh Lead Response Timer: minutes after creation during which the call-now countdown badge is shown (stored on sentinel record id='__fresh_lead_timer__') */
   freshLeadTimerMinutes?: number;
@@ -248,7 +255,7 @@ export interface CustomFieldDef {
 export interface ActivityLog {
   id: string;
   leadId: string;
-  type: 'call' | 'whatsapp' | 'email' | 'sms' | 'stage_change' | 'note' | 'task' | 'ai_score' | 'webhook';
+  type: 'call' | 'whatsapp' | 'email' | 'sms' | 'stage_change' | 'note' | 'task' | 'ai_score' | 'webhook' | 'edit' | 'creation' | 'assignee_change' | 'api' | 'facebook_form' | 'system' | string;
   title: string;
   description: string;
   timestamp: string;
@@ -466,13 +473,27 @@ export interface Lead {
   pincode?: string;
   occupation?: string;
   requirement?: string;
-  priority?: 'Hot' | 'Warm' | 'Cold';
   followUpNotes?: string;
   reminderEnabled?: boolean;
   whatsappOptIn?: boolean;
   smsOptIn?: boolean;
   emailOptIn?: boolean;
   attachments?: { name: string; size: string; type: string; url?: string }[];
+  activities?: ActivityLog[];
+  tasks?: LeadTask[];
+}
+
+export interface LeadTask {
+  id: string;
+  leadId: string;
+  title: string;
+  dueDate?: string;
+  assigneeId?: string;
+  assigneeName?: string;
+  status: 'Pending' | 'Completed';
+  createdAt: string;
+  updatedAt?: string;
+  note?: string;
 }
 
 export interface DocumentQuote {

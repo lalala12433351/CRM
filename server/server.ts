@@ -30,10 +30,4 @@ export async function startServer() {
   return app;
 }
 
-// Auto-start if run directly
-if (process.env.NODE_ENV !== 'test') {
-  startServer().catch((err) => {
-    logger.error('Failed to start server:', err);
-    process.exit(1);
-  });
-}
+

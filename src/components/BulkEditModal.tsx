@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { 
   X, 
   CheckSquare, 
@@ -7,11 +7,12 @@ import {
   SlidersHorizontal, 
   Layers, 
   Check, 
-  AlertTriangle,
-  Trash2,
+  AlertTriangle, 
+  Trash2, 
   PhoneCall
 } from 'lucide-react';
 import { Lead, LeadStatus, LeadSource, Agent } from '../types';
+import { StagesContext } from '../App';
 
 interface BulkEditModalProps {
   selectedLeadIds: string[];
@@ -36,8 +37,9 @@ export const BulkEditModal: React.FC<BulkEditModalProps> = ({
   onBulkDelete,
   onClose
 }) => {
+  const stages = useContext(StagesContext);
   const [updateStatus, setUpdateStatus] = useState<boolean>(false);
-  const [targetStatus, setTargetStatus] = useState<LeadStatus>('Contacted');
+  const [targetStatus, setTargetStatus] = useState<LeadStatus>(() => (stages && stages[0]?.name) ? (stages[0].name as LeadStatus) : 'Fresh');
 
   const [updateAgent, setUpdateAgent] = useState<boolean>(false);
   const [targetAgentId, setTargetAgentId] = useState<string>(agents[0]?.id || '');
@@ -65,6 +67,16 @@ export const BulkEditModal: React.FC<BulkEditModalProps> = ({
     onApplyBulkUpdates(updates);
     onClose();
   };
+
+  const activeStagesList = (stages && stages.length > 0) ? stages : [
+    { name: 'Fresh' },
+    { name: 'Contacted' },
+    { name: 'Follow Up' },
+    { name: 'Demo Scheduled' },
+    { name: 'Proposal Sent' },
+    { name: 'Converted' },
+    { name: 'Lost' }
+  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 font-sans">
@@ -114,13 +126,9 @@ export const BulkEditModal: React.FC<BulkEditModalProps> = ({
                   onChange={(e) => setTargetStatus(e.target.value as LeadStatus)}
                   className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-none focus:border-indigo-600"
                 >
-                  <option value="New Lead">New Lead / Fresh</option>
-                  <option value="Contacted">Contacted</option>
-                  <option value="Follow Up">Follow Up</option>
-                  <option value="Demo Scheduled">Demo Scheduled</option>
-                  <option value="Proposal Sent">Proposal Sent</option>
-                  <option value="Converted">Converted / Won</option>
-                  <option value="Lost">Lost</option>
+                  {activeStagesList.map((stg) => (
+                    <option key={stg.name} value={stg.name}>{stg.name}</option>
+                  ))}
                 </select>
               </div>
             )}

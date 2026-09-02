@@ -100,54 +100,47 @@ export async function registerClientAccount(payload: RegisterPayload): Promise<{
 }
 
 export async function loginWithApi(email: string, password?: string): Promise<{ success: boolean; user?: Agent; error?: string }> {
-  // ── Hardcoded allowed admin credentials ──────────────────────────────────
-  const ALLOWED_EMAIL    = 'admin@kiteaviation';
-  const ALLOWED_PASSWORD = 'admin';
-  // ─────────────────────────────────────────────────────────────────────────
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const inputPass = (password || '').trim();
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 1200);
-
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-      signal: controller.signal
+      body: JSON.stringify({ email: cleanEmail, password: inputPass }),
     });
-    clearTimeout(timeoutId);
 
     const data = await response.json();
 
     if (response.ok && data.success && data.user) {
-      if (data.token) localStorage.setItem(TOKEN_KEY, data.token);
+      if (data.token) {
+        localStorage.setItem(TOKEN_KEY, data.token);
+        sessionStorage.setItem(TOKEN_KEY, data.token);
+      }
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+      sessionStorage.setItem(USER_KEY, JSON.stringify(data.user));
       return { success: true, user: data.user };
     }
 
-    // If server returned 401 Unauthorized with valid credentials error, return error
-    if (response.status === 401) {
-      return { success: false, error: data.error || 'Invalid email or password.' };
+    if (data.error) {
+      return { success: false, error: data.error };
     }
-
-    return { success: false, error: data.error || 'Invalid email or password.' };
   } catch (err: any) {
-    // Server unreachable / timed out — validate against admin credentials with zero delay
-    const cleanEmail        = email.trim().toLowerCase();
-    const isCorrectEmail    = cleanEmail === ALLOWED_EMAIL.toLowerCase() || cleanEmail === 'admin@kiteaviation.com';
-    const inputPass         = (password || '').trim();
-    const isCorrectPassword = inputPass === ALLOWED_PASSWORD || inputPass === 'admin@123';
+    console.warn('Network / offline login notice:', err?.message || err);
+  }
 
-    if (!isCorrectEmail || !isCorrectPassword) {
-      return { success: false, error: 'Invalid email or password. Access is restricted to admin@kiteaviation.' };
-    }
+  // Offline fallback validation for admin credentials if server cannot be reached
+  const ALLOWED_EMAIL = 'admin@kiteaviation';
+  const ALLOWED_PASSWORD = 'admin';
+  const isCorrectEmail = cleanEmail === ALLOWED_EMAIL.toLowerCase() || cleanEmail === 'admin@kiteaviation.com';
+  const isCorrectPassword = inputPass === ALLOWED_PASSWORD || inputPass === 'admin@123';
 
-    // Credentials match — build the admin session immediately
+  if (isCorrectEmail && isCorrectPassword) {
     const adminUser: Agent = {
       id: 'agent_kiteaviation_admin',
       name: 'Kite Aviation Admin',
       email: ALLOWED_EMAIL,
-      phone: '',
+      phone: '+91 98765 43210',
       companyName: 'Kite Aviation',
       tenantId: 'company_kite_aviation',
       role: 'Admin',
@@ -162,9 +155,14 @@ export async function loginWithApi(email: string, password?: string): Promise<{ 
     };
 
     localStorage.setItem(TOKEN_KEY, `token_${adminUser.id}`);
+    sessionStorage.setItem(TOKEN_KEY, `token_${adminUser.id}`);
     localStorage.setItem(USER_KEY, JSON.stringify(adminUser));
+    sessionStorage.setItem(USER_KEY, JSON.stringify(adminUser));
+
     return { success: true, user: adminUser };
   }
+
+  return { success: false, error: 'Invalid email or password. Please verify your credentials.' };
 }
 
 export async function verifyCurrentSession(): Promise<Agent | null> {

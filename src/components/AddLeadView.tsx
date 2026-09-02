@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { 
   UserPlus, 
   Upload, 
@@ -31,8 +31,9 @@ import {
   ShieldCheck,
   Database
 } from 'lucide-react';
-import { Lead, Agent, LeadSource, LeadStatus, CustomFieldDef } from '../types';
+import { Lead, Agent, LeadSource, LeadStatus, CustomFieldDef, ActivityLog } from '../types';
 import { CustomDropdown, DropdownOption } from './CustomDropdown';
+import { StagesContext } from '../App';
 
 interface AddLeadViewProps {
   leads: Lead[];
@@ -150,10 +151,34 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
   const [companyName, setCompanyName] = useState('');
   const [dealValue, setDealValue] = useState<string>('');
   const [requirement, setRequirement] = useState('');
+  const stages = useContext(StagesContext);
 
-  const [leadStatus, setLeadStatus] = useState<LeadStatus>('Fresh');
+  const statusOptions: DropdownOption<LeadStatus>[] = (stages && stages.length > 0)
+    ? stages.map((s) => ({
+        value: s.name as LeadStatus,
+        label: s.name,
+      }))
+    : [
+        { value: 'Fresh', label: 'Fresh' },
+        { value: 'Contacted', label: 'Contacted' },
+        { value: 'Follow Up', label: 'Follow Up' },
+        { value: 'Demo Scheduled', label: 'Demo Scheduled' },
+        { value: 'Proposal Sent', label: 'Proposal Sent' },
+        { value: 'Converted', label: 'Converted' },
+        { value: 'Lost', label: 'Lost' },
+      ];
+
+  const [leadStatus, setLeadStatus] = useState<LeadStatus>(() => {
+    return (stages && stages[0]?.name) ? (stages[0].name as LeadStatus) : 'Fresh';
+  });
+
+  useEffect(() => {
+    if (stages && stages.length > 0 && (!leadStatus || leadStatus === ('New Lead' as any))) {
+      setLeadStatus(stages[0].name as LeadStatus);
+    }
+  }, [stages]);
+
   const [assignedAgentId, setAssignedAgentId] = useState(activeAgent?.id || agents[0]?.id || '');
-  const [priority, setPriority] = useState<'Hot' | 'Warm' | 'Cold'>('Hot');
 
   // Auto-sync default telecaller to current active logged-in agent on initial load only
   useEffect(() => {
@@ -182,6 +207,42 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
   const [duplicateWarning, setDuplicateWarning] = useState<Lead | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [draftSavedAlert, setDraftSavedAlert] = useState(false);
+
+  // Standard Lead Field Keys to exclude from Dynamic Custom Fields (since they exist in Cards 1-4)
+  const STANDARD_BUILTIN_FIELD_KEYS = useMemo(() => new Set([
+    'name',
+    'phone',
+    'status',
+    'deal_value',
+    'deal_val',
+    'source',
+    'email',
+    'city',
+    'state',
+    'company',
+    'address',
+    'pincode',
+    'alternate_phone',
+    'assignee',
+    'createdon',
+    'special_remarks',
+    'notes',
+    'country'
+  ]), []);
+
+  // Filter only actual client-defined custom fields configured in settings (and enabled for Quick Add)
+  const dynamicCustomFields = useMemo(() => {
+    return (customFields || []).filter((f) => {
+      if (f.isHidden) return false;
+      if (f.showInQuickAdd === false) return false;
+      if (f.isPrimary || f.category === 'Primary') return false;
+      if (f.primarySlot === 'H1' || f.primarySlot === 'H2') return false;
+      const normalizedKey = (f.name || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+      const normalizedLabel = (f.label || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+      if (STANDARD_BUILTIN_FIELD_KEYS.has(normalizedKey) || STANDARD_BUILTIN_FIELD_KEYS.has(normalizedLabel)) return false;
+      return true;
+    });
+  }, [customFields, STANDARD_BUILTIN_FIELD_KEYS]);
 
   // -------------------------------------------------------------
   // FORM STATE: INTEGRATION SIMULATION
@@ -291,6 +352,13 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
       errs.phone = 'Phone Number is required.';
     } else if (digitsOnly.length < 10) {
       errs.phone = 'Phone number must contain at least 10 valid digits.';
+    } else {
+      // Check for duplicate phone number in existing leads database
+      const last10 = digitsOnly.slice(-10);
+      const existingMatch = leads.find((l) => (l.phone || '').replace(/\D/g, '').slice(-10) === last10);
+      if (existingMatch) {
+        errs.phone = `A lead with this phone number already exists: "${existingMatch.name}" (${existingMatch.phone}). Cannot create duplicate lead/follow-up.`;
+      }
     }
 
     const trimmedEmail = email.trim();
@@ -301,6 +369,22 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
     if (pincode && pincode.trim().replace(/\D/g, '').length !== 6) {
       errs.pincode = 'Pincode must be exactly 6 digits.';
     }
+
+    // Validate Dynamic Custom Fields (required, minLength, maxLength)
+    dynamicCustomFields.forEach((field) => {
+      const val = customFieldValues[field.name];
+      const strVal = val !== undefined && val !== null ? String(val).trim() : '';
+      if (field.required && !strVal) {
+        errs[field.name] = `${field.label} is required.`;
+      } else if (strVal) {
+        if (field.minLength !== undefined && field.minLength > 0 && strVal.length < field.minLength) {
+          errs[field.name] = `${field.label} must be at least ${field.minLength} character${field.minLength > 1 ? 's' : ''}.`;
+        }
+        if (field.maxLength !== undefined && field.maxLength > 0 && strVal.length > field.maxLength) {
+          errs[field.name] = `${field.label} cannot exceed ${field.maxLength} characters.`;
+        }
+      }
+    });
 
     setFormErrors(errs);
     return Object.keys(errs).length === 0;
@@ -313,9 +397,22 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
     const finalOwnerName = assignedAgent ? assignedAgent.name : (agents.find((a) => a.id === assignedAgentId)?.name || activeAgent?.name || agents[0]?.name || 'Unassigned');
     const finalPhone = `${countryCode} ${rawPhone.trim()}`;
     const finalSource: LeadSource = leadSource === ('Other' as any) ? (customLeadSource as any || 'Manual Entry') : leadSource;
+    const matchingStage = stages?.find((s) => s.name.toLowerCase() === leadStatus.toLowerCase());
+
+    const newLeadId = `lead-${Date.now()}`;
+    const creationAct: ActivityLog = {
+      id: `act-${Date.now()}`,
+      leadId: newLeadId,
+      type: 'creation',
+      title: 'Lead Created',
+      description: `Lead created from ${finalSource || 'Manual Entry'}`,
+      timestamp: new Date().toISOString(),
+      agentId: finalOwnerId,
+      agentName: finalOwnerName
+    };
 
     return {
-      id: `lead-${Date.now()}`,
+      id: newLeadId,
       name: fullName.trim(),
       phone: finalPhone,
       email: email.trim(),
@@ -324,20 +421,19 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
       state: state || 'Not Specified',
       source: finalSource,
       status: leadStatus,
-      pipelineStageId: 'stage-1',
+      pipelineStageId: matchingStage?.id || 'stage-1',
       dealValue: Number(dealValue) || 0,
       ownerAgentId: finalOwnerId,
       ownerAgentName: finalOwnerName,
       createdAt: 'Just Now',
       updatedAt: 'Just Now',
-      aiScore: priority === 'Hot' ? 88 : priority === 'Warm' ? 68 : 45,
-      aiRating: priority,
+      aiScore: 80,
+      aiRating: 'Hot',
       aiReasoning: 'Inbound lead entry',
       customFields: customFieldValues,
       tags: selectedTags,
       notes: notes || requirement || 'Added manually.',
       pincode: pincode,
-      priority: priority,
       followUpAt: followUpDate || undefined,
       followUpNotes: followUpNotes || undefined,
       alternatePhone: alternatePhone || undefined,
@@ -345,6 +441,7 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
       utmMedium: utmMedium || undefined,
       utmCampaign: utmCampaign || campaignName || undefined,
       whatsappOptIn: whatsappOptIn,
+      activities: [creationAct],
     };
   };
 
@@ -596,9 +693,10 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Vertical Stack: Full Width Cards */}
+          <div className="space-y-4">
             {/* Card 1: Contact Information */}
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3">
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs space-y-3.5">
               <div className="border-b border-slate-100 pb-2.5">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">
                   1. Contact Information
@@ -622,61 +720,63 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
                   {formErrors.fullName && <p className="text-[11px] text-rose-600 mt-1">{formErrors.fullName}</p>}
                 </div>
 
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <label className="block text-slate-700 font-semibold mb-1">Code</label>
-                    <CustomDropdown<string>
-                      value={countryCode}
-                      onChange={(val) => setCountryCode(val)}
-                      options={[
-                        { value: '+91', label: '+91 (IN)' },
-                        { value: '+1', label: '+1 (US)' },
-                        { value: '+44', label: '+44 (UK)' },
-                        { value: '+971', label: '+971 (UAE)' },
-                      ]}
-                      align="left"
-                      wrapperClassName="w-full"
-                      className="w-full bg-slate-50"
-                    />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-slate-700 font-semibold mb-1">Code</label>
+                      <CustomDropdown<string>
+                        value={countryCode}
+                        onChange={(val) => setCountryCode(val)}
+                        options={[
+                          { value: '+91', label: '+91 (IN)' },
+                          { value: '+1', label: '+1 (US)' },
+                          { value: '+44', label: '+44 (UK)' },
+                          { value: '+971', label: '+971 (UAE)' },
+                        ]}
+                        align="left"
+                        wrapperClassName="w-full"
+                        className="w-full bg-slate-50"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-slate-700 font-semibold mb-1">
+                        Phone Number <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={rawPhone}
+                        maxLength={10}
+                        onChange={(e) => setRawPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        placeholder="9876543210"
+                        className={`w-full bg-slate-50 border ${
+                          formErrors.phone ? 'border-rose-400 bg-rose-50/50' : 'border-slate-200'
+                        } rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-indigo-500`}
+                      />
+                      {formErrors.phone && <p className="text-[11px] text-rose-600 mt-1">{formErrors.phone}</p>}
+                    </div>
                   </div>
-                  <div className="col-span-2">
+
+                  <div>
                     <label className="block text-slate-700 font-semibold mb-1">
-                      Phone Number <span className="text-rose-500">*</span>
+                      Email Address <span className="text-slate-400 font-normal text-[11px]">(Optional)</span>
                     </label>
                     <input
-                      type="text"
-                      value={rawPhone}
-                      maxLength={10}
-                      onChange={(e) => setRawPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                      placeholder="9876543210"
+                      type="email"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (formErrors.email) setFormErrors((prev) => ({ ...prev, email: '' }));
+                      }}
+                      placeholder="rahul@example.com"
                       className={`w-full bg-slate-50 border ${
-                        formErrors.phone ? 'border-rose-400 bg-rose-50/50' : 'border-slate-200'
-                      } rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-indigo-500`}
+                        formErrors.email ? 'border-rose-400 bg-rose-50/50 focus:border-rose-600' : 'border-slate-200 focus:border-indigo-500'
+                      } rounded-lg px-3 py-2 text-slate-900 focus:outline-none`}
                     />
-                    {formErrors.phone && <p className="text-[11px] text-rose-600 mt-1">{formErrors.phone}</p>}
+                    {formErrors.email && <p className="text-[11px] text-rose-600 mt-1">{formErrors.email}</p>}
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">
-                    Email Address <span className="text-slate-400 font-normal text-[11px]">(Optional)</span>
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      if (formErrors.email) setFormErrors((prev) => ({ ...prev, email: '' }));
-                    }}
-                    placeholder="rahul@example.com"
-                    className={`w-full bg-slate-50 border ${
-                      formErrors.email ? 'border-rose-400 bg-rose-50/50 focus:border-rose-600' : 'border-slate-200 focus:border-indigo-500'
-                    } rounded-lg px-3 py-2 text-slate-900 focus:outline-none`}
-                  />
-                  {formErrors.email && <p className="text-[11px] text-rose-600 mt-1">{formErrors.email}</p>}
-                </div>
-
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1">Pincode</label>
                     <input
@@ -725,16 +825,26 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
               </div>
             </div>
 
-            {/* Card 2: Assignment & Status */}
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3">
-              <div className="border-b border-slate-100 pb-2.5">
+            {/* Card 2: Lead Assignment & Status (with Dynamic Custom Fields inside) */}
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">
                   2. Lead Assignment & Status
                 </h2>
+                {dynamicCustomFields.length > 0 && onNavigateToTab && (
+                  <button
+                    type="button"
+                    onClick={() => onNavigateToTab('fields')}
+                    className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 flex items-center space-x-1 cursor-pointer"
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                    <span>Manage Fields</span>
+                  </button>
+                )}
               </div>
 
-              <div className="space-y-3 text-xs">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="space-y-4 text-xs">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1">Lead Source</label>
                     <CustomDropdown<LeadSource>
@@ -761,14 +871,7 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
                     <CustomDropdown<LeadStatus>
                       value={leadStatus}
                       onChange={(val) => setLeadStatus(val)}
-                      options={[
-                        { value: 'New Lead', label: 'New Lead' },
-                        { value: 'Contacted', label: 'Contacted' },
-                        { value: 'Follow-Up Scheduled', label: 'Follow-Up Scheduled' },
-                        { value: 'Interested', label: 'Interested' },
-                        { value: 'Converted', label: 'Converted' },
-                        { value: 'Lost', label: 'Lost' },
-                      ]}
+                      options={statusOptions}
                       align="left"
                       wrapperClassName="w-full"
                       className="w-full bg-slate-50"
@@ -776,56 +879,32 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
                   </div>
                 </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-slate-700 font-semibold">Assigned Telecaller</label>
-                    <button
-                      type="button"
-                      onClick={handleSuggestBestAgent}
-                      className="text-[11px] text-[#3a2088] hover:underline font-semibold cursor-pointer"
-                    >
-                      Auto Assign
-                    </button>
-                  </div>
-                  <CustomDropdown<string>
-                    value={assignedAgentId}
-                    onChange={(val) => setAssignedAgentId(val)}
-                    options={[
-                      { value: '', label: `Auto-Assign to Me (${activeAgent?.name || 'Creator'})` },
-                      ...agents.map((agent) => ({
-                        value: agent.id,
-                        label: agent.name,
-                      })),
-                    ]}
-                    align="left"
-                    wrapperClassName="w-full"
-                    className="w-full bg-slate-50"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-slate-700 font-semibold mb-1">Priority</label>
-                    <div className="grid grid-cols-3 gap-1">
-                      {(['Hot', 'Warm', 'Cold'] as const).map((p) => (
-                        <button
-                          key={p}
-                          type="button"
-                          onClick={() => setPriority(p)}
-                          className={`py-1.5 rounded-lg text-xs font-semibold cursor-pointer border text-center ${
-                            priority === p
-                              ? p === 'Hot'
-                                ? 'bg-amber-50 text-amber-700 border-amber-300 font-bold'
-                                : p === 'Warm'
-                                ? 'bg-indigo-50 text-indigo-700 border-indigo-300 font-bold'
-                                : 'bg-slate-100 text-slate-800 border-slate-300 font-bold'
-                              : 'bg-slate-50 text-slate-600 border-slate-200'
-                          }`}
-                        >
-                          {p}
-                        </button>
-                      ))}
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-slate-700 font-semibold">Assigned Telecaller</label>
+                      <button
+                        type="button"
+                        onClick={handleSuggestBestAgent}
+                        className="text-[11px] text-[#3a2088] hover:underline font-semibold cursor-pointer"
+                      >
+                        Auto Assign
+                      </button>
                     </div>
+                    <CustomDropdown<string>
+                      value={assignedAgentId}
+                      onChange={(val) => setAssignedAgentId(val)}
+                      options={[
+                        { value: '', label: `Auto-Assign to Me (${activeAgent?.name || 'Creator'})` },
+                        ...agents.map((agent) => ({
+                          value: agent.id,
+                          label: agent.name,
+                        })),
+                      ]}
+                      align="left"
+                      wrapperClassName="w-full"
+                      className="w-full bg-slate-50"
+                    />
                   </div>
 
                   <div>
@@ -840,182 +919,118 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
                     />
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
 
-          {/* Card 5: Dynamic Custom Fields Section */}
-          {customFields && customFields.filter(f => !f.isHidden).length > 0 && (
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                <div className="flex items-center space-x-2">
-                  <Database className="w-4 h-4 text-indigo-600" />
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                    5. Dynamic Custom Fields ({customFields.filter(f => !f.isHidden).length})
-                  </h2>
-                </div>
-                {onNavigateToTab && (
-                  <button
-                    type="button"
-                    onClick={() => onNavigateToTab('fields')}
-                    className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 flex items-center space-x-1 cursor-pointer"
-                  >
-                    <SlidersHorizontal className="w-3.5 h-3.5" />
-                    <span>Manage Fields</span>
-                  </button>
+                {/* Dynamic Custom Fields inside Lead Assignment & Status */}
+                {dynamicCustomFields.length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-1">
+                    {dynamicCustomFields.map((field) => {
+                        const val = customFieldValues[field.name] ?? '';
+                        return (
+                          <div key={field.id} className="space-y-1">
+                            <label className="block text-slate-700 font-semibold truncate flex items-center justify-between">
+                              <span>
+                                {field.label} {field.required && <span className="text-rose-500">*</span>}
+                              </span>
+                              {field.category && (
+                                <span className="text-[9px] font-mono text-slate-400 font-normal">
+                                  {field.category}
+                                </span>
+                              )}
+                            </label>
+
+                            {field.type === 'dropdown' ? (
+                              <CustomDropdown<string>
+                                value={val || ''}
+                                onChange={(newVal) =>
+                                  setCustomFieldValues((prev) => ({
+                                    ...prev,
+                                    [field.name]: newVal,
+                                  }))
+                                }
+                                options={[
+                                  { value: '', label: `-- Select ${field.label} --` },
+                                  ...(field.options || []).map((opt) => ({ value: opt, label: opt })),
+                                ]}
+                                placeholder={`-- Select ${field.label} --`}
+                                align="left"
+                                wrapperClassName="w-full"
+                                className="w-full bg-slate-50"
+                              />
+                            ) : field.type === 'boolean' ? (
+                              <label className="flex items-center space-x-2 pt-1.5 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(val)}
+                                  onChange={(e) =>
+                                    setCustomFieldValues((prev) => ({
+                                      ...prev,
+                                      [field.name]: e.target.checked,
+                                    }))
+                                  }
+                                  className="rounded text-indigo-600 focus:ring-indigo-500"
+                                />
+                                <span className="text-xs text-slate-700">Yes / Completed</span>
+                              </label>
+                            ) : field.type === 'date' ? (
+                              <input
+                                type="date"
+                                value={val}
+                                onChange={(e) =>
+                                  setCustomFieldValues((prev) => ({
+                                    ...prev,
+                                    [field.name]: e.target.value,
+                                  }))
+                                }
+                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 font-mono"
+                              />
+                            ) : field.type === 'textarea' ? (
+                              <textarea
+                                rows={2}
+                                value={val}
+                                minLength={field.minLength}
+                                maxLength={field.maxLength}
+                                onChange={(e) =>
+                                  setCustomFieldValues((prev) => ({
+                                    ...prev,
+                                    [field.name]: e.target.value,
+                                  }))
+                                }
+                                placeholder={`Enter ${field.label}...`}
+                                className={`w-full bg-slate-50 border ${formErrors[field.name] ? 'border-rose-400 focus:border-rose-500' : 'border-slate-200 focus:border-indigo-500'} rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none`}
+                              />
+                            ) : (
+                              <input
+                                type={field.type === 'number' || field.type === 'currency' ? 'number' : field.type === 'phone' ? 'tel' : 'text'}
+                                value={val}
+                                minLength={field.minLength}
+                                maxLength={field.maxLength}
+                                onChange={(e) => {
+                                  const inputVal = e.target.value;
+                                  const filteredVal = (field.type === 'number' || field.type === 'phone' || field.type === 'currency')
+                                    ? inputVal.replace(/\D/g, '')
+                                    : inputVal;
+                                  setCustomFieldValues((prev) => ({
+                                    ...prev,
+                                    [field.name]: filteredVal,
+                                  }));
+                                }}
+                                placeholder={field.type === 'phone' || field.type === 'number' ? 'e.g. 9876543210' : `Enter ${field.label}...`}
+                                className={`w-full bg-slate-50 border ${formErrors[field.name] ? 'border-rose-400 focus:border-rose-500' : 'border-slate-200 focus:border-indigo-500'} rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none`}
+                              />
+                            )}
+
+                            {formErrors[field.name] && (
+                              <p className="text-rose-500 text-[10px] mt-0.5 font-medium animate-in fade-in">
+                                {formErrors[field.name]}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
                 )}
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
-                {customFields
-                  .filter((f) => !f.isHidden)
-                  .map((field) => {
-                    const val = customFieldValues[field.name] ?? '';
-                    return (
-                      <div key={field.id} className="space-y-1">
-                        <label className="block text-slate-700 font-semibold truncate flex items-center justify-between">
-                          <span>
-                            {field.label} {field.required && <span className="text-rose-500">*</span>}
-                          </span>
-                          {field.category && (
-                            <span className="text-[9px] font-mono text-slate-400 font-normal">
-                              {field.category}
-                            </span>
-                          )}
-                        </label>
-
-                        {field.type === 'dropdown' ? (
-                          <CustomDropdown<string>
-                            value={val || ''}
-                            onChange={(newVal) =>
-                              setCustomFieldValues((prev) => ({
-                                ...prev,
-                                [field.name]: newVal,
-                              }))
-                            }
-                            options={[
-                              { value: '', label: `-- Select ${field.label} --` },
-                              ...(field.options || []).map((opt) => ({ value: opt, label: opt })),
-                            ]}
-                            placeholder={`-- Select ${field.label} --`}
-                            align="left"
-                            wrapperClassName="w-full"
-                            className="w-full bg-slate-50"
-                          />
-                        ) : field.type === 'boolean' ? (
-                          <label className="flex items-center space-x-2 pt-1 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={Boolean(val)}
-                              onChange={(e) =>
-                                setCustomFieldValues((prev) => ({
-                                  ...prev,
-                                  [field.name]: e.target.checked,
-                                }))
-                              }
-                              className="rounded text-indigo-600 focus:ring-indigo-500"
-                            />
-                            <span className="text-xs text-slate-700">Yes / Completed</span>
-                          </label>
-                        ) : field.type === 'date' ? (
-                          <input
-                            type="date"
-                            value={val}
-                            onChange={(e) =>
-                              setCustomFieldValues((prev) => ({
-                                ...prev,
-                                [field.name]: e.target.value,
-                              }))
-                            }
-                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 font-mono"
-                          >
-                          </input>
-                        ) : field.type === 'textarea' ? (
-                          <textarea
-                            rows={2}
-                            value={val}
-                            onChange={(e) =>
-                              setCustomFieldValues((prev) => ({
-                                ...prev,
-                                [field.name]: e.target.value,
-                              }))
-                            }
-                            placeholder={`Enter ${field.label}...`}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-500"
-                          />
-                        ) : (
-                          <input
-                            type={field.type === 'number' || field.type === 'currency' ? 'number' : field.type === 'phone' ? 'tel' : 'text'}
-                            value={val}
-                            onChange={(e) => {
-                              const inputVal = e.target.value;
-                              const filteredVal = (field.type === 'number' || field.type === 'phone' || field.type === 'currency')
-                                ? inputVal.replace(/\D/g, '')
-                                : inputVal;
-                              setCustomFieldValues((prev) => ({
-                                ...prev,
-                                [field.name]: filteredVal,
-                              }));
-                            }}
-                            placeholder={field.type === 'phone' || field.type === 'number' ? 'e.g. 9876543210' : `Enter ${field.label}...`}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-500"
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
-              </div>
             </div>
-          )}
-
-          {/* Optional Advanced Settings Toggle */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="w-full p-3 bg-slate-50 hover:bg-slate-100/80 flex items-center justify-between text-xs font-semibold text-slate-700 cursor-pointer border-b border-slate-200"
-            >
-              <span className="flex items-center space-x-2">
-                <SlidersHorizontal className="w-4 h-4 text-slate-500" />
-                <span>Advanced Marketing & Campaign Settings (Optional)</span>
-              </span>
-              {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
-
-            {showAdvanced && (
-              <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Campaign Name</label>
-                  <input
-                    type="text"
-                    value={campaignName}
-                    onChange={(e) => setCampaignName(e.target.value)}
-                    placeholder="e.g. Q3_FB_Leads"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-slate-900 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">UTM Source</label>
-                  <input
-                    type="text"
-                    value={utmSource}
-                    onChange={(e) => setUtmSource(e.target.value)}
-                    placeholder="facebook"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-slate-900 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">UTM Medium</label>
-                  <input
-                    type="text"
-                    value={utmMedium}
-                    onChange={(e) => setUtmMedium(e.target.value)}
-                    placeholder="cpc"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-slate-900 focus:outline-none"
-                  />
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Action Buttons */}

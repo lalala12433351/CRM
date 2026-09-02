@@ -1,4 +1,4 @@
-import React, { useState, useContext, useRef, useEffect } from 'react';
+import React, { useState, useContext, useRef, useEffect, useMemo } from 'react';
 import { 
   X, 
   PhoneCall, 
@@ -56,15 +56,20 @@ import {
   IndianRupee,
   PhoneOutgoing,
   CalendarPlus,
+  RotateCw,
+  UserPlus,
+  User,
   Eye
 } from 'lucide-react';
-import { Lead, Agent, ActivityLog, LeadStatus, LeadSource, WhatsAppMessage, CallRecord, PipelineStage } from '../types';
+import { Lead, Agent, ActivityLog, LeadStatus, LeadSource, WhatsAppMessage, CallRecord, PipelineStage, CustomFieldDef, LeadTask } from '../types';
 import { CustomDropdown, DropdownOption } from './CustomDropdown';
 import { calculateLeadQualityScore } from '../utils/conversionEngine';
 import { CallRecordingPlayer } from './CallRecordingPlayer';
 import { StatusBadge } from './StatusBadge';
 import { getStatusStyle } from '../utils/statusStyles';
 import { StagesContext } from '../App';
+import { getFieldTypeIcon } from './ColumnCustomizerModal';
+import { fetchWithTenantAuth } from '../lib/auth';
 
 interface LeadDetailModalProps {
   lead: Lead | null;
@@ -73,6 +78,7 @@ interface LeadDetailModalProps {
   activities: ActivityLog[];
   messages: WhatsAppMessage[];
   callRecords: CallRecord[];
+  customFields?: CustomFieldDef[];
   onClose: () => void;
   onSelectLead?: (lead: Lead) => void;
   onOpenPowerDialerForLead?: (lead: Lead) => void;
@@ -93,6 +99,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   activities,
   messages,
   callRecords,
+  customFields = [],
   onClose,
   onSelectLead,
   onOpenPowerDialerForLead,
@@ -108,6 +115,109 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   if (!lead) return null;
 
   const stages = useContext(StagesContext);
+
+  // Dynamic Fields from Settings & Inline Editing State
+  const [editingFieldKey, setEditingFieldKey] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState<string>('');
+  const [saveSuccessFieldKey, setSaveSuccessFieldKey] = useState<string | null>(null);
+
+  // Active user-configured fields in Settings (excluding top header fields name & status)
+  const detailFields = useMemo(() => {
+    return (customFields || []).filter(
+      (f) => !f.isHidden && f.name !== 'name' && f.name !== 'status' && f.id !== '__fresh_lead_timer__'
+    );
+  }, [customFields]);
+
+  const getLeadFieldDisplayValue = (field: CustomFieldDef): string => {
+    if (!lead) return '';
+    const key = field.name;
+    if (key === 'phone') return lead.phone || '';
+    if (key === 'email') return lead.email || '';
+    if (key === 'alternate_phone' || key === 'alternatePhone') return lead.alternatePhone || '';
+    if (key === 'company') return lead.company || '';
+    if (key === 'city') return lead.city || '';
+    if (key === 'state') return lead.state || '';
+    if (key === 'pincode') return lead.pincode || '';
+    if (key === 'address') return lead.address || '';
+    if (key === 'source') return lead.source || '';
+    if (key === 'deal_value' || key === 'dealValue') return lead.dealValue ? String(lead.dealValue) : '';
+    if (key === 'notes' || key === 'special_remarks') return lead.notes || '';
+    
+    if (lead.customFields && lead.customFields[key] !== undefined && lead.customFields[key] !== null) {
+      return String(lead.customFields[key]);
+    }
+    if ((lead as any)[key] !== undefined && (lead as any)[key] !== null) {
+      return String((lead as any)[key]);
+    }
+    return '';
+  };
+
+  const handleStartEditField = (field: CustomFieldDef) => {
+    setEditingFieldKey(field.name || field.id);
+    setEditingValue(getLeadFieldDisplayValue(field));
+  };
+
+  const handleSaveFieldEdit = (field: CustomFieldDef, rawValue: string) => {
+    if (!lead) return;
+    const trimmed = rawValue.trim();
+    const key = field.name;
+
+    const updatedLead: Lead = {
+      ...lead,
+      updatedAt: new Date().toISOString()
+    };
+
+    if (key === 'phone') {
+      const cleaned = trimmed ? (trimmed.startsWith('+') ? trimmed : trimmed.startsWith('91') ? `+${trimmed}` : `+91 ${trimmed}`) : '';
+      updatedLead.phone = cleaned;
+    } else if (key === 'email') {
+      updatedLead.email = trimmed;
+    } else if (key === 'alternate_phone' || key === 'alternatePhone') {
+      updatedLead.alternatePhone = trimmed;
+    } else if (key === 'company') {
+      updatedLead.company = trimmed;
+    } else if (key === 'city') {
+      updatedLead.city = trimmed;
+    } else if (key === 'state') {
+      updatedLead.state = trimmed;
+    } else if (key === 'pincode') {
+      updatedLead.pincode = trimmed;
+    } else if (key === 'address') {
+      updatedLead.address = trimmed;
+    } else if (key === 'source') {
+      updatedLead.source = (trimmed as any) || lead.source;
+    } else if (key === 'deal_value' || key === 'dealValue') {
+      updatedLead.dealValue = Number(trimmed) || 0;
+    } else {
+      updatedLead.customFields = {
+        ...(updatedLead.customFields || {}),
+        [key]: trimmed
+      };
+    }
+
+    onUpdateLead(updatedLead);
+
+    // Direct database persistence sync
+    fetchWithTenantAuth('/api/leads', {
+      method: 'POST',
+      body: JSON.stringify(updatedLead)
+    }).catch((err) => console.warn('Field edit database sync notice:', err));
+
+    onAddActivity({
+      id: `act-${Date.now()}`,
+      leadId: lead.id,
+      agentId: lead.ownerAgentId || 'system',
+      agentName: lead.ownerAgentName || 'User',
+      type: 'edit',
+      title: `Updated ${field.label}`,
+      description: `Changed to "${trimmed || 'Empty'}"`,
+      timestamp: new Date().toISOString()
+    });
+
+    setSaveSuccessFieldKey(field.name);
+    setTimeout(() => setSaveSuccessFieldKey(null), 1800);
+    setEditingFieldKey(null);
+  };
   const [activeTab, setActiveTab] = useState<'timeline' | 'tasks' | 'whatsapp' | 'calls' | 'notes' | 'attribution'>('timeline');
   const [whatsAppText, setWhatsAppText] = useState('');
   const [noteText, setNoteText] = useState(lead.notes || '');
@@ -128,9 +238,108 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   const [showNotificationBanner, setShowNotificationBanner] = useState(true);
   const [copiedPhone, setCopiedPhone] = useState(false);
   const [activityFilter, setActivityFilter] = useState<'ALL' | 'call' | 'note' | 'whatsapp' | 'stage_change'>('ALL');
+  
+  // Activity History Filter & Tab States matching screenshot
+  const [historyTab, setHistoryTab] = useState<'activity' | 'task'>('activity');
+  const [actionFilter, setActionFilter] = useState<'all' | 'creation' | 'stage_change' | 'edit' | 'task' | 'call' | 'whatsapp' | 'note' | 'api'>('all');
+  const [timeFilter, setTimeFilter] = useState<'all' | 'today' | 'yesterday' | '7days' | '30days'>('all');
+  const [teamFilter, setTeamFilter] = useState<string>('all');
+  const [isActionDropdownOpen, setIsActionDropdownOpen] = useState(false);
+  const [isTimeDropdownOpen, setIsTimeDropdownOpen] = useState(false);
+  const [isTeamDropdownOpen, setIsTeamDropdownOpen] = useState(false);
+
   const [showAddActionMenu, setShowAddActionMenu] = useState(false);
   const [actionMenuSearch, setActionMenuSearch] = useState('');
   const [activeActionType, setActiveActionType] = useState<'email' | 'file' | 'note' | 'call' | 'payment' | 'sms' | 'task' | 'whatsapp' | 'followup' | null>(null);
+
+  // Follow-Up Scheduling Modal State
+  const [showFollowUpScheduler, setShowFollowUpScheduler] = useState(false);
+  const [schedulerDueDay, setSchedulerDueDay] = useState(() => new Date().toISOString().slice(0, 10));
+  const [schedulerHour, setSchedulerHour] = useState('10');
+  const [schedulerMinute, setSchedulerMinute] = useState('00');
+  const [schedulerAmPm, setSchedulerAmPm] = useState<'AM' | 'PM'>('AM');
+  const [schedulerRemarks, setSchedulerRemarks] = useState('');
+  const [pendingTargetStatus, setPendingTargetStatus] = useState<string>('Follow Up');
+
+  // Unified dynamic activity list with date segregation and assignee segregation
+  const unifiedActivities = useMemo(() => {
+    if (!lead) return [];
+
+    const leadSpecific = Array.isArray(lead.activities) ? lead.activities : [];
+    const globalMatching = (activities || []).filter((a) => a.leadId === lead.id);
+
+    const anchorEvents: ActivityLog[] = [
+      {
+        id: `anchor-fb-${lead.id}`,
+        leadId: lead.id,
+        type: 'facebook_form',
+        title: 'Lead Capture',
+        description: 'Lead Capture from Inbound Lead Form & Connected Social Page',
+        timestamp: lead.createdAt || new Date(Date.now() - 21 * 3600000).toISOString(),
+        agentId: 'bot',
+        agentName: 'Meta Form'
+      },
+      {
+        id: `anchor-capi-${lead.id}`,
+        leadId: lead.id,
+        type: 'capi',
+        title: 'CAPI 200',
+        description: 'Conversion API Event Handshake Confirmed',
+        timestamp: lead.createdAt || new Date(Date.now() - 24 * 3600000).toISOString(),
+        agentId: 'bot',
+        agentName: 'CAPI'
+      }
+    ];
+
+    const seen = new Set<string>();
+    const all = [...leadSpecific, ...globalMatching, ...anchorEvents].filter((act) => {
+      if (!act || !act.id) return false;
+      if (seen.has(act.id)) return false;
+      seen.add(act.id);
+      return true;
+    });
+
+    const filteredByAction = all.filter((act) => {
+      if (actionFilter === 'all') return true;
+      if (actionFilter === 'creation') return act.type === 'creation' || act.type === 'facebook_form';
+      if (actionFilter === 'stage_change') return act.type === 'stage_change';
+      if (actionFilter === 'edit') return act.type === 'edit';
+      if (actionFilter === 'task') return act.type === 'task';
+      if (actionFilter === 'call') return act.type === 'call';
+      if (actionFilter === 'whatsapp') return act.type === 'whatsapp';
+      if (actionFilter === 'note') return act.type === 'note';
+      if (actionFilter === 'api') return act.type === 'api' || act.type === 'capi' || act.type === 'webhook';
+      return true;
+    });
+
+    const now = Date.now();
+    const filteredByTime = filteredByAction.filter((act) => {
+      if (timeFilter === 'all') return true;
+      const actTime = new Date(act.timestamp).getTime();
+      if (isNaN(actTime)) return true;
+      const diffHours = (now - actTime) / 3600000;
+
+      if (timeFilter === 'today') return diffHours <= 24;
+      if (timeFilter === 'yesterday') return diffHours > 24 && diffHours <= 48;
+      if (timeFilter === '7days') return diffHours <= 7 * 24;
+      if (timeFilter === '30days') return diffHours <= 30 * 24;
+      return true;
+    });
+
+    const filteredByTeam = filteredByTime.filter((act) => {
+      if (teamFilter === 'all') return true;
+      if (teamFilter === 'bot' || teamFilter === 'system') {
+        return !act.agentId || act.agentId === 'bot' || act.agentId === 'system';
+      }
+      return act.agentId === teamFilter;
+    });
+
+    return filteredByTeam.sort((a, b) => {
+      const timeA = new Date(a.timestamp).getTime() || 0;
+      const timeB = new Date(b.timestamp).getTime() || 0;
+      return timeB - timeA;
+    });
+  }, [lead, activities, actionFilter, timeFilter, teamFilter]);
 
   // Action Composer Form Input States
   const [emailSubject, setEmailSubject] = useState('');
@@ -145,13 +354,24 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   const [smsText, setSmsText] = useState('');
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDueDate, setTaskDueDate] = useState('');
+  const [taskAssigneeId, setTaskAssigneeId] = useState(() => lead?.ownerAgentId || '');
   const [followupNote, setFollowupNote] = useState('');
-  const [followupAssigneeId, setFollowupAssigneeId] = useState(() => lead.ownerAgentId || lead.assignedTo || '');
+  const [followupAssigneeId, setFollowupAssigneeId] = useState(() => lead?.ownerAgentId || lead?.assignedTo || '');
   const [followupDateTime, setFollowupDateTime] = useState('');
   const [followupDueDay, setFollowupDueDay] = useState(() => new Date().toISOString().slice(0, 10));
   const [followupHour, setFollowupHour] = useState('09');
   const [followupMinute, setFollowupMinute] = useState('00');
   const [followupAmPm, setFollowupAmPm] = useState<'AM' | 'PM'>('AM');
+
+  // Dedicated Lead Tasks Tab State (Separate from global CRM tasks)
+  const [isAddingInlineTask, setIsAddingInlineTask] = useState(false);
+  const [inlineTaskTitle, setInlineTaskTitle] = useState('');
+  const [inlineTaskDueDate, setInlineTaskDueDate] = useState(() => new Date(Date.now() + 86400000).toISOString().slice(0, 16));
+  const [inlineTaskAssigneeId, setInlineTaskAssigneeId] = useState(() => lead?.ownerAgentId || '');
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editTaskTitle, setEditTaskTitle] = useState('');
+  const [editTaskDueDate, setEditTaskDueDate] = useState('');
+  const [editTaskAssigneeId, setEditTaskAssigneeId] = useState('');
 
   React.useEffect(() => {
     if (lead) {
@@ -234,22 +454,324 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   };
 
   const handleScheduleTaskAction = () => {
-    if (!taskTitle.trim()) return;
-    onUpdateLead({
+    if (!taskTitle.trim() || !lead) return;
+    const assignedAgent = agents.find((a) => a.id === taskAssigneeId) || agents.find((a) => a.id === lead.ownerAgentId);
+    const newTask: LeadTask = {
+      id: `task-${Date.now()}`,
+      leadId: lead.id,
+      title: taskTitle.trim(),
+      dueDate: taskDueDate || new Date().toISOString().slice(0, 16),
+      assigneeId: assignedAgent?.id || lead.ownerAgentId || 'agent-admin',
+      assigneeName: assignedAgent?.name || lead.ownerAgentName || 'Admin',
+      status: 'Pending',
+      createdAt: new Date().toISOString()
+    };
+
+    const updatedLead: Lead = {
       ...lead,
-      followUpAt: taskDueDate || undefined,
+      tasks: [newTask, ...(lead.tasks || [])],
+      followUpAt: taskDueDate || lead.followUpAt,
       status: 'Follow Up',
       updatedAt: new Date().toISOString()
-    });
+    };
+
+    onUpdateLead(updatedLead);
+    fetchWithTenantAuth('/api/leads', {
+      method: 'POST',
+      body: JSON.stringify(updatedLead)
+    }).catch(console.warn);
+
     onAddActivity({
+      id: `act-${Date.now()}`,
       leadId: lead.id,
-      type: 'note',
-      title: `Task Scheduled: ${taskTitle}`,
-      description: `Due Date: ${taskDueDate || 'Today'}. Assigned to active team representative.`
+      agentId: assignedAgent?.id || lead.ownerAgentId,
+      agentName: assignedAgent?.name || lead.ownerAgentName,
+      type: 'task',
+      title: `Task Created: ${newTask.title}`,
+      description: `Due Date: ${newTask.dueDate}. Assigned to ${newTask.assigneeName}.`,
+      timestamp: new Date().toISOString()
     });
+
     setTaskTitle('');
     setTaskDueDate('');
     setActiveActionType(null);
+  };
+
+  // Lead Tasks Management Handlers (Strictly Scoped to this Lead)
+  const handleCreateLeadTask = () => {
+    if (!inlineTaskTitle.trim() || !lead) return;
+    const assignedAgent = agents.find((a) => a.id === inlineTaskAssigneeId) || agents.find((a) => a.id === lead.ownerAgentId);
+    const newTask: LeadTask = {
+      id: `task-${Date.now()}`,
+      leadId: lead.id,
+      title: inlineTaskTitle.trim(),
+      dueDate: inlineTaskDueDate || new Date().toISOString().slice(0, 16),
+      assigneeId: assignedAgent?.id || lead.ownerAgentId || 'agent-admin',
+      assigneeName: assignedAgent?.name || lead.ownerAgentName || 'Admin',
+      status: 'Pending',
+      createdAt: new Date().toISOString()
+    };
+
+    const updatedLead: Lead = {
+      ...lead,
+      tasks: [newTask, ...(lead.tasks || [])],
+      updatedAt: new Date().toISOString()
+    };
+
+    onUpdateLead(updatedLead);
+    fetchWithTenantAuth('/api/leads', {
+      method: 'POST',
+      body: JSON.stringify(updatedLead)
+    }).catch(console.warn);
+
+    onAddActivity({
+      id: `act-${Date.now()}`,
+      leadId: lead.id,
+      agentId: assignedAgent?.id || lead.ownerAgentId,
+      agentName: assignedAgent?.name || lead.ownerAgentName,
+      type: 'task',
+      title: `Task Created: ${newTask.title}`,
+      description: `Due Date: ${newTask.dueDate}. Assigned to ${newTask.assigneeName}.`,
+      timestamp: new Date().toISOString()
+    });
+
+    setInlineTaskTitle('');
+    setIsAddingInlineTask(false);
+  };
+
+  const handleToggleTaskStatus = (taskId: string) => {
+    if (!lead || !lead.tasks) return;
+    const task = lead.tasks.find((t) => t.id === taskId);
+    if (!task) return;
+
+    const newStatus: 'Pending' | 'Completed' = task.status === 'Completed' ? 'Pending' : 'Completed';
+    const updatedTasks = lead.tasks.map((t) => (t.id === taskId ? { ...t, status: newStatus, updatedAt: new Date().toISOString() } : t));
+
+    const updatedLead: Lead = {
+      ...lead,
+      tasks: updatedTasks,
+      updatedAt: new Date().toISOString()
+    };
+
+    onUpdateLead(updatedLead);
+    fetchWithTenantAuth('/api/leads', {
+      method: 'POST',
+      body: JSON.stringify(updatedLead)
+    }).catch(console.warn);
+
+    onAddActivity({
+      id: `act-${Date.now()}`,
+      leadId: lead.id,
+      agentId: lead.ownerAgentId,
+      agentName: lead.ownerAgentName,
+      type: 'task',
+      title: `Task ${newStatus === 'Completed' ? 'Completed' : 'Reopened'}`,
+      description: `Task "${task.title}" marked as ${newStatus}.`,
+      timestamp: new Date().toISOString()
+    });
+  };
+
+  const handleStartEditTask = (task: LeadTask) => {
+    setEditingTaskId(task.id);
+    setEditTaskTitle(task.title);
+    setEditTaskDueDate(task.dueDate || '');
+    setEditTaskAssigneeId(task.assigneeId || lead?.ownerAgentId || '');
+  };
+
+  const handleSaveEditedTask = (taskId: string) => {
+    if (!lead || !lead.tasks || !editTaskTitle.trim()) return;
+    const assignedAgent = agents.find((a) => a.id === editTaskAssigneeId);
+
+    const updatedTasks = lead.tasks.map((t) => {
+      if (t.id === taskId) {
+        return {
+          ...t,
+          title: editTaskTitle.trim(),
+          dueDate: editTaskDueDate || t.dueDate,
+          assigneeId: assignedAgent ? assignedAgent.id : t.assigneeId,
+          assigneeName: assignedAgent ? assignedAgent.name : t.assigneeName,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return t;
+    });
+
+    const updatedLead: Lead = {
+      ...lead,
+      tasks: updatedTasks,
+      updatedAt: new Date().toISOString()
+    };
+
+    onUpdateLead(updatedLead);
+    fetchWithTenantAuth('/api/leads', {
+      method: 'POST',
+      body: JSON.stringify(updatedLead)
+    }).catch(console.warn);
+
+    onAddActivity({
+      id: `act-${Date.now()}`,
+      leadId: lead.id,
+      agentId: lead.ownerAgentId,
+      agentName: lead.ownerAgentName,
+      type: 'task',
+      title: `Task Updated`,
+      description: `Updated task details for "${editTaskTitle.trim()}"`,
+      timestamp: new Date().toISOString()
+    });
+
+    setEditingTaskId(null);
+  };
+
+  const handleDeleteLeadTask = (taskId: string) => {
+    if (!lead || !lead.tasks) return;
+    const targetTask = lead.tasks.find((t) => t.id === taskId);
+    const updatedTasks = lead.tasks.filter((t) => t.id !== taskId);
+
+    const updatedLead: Lead = {
+      ...lead,
+      tasks: updatedTasks,
+      updatedAt: new Date().toISOString()
+    };
+
+    onUpdateLead(updatedLead);
+    fetchWithTenantAuth('/api/leads', {
+      method: 'POST',
+      body: JSON.stringify(updatedLead)
+    }).catch(console.warn);
+
+    onAddActivity({
+      id: `act-${Date.now()}`,
+      leadId: lead.id,
+      agentId: lead.ownerAgentId,
+      agentName: lead.ownerAgentName,
+      type: 'task',
+      title: `Task Deleted`,
+      description: `Removed task "${targetTask?.title || 'Task'}"`,
+      timestamp: new Date().toISOString()
+    });
+  };
+
+  const handleStageSelect = (newStatus: string) => {
+    const isFollowUp = newStatus.toLowerCase().replace(/[\s-_]/g, '').includes('follow');
+    if (isFollowUp) {
+      setPendingTargetStatus(newStatus);
+      if (lead.followUpAt) {
+        const d = new Date(lead.followUpAt);
+        if (!isNaN(d.getTime())) {
+          setSchedulerDueDay(lead.followUpAt.slice(0, 10));
+          let h = d.getHours();
+          const isPm = h >= 12;
+          if (h > 12) h -= 12;
+          if (h === 0) h = 12;
+          setSchedulerHour(String(h).padStart(2, '0'));
+          setSchedulerMinute(String(d.getMinutes()).padStart(2, '0'));
+          setSchedulerAmPm(isPm ? 'PM' : 'AM');
+        }
+      } else {
+        setSchedulerDueDay(new Date().toISOString().slice(0, 10));
+        setSchedulerHour('10');
+        setSchedulerMinute('00');
+        setSchedulerAmPm('AM');
+      }
+      setShowFollowUpScheduler(true);
+    } else {
+      const updatedLead: Lead = {
+        ...lead,
+        status: newStatus as LeadStatus,
+        updatedAt: new Date().toISOString()
+      };
+      onUpdateLead(updatedLead);
+      fetchWithTenantAuth('/api/leads', {
+        method: 'POST',
+        body: JSON.stringify(updatedLead)
+      }).catch(console.warn);
+
+      onAddActivity({
+        id: `act-${Date.now()}`,
+        leadId: lead.id,
+        agentId: lead.ownerAgentId,
+        agentName: lead.ownerAgentName,
+        type: 'stage_change',
+        title: 'Stage Changed',
+        description: `Lead stage changed to ${newStatus}`,
+        timestamp: new Date().toISOString()
+      });
+    }
+  };
+
+  const handleConfirmFollowUpSchedule = (e: React.FormEvent) => {
+    e.preventDefault();
+    let h = parseInt(schedulerHour, 10);
+    if (schedulerAmPm === 'PM' && h !== 12) h += 12;
+    if (schedulerAmPm === 'AM' && h === 12) h = 0;
+    const combinedDate = `${schedulerDueDay}T${String(h).padStart(2, '0')}:${schedulerMinute}:00`;
+
+    const selectedDateTime = new Date(combinedDate);
+    if (selectedDateTime < new Date()) {
+      alert('Please select a future date and time for the follow-up.');
+      return;
+    }
+
+    const updatedLead: Lead = {
+      ...lead,
+      status: pendingTargetStatus as LeadStatus,
+      followUpAt: combinedDate,
+      notes: schedulerRemarks ? `${lead.notes ? lead.notes + '\n' : ''}[Follow-up Remark]: ${schedulerRemarks}` : lead.notes,
+      updatedAt: new Date().toISOString()
+    };
+
+    onUpdateLead(updatedLead);
+    fetchWithTenantAuth('/api/leads', {
+      method: 'POST',
+      body: JSON.stringify(updatedLead)
+    }).catch(console.warn);
+
+    const formattedDisplay = new Date(combinedDate).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+    onAddActivity({
+      id: `act-${Date.now()}`,
+      leadId: lead.id,
+      agentId: lead.ownerAgentId,
+      agentName: lead.ownerAgentName,
+      type: 'task',
+      title: 'Follow-Up Scheduled',
+      description: `Follow-up set for ${formattedDisplay}.${schedulerRemarks ? ` Remark: "${schedulerRemarks}"` : ''}`,
+      timestamp: new Date().toISOString()
+    });
+
+    setShowFollowUpScheduler(false);
+    setSchedulerRemarks('');
+  };
+
+  const handleDeleteActivity = (activityId: string) => {
+    if (!lead) return;
+    const targetAct = (lead.activities || []).find((a) => a.id === activityId);
+    const updatedActivities = (lead.activities || []).filter((a) => a.id !== activityId);
+    
+    // If the activity was a task creation or follow-up, also clear corresponding lead task/follow-up if needed
+    let updatedTasks = lead.tasks;
+    if (targetAct?.type === 'task' && Array.isArray(lead.tasks)) {
+      updatedTasks = lead.tasks.filter((t) => !targetAct.description?.includes(t.title) && !targetAct.title?.includes(t.title));
+    }
+
+    const updatedLead: Lead = {
+      ...lead,
+      activities: updatedActivities,
+      tasks: updatedTasks,
+      updatedAt: new Date().toISOString()
+    };
+
+    onUpdateLead(updatedLead);
+
+    // Direct database persistence
+    fetchWithTenantAuth('/api/leads', {
+      method: 'POST',
+      body: JSON.stringify(updatedLead)
+    }).catch(console.warn);
+
+    // Call DELETE endpoint
+    fetchWithTenantAuth(`/api/activities/${activityId}`, {
+      method: 'DELETE'
+    }).catch(console.warn);
   };
 
   const handleCreateFollowUp = () => {
@@ -717,13 +1239,12 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                         const color = stageConfig?.color || '#10B981';
                         const stageOptions: DropdownOption<string>[] = stages.map(s => ({
                           value: s.name,
-                          label: s.name,
-                          icon: <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ backgroundColor: s.color || '#10B981' }} />
+                          label: s.name
                         }));
                         return (
                           <CustomDropdown<string>
                             value={lead.status}
-                            onChange={(newStatus) => onUpdateLead({ ...lead, status: newStatus as LeadStatus })}
+                            onChange={(newStatus) => handleStageSelect(newStatus)}
                             options={stageOptions}
                             align="left"
                             className="font-semibold py-1 px-2.5 rounded-lg text-xs"
@@ -731,6 +1252,36 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                           />
                         );
                       })()}
+
+                      {/* Scheduled Follow-Up Date/Time Pill */}
+                      {lead.followUpAt && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPendingTargetStatus(lead.status || 'Follow Up');
+                            const d = new Date(lead.followUpAt!);
+                            if (!isNaN(d.getTime())) {
+                              setSchedulerDueDay(lead.followUpAt!.slice(0, 10));
+                              let h = d.getHours();
+                              const isPm = h >= 12;
+                              if (h > 12) h -= 12;
+                              if (h === 0) h = 12;
+                              setSchedulerHour(String(h).padStart(2, '0'));
+                              setSchedulerMinute(String(d.getMinutes()).padStart(2, '0'));
+                              setSchedulerAmPm(isPm ? 'PM' : 'AM');
+                            }
+                            setShowFollowUpScheduler(true);
+                          }}
+                          className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+                          title="Click to reschedule follow-up date and time"
+                        >
+                          <Calendar className="w-3.5 h-3.5 text-amber-700" />
+                          <span>
+                            {new Date(lead.followUpAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}, {new Date(lead.followUpAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </button>
+                      )}
+
                       {/* Dynamic Custom Lost Reason Selector if status is Lost */}
                       {(lead.status === 'Lost' || lead.status?.toLowerCase() === 'lost') && (
                         <div className="relative" ref={lostReasonDropdownRef}>
@@ -953,215 +1504,183 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                  </div>
                </div>
 
-               {/* 2-Column Grid */}
-               <div className="p-5">
-                 <div className="grid grid-cols-2 gap-y-6 gap-x-8 text-[13px]">
-                    {/* Row 1 */}
-                    <div>
-                      <div className="flex items-center text-slate-400 mb-1">
-                         <Phone className="w-3.5 h-3.5 mr-1.5" />
-                         <span>Phone</span>
-                         <div className="ml-2 w-5 h-5 bg-indigo-100 rounded flex items-center justify-center text-[10px] font-bold text-indigo-700">D</div>
-                      </div>
-                      <div className="flex items-center text-slate-700 font-medium">
-                         <span className="mr-1.5 text-base">🇮🇳</span> 91{lead.phone?.replace('+91', '').replace('91', '') || '9036501419'}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex items-center text-slate-400 mb-1">
-                         <Mail className="w-3.5 h-3.5 mr-1.5" />
-                         <span>Email</span>
-                      </div>
-                      <div className="text-slate-700 font-medium">
-                         {lead.email || 'anu064638@gmail.com'}
-                      </div>
-                    </div>
+                {/* Dynamic 2-Column Grid of Settings Fields with Inline Editing */}
+                <div className="p-5">
+                  {(() => {
+                    const mainFields = detailFields.slice(0, 8);
+                    const moreFields = detailFields.slice(8);
 
-                    {/* Row 2 */}
-                    <div>
-                      <div className="flex items-center text-slate-400 mb-1">
-                         <Phone className="w-3.5 h-3.5 mr-1.5" />
-                         <span>Alternate Phone</span>
-                      </div>
-                      <div className="flex items-center text-slate-400 font-medium">
-                         <span className="mr-1.5 text-base">🇮🇳</span> 91 <span className="ml-1 text-slate-300 font-normal">Enter Phone Number</span>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex items-center text-slate-400 mb-1">
-                         <Type className="w-3.5 h-3.5 mr-1.5" />
-                         <span>Batch</span>
-                      </div>
-                      <div className="text-slate-300">Empty</div>
-                    </div>
+                    const renderFieldItem = (field: CustomFieldDef) => {
+                      const isEditing = editingFieldKey === (field.name || field.id);
+                      const displayVal = getLeadFieldDisplayValue(field);
+                      const isRecentlySaved = saveSuccessFieldKey === field.name;
 
-                    {/* Row 3 */}
-                    <div>
-                      <div className="flex items-center text-slate-400 mb-1">
-                         <Type className="w-3.5 h-3.5 mr-1.5" />
-                         <span>Date of Joining</span>
-                      </div>
-                      <div className="text-slate-300">Empty</div>
-                    </div>
-                    <div>
-                      <div className="flex items-center text-slate-400 mb-1">
-                         <Type className="w-3.5 h-3.5 mr-1.5" />
-                         <span>City</span>
-                      </div>
-                      <div className="text-slate-700 font-medium">{lead.city || 'Bangalore'}</div>
-                    </div>
-                    
-                    {/* Row 4 */}
-                    <div>
-                      <div className="flex items-center text-slate-400 mb-1">
-                         <Type className="w-3.5 h-3.5 mr-1.5" />
-                         <span>Address</span>
-                      </div>
-                      <div className="text-slate-300">Empty</div>
-                    </div>
-                    <div>
-                      <div className="flex items-center text-slate-400 mb-1">
-                         <Type className="w-3.5 h-3.5 mr-1.5" />
-                         <span>Age</span>
-                      </div>
-                      <div className="text-slate-300">Empty</div>
-                    </div>
-                 </div>
+                      return (
+                        <div key={field.id || field.name} className="group relative">
+                          {/* Field Header */}
+                          <div className="flex items-center text-slate-400 mb-1 justify-between">
+                            <div className="flex items-center space-x-1.5 min-w-0">
+                              <span className="shrink-0 flex items-center justify-center">
+                                {getFieldTypeIcon(field.type, field.name)}
+                              </span>
+                              <span className="truncate text-xs font-medium text-slate-500">
+                                {field.label}
+                              </span>
+                              {field.name === 'phone' && (
+                                <div className="ml-1.5 w-4 h-4 bg-indigo-100 rounded flex items-center justify-center text-[9px] font-bold text-indigo-700 shrink-0">
+                                  D
+                                </div>
+                              )}
+                            </div>
 
-                 {/* Show more / less divider */}
-                 <div className="relative mt-8 mb-4">
-                   <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                     <div className="w-full border-t border-dashed border-slate-200"></div>
-                   </div>
-                   <div className="relative flex justify-center">
-                     <button 
-                       onClick={() => setShowMoreFields(!showMoreFields)}
-                       className="inline-flex items-center space-x-1 rounded-full border border-slate-200 bg-[#fafafa] px-3 py-1 text-xs text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer"
-                     >
-                       <span>{showMoreFields ? 'Show less' : 'Show more'}</span>
-                       <ChevronDown className={`w-3 h-3 transition-transform ${showMoreFields ? 'rotate-180' : ''}`} />
-                     </button>
-                   </div>
-                 </div>
+                            {isRecentlySaved && (
+                              <span className="text-[10px] text-emerald-600 font-bold flex items-center animate-in fade-in">
+                                <Check className="w-3 h-3 mr-0.5 stroke-[3]" /> Saved
+                              </span>
+                            )}
+                          </div>
 
-                 {/* Expanded Fields */}
-                 {showMoreFields && (
-                   <div className="grid grid-cols-2 gap-y-6 gap-x-8 text-[13px] pb-4">
-                     <div>
-                       <div className="flex items-center text-slate-400 mb-1">
-                          <Type className="w-3.5 h-3.5 mr-1.5" />
-                          <span>Date of Birth</span>
-                       </div>
-                       <div className="text-slate-300">DD/MM/YYYY HH:mm:ss</div>
-                     </div>
-                     <div>
-                       <div className="flex items-center text-slate-400 mb-1">
-                          <Type className="w-3.5 h-3.5 mr-1.5" />
-                          <span>DOB</span>
-                       </div>
-                       <div className="text-slate-300">Empty</div>
-                     </div>
-                     <div>
-                       <div className="flex items-center text-slate-400 mb-1">
-                          <Type className="w-3.5 h-3.5 mr-1.5" />
-                          <span>State</span>
-                       </div>
-                       <div className="text-slate-300">Empty</div>
-                     </div>
-                     <div>
-                       <div className="flex items-center text-slate-400 mb-1">
-                          <Type className="w-3.5 h-3.5 mr-1.5" />
-                          <span>Gender</span>
-                       </div>
-                       <div className="text-slate-300">Empty</div>
-                     </div>
-                     <div>
-                       <div className="flex items-center text-slate-400 mb-1">
-                          <Type className="w-3.5 h-3.5 mr-1.5" />
-                          <span>Facebook ad</span>
-                       </div>
-                       <div className="text-slate-300">Empty</div>
-                     </div>
-                     <div>
-                       <div className="flex items-center text-slate-400 mb-1">
-                          <Type className="w-3.5 h-3.5 mr-1.5" />
-                          <span>Facebook Campaign</span>
-                       </div>
-                       <div className="text-slate-300">Empty</div>
-                     </div>
-                     <div>
-                       <div className="flex items-center text-slate-400 mb-1">
-                          <Type className="w-3.5 h-3.5 mr-1.5" />
-                          <span>Facebook Lead id</span>
-                       </div>
-                       <div className="text-slate-300">Empty</div>
-                     </div>
-                     <div>
-                       <div className="flex items-center text-slate-400 mb-1">
-                          <Type className="w-3.5 h-3.5 mr-1.5" />
-                          <span>Facebook ad set id</span>
-                       </div>
-                       <div className="text-slate-300">Empty</div>
-                     </div>
-                     <div>
-                       <div className="flex items-center text-slate-400 mb-1">
-                          <Type className="w-3.5 h-3.5 mr-1.5" />
-                          <span>Facebook Ad set name</span>
-                       </div>
-                       <div className="text-slate-300">Empty</div>
-                     </div>
-                     <div>
-                       <div className="flex items-center text-slate-400 mb-1">
-                          <Type className="w-3.5 h-3.5 mr-1.5" />
-                          <span>Facebook form</span>
-                       </div>
-                       <div className="text-slate-300">Empty</div>
-                     </div>
-                     <div>
-                       <div className="flex items-center text-slate-400 mb-1">
-                          <Type className="w-3.5 h-3.5 mr-1.5" />
-                          <span>Facebook page</span>
-                       </div>
-                       <div className="text-slate-300">Empty</div>
-                     </div>
-                     <div>
-                       <div className="flex items-center text-slate-400 mb-1">
-                          <Type className="w-3.5 h-3.5 mr-1.5" />
-                          <span>Company</span>
-                       </div>
-                       <div className="text-slate-300">Empty</div>
-                     </div>
-                     <div>
-                       <div className="flex items-center text-slate-400 mb-1">
-                          <Type className="w-3.5 h-3.5 mr-1.5" />
-                          <span>Lead id</span>
-                       </div>
-                       <div className="text-slate-300">Empty</div>
-                     </div>
-                     <div>
-                       <div className="flex items-center text-slate-400 mb-1">
-                          <Type className="w-3.5 h-3.5 mr-1.5" />
-                          <span>Lead Type</span>
-                       </div>
-                       <div className="text-slate-300">Empty</div>
-                     </div>
-                     <div>
-                       <div className="flex items-center text-slate-400 mb-1">
-                          <Type className="w-3.5 h-3.5 mr-1.5" />
-                          <span>Prefix</span>
-                       </div>
-                       <div className="text-slate-300">Empty</div>
-                     </div>
-                     <div>
-                       <div className="flex items-center text-slate-400 mb-1">
-                          <Type className="w-3.5 h-3.5 mr-1.5" />
-                          <span>date</span>
-                       </div>
-                       <div className="text-slate-300">DD/MM/YYYY HH:mm:ss</div>
-                      </div>
-                    </div>
-                  )}
-               </div>
+                          {/* Field Body (Inline Editor vs Display) */}
+                          {isEditing ? (
+                            <form
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                handleSaveFieldEdit(field, editingValue);
+                              }}
+                              className="flex items-center space-x-1 mt-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {field.type === 'dropdown' && field.options && field.options.length > 0 ? (
+                                <select
+                                  autoFocus
+                                  value={editingValue}
+                                  onChange={(e) => setEditingValue(e.target.value)}
+                                  className="w-full text-xs bg-white border border-indigo-500 rounded-md px-2 py-1 focus:outline-none shadow-xs"
+                                >
+                                  <option value="">Select option...</option>
+                                  {field.options.map((opt) => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                  ))}
+                                </select>
+                              ) : field.type === 'phone' ? (
+                                <div className="flex items-center w-full bg-white border border-indigo-500 rounded-md px-2 py-0.5 shadow-xs">
+                                  <span className="mr-1 text-sm">🇮🇳</span>
+                                  <span className="text-xs text-slate-500 font-semibold mr-1">91</span>
+                                  <input
+                                    autoFocus
+                                    type="tel"
+                                    value={editingValue.replace(/^\+?91\s*/, '')}
+                                    onChange={(e) => setEditingValue(e.target.value.replace(/\D/g, ''))}
+                                    className="w-full text-xs focus:outline-none"
+                                    placeholder="Phone number"
+                                  />
+                                </div>
+                              ) : field.type === 'date' ? (
+                                <input
+                                  autoFocus
+                                  type="date"
+                                  value={editingValue}
+                                  onChange={(e) => setEditingValue(e.target.value)}
+                                  className="w-full text-xs bg-white border border-indigo-500 rounded-md px-2 py-1 focus:outline-none shadow-xs"
+                                />
+                              ) : field.type === 'number' || field.type === 'currency' ? (
+                                <input
+                                  autoFocus
+                                  type="number"
+                                  value={editingValue}
+                                  onChange={(e) => setEditingValue(e.target.value)}
+                                  className="w-full text-xs bg-white border border-indigo-500 rounded-md px-2 py-1 focus:outline-none shadow-xs"
+                                  placeholder="0"
+                                />
+                              ) : (
+                                <input
+                                  autoFocus
+                                  type="text"
+                                  value={editingValue}
+                                  onChange={(e) => setEditingValue(e.target.value)}
+                                  className="w-full text-xs bg-white border border-indigo-500 rounded-md px-2 py-1 focus:outline-none shadow-xs"
+                                  placeholder={`Enter ${field.label}...`}
+                                />
+                              )}
+
+                              <button
+                                type="submit"
+                                className="p-1 rounded bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer shrink-0"
+                                title="Save to database"
+                              >
+                                <Check className="w-3.5 h-3.5 stroke-[3]" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingFieldKey(null)}
+                                className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 cursor-pointer shrink-0"
+                                title="Cancel"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </form>
+                          ) : (
+                            <div
+                              onClick={() => handleStartEditField(field)}
+                              className="cursor-pointer flex items-center justify-between group/val rounded-md px-1 -mx-1 py-0.5 hover:bg-indigo-50/40 transition-colors"
+                              title="Click to edit and update database"
+                            >
+                              <div className="font-medium text-slate-800 truncate text-[13px]">
+                                {displayVal ? (
+                                  field.type === 'phone' ? (
+                                    <div className="flex items-center space-x-1">
+                                      <span className="text-base">🇮🇳</span>
+                                      <span>91 {displayVal.replace(/^\+?91\s*/, '')}</span>
+                                    </div>
+                                  ) : (
+                                    <span>{displayVal}</span>
+                                  )
+                                ) : (
+                                  <span className="text-slate-300 font-normal">Empty</span>
+                                )}
+                              </div>
+                              <Edit3 className="w-3 h-3 text-slate-300 opacity-0 group-hover/val:opacity-100 group-hover/val:text-indigo-600 transition-all shrink-0 ml-1" />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    };
+
+                    return (
+                      <>
+                        <div className="grid grid-cols-2 gap-y-6 gap-x-8 text-[13px]">
+                          {mainFields.map(renderFieldItem)}
+                        </div>
+
+                        {/* Show more / Show less divider for extra custom fields */}
+                        {moreFields.length > 0 && (
+                          <>
+                            <div className="relative mt-8 mb-4">
+                              <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                                <div className="w-full border-t border-dashed border-slate-200"></div>
+                              </div>
+                              <div className="relative flex justify-center">
+                                <button 
+                                  onClick={() => setShowMoreFields(!showMoreFields)}
+                                  className="inline-flex items-center space-x-1 rounded-full border border-slate-200 bg-[#fafafa] px-3 py-1 text-xs text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer"
+                                >
+                                  <span>{showMoreFields ? 'Show less' : 'Show more'}</span>
+                                  <ChevronDown className={`w-3 h-3 transition-transform ${showMoreFields ? 'rotate-180' : ''}`} />
+                                </button>
+                              </div>
+                            </div>
+
+                            {showMoreFields && (
+                              <div className="grid grid-cols-2 gap-y-6 gap-x-8 text-[13px] pb-4">
+                                {moreFields.map(renderFieldItem)}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
 
                {/* Action Bar */}
                <div className="bg-[#fcfcfc] border-t border-slate-100 p-1.5 sm:p-2 flex justify-between items-center text-[10px] font-medium text-slate-500 overflow-x-auto ios-scroll no-scrollbar shrink-0">
@@ -1675,11 +2194,10 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
             {/* Tabs & Filter Bar Row */}
             <div className="flex items-center justify-between mb-4 border-b border-slate-200">
               <div className="flex space-x-6">
-                <button className="text-indigo-700 font-semibold text-[13px] border-b-2 border-indigo-700 pb-3 px-1 cursor-pointer">
+                <button 
+                  className="text-[#5034a8] font-bold text-[13px] border-b-2 border-[#5034a8] pb-3 px-1 cursor-default"
+                >
                   Activity History
-                </button>
-                <button className="text-slate-500 font-medium text-[13px] hover:text-slate-700 pb-3 px-1 cursor-pointer">
-                  Task
                 </button>
               </div>
 
@@ -1694,7 +2212,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                   <ChevronDown className="w-3.5 h-3.5 ml-1" />
                 </button>
 
-                {/* Action Floating Dropdown Box (Screenshot 1:1 match) */}
+                {/* Action Floating Dropdown Box */}
                 {showAddActionMenu && (
                   <div className="absolute right-0 top-9 w-56 bg-white border border-slate-200 rounded-xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 font-sans">
                     <div className="relative mb-2">
@@ -1710,14 +2228,13 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
 
                     <div className="space-y-0.5 max-h-64 overflow-y-auto">
                       {[
-                        { id: 'email', name: 'Email', icon: Mail },
-                        { id: 'file', name: 'File', icon: Paperclip },
                         { id: 'note', name: 'Note', icon: FileText },
                         { id: 'call', name: 'Outgoing Call', icon: PhoneOutgoing },
+                        { id: 'whatsapp', name: 'Whatsapp', icon: MessageCircle },
+                        { id: 'email', name: 'Email', icon: Mail },
+                        { id: 'file', name: 'File', icon: Paperclip },
                         { id: 'payment', name: 'Payment', icon: IndianRupee },
                         { id: 'sms', name: 'Sms', icon: MessageSquare },
-                        { id: 'task', name: 'Task', icon: Clock },
-                        { id: 'whatsapp', name: 'Whatsapp', icon: MessageCircle },
                       ]
                         .filter(item => item.name.toLowerCase().includes(actionMenuSearch.toLowerCase()))
                         .map((item) => (
@@ -1740,119 +2257,382 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
               </div>
             </div>
 
-            {/* Filter Bar */}
-            <div className="flex items-center space-x-3 mb-4 px-4 py-2.5 bg-white border border-slate-200 rounded-lg shadow-sm text-sm font-medium text-slate-600">
-              <Filter className="w-4 h-4 text-slate-400" />
-              <button className="flex items-center space-x-1 hover:bg-slate-50 px-2 py-1.5 rounded-md transition-colors border border-indigo-200 bg-indigo-50">
-                <span className="text-indigo-700">All Actions</span>
-                <X className="w-3.5 h-3.5 text-indigo-400 hover:text-indigo-600" />
-              </button>
-              <button className="flex items-center space-x-1 hover:bg-slate-50 px-2 py-1.5 rounded-md transition-colors text-slate-700">
-                <Calendar className="w-3.5 h-3.5 text-slate-400 mr-0.5" />
-                <span>Time</span>
-                <ChevronDown className="w-3 h-3 text-slate-400 ml-1" />
-              </button>
-              <button className="flex items-center space-x-1 hover:bg-slate-50 px-2 py-1.5 rounded-md transition-colors text-slate-700">
-                <Users className="w-3.5 h-3.5 text-slate-400 mr-0.5" />
-                <span>Team</span>
-                <ChevronDown className="w-3 h-3 text-slate-400 ml-1" />
-              </button>
+            {/* Interactive Filter Bar: Filter icon, All Actions, Time, Team */}
+            <div className="flex flex-wrap items-center gap-2.5 mb-4 px-3.5 py-2 bg-white border border-slate-200/90 rounded-xl shadow-2xs text-xs font-medium text-slate-700 select-none">
+              <div className="flex items-center text-slate-400 pl-0.5">
+                <Filter className="w-4 h-4" />
+              </div>
+
+              {/* 1. All Actions Filter Dropdown */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsActionDropdownOpen(!isActionDropdownOpen);
+                    setIsTimeDropdownOpen(false);
+                    setIsTeamDropdownOpen(false);
+                  }}
+                  className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition-colors ${
+                    actionFilter !== 'all'
+                      ? 'bg-purple-50 border-purple-300 text-purple-900'
+                      : 'bg-slate-50/80 hover:bg-slate-100 border-slate-200 text-slate-700'
+                  }`}
+                >
+                  <span className="capitalize">
+                    {actionFilter === 'all'
+                      ? 'All Actions'
+                      : actionFilter === 'creation'
+                      ? 'Lead Creation'
+                      : actionFilter === 'stage_change'
+                      ? 'Status Changes'
+                      : actionFilter === 'edit'
+                      ? 'Field Updates'
+                      : actionFilter === 'call'
+                      ? 'Calls'
+                      : actionFilter === 'whatsapp'
+                      ? 'WhatsApp'
+                      : actionFilter === 'note'
+                      ? 'Notes'
+                      : 'API / Webhooks'}
+                  </span>
+                  {actionFilter !== 'all' ? (
+                    <X
+                      className="w-3.5 h-3.5 text-purple-600 hover:text-purple-900 ml-0.5"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActionFilter('all');
+                      }}
+                    />
+                  ) : (
+                    <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${isActionDropdownOpen ? 'rotate-180' : ''}`} />
+                  )}
+                </button>
+
+                {isActionDropdownOpen && (
+                  <div 
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute left-0 top-[calc(100%+4px)] w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-1.5 space-y-0.5 animate-in fade-in zoom-in-95 text-xs font-sans"
+                  >
+                    {[
+                      { id: 'all', label: 'All Actions' },
+                      { id: 'creation', label: 'Lead Creation' },
+                      { id: 'stage_change', label: 'Status Changes' },
+                      { id: 'edit', label: 'Field Updates' },
+                      { id: 'call', label: 'Calls' },
+                      { id: 'whatsapp', label: 'WhatsApp' },
+                      { id: 'note', label: 'Notes' },
+                      { id: 'api', label: 'API & CAPI Events' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setActionFilter(opt.id as any);
+                          setIsActionDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
+                          actionFilter === opt.id
+                            ? 'bg-purple-50 text-[#5034a8] font-bold'
+                            : 'text-slate-700 hover:bg-slate-50 font-medium'
+                        }`}
+                      >
+                        <span>{opt.label}</span>
+                        {actionFilter === opt.id && <Check className="w-3.5 h-3.5 text-[#5034a8]" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 2. Time Filter Dropdown */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsTimeDropdownOpen(!isTimeDropdownOpen);
+                    setIsActionDropdownOpen(false);
+                    setIsTeamDropdownOpen(false);
+                  }}
+                  className={`flex items-center space-x-1 px-2.5 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors ${
+                    timeFilter !== 'all'
+                      ? 'bg-purple-50 border-purple-300 text-purple-900 font-semibold'
+                      : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+                  }`}
+                >
+                  <Calendar className="w-3.5 h-3.5 text-slate-400 mr-0.5" />
+                  <span>
+                    {timeFilter === 'all'
+                      ? 'Time'
+                      : timeFilter === 'today'
+                      ? 'Today'
+                      : timeFilter === 'yesterday'
+                      ? 'Yesterday'
+                      : timeFilter === '7days'
+                      ? 'Last 7 Days'
+                      : 'Last 30 Days'}
+                  </span>
+                  <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${isTimeDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isTimeDropdownOpen && (
+                  <div 
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute left-0 top-[calc(100%+4px)] w-44 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-1.5 space-y-0.5 animate-in fade-in zoom-in-95 text-xs font-sans"
+                  >
+                    {[
+                      { id: 'all', label: 'All Time' },
+                      { id: 'today', label: 'Today (Past 24h)' },
+                      { id: 'yesterday', label: 'Yesterday' },
+                      { id: '7days', label: 'Last 7 Days' },
+                      { id: '30days', label: 'Last 30 Days' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setTimeFilter(opt.id as any);
+                          setIsTimeDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
+                          timeFilter === opt.id
+                            ? 'bg-purple-50 text-[#5034a8] font-bold'
+                            : 'text-slate-700 hover:bg-slate-50 font-medium'
+                        }`}
+                      >
+                        <span>{opt.label}</span>
+                        {timeFilter === opt.id && <Check className="w-3.5 h-3.5 text-[#5034a8]" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 3. Team Filter Dropdown */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsTeamDropdownOpen(!isTeamDropdownOpen);
+                    setIsActionDropdownOpen(false);
+                    setIsTimeDropdownOpen(false);
+                  }}
+                  className={`flex items-center space-x-1 px-2.5 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors ${
+                    teamFilter !== 'all'
+                      ? 'bg-purple-50 border-purple-300 text-purple-900 font-semibold'
+                      : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5 text-slate-400 mr-0.5" />
+                  <span>
+                    {teamFilter === 'all'
+                      ? 'Team'
+                      : teamFilter === 'bot'
+                      ? 'System / Bot'
+                      : agents.find((a) => a.id === teamFilter)?.name || 'Team Member'}
+                  </span>
+                  <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${isTeamDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isTeamDropdownOpen && (
+                  <div 
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute left-0 top-[calc(100%+4px)] w-52 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-1.5 space-y-0.5 animate-in fade-in zoom-in-95 text-xs font-sans"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTeamFilter('all');
+                        setIsTeamDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
+                        teamFilter === 'all'
+                          ? 'bg-purple-50 text-[#5034a8] font-bold'
+                          : 'text-slate-700 hover:bg-slate-50 font-medium'
+                      }`}
+                    >
+                      <span>All Team</span>
+                      {teamFilter === 'all' && <Check className="w-3.5 h-3.5 text-[#5034a8]" />}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTeamFilter('bot');
+                        setIsTeamDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
+                        teamFilter === 'bot'
+                          ? 'bg-purple-50 text-[#5034a8] font-bold'
+                          : 'text-slate-700 hover:bg-slate-50 font-medium'
+                      }`}
+                    >
+                      <span>System & Integrations</span>
+                      {teamFilter === 'bot' && <Check className="w-3.5 h-3.5 text-[#5034a8]" />}
+                    </button>
+
+                    <div className="my-1 border-t border-slate-100" />
+                    <div className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Users / Telecallers
+                    </div>
+
+                    {agents.map((agent) => (
+                      <button
+                        key={agent.id}
+                        type="button"
+                        onClick={() => {
+                          setTeamFilter(agent.id);
+                          setIsTeamDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
+                          teamFilter === agent.id
+                            ? 'bg-purple-50 text-[#5034a8] font-bold'
+                            : 'text-slate-700 hover:bg-slate-50 font-medium'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-1.5 truncate">
+                          <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-[8px] font-bold">
+                            {getAgentInitials(agent.name)}
+                          </span>
+                          <span className="truncate">{agent.name}</span>
+                        </div>
+                        {teamFilter === agent.id && <Check className="w-3.5 h-3.5 text-[#5034a8]" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Unified Activity Timeline (Flat List) */}
-            <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden mb-8">
+            {/* Unified Activity Timeline matching screenshot */}
+            <div className="bg-white border border-slate-200/90 rounded-xl shadow-2xs overflow-hidden mb-8">
               <div className="divide-y divide-slate-100">
-                
-                {/* 1. Facebook Details Anchor Event */}
-                <div className="flex items-center px-4 py-3.5 hover:bg-slate-50 transition-colors group">
-                  <div className="flex-shrink-0 w-8 flex items-center justify-center text-slate-300 group-hover:text-slate-400">
-                    <Pin className="w-4 h-4 rotate-45" />
+                {unifiedActivities.length === 0 ? (
+                  <div className="py-12 text-center text-slate-400 text-xs">
+                    No activity found matching the selected filters.
                   </div>
-                  <div className="flex-shrink-0 w-8 flex items-center justify-center">
-                    <Facebook className="w-4 h-4 text-blue-600" />
-                  </div>
-                  <div className="flex-1 min-w-0 flex items-center pl-2">
-                    <span className="text-[13px] text-slate-600 truncate">
-                      Lead Capture from <span className="font-semibold text-slate-800">Inbound Lead Form</span> & <span className="font-semibold text-slate-800">Connected Social Page</span>
-                    </span>
-                  </div>
-                  <div className="flex-shrink-0 ml-4 flex items-center space-x-3">
-                    <span className="text-xs text-slate-400 font-medium whitespace-nowrap">21h</span>
-                    <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
-                      <Bot className="w-3.5 h-3.5 text-slate-500" />
-                    </div>
-                  </div>
-                </div>
+                ) : (
+                  unifiedActivities.map((act) => {
+                    const isFacebook = act.type === 'facebook_form' || (act.title || '').toLowerCase().includes('facebook');
+                    const isCapi = act.type === 'capi' || (act.title || '').toLowerCase().includes('capi');
+                    const isEdit = act.type === 'edit';
+                    const isTask = act.type === 'task';
+                    const isStage = act.type === 'stage_change';
+                    const isCall = act.type === 'call';
+                    const isWhatsapp = act.type === 'whatsapp';
+                    const isNote = act.type === 'note';
 
-                {/* 2. CAPI 200 Anchor Event */}
-                <div className="flex items-center px-4 py-3.5 hover:bg-slate-50 transition-colors group">
-                  <div className="flex-shrink-0 w-8 flex items-center justify-center text-slate-300 group-hover:text-slate-400">
-                    <Pin className="w-4 h-4 rotate-45" />
-                  </div>
-                  <div className="flex-shrink-0 w-8 flex items-center justify-center">
-                    <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center">
-                      <span className="text-[9px] font-bold text-indigo-600">API</span>
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0 flex items-center pl-2">
-                    <span className="text-[13px] text-slate-600 truncate">
-                      <span className="font-semibold text-indigo-600 mr-2">CAPI</span> <span className="font-mono text-slate-800">200</span>
-                    </span>
-                  </div>
-                  <div className="flex-shrink-0 ml-4 flex items-center space-x-3">
-                    <span className="text-xs text-slate-400 font-medium whitespace-nowrap">1d</span>
-                    <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
-                      <Bot className="w-3.5 h-3.5 text-slate-500" />
-                    </div>
-                  </div>
-                </div>
+                    const avatarInitials = act.agentName ? getAgentInitials(act.agentName) : 'KA';
 
-                {/* Standard Activity Logs */}
-                {leadActivities.filter(a => a.type !== 'facebook_form').map((act) => (
-                  <div key={act.id} className="flex items-start px-4 py-3.5 hover:bg-slate-50 transition-colors group">
-                    <div className="flex-shrink-0 w-8 flex items-center justify-center text-slate-300 group-hover:text-slate-400 pt-0.5">
-                      <Pin className="w-4 h-4 rotate-45" />
-                    </div>
-                    <div className="flex-shrink-0 w-8 flex items-center justify-center pt-0.5">
-                      {act.type === 'call' && <Phone className="w-4 h-4 text-slate-500" />}
-                      {act.type === 'whatsapp' && <MessageSquare className="w-4 h-4 text-slate-700" />}
-                      {act.type === 'note' && <Clipboard className="w-4 h-4 text-slate-700" />}
-                      {act.type === 'stage_change' && <Type className="w-4 h-4 text-slate-400" />}
-                    </div>
-                    <div className="flex-1 min-w-0 pr-4 pl-2">
-                      <div className="flex items-center text-[13px] text-slate-700">
-                        {act.type === 'note' ? (
-                          <span className="text-slate-800">{act.description}</span>
-                        ) : act.type === 'stage_change' ? (
-                          <span className="text-slate-500">Status changed from <span className="font-bold text-slate-700">Previous</span> → <span className="font-bold text-slate-700">{lead.status}</span></span>
-                        ) : (
-                          <>
-                            <span className="truncate mr-2 font-semibold text-slate-800">{act.title}</span>
-                            {act.type !== 'whatsapp' && <span className="text-slate-500 hidden md:inline truncate">- {act.description}</span>}
-                          </>
-                        )}
-                      </div>
-                      
-                      {act.type === 'call' && act.description && (
-                        <div className="mt-2 text-[13px] text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                          {act.description}
+                    return (
+                      <div 
+                        key={act.id} 
+                        className="flex items-center px-4 py-3.5 hover:bg-slate-50/70 transition-colors group select-none text-[13px]"
+                      >
+                        {/* Pin Icon */}
+                        <div className="flex-shrink-0 w-8 flex items-center justify-center text-slate-300 group-hover:text-slate-400">
+                          <Pin className="w-4 h-4 rotate-45" />
                         </div>
-                      )}
-                    </div>
-                    <div className="flex-shrink-0 ml-4 flex items-center space-x-3 pt-0.5">
-                      <span className="text-xs text-slate-400 font-medium whitespace-nowrap">
-                        {getRelativeTime(act.timestamp)}
-                      </span>
-                      <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200 flex-shrink-0">
-                        {act.agentId ? (
-                           <span className="text-[9px] font-bold text-indigo-700 tracking-wider">{getAgentInitials(act.agentName || '')}</span>
-                        ) : (
-                           <Bot className="w-3.5 h-3.5 text-slate-500" />
-                        )}
+
+                        {/* Type Icon */}
+                        <div className="flex-shrink-0 w-8 flex items-center justify-center">
+                          {isFacebook ? (
+                            <Facebook className="w-4 h-4 text-blue-600" />
+                          ) : isCapi ? (
+                            <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center">
+                              <span className="text-[9px] font-bold text-indigo-600">API</span>
+                            </div>
+                          ) : isEdit ? (
+                            <div className="w-5 h-5 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">
+                              <Edit3 className="w-3 h-3" />
+                            </div>
+                          ) : isTask ? (
+                            <div className="w-5 h-5 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                              <Clock className="w-3 h-3" />
+                            </div>
+                          ) : isStage ? (
+                            <div className="w-5 h-5 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
+                              <RotateCw className="w-3 h-3" />
+                            </div>
+                          ) : isCall ? (
+                            <div className="w-5 h-5 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                              <Phone className="w-3 h-3" />
+                            </div>
+                          ) : isWhatsapp ? (
+                            <div className="w-5 h-5 rounded-full bg-green-50 flex items-center justify-center text-green-600">
+                              <MessageCircle className="w-3 h-3" />
+                            </div>
+                          ) : (
+                            <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
+                              <FileText className="w-3 h-3" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Activity Description */}
+                        <div className="flex-1 min-w-0 flex items-center pl-2 text-slate-700">
+                          {isFacebook ? (
+                            <span className="truncate">
+                              Lead Capture from <span className="font-semibold text-slate-900">Inbound Lead Form</span> & <span className="font-semibold text-slate-900">Connected Social Page</span>
+                            </span>
+                          ) : isCapi ? (
+                            <span className="truncate">
+                              <span className="font-bold text-indigo-600 mr-2">CAPI</span> <span className="font-mono text-slate-800">200</span>
+                            </span>
+                          ) : isEdit ? (
+                            <span className="truncate">
+                              <span className="font-bold text-slate-900">{act.title}</span> {act.description && <span className="text-slate-600 font-normal"> - {act.description}</span>}
+                            </span>
+                          ) : isStage ? (
+                            <span className="truncate">
+                              <span className="font-bold text-slate-900">{act.title}:</span> <span className="text-slate-600">{act.description}</span>
+                            </span>
+                          ) : isTask ? (
+                            <span className="truncate">
+                              <span className="font-medium text-slate-800">{act.description || act.title}</span>
+                            </span>
+                          ) : (
+                            <span className="truncate">
+                              <span className="font-bold text-slate-900 mr-1.5">{act.title}</span>
+                              {act.description && <span className="text-slate-600 font-normal">{act.description}</span>}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Relative Time, Delete Action & Agent Initials Badge */}
+                        <div className="flex-shrink-0 ml-4 flex items-center space-x-2.5">
+                          <span className="text-xs text-slate-400 font-medium whitespace-nowrap">
+                            {getRelativeTime(act.timestamp)}
+                          </span>
+
+                          {/* Delete Activity / Task Button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (window.confirm(`Are you sure you want to delete this activity / task record?`)) {
+                                handleDeleteActivity(act.id);
+                              }
+                            }}
+                            className="p-1 rounded text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                            title="Delete this activity log"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+
+                          {isFacebook || isCapi || act.agentId === 'bot' ? (
+                            <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
+                              <Bot className="w-3.5 h-3.5 text-slate-500" />
+                            </div>
+                          ) : (
+                            <div className="w-6 h-6 rounded-full bg-indigo-50 flex items-center justify-center border border-indigo-200 text-[9px] font-bold text-indigo-700 tracking-wider">
+                              {avatarInitials}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
@@ -1888,13 +2668,10 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-slate-600 font-semibold block">Stage</label>
-                    <select value={editForm.status || 'New Lead'} onChange={(e) => setEditForm({ ...editForm, status: e.target.value as any })} className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-indigo-500 shadow-sm">
-                      <option value="New Lead">New Lead</option>
-                      <option value="Contacted">Contacted</option>
-                      <option value="Follow Up">Follow Up</option>
-                      <option value="Demo Scheduled">Demo Scheduled</option>
-                      <option value="Converted">Converted</option>
-                      <option value="Lost">Lost</option>
+                    <select value={editForm.status || (stages[0]?.name || 'Fresh')} onChange={(e) => setEditForm({ ...editForm, status: e.target.value as any })} className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-indigo-500 shadow-sm">
+                      {(stages && stages.length > 0 ? stages : [{ name: 'Fresh' }, { name: 'Contacted' }, { name: 'Follow Up' }, { name: 'Demo Scheduled' }, { name: 'Proposal Sent' }, { name: 'Converted' }, { name: 'Lost' }]).map((stg) => (
+                        <option key={stg.name} value={stg.name}>{stg.name}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -1911,8 +2688,109 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
             </div>
           </div>
         )}
+
+        {/* Modal: Schedule Follow-Up Date & Time */}
+        {showFollowUpScheduler && (
+          <div className="fixed inset-0 bg-slate-900/60 z-[70] flex items-center justify-center p-4 font-sans animate-in fade-in duration-200">
+            <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-2xl p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-200">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Schedule Follow-Up</h3>
+                    <p className="text-[11px] text-slate-500">Pick date and time for following up with {lead.name}</p>
+                  </div>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => setShowFollowUpScheduler(false)} 
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleConfirmFollowUpSchedule} className="space-y-3 text-xs">
+                <div>
+                  <label className="block text-slate-700 font-semibold mb-1 text-[11px]">Follow-Up Date *</label>
+                  <input
+                    type="date"
+                    required
+                    min={new Date().toISOString().slice(0, 10)}
+                    value={schedulerDueDay}
+                    onChange={(e) => setSchedulerDueDay(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-indigo-600 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-semibold mb-1 text-[11px]">Follow-Up Time *</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <select
+                      value={schedulerHour}
+                      onChange={(e) => setSchedulerHour(e.target.value)}
+                      className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-indigo-600 cursor-pointer"
+                    >
+                      {['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'].map((h) => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={schedulerMinute}
+                      onChange={(e) => setSchedulerMinute(e.target.value)}
+                      className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-indigo-600 cursor-pointer"
+                    >
+                      {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map((m) => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={schedulerAmPm}
+                      onChange={(e) => setSchedulerAmPm(e.target.value as 'AM' | 'PM')}
+                      className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs text-slate-900 font-bold focus:outline-none focus:border-indigo-600 cursor-pointer"
+                    >
+                      <option value="AM">AM</option>
+                      <option value="PM">PM</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-semibold mb-1 text-[11px]">Follow-Up Remarks / Purpose</label>
+                  <textarea
+                    rows={2}
+                    value={schedulerRemarks}
+                    onChange={(e) => setSchedulerRemarks(e.target.value)}
+                    placeholder="e.g. Call client regarding quote discussion and demo"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-indigo-600 focus:bg-white resize-none"
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowFollowUpScheduler(false)}
+                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold cursor-pointer shadow-md shadow-indigo-100"
+                  >
+                    Set Follow-Up
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
-  );
+    );
 
   if (isEmbedded) {
     return (

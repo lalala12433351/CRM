@@ -407,27 +407,56 @@ export class MultiTenantDatabase {
   }
 
   public async saveLead(tenantId: string, leadData: Partial<TenantLead>): Promise<TenantLead> {
+    if (!this.store.leads) {
+      this.store.leads = {};
+    }
     if (!this.store.leads[tenantId]) {
       this.store.leads[tenantId] = [];
     }
 
-    const existingIndex = this.store.leads[tenantId].findIndex((l) => l.id === leadData.id);
-    const now = new Date().toISOString();
+    // 1. Locate the exact lead by id (first in current tenant, then across all tenant buckets)
+    let targetTenantId = tenantId;
+    let existingIndex = this.store.leads[targetTenantId].findIndex((l) => l.id === leadData.id);
 
+    if (existingIndex === -1 && leadData.tenantId && this.store.leads[leadData.tenantId]) {
+      const idx = this.store.leads[leadData.tenantId].findIndex((l) => l.id === leadData.id);
+      if (idx >= 0) {
+        targetTenantId = leadData.tenantId;
+        existingIndex = idx;
+      }
+    }
+
+    if (existingIndex === -1 && leadData.id) {
+      for (const tId of Object.keys(this.store.leads)) {
+        const idx = this.store.leads[tId].findIndex((l) => l.id === leadData.id);
+        if (idx >= 0) {
+          targetTenantId = tId;
+          existingIndex = idx;
+          break;
+        }
+      }
+    }
+
+    const now = new Date().toISOString();
     let savedLead: TenantLead;
 
-    if (existingIndex >= 0) {
+    if (existingIndex >= 0 && this.store.leads[targetTenantId]) {
+      const existing = this.store.leads[targetTenantId][existingIndex];
       savedLead = {
-        ...this.store.leads[tenantId][existingIndex],
+        ...existing,
         ...leadData,
-        tenantId,
+        customFields: {
+          ...(existing.customFields || {}),
+          ...(leadData.customFields || {})
+        },
+        tenantId: targetTenantId,
         updatedAt: now
       };
-      this.store.leads[tenantId][existingIndex] = savedLead;
+      this.store.leads[targetTenantId][existingIndex] = savedLead;
     } else {
       savedLead = {
         id: leadData.id || `lead-${Date.now()}`,
-        tenantId,
+        tenantId: targetTenantId,
         name: leadData.name || 'New Inbound Lead',
         phone: leadData.phone || '',
         email: leadData.email || '',
@@ -437,7 +466,7 @@ export class MultiTenantDatabase {
         source: leadData.source || 'Manual Entry',
         status: leadData.status || 'Fresh',
         pipelineStageId: leadData.pipelineStageId || 'stage-1',
-        dealValue: Number(leadData.dealValue) || 0,
+        dealValue: leadData.dealValue !== undefined ? Number(leadData.dealValue) : 0,
         ownerAgentId: leadData.ownerAgentId || leadData.assignee_id || 'agent-admin',
         ownerAgentName: leadData.ownerAgentName || leadData.assignee_name || 'Admin',
         aiScore: leadData.aiScore || 80,
@@ -447,11 +476,11 @@ export class MultiTenantDatabase {
         lostReason: leadData.lostReason || undefined,
         customFields: leadData.customFields || {},
         tags: leadData.tags || [],
-        createdAt: now,
+        createdAt: leadData.createdAt || now,
         updatedAt: now,
         ...leadData
       };
-      this.store.leads[tenantId].unshift(savedLead);
+      this.store.leads[targetTenantId].unshift(savedLead);
     }
 
     this.saveStore();
@@ -842,6 +871,35 @@ export class MultiTenantDatabase {
     this.store.activities[tenantId].unshift(act);
     this.saveStore();
     return act;
+  }
+
+  public async deleteActivity(tenantId: string, activityId: string): Promise<boolean> {
+    let deleted = false;
+    if (this.store.activities && this.store.activities[tenantId]) {
+      const initial = this.store.activities[tenantId].length;
+      this.store.activities[tenantId] = this.store.activities[tenantId].filter((a) => a.id !== activityId);
+      if (this.store.activities[tenantId].length < initial) {
+        deleted = true;
+      }
+    }
+    // Also remove from all leads if attached inside lead.activities
+    if (this.store.leads) {
+      for (const tId of Object.keys(this.store.leads)) {
+        for (const l of this.store.leads[tId]) {
+          if (Array.isArray(l.activities)) {
+            const initial = l.activities.length;
+            l.activities = l.activities.filter((a: any) => a.id !== activityId);
+            if (l.activities.length < initial) {
+              deleted = true;
+            }
+          }
+        }
+      }
+    }
+    if (deleted) {
+      this.saveStore();
+    }
+    return deleted;
   }
 
   // =========================================================================

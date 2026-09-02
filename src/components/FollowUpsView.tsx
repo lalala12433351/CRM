@@ -17,7 +17,8 @@ import {
   Sparkles,
   ChevronRight,
   Check,
-  FileText
+  FileText,
+  Trash2
 } from 'lucide-react';
 import { Lead, Agent, CallRecord } from '../types';
 import { isAgentAdmin } from '../types';
@@ -70,15 +71,19 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
   const now = new Date();
   const todayStr = now.toISOString().slice(0, 10);
 
-  // Filter leads that have followUpAt set or status === 'Follow Up'
-  const followUpLeads = leads.filter(
-    (l) => l.followUpAt || l.status === 'Follow Up'
-  );
+  // Filter leads that have followUpAt set or stage/status === 'Follow Up' from the unified leads database
+  const isFollowUpLead = (l: Lead) => {
+    const st = (l.status || '').toLowerCase().replace(/[\s-_]/g, '');
+    return st.includes('followup') || st.includes('follow') || Boolean(l.followUpAt);
+  };
+
+  const followUpLeads = leads.filter(isFollowUpLead);
 
   // Categorize
-  const dueTodayLeads = followUpLeads.filter(
-    (l) => l.followUpAt && l.followUpAt.slice(0, 10) === todayStr
-  );
+  const dueTodayLeads = followUpLeads.filter((l) => {
+    if (!l.followUpAt) return true; // Leads marked as Follow Up without explicit timestamp are treated as Due Today
+    return l.followUpAt.slice(0, 10) === todayStr;
+  });
 
   const overdueLeads = followUpLeads.filter(
     (l) => l.followUpAt && l.followUpAt.slice(0, 10) < todayStr
@@ -92,7 +97,7 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
   const displayedLeads = followUpLeads.filter((l) => {
     // 1. Filter Category Tab
     if (filterType === 'today') {
-      if (!l.followUpAt || l.followUpAt.slice(0, 10) !== todayStr) return false;
+      if (l.followUpAt && l.followUpAt.slice(0, 10) !== todayStr) return false;
     } else if (filterType === 'overdue') {
       if (!l.followUpAt || l.followUpAt.slice(0, 10) >= todayStr) return false;
     } else if (filterType === 'upcoming') {
@@ -240,10 +245,10 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 font-sans">
         <button
           onClick={() => setFilterType('today')}
-          className={`p-3 rounded-xl text-left transition-all cursor-pointer ${
+          className={`p-3 rounded-xl text-left transition-all cursor-pointer border ${
             filterType === 'today'
-              ? 'bg-white border-2 border-indigo-600 ring-2 ring-indigo-100 shadow-md text-slate-900'
-              : 'bg-transparent border-2 border-slate-300 text-slate-700 hover:bg-white/50 shadow-2xs'
+              ? 'bg-white border-slate-300 shadow-xs text-slate-900'
+              : 'bg-slate-50/60 border-slate-200 text-slate-700 hover:bg-white hover:border-slate-300'
           }`}
         >
           <div className="flex items-center justify-between text-[11px] font-bold text-slate-500">
@@ -255,10 +260,10 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
 
         <button
           onClick={() => setFilterType('overdue')}
-          className={`p-3 rounded-xl text-left transition-all cursor-pointer ${
+          className={`p-3 rounded-xl text-left transition-all cursor-pointer border ${
             filterType === 'overdue'
-              ? 'bg-white border-2 border-rose-600 ring-2 ring-rose-100 shadow-md text-slate-900'
-              : 'bg-transparent border-2 border-slate-300 text-slate-700 hover:bg-white/50 shadow-2xs'
+              ? 'bg-white border-slate-300 shadow-xs text-slate-900'
+              : 'bg-slate-50/60 border-slate-200 text-slate-700 hover:bg-white hover:border-slate-300'
           }`}
         >
           <div className="flex items-center justify-between text-[11px] font-bold text-slate-500">
@@ -270,10 +275,10 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
 
         <button
           onClick={() => setFilterType('all')}
-          className={`p-3 rounded-xl text-left transition-all cursor-pointer ${
+          className={`p-3 rounded-xl text-left transition-all cursor-pointer border ${
             filterType === 'all'
-              ? 'bg-white border-2 border-slate-800 ring-2 ring-slate-200 shadow-md text-slate-900'
-              : 'bg-transparent border-2 border-slate-300 text-slate-700 hover:bg-white/50 shadow-2xs'
+              ? 'bg-white border-slate-300 shadow-xs text-slate-900'
+              : 'bg-slate-50/60 border-slate-200 text-slate-700 hover:bg-white hover:border-slate-300'
           }`}
         >
           <div className="flex items-center justify-between text-[11px] font-bold text-slate-500">
@@ -386,9 +391,9 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
                     <div className="grid grid-cols-3 gap-2 pt-1">
                       <button
                         onClick={() => onCallLead(lead)}
-                        className="py-2 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1 shadow-xs"
+                        className="py-1.5 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold transition-all cursor-pointer flex items-center justify-center space-x-1 shadow-2xs"
                       >
-                        <PhoneCall className="w-3.5 h-3.5" />
+                        <PhoneCall className="w-3 h-3" />
                         <span>Call</span>
                       </button>
 
@@ -397,17 +402,17 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
                           setRescheduleLeadId(lead.id);
                           setRescheduleDate(lead.followUpAt ? lead.followUpAt.slice(0, 16) : new Date().toISOString().slice(0, 16));
                         }}
-                        className="py-2 px-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1"
+                        className="py-1.5 px-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-semibold transition-all cursor-pointer flex items-center justify-center space-x-1"
                       >
-                        <Calendar className="w-3.5 h-3.5" />
+                        <Calendar className="w-3 h-3 text-slate-500" />
                         <span>Reschedule</span>
                       </button>
 
                       <button
                         onClick={() => handleMarkCompleted(lead)}
-                        className="py-2 px-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1"
+                        className="py-1.5 px-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[11px] font-semibold transition-all cursor-pointer flex items-center justify-center space-x-1"
                       >
-                        <Check className="w-3.5 h-3.5" />
+                        <Check className="w-3 h-3 text-emerald-600" />
                         <span>Complete</span>
                       </button>
                     </div>
@@ -506,13 +511,14 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
                         </td>
 
                         {/* Actions */}
-                        <td className="py-3.5 px-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-end space-x-1.5">
+                        <td className="py-2.5 px-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end space-x-1">
                             <button
                               onClick={() => onCallLead(lead)}
-                              className="py-1 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition-all cursor-pointer shadow-xs flex items-center space-x-1"
+                              className="h-6 px-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[10px] transition-all cursor-pointer shadow-2xs flex items-center space-x-1"
+                              title="Call Lead"
                             >
-                              <PhoneCall className="w-3 h-3" />
+                              <PhoneCall className="w-2.5 h-2.5" />
                               <span>Call</span>
                             </button>
 
@@ -523,19 +529,19 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
                                   value={rescheduleDate}
                                   min={new Date().toISOString().slice(0, 16)}
                                   onChange={(e) => setRescheduleDate(e.target.value)}
-                                  className="bg-slate-50 border border-slate-200 rounded-lg p-1 text-[11px] text-slate-900 focus:outline-none"
+                                  className="h-6 bg-slate-50 border border-slate-200 rounded-md px-1 text-[10px] text-slate-900 focus:outline-none"
                                 />
                                 <button
                                   onClick={() => handleQuickReschedule(lead.id)}
-                                  className="px-2 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] cursor-pointer"
+                                  className="h-6 px-1.5 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] cursor-pointer"
                                 >
                                   Save
                                 </button>
                                 <button
                                   onClick={() => setRescheduleLeadId(null)}
-                                  className="px-2 py-1 rounded-lg bg-slate-100 text-slate-600 text-[11px] cursor-pointer"
+                                  className="h-6 px-1.5 rounded-md bg-slate-100 text-slate-600 text-[10px] cursor-pointer"
                                 >
-                                  X
+                                  ✕
                                 </button>
                               </div>
                             ) : (
@@ -544,19 +550,33 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
                                   setRescheduleLeadId(lead.id);
                                   setRescheduleDate(lead.followUpAt ? lead.followUpAt.slice(0, 16) : new Date().toISOString().slice(0, 16));
                                 }}
-                                className="py-1 px-2.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-[11px] font-bold transition-all cursor-pointer flex items-center space-x-1"
+                                className="h-6 px-1.5 rounded-md bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 hover:border-slate-300 text-[10px] font-semibold transition-all cursor-pointer flex items-center space-x-1"
+                                title="Reschedule Follow-up"
                               >
-                                <Calendar className="w-3 h-3" />
+                                <Calendar className="w-2.5 h-2.5 text-slate-500" />
                                 <span>Reschedule</span>
                               </button>
                             )}
 
                             <button
                               onClick={() => handleMarkCompleted(lead)}
-                              className="py-1 px-2.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[11px] font-bold transition-all cursor-pointer flex items-center space-x-1"
+                              className="h-6 px-1.5 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] font-semibold transition-all cursor-pointer flex items-center space-x-1"
+                              title="Mark Follow-up as Completed"
                             >
-                              <Check className="w-3 h-3" />
+                              <Check className="w-2.5 h-2.5 text-emerald-600" />
                               <span>Complete</span>
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`Are you sure you want to cancel/delete the scheduled follow-up for "${lead.name}"?`)) {
+                                  onUpdateLead(lead.id, { followUpAt: undefined, status: 'Fresh' });
+                                }
+                              }}
+                              className="h-6 w-6 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 flex items-center justify-center transition-all cursor-pointer"
+                              title="Delete / Cancel Follow-up"
+                            >
+                              <Trash2 className="w-2.5 h-2.5" />
                             </button>
                           </div>
                         </td>
@@ -608,16 +628,27 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
                   }}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 cursor-pointer font-sans font-medium"
                 >
-                  <option value="" className="bg-white text-slate-500 font-medium">Choose a Lead</option>
+                  <option value="" className="bg-white text-slate-500 font-medium">Choose an Existing Lead</option>
                   {(isAdmin
                     ? leads
                     : leads.filter((l) => l.ownerAgentId === activeAgent?.id || l.ownerAgentName === activeAgent?.name)
                   ).map((l) => (
                     <option key={l.id} value={l.id} className="bg-white text-slate-900 font-medium py-1">
-                      {l.name} {l.phone ? `(${l.phone})` : ''}
+                      {l.name} {l.phone ? `(${l.phone})` : ''} {l.followUpAt ? '• [Existing Follow-up]' : ''}
                     </option>
                   ))}
                 </select>
+                {modalLeadId && (() => {
+                  const target = leads.find((l) => l.id === modalLeadId);
+                  if (target?.followUpAt) {
+                    return (
+                      <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2 mt-1.5 font-medium">
+                        ⚠️ This lead ({target.phone}) already has a scheduled follow-up. Setting a new time will reschedule the existing lead without creating duplicate records.
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
 
               {/* Assignee Selector */}

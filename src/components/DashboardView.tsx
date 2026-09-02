@@ -192,9 +192,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return ag ? ag.talkTimeMinutes : 0;
   }, [agents, selectedAssigneeId]);
 
-  // Follow ups due today (filtered by selected assignee)
+  // Unified Follow ups (filtered by selected assignee, matching FollowUpsView)
+  const isFollowUpLead = (l: Lead) => {
+    const st = (l.status || '').toLowerCase().replace(/[\s-_]/g, '');
+    return st.includes('followup') || st.includes('follow') || Boolean(l.followUpAt);
+  };
+
   const pendingFollowUps = useMemo(() => {
-    return assigneeFilteredLeads.filter((l) => l.followUpAt && l.status !== 'Converted' && l.status !== 'Lost');
+    return assigneeFilteredLeads.filter(isFollowUpLead);
   }, [assigneeFilteredLeads]);
 
   // Stage distribution metrics for the current assignee filter

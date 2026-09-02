@@ -119,7 +119,7 @@ import {
   formatDealValue 
 } from '../types';
 import { BulkEditModal } from './BulkEditModal';
-import { ColumnCustomizerModal, ColumnVisibility } from './ColumnCustomizerModal';
+import { ColumnCustomizerModal } from './ColumnCustomizerModal';
 import { StatusBadge } from './StatusBadge';
 import { getStatusStyle } from '../utils/statusStyles';
 import { LeadSummaryModal } from './LeadSummaryModal';
@@ -258,21 +258,108 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
   const [showBulkEditModal, setShowBulkEditModal] = useState(false);
 
   // Column Visibility Config
-  const [columns, setColumns] = useState<ColumnVisibility>({
-    phone: true,
-    email: true,
-    company: true,
-    city: true,
-    source: true,
-    status: true,
-    dealValue: true,
-    aiScore: true,
-    owner: true,
-    createdAt: true,
-    actions: true
-  });
   const [showColumnModal, setShowColumnModal] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const columnCustomizerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (columnCustomizerRef.current && !columnCustomizerRef.current.contains(event.target as Node)) {
+        setShowColumnModal(false);
+      }
+    };
+    if (showColumnModal) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showColumnModal]);
+
+  // User custom column ordering (persisted in localStorage)
+  const [fieldOrderKeys, setFieldOrderKeys] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('crm_column_order');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  });
+
+  // Only the actual fields configured in Settings by the user (customFields), ordered by drag preferences
+  const allAvailableFields = useMemo(() => {
+    const raw = (customFields || []).filter((f) => !f.isHidden && f.id !== TIMER_SENTINEL_ID);
+    if (!fieldOrderKeys || fieldOrderKeys.length === 0) return raw;
+
+    const ordered: CustomFieldDef[] = [];
+    const remaining = [...raw];
+
+    fieldOrderKeys.forEach((key) => {
+      const idx = remaining.findIndex((f) => (f.name || f.id) === key);
+      if (idx !== -1) {
+        ordered.push(remaining[idx]);
+        remaining.splice(idx, 1);
+      }
+    });
+
+    return [...ordered, ...remaining];
+  }, [customFields, fieldOrderKeys]);
+
+  // Selected column keys state (persisted in localStorage)
+  const [selectedColumnKeys, setSelectedColumnKeys] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('crm_selected_columns');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return (customFields || [])
+      .filter((f) => !f.isHidden && f.id !== TIMER_SENTINEL_ID)
+      .slice(0, 6)
+      .map((f) => f.name || f.id);
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('crm_selected_columns', JSON.stringify(selectedColumnKeys));
+    } catch (e) {}
+  }, [selectedColumnKeys]);
+
+  const handleToggleColumnField = (fieldKey: string) => {
+    setSelectedColumnKeys((prev) => {
+      if (prev.includes(fieldKey)) {
+        if (fieldKey === 'name') return prev; // Name is locked
+        return prev.filter((k) => k !== fieldKey);
+      } else {
+        if (prev.length >= 12) return prev;
+        return [...prev, fieldKey];
+      }
+    });
+  };
+
+  const handleReorderFields = (reorderedList: CustomFieldDef[]) => {
+    const newOrderKeys = reorderedList.map((f) => f.name || f.id);
+    setFieldOrderKeys(newOrderKeys);
+    try {
+      localStorage.setItem('crm_column_order', JSON.stringify(newOrderKeys));
+    } catch (e) {}
+
+    // Synchronize selectedColumnKeys to match the new visual order
+    setSelectedColumnKeys((prev) => {
+      const selectedSet = new Set(prev);
+      return newOrderKeys.filter((k) => selectedSet.has(k));
+    });
+  };
+
+  // Compute active visible columns in table based on ordered selections
+  const visibleFields = useMemo(() => {
+    return selectedColumnKeys
+      .map((key) => allAvailableFields.find((f) => f.name === key || f.id === key))
+      .filter(Boolean) as CustomFieldDef[];
+  }, [selectedColumnKeys, allAvailableFields]);
 
   // Other Modals
   const [showImportModal, setShowImportModal] = useState(false);
@@ -280,17 +367,6 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
   const [showCustomFieldModal, setShowCustomFieldModal] = useState(false);
   const [showNewViewModal, setShowNewViewModal] = useState(false);
   const [newViewName, setNewViewName] = useState('');
-
-  const visibleFields = useMemo(() => {
-    const active = (customFields || []).filter((f) => !f.isHidden);
-    return active.sort((a, b) => {
-      if (a.name === 'name') return -1;
-      if (b.name === 'name') return 1;
-      if (a.name === 'phone' || a.name === 'number') return -1;
-      if (b.name === 'phone' || b.name === 'number') return 1;
-      return 0;
-    });
-  }, [customFields]);
 
   const getLeadFieldValue = (lead: Lead, field: CustomFieldDef): string => {
     if (!lead || !field) return '—';
@@ -305,6 +381,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
     if (nameKey === 'address') return lead.address || '—';
     if (nameKey === 'source') return lead.source || '—';
     if (nameKey === 'status') return lead.status || '—';
+    if (nameKey === 'rating') return String(leadRatings[lead.id] ?? lead.rating ?? 0);
     if (nameKey === 'assignee' || nameKey === 'owner') return lead.ownerAgentName || activeAgent?.name || 'System Administrator';
     if (nameKey === 'createdOn' || nameKey === 'createdAt' || nameKey === 'created_on') return formatCreatedDate(lead.createdAt);
     if (nameKey === 'deal_value' || nameKey === 'dealValue') return formatDealValue(lead.dealValue || 0, currency);
@@ -2286,6 +2363,34 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
+
+              {/* Column Customizer Button */}
+              <div className="relative" ref={columnCustomizerRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowColumnModal(!showColumnModal)}
+                  className={`flex items-center space-x-1 px-2.5 py-1 rounded-md border text-xs font-medium cursor-pointer transition-colors shadow-2xs ${
+                    showColumnModal
+                      ? 'bg-purple-50 border-purple-300 text-purple-900 font-bold'
+                      : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                  }`}
+                >
+                  <Columns3 className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Column</span>
+                  <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${showColumnModal ? 'rotate-180' : ''}`} />
+                </button>
+
+                {showColumnModal && (
+                  <ColumnCustomizerModal
+                    allFields={allAvailableFields}
+                    selectedFieldKeys={selectedColumnKeys}
+                    onToggleField={handleToggleColumnField}
+                    onReorderFields={handleReorderFields}
+                    onClose={() => setShowColumnModal(false)}
+                    maxFields={12}
+                  />
+                )}
+              </div>
             </div>
 
             {/* Right: Bulk Edit & More Actions */}
@@ -2701,6 +2806,35 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                                 return (
                                   <td key={field.id} className="px-3.5 py-2.5 whitespace-nowrap">
                                     <StatusBadge status={lead.status || 'Fresh'} lostReason={lead.lostReason} size="xs" />
+                                  </td>
+                                );
+                              }
+
+                              if (field.name === 'rating') {
+                                const currentRating = leadRatings[lead.id] ?? lead.rating ?? 0;
+                                return (
+                                  <td key={field.id} className="px-3.5 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                                    <div className="flex items-center space-x-0.5">
+                                      {[1, 2, 3, 4, 5].map((star) => (
+                                        <button
+                                          key={star}
+                                          type="button"
+                                          onClick={() => {
+                                            setLeadRatings((prev) => ({ ...prev, [lead.id]: star }));
+                                            if (onUpdateLead) onUpdateLead(lead.id, { rating: star });
+                                          }}
+                                          className="cursor-pointer hover:scale-125 transition-transform"
+                                        >
+                                          <Star
+                                            className={`w-3.5 h-3.5 ${
+                                              currentRating >= star
+                                                ? 'text-amber-400 fill-amber-400'
+                                                : 'text-slate-200 fill-slate-200'
+                                            }`}
+                                          />
+                                        </button>
+                                      ))}
+                                    </div>
                                   </td>
                                 );
                               }

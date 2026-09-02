@@ -21,6 +21,18 @@ export class LeadService {
     const fields = Array.isArray(payload) ? payload : [payload];
     return await leadRepository.saveFieldSettings(tenantId, fields);
   }
+
+  public async getActivities(tenantId: string) {
+    return await leadRepository.getActivities(tenantId);
+  }
+
+  public async logActivity(tenantId: string, activity: any) {
+    return await leadRepository.logActivity(tenantId, activity);
+  }
+
+  public async deleteActivity(tenantId: string, activityId: string) {
+    return await leadRepository.deleteActivity(tenantId, activityId);
+  }
 }
 
 export const leadService = new LeadService();

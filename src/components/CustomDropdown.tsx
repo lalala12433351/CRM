@@ -93,7 +93,7 @@ export function CustomDropdown<T extends string = string>({
         <div
           className={`absolute ${
             align === 'right' ? 'right-0' : 'left-0'
-          } mt-1.5 min-w-full sm:min-w-[170px] max-w-xs sm:w-max bg-white/98 backdrop-blur-md border border-slate-200/90 rounded-2xl shadow-xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150 origin-top select-none ${menuClassName}`}
+          } mt-1.5 min-w-full sm:min-w-[170px] max-w-xs sm:w-max bg-white border border-slate-200 rounded-2xl shadow-xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150 origin-top select-none ${menuClassName}`}
         >
           <div className="max-h-[50vh] sm:max-h-60 overflow-y-auto space-y-0.5 ios-scroll pr-0.5">
             {options.map((option) => {

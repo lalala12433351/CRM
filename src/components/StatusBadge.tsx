@@ -17,7 +17,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   status,
   lostReason,
   size = 'sm',
-  showDot = true,
+  showDot = false,
   isDark = false,
   className = '',
   onClick
@@ -29,29 +29,20 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   const isLost = (status || '').toString().toLowerCase() === 'lost';
 
   const sizeClasses = {
-    xs: 'px-1.5 py-0.5 text-[10px] gap-1 rounded',
-    sm: 'px-2.5 py-0.5 text-xs font-semibold gap-1.5 rounded-md',
-    md: 'px-3 py-1 text-xs font-bold gap-1.5 rounded-lg',
-    lg: 'px-3.5 py-1.5 text-sm font-bold gap-2 rounded-xl'
-  }[size];
-
-  const dotSizes = {
-    xs: 'w-1.5 h-1.5',
-    sm: 'w-2 h-2',
-    md: 'w-2 h-2',
-    lg: 'w-2.5 h-2.5'
+    xs: 'px-2 py-0.5 text-[10px] rounded',
+    sm: 'px-2.5 py-0.5 text-xs font-semibold rounded-md',
+    md: 'px-3 py-1 text-xs font-bold rounded-lg',
+    lg: 'px-3.5 py-1.5 text-sm font-bold rounded-xl'
   }[size];
 
   let colorStyles = '';
   let inlineStyles: React.CSSProperties = {};
-  let dotInlineStyles: React.CSSProperties = {};
   
   if (customStage) {
     const color = customStage.color;
     inlineStyles = isDark 
       ? { color: color, backgroundColor: `${color}1A`, borderColor: `${color}40` }
       : { color: color, backgroundColor: `${color}15`, borderColor: `${color}40` };
-    dotInlineStyles = { backgroundColor: color, boxShadow: `0 0 8px ${color}66` };
     colorStyles = 'border shadow-2xs';
   } else {
     colorStyles = isDark 
@@ -63,24 +54,16 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     <span
       onClick={onClick}
       style={inlineStyles}
-      className={`inline-flex items-center select-none font-medium tracking-tight transition-all duration-150 ${sizeClasses} ${colorStyles} ${
+      className={`inline-flex items-center justify-center select-none font-medium tracking-tight transition-all duration-150 ${sizeClasses} ${colorStyles} ${
         onClick ? 'cursor-pointer hover:opacity-90 active:scale-95' : ''
       } ${className}`}
-      title={`Status: ${customStage ? customStage.name : config.label}${lostReason ? ` • Reason: ${lostReason}` : ''}`}
+      title={`Status: ${customStage ? customStage.name : config.label}${lostReason ? ` - Reason: ${lostReason}` : ''}`}
     >
-      {showDot && (
-        <span className="relative flex items-center justify-center shrink-0">
-          <span 
-            style={customStage ? dotInlineStyles : undefined}
-            className={`${dotSizes} rounded-full ${!customStage ? config.dot : ''} shrink-0`} 
-          />
-        </span>
-      )}
       <span className="truncate">
         {status || config.label}
         {isLost && lostReason && (
           <span className="opacity-80 font-normal ml-1 text-[11px] truncate">
-            • {lostReason}
+            - {lostReason}
           </span>
         )}
       </span>

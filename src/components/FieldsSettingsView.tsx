@@ -33,9 +33,31 @@ import {
   ExternalLink,
   Lock,
   Layers,
-  Save
+  Save,
+  Download,
+  Info,
+  ArrowLeftRight,
+  CornerDownRight
 } from 'lucide-react';
 import { CustomFieldDef, CustomFieldType, Agent, isAgentAdmin } from '../types';
+
+const PurpleToggleSwitch: React.FC<{ checked: boolean; onChange: (checked: boolean) => void }> = ({ checked, onChange }) => (
+  <button
+    type="button"
+    role="switch"
+    aria-checked={checked}
+    onClick={() => onChange(!checked)}
+    className={`w-11 h-6 flex items-center rounded-full p-0.5 cursor-pointer transition-colors duration-200 ease-in-out shrink-0 ${
+      checked ? 'bg-[#5b21b6]' : 'bg-slate-300'
+    }`}
+  >
+    <div
+      className={`bg-white w-5 h-5 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+        checked ? 'translate-x-5' : 'translate-x-0'
+      }`}
+    />
+  </button>
+);
 
 interface FieldsSettingsViewProps {
   customFields: CustomFieldDef[];
@@ -85,11 +107,19 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
   // Form State for Add / Edit
   const [fieldName, setFieldName] = useState('');
   const [fieldKey, setFieldKey] = useState('');
-  const [fieldType, setFieldType] = useState<CustomFieldType>('text');
+  const [fieldType, setFieldType] = useState<CustomFieldType | ''>('text');
   const [fieldCategory, setFieldCategory] = useState<'General' | 'Contact' | 'Academic/Career' | 'Custom'>('General');
   const [fieldRequired, setFieldRequired] = useState(false);
   const [fieldUnique, setFieldUnique] = useState(false);
   const [fieldShowInQuickAdd, setFieldShowInQuickAdd] = useState(true);
+  const [fieldShowInImport, setFieldShowInImport] = useState(true);
+  const [fieldLockAfterCreate, setFieldLockAfterCreate] = useState(false);
+  const [fieldCanUseVariable, setFieldCanUseVariable] = useState(true);
+  const [fieldVariableDefaultValue, setFieldVariableDefaultValue] = useState('NA');
+  const [fieldMinLength, setFieldMinLength] = useState<number | string>(1);
+  const [fieldMaxLength, setFieldMaxLength] = useState<number | string>(102);
+  const [fieldSearchable, setFieldSearchable] = useState(false);
+  const [isPropertiesOpen, setIsPropertiesOpen] = useState(true);
   const [fieldPlaceholder, setFieldPlaceholder] = useState('');
   const [fieldDescription, setFieldDescription] = useState('');
   const [fieldOptions, setFieldOptions] = useState<string[]>([]);
@@ -147,9 +177,17 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
     setFieldRequired(false);
     setFieldUnique(false);
     setFieldShowInQuickAdd(true);
+    setFieldShowInImport(true);
+    setFieldLockAfterCreate(false);
+    setFieldCanUseVariable(true);
+    setFieldVariableDefaultValue('NA');
+    setFieldMinLength(1);
+    setFieldMaxLength(102);
+    setFieldSearchable(false);
+    setIsPropertiesOpen(true);
     setFieldPlaceholder('');
     setFieldDescription('');
-    setFieldOptions(['Option 1', 'Option 2', 'Option 3']);
+    setFieldOptions([]);
     setOptionInput('');
     setEditingField(null);
     setShowAddModal(true);
@@ -164,6 +202,14 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
     setFieldRequired(!!field.required);
     setFieldUnique(!!field.isUnique);
     setFieldShowInQuickAdd(field.showInQuickAdd !== false);
+    setFieldShowInImport(field.showInImport !== false);
+    setFieldLockAfterCreate(!!field.lockAfterCreate);
+    setFieldCanUseVariable(field.canUseVariable !== false);
+    setFieldVariableDefaultValue(field.variableDefaultValue || 'NA');
+    setFieldMinLength(field.minLength ?? 1);
+    setFieldMaxLength(field.maxLength ?? 102);
+    setFieldSearchable(!!field.isSearchable);
+    setIsPropertiesOpen(true);
     setFieldPlaceholder(field.placeholder || '');
     setFieldDescription(field.description || '');
     setFieldOptions(field.options ? [...field.options] : []);
@@ -233,11 +279,18 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
             ...f,
             label: trimmedLabel,
             name: finalKey,
-            type: fieldType,
+            type: (fieldType || 'text') as CustomFieldType,
             category: fieldCategory,
             required: fieldRequired,
             isUnique: fieldUnique,
             showInQuickAdd: fieldShowInQuickAdd,
+            showInImport: fieldShowInImport,
+            lockAfterCreate: fieldLockAfterCreate,
+            canUseVariable: fieldCanUseVariable,
+            variableDefaultValue: fieldVariableDefaultValue.trim() || 'NA',
+            minLength: Number(fieldMinLength) || 1,
+            maxLength: Number(fieldMaxLength) || 102,
+            isSearchable: fieldSearchable,
             placeholder: fieldPlaceholder.trim(),
             description: fieldDescription.trim(),
             options: (fieldType === 'dropdown' || fieldType === 'multiselect') ? fieldOptions : undefined,
@@ -254,11 +307,18 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
         id: `f-${Date.now()}`,
         name: finalKey,
         label: trimmedLabel,
-        type: fieldType,
+        type: (fieldType || 'text') as CustomFieldType,
         category: fieldCategory,
         required: fieldRequired,
         isUnique: fieldUnique,
         showInQuickAdd: fieldShowInQuickAdd,
+        showInImport: fieldShowInImport,
+        lockAfterCreate: fieldLockAfterCreate,
+        canUseVariable: fieldCanUseVariable,
+        variableDefaultValue: fieldVariableDefaultValue.trim() || 'NA',
+        minLength: Number(fieldMinLength) || 1,
+        maxLength: Number(fieldMaxLength) || 102,
+        isSearchable: fieldSearchable,
         placeholder: fieldPlaceholder.trim(),
         description: fieldDescription.trim(),
         options: (fieldType === 'dropdown' || fieldType === 'multiselect') ? fieldOptions : undefined,
@@ -712,27 +772,20 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
       {/* ========================================================= */}
       {/* MODAL 1: ADD / EDIT FIELD                                 */}
       {/* ========================================================= */}
+      {/* ========================================================= */}
+      {/* MODAL 1: CREATE / EDIT FIELD MODAL (MATCHING TELECRM DESIGN) */}
+      {/* ========================================================= */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-3 md:p-6 overflow-y-auto">
-          <div className="bg-white rounded-2xl border border-slate-200 max-w-xl w-full p-5 md:p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in-95 my-8">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-3 md:p-6 overflow-y-auto font-sans">
+          <div className="bg-white rounded-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 my-8">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
-              <div className="flex items-center space-x-2.5">
-                <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center font-bold">
-                  {editingField ? <Edit3 className="w-4 h-4" /> : <Plus className="w-5 h-5" />}
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">
-                    {editingField ? `Edit Field: ${editingField.label}` : 'Add a new Field'}
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Define field attributes, data type, options, and validation rules
-                  </p>
-                </div>
-              </div>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                {editingField ? `Edit Field` : 'Create Field'}
+              </h2>
               <button
                 onClick={() => setShowAddModal(false)}
-                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer font-bold"
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -740,111 +793,96 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
 
             {/* Modal Form */}
             <form onSubmit={handleSaveField} className="space-y-4">
-              {/* Field Label & Slug */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">
-                    Field Name <span className="text-rose-500">*</span>
+              {/* Row 1: Name and Type */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* Name */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Name
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Passport Expiry Date"
+                    maxLength={40}
+                    placeholder=""
                     value={fieldName}
                     onChange={(e) => handleNameChange(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-600"
+                    className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-[#5b21b6] focus:ring-1 focus:ring-[#5b21b6] transition-all"
                   />
+                  <p className="text-rose-500 text-[11px] mt-1 font-normal">
+                    Name can be 1 to 40 letters in length.
+                  </p>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">
-                    System Identifier Key
+                {/* Type */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Type
                   </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. passport_expiry_date"
-                    value={fieldKey}
-                    onChange={(e) => setFieldKey(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono font-medium text-slate-700 focus:bg-white focus:outline-none focus:border-indigo-600"
-                  />
-                </div>
-              </div>
-
-              {/* Field Type Selection Grid */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">
-                  Select Field Type <span className="text-rose-500">*</span>
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {(Object.keys(FIELD_TYPE_CONFIG) as CustomFieldType[]).map((typeKey) => {
-                    const item = FIELD_TYPE_CONFIG[typeKey];
-                    const ItemIcon = item.icon;
-                    const isSelected = fieldType === typeKey;
-
-                    return (
-                      <button
-                        key={typeKey}
-                        type="button"
-                        onClick={() => setFieldType(typeKey)}
-                        className={`flex items-center space-x-2 p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-indigo-50/80 border-indigo-600 text-indigo-950 font-bold ring-1 ring-indigo-500/20'
-                            : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300 font-medium'
-                        }`}
-                      >
-                        <ItemIcon className={`w-4 h-4 shrink-0 ${isSelected ? 'text-indigo-600' : 'text-slate-500'}`} />
-                        <span className="truncate">{item.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Dropdown Options Builder (if Dropdown or Multi-Select) */}
-              {(fieldType === 'dropdown' || fieldType === 'multiselect') && (
-                <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5 animate-in fade-in">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
-                      <ListFilter className="w-3.5 h-3.5 text-indigo-600" />
-                      <span>Dropdown Options List</span>
-                    </label>
-                    <span className="text-[11px] text-slate-500 font-medium">
-                      {fieldOptions.length} choices configured
-                    </span>
+                  <div className="relative">
+                    <select
+                      value={fieldType}
+                      onChange={(e) => setFieldType(e.target.value as CustomFieldType)}
+                      className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 pr-8 text-xs font-medium text-slate-900 focus:outline-none focus:border-[#5b21b6] focus:ring-1 focus:ring-[#5b21b6] appearance-none cursor-pointer"
+                    >
+                      <option value="text">Text</option>
+                      <option value="number">Number</option>
+                      <option value="dropdown">Dropdown</option>
+                      <option value="multiselect">Multi-Select</option>
+                      <option value="date">Date</option>
+                      <option value="phone">Phone</option>
+                      <option value="email">Email</option>
+                      <option value="currency">Currency</option>
+                      <option value="textarea">Textarea</option>
+                      <option value="boolean">Checkbox</option>
+                      <option value="url">URL</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
+                  <p className="text-rose-500 text-[11px] mt-1 font-normal">
+                    Please select a field type.
+                  </p>
+                </div>
+              </div>
 
-                  {/* Add Option Input */}
+              {/* Options Builder if Dropdown / Multi-Select */}
+              {(fieldType === 'dropdown' || fieldType === 'multiselect') && (
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2 animate-in fade-in text-xs">
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-slate-800 flex items-center space-x-1.5">
+                      <ListFilter className="w-3.5 h-3.5 text-[#5b21b6]" />
+                      <span>Dropdown Choices</span>
+                    </label>
+                    <span className="text-[10px] text-slate-500">{fieldOptions.length} options</span>
+                  </div>
                   <div className="flex items-center space-x-2">
                     <input
                       type="text"
-                      placeholder="Add an option (e.g. Commercial Pilot)..."
+                      placeholder="Add an option..."
                       value={optionInput}
                       onChange={(e) => setOptionInput(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddOption())}
-                      className="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      className="flex-1 bg-white border border-slate-300 rounded-md px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-[#5b21b6]"
                     />
                     <button
                       type="button"
                       onClick={handleAddOption}
-                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg cursor-pointer transition-all"
+                      className="px-3 py-1.5 bg-[#5b21b6] hover:bg-[#4c1d95] text-white text-xs font-bold rounded-md cursor-pointer"
                     >
                       Add
                     </button>
                   </div>
-
-                  {/* Options Chips */}
-                  <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1">
+                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
                     {fieldOptions.map((opt, idx) => (
                       <span
                         key={idx}
-                        className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-slate-800 text-xs font-semibold shadow-2xs"
+                        className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-800 text-[11px] font-semibold"
                       >
                         <span>{opt}</span>
                         <button
                           type="button"
                           onClick={() => handleRemoveOption(idx)}
-                          className="text-slate-400 hover:text-rose-600 ml-1 p-0.5 cursor-pointer"
+                          className="text-slate-400 hover:text-rose-600 ml-1 cursor-pointer"
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -854,81 +892,130 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
                 </div>
               )}
 
-              {/* Category & Placeholder */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Category</label>
-                  <select
-                    value={fieldCategory}
-                    onChange={(e) => setFieldCategory(e.target.value as any)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-600 cursor-pointer"
-                  >
-                    <option value="General">General Information</option>
-                    <option value="Contact">Contact Details</option>
-                    <option value="Academic/Career">Academic Career</option>
-                    <option value="Custom">Custom Extra</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Placeholder Text</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Enter valid passport number"
-                    value={fieldPlaceholder}
-                    onChange={(e) => setFieldPlaceholder(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-600"
-                  />
-                </div>
-              </div>
-
-              {/* Description */}
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700">Help Text</label>
-                <input
-                  type="text"
-                  placeholder="e.g. As per government issued passport document"
+              {/* Row 2: Description Textarea */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  rows={4}
                   value={fieldDescription}
                   onChange={(e) => setFieldDescription(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-600"
+                  placeholder=""
+                  className="w-full bg-white border border-slate-300 rounded-md p-3 text-xs font-normal text-slate-800 focus:outline-none focus:border-[#5b21b6] focus:ring-1 focus:ring-[#5b21b6] resize-none"
                 />
               </div>
 
-              {/* Validation & Behavior Toggles */}
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2 text-xs">
-                <label className="flex items-center space-x-2.5 cursor-pointer text-slate-800 font-semibold">
-                  <input
-                    type="checkbox"
-                    checked={fieldRequired}
-                    onChange={(e) => setFieldRequired(e.target.checked)}
-                    className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
-                  />
-                  <span>Required Field (Must be entered to save lead)</span>
-                </label>
+              {/* Row 3: Properties Section */}
+              <div className="border-t border-slate-100 pt-2 space-y-2.5">
+                <button
+                  type="button"
+                  onClick={() => setIsPropertiesOpen(!isPropertiesOpen)}
+                  className="flex items-center space-x-1 text-xs font-bold text-slate-600 hover:text-slate-800 cursor-pointer"
+                >
+                  <span>Properties</span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${isPropertiesOpen ? 'rotate-180' : ''}`} />
+                </button>
 
-                <label className="flex items-center space-x-2.5 cursor-pointer text-slate-800 font-semibold">
-                  <input
-                    type="checkbox"
-                    checked={fieldUnique}
-                    onChange={(e) => setFieldUnique(e.target.checked)}
-                    className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
-                  />
-                  <span>Unique Value Check (Prevent duplicate lead creation)</span>
-                </label>
+                {isPropertiesOpen && (
+                  <div className="space-y-3.5 pt-1 text-xs">
+                    {/* 1. Show in import */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1.5 text-slate-700 font-bold">
+                        <Download className="w-4 h-4 text-slate-500 stroke-[2]" />
+                        <span>Show in import</span>
+                        <Info className="w-3.5 h-3.5 text-slate-400 cursor-help" title="Allow this field in CSV / Excel bulk lead import" />
+                      </div>
+                      <PurpleToggleSwitch checked={fieldShowInImport} onChange={setFieldShowInImport} />
+                    </div>
 
-                <label className="flex items-center space-x-2.5 cursor-pointer text-slate-800 font-semibold">
-                  <input
-                    type="checkbox"
-                    checked={fieldShowInQuickAdd}
-                    onChange={(e) => setFieldShowInQuickAdd(e.target.checked)}
-                    className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
-                  />
-                  <span>Display in Quick Add Lead Form</span>
-                </label>
+                    {/* 2. Show in quick add */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1.5 text-slate-700 font-bold">
+                        <span>Show in quick add</span>
+                        <Info className="w-3.5 h-3.5 text-slate-400 cursor-help" title="Display this field in the Quick Add Lead drawer" />
+                      </div>
+                      <PurpleToggleSwitch checked={fieldShowInQuickAdd} onChange={setFieldShowInQuickAdd} />
+                    </div>
+
+                    {/* 3. Lock after create */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1.5 text-slate-700 font-bold">
+                        <span>Lock after create</span>
+                        <Info className="w-3.5 h-3.5 text-slate-400 cursor-help" title="Value cannot be edited once lead record is created" />
+                      </div>
+                      <PurpleToggleSwitch checked={fieldLockAfterCreate} onChange={setFieldLockAfterCreate} />
+                    </div>
+
+                    {/* 4. Can use variable */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-1.5 text-slate-700 font-bold">
+                          <span className="font-mono text-slate-500 font-bold text-sm leading-none">{'{ }'}</span>
+                          <span>Can use variable</span>
+                          <Info className="w-3.5 h-3.5 text-slate-400 cursor-help" title="Allow dynamic variable injection in WhatsApp & SMS templates" />
+                        </div>
+                        <PurpleToggleSwitch checked={fieldCanUseVariable} onChange={setFieldCanUseVariable} />
+                      </div>
+
+                      {/* Sub-item: Variable default value */}
+                      {fieldCanUseVariable && (
+                        <div className="flex items-center justify-between pl-3 animate-in fade-in">
+                          <div className="flex items-center space-x-1.5 text-slate-600 font-bold text-xs">
+                            <CornerDownRight className="w-4 h-4 text-slate-400" />
+                            <span>Variable default value</span>
+                          </div>
+                          <input
+                            type="text"
+                            value={fieldVariableDefaultValue}
+                            onChange={(e) => setFieldVariableDefaultValue(e.target.value)}
+                            placeholder="NA"
+                            className="w-44 bg-white border border-slate-300 rounded-md px-3 py-1.5 text-xs text-slate-800 font-medium focus:outline-none focus:border-[#5b21b6]"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 5. Length Range */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1.5 text-slate-700 font-bold">
+                        <ArrowLeftRight className="w-4 h-4 text-slate-500 stroke-[2]" />
+                        <span>Length Range</span>
+                        <Info className="w-3.5 h-3.5 text-slate-400 cursor-help" title="Character count minimum and maximum constraints" />
+                      </div>
+                      <div className="flex items-center space-x-2 text-xs text-slate-600 font-medium">
+                        <span>From</span>
+                        <input
+                          type="number"
+                          value={fieldMinLength}
+                          onChange={(e) => setFieldMinLength(e.target.value)}
+                          className="w-14 bg-white border border-slate-300 rounded-md px-2 py-1 text-center text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#5b21b6]"
+                        />
+                        <span>To</span>
+                        <input
+                          type="number"
+                          value={fieldMaxLength}
+                          onChange={(e) => setFieldMaxLength(e.target.value)}
+                          className="w-16 bg-white border border-slate-300 rounded-md px-2 py-1 text-center text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#5b21b6]"
+                        />
+                      </div>
+                    </div>
+
+                    {/* 6. Searchable */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1.5 text-slate-700 font-bold">
+                        <Search className="w-4 h-4 text-slate-500 stroke-[2]" />
+                        <span>Searchable</span>
+                        <Info className="w-3.5 h-3.5 text-slate-400 cursor-help" title="Make this custom field searchable in global lead search queries" />
+                      </div>
+                      <PurpleToggleSwitch checked={fieldSearchable} onChange={setFieldSearchable} />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center justify-end space-x-2.5 pt-3 border-t border-slate-100">
+              <div className="flex items-center justify-end space-x-2.5 pt-4 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
@@ -938,7 +1025,7 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-[#5034a8] hover:bg-[#432993] text-white text-xs font-bold transition-all cursor-pointer shadow-xs"
+                  className="px-6 py-2 rounded-xl bg-[#5b21b6] hover:bg-[#4c1d95] text-white text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95"
                 >
                   {editingField ? 'Save Changes' : 'Create Field'}
                 </button>

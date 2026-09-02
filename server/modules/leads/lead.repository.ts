@@ -20,6 +20,18 @@ export class LeadRepository {
   public async saveFieldSettings(tenantId: string, fields: any[]) {
     return await multiTenantDb.saveFieldSettings(tenantId, fields);
   }
+
+  public async getActivities(tenantId: string) {
+    return await multiTenantDb.getActivityLogs(tenantId);
+  }
+
+  public async logActivity(tenantId: string, activity: any) {
+    return await multiTenantDb.logActivity(tenantId, activity);
+  }
+
+  public async deleteActivity(tenantId: string, activityId: string) {
+    return await multiTenantDb.deleteActivity(tenantId, activityId);
+  }
 }
 
 export const leadRepository = new LeadRepository();
