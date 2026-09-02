@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   BellRing, 
   Calendar, 
@@ -16,20 +16,24 @@ import {
   Filter,
   Sparkles,
   ChevronRight,
+  ChevronDown,
   Check,
   FileText,
-  Trash2
+  Trash2,
+  Columns3
 } from 'lucide-react';
-import { Lead, Agent, CallRecord } from '../types';
-import { isAgentAdmin } from '../types';
+import { Lead, Agent, CallRecord, CustomFieldDef, isAgentAdmin, formatDealValue } from '../types';
 import { CallRecordingPlayer } from '../components/CallRecordingPlayer';
 import { StatusBadge } from '../components/StatusBadge';
 import { LeadSummaryModal } from '../components/LeadSummaryModal';
+import { ColumnCustomizerModal } from '../components/ColumnCustomizerModal';
 
 interface FollowUpsViewProps {
   leads: Lead[];
   agents: Agent[];
   callRecords: CallRecord[];
+  customFields?: CustomFieldDef[];
+  currency?: string;
   activeAgent?: Agent | null;
   onUpdateLead: (leadId: string, updates: Partial<Lead>) => void;
   onOpenLeadDetail: (lead: Lead) => void;
@@ -41,6 +45,8 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
   leads,
   agents,
   callRecords,
+  customFields,
+  currency = 'INR',
   activeAgent,
   onUpdateLead,
   onOpenLeadDetail,
@@ -51,6 +57,277 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
   const [filterType, setFilterType] = useState<'today' | 'overdue' | 'upcoming' | 'all'>('today');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAgentId, setSelectedAgentId] = useState('ALL');
+
+  // Column Visibility Config
+  const [showColumnModal, setShowColumnModal] = useState(false);
+  const columnCustomizerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (columnCustomizerRef.current && !columnCustomizerRef.current.contains(event.target as Node)) {
+        setShowColumnModal(false);
+      }
+    };
+    if (showColumnModal) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showColumnModal]);
+
+  // User custom column ordering (persisted in localStorage)
+  const [fieldOrderKeys, setFieldOrderKeys] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('crm_followup_column_order');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  });
+
+  const allAvailableFields = useMemo(() => {
+    // Schedule column definition
+    const scheduleField: CustomFieldDef = {
+      id: 'f-scheduled',
+      name: 'scheduled_time',
+      label: 'Scheduled Time',
+      type: 'date',
+      required: true,
+      isPrimary: true
+    };
+
+    // Use the exact field settings configured by user in customFields
+    const rawFields = (customFields || []).filter((f) => !f.isHidden && f.id !== 'f-timer');
+    const baseList: CustomFieldDef[] = [...rawFields];
+    
+    // Add the schedule column if not already present
+    const hasSchedule = baseList.some(f => (f.name || f.id) === 'scheduled_time' || (f.name || f.id) === 'f-scheduled');
+    if (!hasSchedule) {
+      baseList.push(scheduleField);
+    }
+
+    if (!fieldOrderKeys || fieldOrderKeys.length === 0) return baseList;
+
+    const ordered: CustomFieldDef[] = [];
+    const remaining = [...baseList];
+
+    fieldOrderKeys.forEach((key) => {
+      const idx = remaining.findIndex((f) => (f.name || f.id) === key);
+      if (idx !== -1) {
+        ordered.push(remaining[idx]);
+        remaining.splice(idx, 1);
+      }
+    });
+
+    return [...ordered, ...remaining];
+  }, [customFields, fieldOrderKeys]);
+
+  const [selectedColumnKeys, setSelectedColumnKeys] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('crm_followup_selected_columns');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+
+    // Default visible fields: first 6 user customFields + scheduled_time
+    const initial = (customFields || [])
+      .filter((f) => !f.isHidden && f.id !== 'f-timer')
+      .slice(0, 6)
+      .map((f) => f.name || f.id);
+
+    if (!initial.includes('scheduled_time')) {
+      initial.push('scheduled_time');
+    }
+    return initial.length > 0 ? initial : ['name', 'company', 'phone', 'email', 'ownerAgentName', 'notes', 'scheduled_time', 'status'];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('crm_followup_selected_columns', JSON.stringify(selectedColumnKeys));
+    } catch (e) {}
+  }, [selectedColumnKeys]);
+
+  const handleToggleColumnField = (fieldKey: string) => {
+    setSelectedColumnKeys((prev) => {
+      if (prev.includes(fieldKey)) {
+        if (fieldKey === 'name') return prev; // Name is locked
+        return prev.filter((k) => k !== fieldKey);
+      } else {
+        if (prev.length >= 14) return prev;
+        return [...prev, fieldKey];
+      }
+    });
+  };
+
+  const handleReorderFields = (reorderedList: CustomFieldDef[]) => {
+    const newOrderKeys = reorderedList.map((f) => f.name || f.id);
+    setFieldOrderKeys(newOrderKeys);
+    try {
+      localStorage.setItem('crm_followup_column_order', JSON.stringify(newOrderKeys));
+    } catch (e) {}
+
+    setSelectedColumnKeys((prev) => {
+      const selectedSet = new Set(prev);
+      return newOrderKeys.filter((k) => selectedSet.has(k));
+    });
+  };
+
+  const visibleFields = useMemo(() => {
+    return selectedColumnKeys
+      .map((key) => allAvailableFields.find((f) => f.name === key || f.id === key))
+      .filter(Boolean) as CustomFieldDef[];
+  }, [selectedColumnKeys, allAvailableFields]);
+
+  const renderTableCell = (lead: Lead, field: CustomFieldDef) => {
+    const key = field.name || field.id || '';
+    const idKey = field.id || '';
+    const labelLower = (field.label || '').toLowerCase();
+
+    // Customer Name
+    if (key === 'name' || idKey === 'f-name' || labelLower === 'name' || labelLower === 'customer name') {
+      return (
+        <td key={field.id || field.name} className="py-3.5 px-4 font-bold text-slate-900 whitespace-nowrap">
+          <span className="font-bold font-sans text-slate-900 text-sm">{lead.name}</span>
+        </td>
+      );
+    }
+
+    // Scheduled Time
+    if (key === 'scheduled_time' || key === 'followUpAt' || idKey === 'f-scheduled' || labelLower.includes('scheduled')) {
+      const isOverdue = lead.followUpAt && lead.followUpAt.slice(0, 10) < todayStr;
+      const isToday = lead.followUpAt && lead.followUpAt.slice(0, 10) === todayStr;
+      return (
+        <td key={field.id || field.name} className="py-3.5 px-4 whitespace-nowrap">
+          <span className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg border text-[11px] font-semibold ${
+            isOverdue ? 'bg-rose-50 border-rose-200 text-rose-800' :
+            isToday ? 'bg-amber-50 border-amber-200 text-amber-800' :
+            'bg-slate-50 border-slate-200 text-slate-700'
+          }`}>
+            <Clock className="w-3 h-3" />
+            <span>{formatFollowUpTime(lead.followUpAt)}</span>
+          </span>
+        </td>
+      );
+    }
+
+    // Phone Number
+    if (key === 'phone' || idKey === 'f-phone' || field.type === 'phone' || labelLower.includes('phone')) {
+      return (
+        <td key={field.id || field.name} className="py-3.5 px-4 font-mono font-medium text-slate-800 whitespace-nowrap min-w-[140px]">
+          {lead.phone || '-'}
+        </td>
+      );
+    }
+
+    // Email
+    if (key === 'email' || idKey === 'f-email' || field.type === 'email' || labelLower.includes('email')) {
+      return (
+        <td key={field.id || field.name} className="py-3.5 px-4 text-slate-600 whitespace-nowrap">
+          <span className="text-slate-800 font-medium truncate block max-w-[160px]">{lead.email || '-'}</span>
+        </td>
+      );
+    }
+
+    // Company
+    if (key === 'company' || idKey === 'f-company' || labelLower.includes('company')) {
+      return (
+        <td key={field.id || field.name} className="py-3.5 px-4 text-slate-600 font-medium whitespace-nowrap">
+          {lead.company && lead.company !== 'Individual' && lead.company !== 'Not Specified' ? lead.company : '-'}
+        </td>
+      );
+    }
+
+    // Status
+    if (key === 'status' || idKey === 'f-status' || labelLower === 'status') {
+      return (
+        <td key={field.id || field.name} className="py-3.5 px-4 whitespace-nowrap">
+          <StatusBadge status={lead.status || 'Follow Up'} lostReason={lead.lostReason} size="xs" />
+        </td>
+      );
+    }
+
+    // Assignee
+    if (key === 'ownerAgentName' || key === 'assignee' || idKey === 'f-assignee' || labelLower.includes('assignee') || labelLower.includes('owner')) {
+      return (
+        <td key={field.id || field.name} className="py-3.5 px-4 whitespace-nowrap">
+          <div className="flex items-center space-x-2">
+            <div className="w-5 h-5 rounded-full bg-purple-100 text-[#3a2088] flex items-center justify-center text-[10px] font-bold">
+              {(lead.ownerAgentName || 'U')[0].toUpperCase()}
+            </div>
+            <span className="font-semibold text-slate-800 text-xs truncate max-w-[120px]">
+              {lead.ownerAgentName || 'Unassigned'}
+            </span>
+          </div>
+        </td>
+      );
+    }
+
+    // Notes
+    if (key === 'notes' || idKey === 'f-notes' || labelLower.includes('notes')) {
+      return (
+        <td key={field.id || field.name} className="py-3.5 px-4 text-slate-600 max-w-xs">
+          <p className="line-clamp-2 text-[11px] text-slate-700">
+            {lead.notes
+              ? lead.notes
+                  .replace(/Added manually\.?\s*/gi, '')
+                  .replace(/\[Follow-up Remark\]:\s*/gi, '')
+                  .trim() || 'No remarks.'
+              : 'No remarks.'}
+          </p>
+        </td>
+      );
+    }
+
+    // Deal Value / Currency
+    if (field.type === 'currency' || key === 'deal_value' || key === 'dealValue' || labelLower.includes('deal value')) {
+      const dv = lead.dealValue ?? (lead as any).deal_value ?? lead.customFields?.deal_value ?? lead.customFields?.dealValue;
+      return (
+        <td key={field.id || field.name} className="py-3.5 px-4 font-mono font-bold text-emerald-600 whitespace-nowrap">
+          {dv !== undefined && dv !== null && dv !== 0 ? formatDealValue(Number(dv) || 0, currency) : '—'}
+        </td>
+      );
+    }
+
+    // Rating
+    if (key === 'rating' || idKey === 'f-rating' || labelLower.includes('rating')) {
+      return (
+        <td key={field.id || field.name} className="py-3.5 px-4 font-medium text-amber-600 whitespace-nowrap">
+          ★ {lead.rating || 0}/5
+        </td>
+      );
+    }
+
+    // Generic Custom Fields
+    const candidateKeys = [key, idKey, field.name, field.label, labelLower].filter(Boolean) as string[];
+    let val = '—';
+    if (lead.customFields) {
+      for (const k of candidateKeys) {
+        if (lead.customFields[k] !== undefined && lead.customFields[k] !== null && String(lead.customFields[k]).trim() !== '') {
+          val = String(lead.customFields[k]);
+          break;
+        }
+      }
+    }
+    if (val === '—') {
+      for (const k of candidateKeys) {
+        if ((lead as any)[k] !== undefined && (lead as any)[k] !== null && String((lead as any)[k]).trim() !== '') {
+          val = String((lead as any)[k]);
+          break;
+        }
+      }
+    }
+
+    return (
+      <td key={field.id || field.name} className="py-3.5 px-4 text-slate-700 whitespace-nowrap text-xs">
+        {val}
+      </td>
+    );
+  };
   
   // Modal for scheduling a new follow-up
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -303,17 +580,47 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
         </div>
 
         <div className="flex items-center space-x-2">
-          <span className="text-[11px] text-slate-500 font-semibold shrink-0">Assignee:</span>
-          <select
-            value={selectedAgentId}
-            onChange={(e) => setSelectedAgentId(e.target.value)}
-            className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#3a2088] focus:ring-1 focus:ring-[#3a2088] cursor-pointer font-medium w-full sm:w-auto"
-          >
-            <option value="ALL">All Telecallers</option>
-            {agents.map((ag) => (
-              <option key={ag.id} value={ag.id}>{ag.name}</option>
-            ))}
-          </select>
+          <div className="flex items-center space-x-1.5">
+            <span className="text-[11px] text-slate-500 font-semibold shrink-0">Assignee:</span>
+            <select
+              value={selectedAgentId}
+              onChange={(e) => setSelectedAgentId(e.target.value)}
+              className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#3a2088] focus:ring-1 focus:ring-[#3a2088] cursor-pointer font-medium w-full sm:w-auto"
+            >
+              <option value="ALL">All Telecallers</option>
+              {agents.map((ag) => (
+                <option key={ag.id} value={ag.id}>{ag.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Column Customizer Button */}
+          <div className="relative" ref={columnCustomizerRef}>
+            <button
+              type="button"
+              onClick={() => setShowColumnModal(!showColumnModal)}
+              className={`flex items-center space-x-1 px-2.5 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors shadow-2xs ${
+                showColumnModal
+                  ? 'bg-purple-50 border-purple-300 text-purple-900 font-bold'
+                  : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+              }`}
+            >
+              <Columns3 className="w-3.5 h-3.5 text-slate-500" />
+              <span>Column</span>
+              <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${showColumnModal ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showColumnModal && (
+              <ColumnCustomizerModal
+                allFields={allAvailableFields}
+                selectedFieldKeys={selectedColumnKeys}
+                onToggleField={handleToggleColumnField}
+                onReorderFields={handleReorderFields}
+                onClose={() => setShowColumnModal(false)}
+                maxFields={12}
+              />
+            )}
+          </div>
         </div>
       </div>
 
@@ -427,88 +734,26 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
                 <table className="w-full text-left text-xs font-sans border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200/80 bg-slate-50/50 text-slate-500 font-semibold text-[11px] uppercase tracking-wider">
-                    <th className="py-3.5 px-4 font-bold">Customer Name</th>
-                    <th className="py-3.5 px-4 font-bold">Company</th>
-                    <th className="py-3.5 px-4 font-bold">Phone Number</th>
-                    <th className="py-3.5 px-4 font-bold">Email</th>
-                    <th className="py-3.5 px-4 font-bold">Assignee</th>
-                    <th className="py-3.5 px-4 font-bold">Assignee Notes</th>
-                    <th className="py-3.5 px-4 font-bold">Scheduled Time</th>
-                    <th className="py-3.5 px-4 font-bold">Status</th>
-                    <th className="py-3.5 px-4 font-bold text-right">Actions</th>
+                    {visibleFields.map((f) => (
+                      <th 
+                        key={f.id || f.name} 
+                        className={`py-3.5 px-4 font-bold whitespace-nowrap ${f.type === 'phone' ? 'min-w-[140px]' : ''}`}
+                      >
+                        {f.label}
+                      </th>
+                    ))}
+                    <th className="py-3.5 px-4 font-bold text-right whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-normal">
                   {displayedLeads.map((lead) => {
-                    const isOverdue = lead.followUpAt && lead.followUpAt.slice(0, 10) < todayStr;
-                    const isToday = lead.followUpAt && lead.followUpAt.slice(0, 10) === todayStr;
-
                     return (
                       <tr 
                         key={lead.id}
                         className="hover:bg-slate-50/70 transition-colors group cursor-pointer"
                         onClick={() => onOpenLeadDetail(lead)}
                       >
-                        {/* Customer Name */}
-                        <td className="py-3.5 px-4 font-bold text-slate-900">
-                          <span className="font-bold font-sans text-slate-900 text-sm">{lead.name}</span>
-                        </td>
-
-                        {/* Company (No Individual badge!) */}
-                        <td className="py-3.5 px-4 text-slate-600 font-medium">
-                          {lead.company && lead.company !== 'Individual' && lead.company !== 'Not Specified' ? lead.company : '-'}
-                        </td>
-
-                        {/* Phone Number */}
-                        <td className="py-3.5 px-4 font-mono font-medium text-slate-800">
-                          {lead.phone}
-                        </td>
-
-                        {/* Email */}
-                        <td className="py-3.5 px-4 text-slate-600">
-                          <span className="text-slate-800 font-medium truncate block max-w-[160px]">{lead.email || '-'}</span>
-                        </td>
-
-                        {/* Assignee */}
-                        <td className="py-3.5 px-4 whitespace-nowrap">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-5 h-5 rounded-full bg-purple-100 text-[#3a2088] flex items-center justify-center text-[10px] font-bold">
-                              {(lead.ownerAgentName || 'U')[0].toUpperCase()}
-                            </div>
-                            <span className="font-semibold text-slate-800 text-xs truncate max-w-[120px]">
-                              {lead.ownerAgentName || 'Unassigned'}
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* Assignee Notes (No pen icon, No / Intent) */}
-                        <td className="py-3.5 px-4 text-slate-600 max-w-xs">
-                          <p className="line-clamp-2 text-[11px] text-slate-700">
-                            {lead.notes
-                              ? lead.notes
-                                  .replace(/Added manually\.?\s*/gi, '')
-                                  .replace(/\[Follow-up Remark\]:\s*/gi, '')
-                                  .trim() || 'No remarks.'
-                              : 'No remarks.'}
-                          </p>
-                        </td>
-
-                        {/* Scheduled Time */}
-                        <td className="py-3.5 px-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg border text-[11px] font-semibold ${
-                            isOverdue ? 'bg-rose-50 border-rose-200 text-rose-800' :
-                            isToday ? 'bg-amber-50 border-amber-200 text-amber-800' :
-                            'bg-slate-50 border-slate-200 text-slate-700'
-                          }`}>
-                            <Clock className="w-3 h-3" />
-                            <span>{formatFollowUpTime(lead.followUpAt)}</span>
-                          </span>
-                        </td>
-
-                        {/* Status (Clean Pill) */}
-                        <td className="py-3.5 px-4 whitespace-nowrap">
-                          <StatusBadge status={lead.status || 'Follow Up'} lostReason={lead.lostReason} size="xs" />
-                        </td>
+                        {visibleFields.map((field) => renderTableCell(lead, field))}
 
                         {/* Actions */}
                         <td className="py-2.5 px-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>

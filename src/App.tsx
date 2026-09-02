@@ -1243,6 +1243,7 @@ export function App() {
             <FollowUpsView
               leads={visibleLeads}
               agents={visibleAgents}
+              customFields={activeCustomFields}
               callRecords={callRecords}
               activeAgent={activeAgent}
               onUpdateLead={handlePartialUpdateLead}

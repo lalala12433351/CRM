@@ -199,7 +199,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const currentWorkspaceName = formatArcleName(activeAccount.name || 'Workspace', companyName);
 
   return (
-    <header className="h-14 glass-panel border-b border-slate-200 px-3 md:px-5 flex items-center justify-between sticky top-0 z-[100] text-slate-900 font-sans select-none relative shadow-xs">
+    <header className="h-14 glass-panel border-b border-slate-200 px-3 md:px-5 flex items-center justify-between sticky top-0 z-30 text-slate-900 font-sans select-none relative shadow-xs">
       
       {/* LEFT: Institute / Workspace Selector & Settings Flyout Trigger */}
       <div className="flex items-center space-x-1.5 sm:space-x-2 min-w-0">

@@ -225,7 +225,7 @@
         "id": "lead-1788342797388",
         "tenantId": "company_kite_aviation",
         "name": "hello",
-        "phone": "+91 1111111111",
+        "phone": "+91 1111111000",
         "email": "",
         "company": "",
         "city": "Not Specified",
@@ -245,10 +245,11 @@
           "HighIntent"
         ],
         "createdAt": "Just Now",
-        "updatedAt": "2026-09-02T11:32:42.292Z",
+        "updatedAt": "2026-09-02T13:31:21.668Z",
         "pincode": "",
         "priority": "Hot",
-        "whatsappOptIn": true
+        "whatsappOptIn": true,
+        "rating": 3
       },
       {
         "id": "lead-1788342781533",
@@ -418,7 +419,7 @@
           "HighIntent"
         ],
         "createdAt": "Just Now",
-        "updatedAt": "2026-09-02T13:13:43.651Z",
+        "updatedAt": "2026-09-02T13:44:48.625Z",
         "pincode": "",
         "priority": "Hot",
         "whatsappOptIn": true,
@@ -426,16 +427,6 @@
         "assignedTo": "agent-1788331750812",
         "deal_value": 212,
         "activities": [
-          {
-            "id": "act-1788354140003",
-            "leadId": "lead-1788329656975",
-            "agentId": "agent-1788331750812",
-            "agentName": "DSSFSD",
-            "type": "edit",
-            "title": "Updated Number",
-            "description": "Changed to \"34555555666\"",
-            "timestamp": "2026-09-02T13:02:20.003Z"
-          },
           {
             "id": "act-1788354128634",
             "leadId": "lead-1788329656975",
@@ -3030,6 +3021,28 @@
     "company_wfwwfwf": [],
     "company_kite_aviation": [
       {
+        "id": "act-1788355881342",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788342797388",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "edit",
+        "title": "Updated Number",
+        "description": "Changed to \"1111111000\"",
+        "timestamp": "2026-09-02T13:31:21.342Z"
+      },
+      {
+        "id": "act-1788355637461",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788342797388",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "note",
+        "title": "Lead Star Rating Updated",
+        "description": "Rated 3 out of 5 stars",
+        "timestamp": "2026-09-02T13:27:17.461Z"
+      },
+      {
         "id": "act-1788354823643",
         "tenantId": "company_kite_aviation",
         "leadId": "lead-1788329656975",
@@ -3061,17 +3074,6 @@
         "title": "Updated Number",
         "description": "Changed to \"34555555\"",
         "timestamp": "2026-09-02T13:02:39.723Z"
-      },
-      {
-        "id": "act-1788354140003",
-        "tenantId": "company_kite_aviation",
-        "leadId": "lead-1788329656975",
-        "agentId": "agent-1788331750812",
-        "agentName": "DSSFSD",
-        "type": "edit",
-        "title": "Updated Number",
-        "description": "Changed to \"34555555666\"",
-        "timestamp": "2026-09-02T13:02:20.003Z"
       },
       {
         "id": "act-1788354128634",

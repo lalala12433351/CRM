@@ -1778,15 +1778,15 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsDateRangePickerOpen(!isDateRangePickerOpen)}
-                    className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 flex items-center space-x-1.5 shadow-2xs hover:border-slate-400 cursor-pointer transition-colors"
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium flex items-center space-x-1.5 cursor-pointer shadow-2xs transition-colors"
                   >
-                    <span className="text-slate-500 font-normal text-[11px]">Range:</span>
-                    <span className="text-slate-800 font-bold text-[11px]">
+                    <span className="text-slate-700 font-medium">Range:</span>
+                    <span className="text-slate-700 font-medium">
                       {createdOnRangeType === 'custom' && customStartDate && customEndDate
                         ? `${new Date(customStartDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} - ${new Date(customEndDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}`
                         : `Past ${createdOnDaysRange} Days`}
                     </span>
-                    <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isDateRangePickerOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${isDateRangePickerOpen ? 'rotate-180' : ''}`} />
                   </button>
 
                   {/* Custom Calendar & Presets Picker Popover */}
