@@ -242,7 +242,7 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
           onClick={() => setFilterType('today')}
           className={`p-3 rounded-xl text-left transition-all cursor-pointer ${
             filterType === 'today'
-              ? 'bg-white border-2 border-indigo-600 ring-2 ring-indigo-100 shadow-md text-slate-900 font-bold'
+              ? 'bg-white border-2 border-indigo-600 ring-2 ring-indigo-100 shadow-md text-slate-900'
               : 'bg-transparent border-2 border-slate-300 text-slate-700 hover:bg-white/50 shadow-2xs'
           }`}
         >
@@ -250,14 +250,14 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
             <span>Due Today</span>
             <Clock className="w-3.5 h-3.5 text-amber-600" />
           </div>
-          <p className="text-xl sm:text-2xl font-bold font-sans text-slate-900 mt-0.5">{dueTodayLeads.length}</p>
+          <p className="text-sm font-normal font-sans text-slate-800 mt-0.5">{dueTodayLeads.length}</p>
         </button>
 
         <button
           onClick={() => setFilterType('overdue')}
           className={`p-3 rounded-xl text-left transition-all cursor-pointer ${
             filterType === 'overdue'
-              ? 'bg-white border-2 border-rose-600 ring-2 ring-rose-100 shadow-md text-slate-900 font-bold'
+              ? 'bg-white border-2 border-rose-600 ring-2 ring-rose-100 shadow-md text-slate-900'
               : 'bg-transparent border-2 border-slate-300 text-slate-700 hover:bg-white/50 shadow-2xs'
           }`}
         >
@@ -265,14 +265,14 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
             <span>Overdue</span>
             <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
           </div>
-          <p className="text-xl sm:text-2xl font-bold font-sans text-slate-900 mt-0.5">{overdueLeads.length}</p>
+          <p className="text-sm font-normal font-sans text-slate-800 mt-0.5">{overdueLeads.length}</p>
         </button>
 
         <button
           onClick={() => setFilterType('all')}
           className={`p-3 rounded-xl text-left transition-all cursor-pointer ${
             filterType === 'all'
-              ? 'bg-white border-2 border-slate-800 ring-2 ring-slate-200 shadow-md text-slate-900 font-bold'
+              ? 'bg-white border-2 border-slate-800 ring-2 ring-slate-200 shadow-md text-slate-900'
               : 'bg-transparent border-2 border-slate-300 text-slate-700 hover:bg-white/50 shadow-2xs'
           }`}
         >
@@ -280,7 +280,7 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
             <span>All Scheduled</span>
             <Filter className="w-3.5 h-3.5 text-slate-500" />
           </div>
-          <p className="text-xl sm:text-2xl font-bold font-sans text-slate-900 mt-0.5">{followUpLeads.length}</p>
+          <p className="text-sm font-normal font-sans text-slate-800 mt-0.5">{followUpLeads.length}</p>
         </button>
       </div>
 

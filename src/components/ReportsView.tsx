@@ -811,19 +811,19 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 text-xs font-mono">
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
               <span className="text-[10px] text-slate-500 font-bold uppercase">Active Telecallers</span>
-              <p className="text-lg sm:text-xl font-bold text-slate-900 mt-0.5">{rankedAgents.length}</p>
+              <p className="text-sm font-normal text-slate-800 mt-0.5">{rankedAgents.length}</p>
             </div>
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
               <span className="text-[10px] text-slate-500 font-bold uppercase">Period Calls Made</span>
-              <p className="text-lg sm:text-xl font-bold text-slate-900 mt-0.5">{totalCalls}</p>
+              <p className="text-sm font-normal text-slate-800 mt-0.5">{totalCalls}</p>
             </div>
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
               <span className="text-[10px] text-slate-500 font-bold uppercase">Period Talk Time</span>
-              <p className="text-lg sm:text-xl font-bold text-slate-900 mt-0.5">{formatSecs(totalTalkTimeSecs)}</p>
+              <p className="text-sm font-normal text-slate-800 mt-0.5">{formatSecs(totalTalkTimeSecs)}</p>
             </div>
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
               <span className="text-[10px] text-slate-500 font-bold uppercase">Period Deals Won</span>
-              <p className="text-lg sm:text-xl font-bold text-purple-700 mt-0.5">
+              <p className="text-sm font-normal text-purple-700 mt-0.5">
                 {rankedAgents.reduce((sum, a) => sum + a.calculatedConverted, 0)}
               </p>
             </div>

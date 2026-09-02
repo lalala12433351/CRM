@@ -256,7 +256,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
               <span>Total Tasks</span>
               <SlidersHorizontal className="w-4 h-4 text-indigo-600" />
             </div>
-            <p className="text-xl font-bold text-slate-900 mt-1">{visibleTasks.length}</p>
+            <p className="text-sm font-normal text-slate-800 mt-1">{visibleTasks.length}</p>
           </div>
 
           <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs">
@@ -264,7 +264,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
               <span>Pending Tasks</span>
               <Clock className="w-4 h-4 text-amber-600" />
             </div>
-            <p className="text-xl font-bold text-amber-600 mt-1">{pendingTasks.length}</p>
+            <p className="text-sm font-normal text-slate-800 mt-1">{pendingTasks.length}</p>
           </div>
 
           <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs">
@@ -272,7 +272,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
               <span>Completed Tasks</span>
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
             </div>
-            <p className="text-xl font-bold text-emerald-600 mt-1">{completedTasks.length}</p>
+            <p className="text-sm font-normal text-slate-800 mt-1">{completedTasks.length}</p>
           </div>
 
           <div className="bg-indigo-50/70 p-3.5 rounded-2xl border border-indigo-200 shadow-2xs">
@@ -280,7 +280,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
               <span>Pending Task Revenue</span>
               <TrendingUp className="w-4 h-4 text-indigo-600" />
             </div>
-            <p className="text-xl font-extrabold text-indigo-950 font-mono mt-1">
+            <p className="text-sm font-normal text-indigo-950 font-mono mt-1">
               {formatDealValue(totalPipelineTaskValue, currency)}
             </p>
           </div>
