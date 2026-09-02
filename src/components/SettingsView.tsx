@@ -430,7 +430,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [newAssigneePhone, setNewAssigneePhone] = useState('');
   const [newAssigneeRole, setNewAssigneeRole] = useState<'Telecaller' | 'Sales Manager' | 'Admin'>('Telecaller');
   const [newAssigneeStatus, setNewAssigneeStatus] = useState<'online' | 'offline'>('online');
-  const [newAssigneeAvatar, setNewAssigneeAvatar] = useState('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80');
+  const [newAssigneeAvatar, setNewAssigneeAvatar] = useState('');
 
   React.useEffect(() => {
     if (agents) {
@@ -458,14 +458,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       return;
     }
 
-    const sampleAvatars = [
-      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80'
-    ];
-
     const newAgent: Agent = {
       id: `agent-${Date.now()}`,
       name: newAssigneeName.trim(),
@@ -473,7 +465,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       phone: newAssigneePhone.trim() || '+91 98765 00000',
       role: newAssigneeRole,
       status: newAssigneeStatus,
-      avatar: newAssigneeAvatar || sampleAvatars[0],
+      avatar: newAssigneeAvatar || '',
       totalCallsToday: 0,
       talkTimeMinutes: 0,
       convertedLeadsCount: 0,
@@ -491,7 +483,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setNewAssigneePhone('');
     setNewAssigneeRole('Telecaller');
     setNewAssigneeStatus('online');
-    setNewAssigneeAvatar('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80');
+    setNewAssigneeAvatar('');
     setShowAddAssigneeModal(false);
   };
 
@@ -2972,13 +2964,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <form onSubmit={handleAddAssignee} className="space-y-2.5 text-[10px]">
               {/* Assignee Profile Picture Slot */}
               <div className="space-y-1 bg-slate-50 border border-slate-200 p-2.5 rounded-xl">
-                <label className="font-semibold text-slate-700 block">Assignee Profile Picture *</label>
+                <label className="font-semibold text-slate-700 block">Assignee Avatar Preview</label>
                 <div className="flex items-center space-x-3 pt-0.5">
-                  <img
-                    src={newAssigneeAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
-                    alt="Preview"
-                    className="w-11 h-11 rounded-full object-cover border-2 border-indigo-500 shadow-2xs shrink-0 bg-slate-100"
-                  />
+                  <div className="shrink-0">
+                    <UserAvatar 
+                      name={newAssigneeName.trim() || 'Assignee'} 
+                      avatarUrl={newAssigneeAvatar} 
+                      size="lg" 
+                      rounded="full" 
+                    />
+                  </div>
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center space-x-2">
                       <label className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] cursor-pointer inline-flex items-center space-x-1 shadow-2xs transition-all">
@@ -2990,39 +2985,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           className="hidden"
                         />
                       </label>
-                      <span className="text-[9px] text-slate-400">or paste link below</span>
+                      {newAssigneeAvatar ? (
+                        <button
+                          type="button"
+                          onClick={() => setNewAssigneeAvatar('')}
+                          className="text-[9px] text-rose-600 hover:underline font-bold"
+                        >
+                          Use Initial Letter
+                        </button>
+                      ) : (
+                        <span className="text-[9px] text-slate-500 font-medium">Auto-generates from first letter</span>
+                      )}
                     </div>
 
                     <input
                       type="url"
-                      placeholder="https://images.unsplash.com/photo-..."
+                      placeholder="Optional custom avatar URL (https://...)"
                       value={newAssigneeAvatar}
                       onChange={(e) => setNewAssigneeAvatar(e.target.value)}
                       className="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 font-mono text-slate-900 focus:outline-none focus:border-indigo-600 text-[10px]"
                     />
                   </div>
-                </div>
-
-                {/* Preset Avatars Bar */}
-                <div className="flex items-center space-x-1.5 pt-1 overflow-x-auto">
-                  <span className="text-[9px] font-semibold text-slate-400 shrink-0">Presets:</span>
-                  {[
-                    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-                    'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-                    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-                    'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
-                    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80'
-                  ].map((presetUrl, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => setNewAssigneeAvatar(presetUrl)}
-                      className={`w-5 h-5 rounded-full overflow-hidden border shrink-0 transition-transform cursor-pointer ${newAssigneeAvatar === presetUrl ? 'ring-2 ring-indigo-600 scale-110 border-indigo-600' : 'border-slate-300 opacity-70 hover:opacity-100'
-                        }`}
-                    >
-                      <img src={presetUrl} alt="Preset" className="w-full h-full object-cover" />
-                    </button>
-                  ))}
                 </div>
               </div>
 

@@ -33,7 +33,9 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
   className = '',
   rounded = 'full'
 }) => {
-  const finalAvatar = avatarUrl || avatar;
+  const rawAvatar = avatarUrl || avatar;
+  // Do not use default AI / unsplash stock profile pics; use first letter name itself
+  const finalAvatar = (rawAvatar && !rawAvatar.includes('unsplash.com')) ? rawAvatar.trim() : '';
   const initial = (name?.trim()?.charAt(0) || 'U').toUpperCase();
   const gradient = getAvatarColor(name);
 
@@ -52,7 +54,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
     '2xl': 'rounded-2xl'
   };
 
-  if (finalAvatar && finalAvatar.trim()) {
+  if (finalAvatar) {
     return (
       <div
         className={`${sizeClasses[size]} ${roundedClasses[rounded]} overflow-hidden shrink-0 shadow-2xs select-none border border-slate-200/60 ${className}`}
@@ -73,7 +75,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
 
   return (
     <div
-      className={`${sizeClasses[size]} ${roundedClasses[rounded]} bg-gradient-to-tr ${gradient} flex items-center justify-center font-sans tracking-wide shrink-0 shadow-2xs select-none border border-white/20 ${className}`}
+      className={`${sizeClasses[size]} ${roundedClasses[rounded]} bg-gradient-to-tr ${gradient} flex items-center justify-center font-sans font-bold tracking-wide shrink-0 shadow-2xs select-none border border-white/20 ${className}`}
       title={name}
     >
       <span>{initial}</span>
