@@ -264,8 +264,11 @@ export interface CallRecord {
   leadPhone: string;
   agentId: string;
   agentName: string;
+  assigneeName?: string;
   type: 'incoming' | 'outgoing' | 'missed' | 'outbound' | string;
   durationSeconds: number;
+  callStartTime?: string;
+  callEndTime?: string;
   recordingUrl?: string;
   disposition: LeadStatus | string;
   notes?: string;

@@ -11,6 +11,7 @@ import { PipelineView } from './components/PipelineView';
 import { WhatsAppCrmView } from './components/WhatsAppCrmView';
 import { WorkflowsView, AutomationsSubTab } from './components/WorkflowsView';
 import { CallingLogsView } from './components/CallingLogsView';
+import { MyCallsView } from './components/MyCallsView';
 import { AnalyticsView } from './components/AnalyticsView';
 import { TeamView } from './components/TeamView';
 import { MarketingView } from './components/MarketingView';
@@ -1124,8 +1125,18 @@ export function App() {
             ) : renderAccessRestricted('AI Automations & Workflows')
           )}
 
-          {currentView === 'calling_logs' && (
-            <CallingLogsView callRecords={callRecords} onUpdateCallRecord={handleUpdateCallRecord} />
+          {(currentView === 'calls' || currentView === 'calling_logs') && (
+            <MyCallsView
+              callRecords={callRecords}
+              agents={agents}
+              activeAgent={activeAgent}
+              leads={visibleLeads}
+              onOpenLeadDetail={(lead) => setDetailLead(lead)}
+              onUpdateCallRecord={handleUpdateCallRecord}
+              onAddCallRecord={(newCall) => setCallRecords((prev) => [newCall, ...prev])}
+              onDeleteCallRecord={(callId) => setCallRecords((prev) => prev.filter((c) => c.id !== callId))}
+              onShowToast={(msg) => showToast(msg)}
+            />
           )}
 
           {currentView === 'reports' && (

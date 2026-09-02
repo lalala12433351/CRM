@@ -17,6 +17,7 @@ import pipelineRoutes from './modules/pipelines/pipeline.routes';
 import aiRoutes from './modules/ai/ai.routes';
 import teamRoutes from './modules/team/team.routes';
 import tasksRoutes from './modules/tasks/tasks.routes';
+import callsRoutes from './modules/calls/calls.routes';
 import { authMiddleware } from './middleware/auth';
 import { tenantContextMiddleware } from './middleware/tenantContext';
 
@@ -60,6 +61,7 @@ export async function createApp() {
   app.use('/api', aiRoutes);
   app.use('/api', teamRoutes);
   app.use('/api', tasksRoutes);
+  app.use('/api', callsRoutes);
 
   // Serve static files in production or Vite middleware in development
   const distPath = path.join(process.cwd(), 'dist');

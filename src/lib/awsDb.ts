@@ -318,6 +318,30 @@ export async function initializeAwsDbTables() {
       );
     `);
 
+    // 9b. Calls Table (Dedicated database table for logged calls with assignee name)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS calls (
+        id VARCHAR(255) PRIMARY KEY,
+        lead_id VARCHAR(255),
+        lead_name VARCHAR(255) NOT NULL,
+        lead_phone VARCHAR(50) NOT NULL,
+        call_start VARCHAR(100),
+        call_end VARCHAR(100),
+        duration_seconds INT DEFAULT 0,
+        agent_id VARCHAR(255),
+        agent_name VARCHAR(255),
+        assignee_name VARCHAR(255) NOT NULL,
+        call_type VARCHAR(50) DEFAULT 'outgoing',
+        disposition VARCHAR(100) DEFAULT 'Connected',
+        recording_url TEXT,
+        call_notes TEXT,
+        assignee_remarks TEXT,
+        tenant_id VARCHAR(255) DEFAULT 'default_tenant',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     // 10. Leads Table (including assignee values)
     await client.query(`
       CREATE TABLE IF NOT EXISTS leads (

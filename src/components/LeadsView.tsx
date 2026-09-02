@@ -195,7 +195,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
 
   // Main View Toggle: 'chart' (Analytics/Graph) vs 'table' (Data Grid)
   const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
-  const [activeDimension, setActiveDimension] = useState<AnalyticsDimension>('status');
+  const [activeDimension, setActiveDimension] = useState<AnalyticsDimension>('created_on');
   const [chartType, setChartType] = useState<'bar' | 'column' | 'donut'>('column');
   const [isChartTypeOpen, setIsChartTypeOpen] = useState(false);
   const [groupBy, setGroupBy] = useState<string>('none');
@@ -1540,11 +1540,11 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
       {viewMode === 'chart' && (
         <div className="px-3 sm:px-6 space-y-4 max-w-full overflow-hidden">
           
-          {/* TAB BAR CARD: Dimension tabs on left, Export/Download on right (Exact match to screenshot) */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-2xs px-3 sm:px-4 pt-3 pb-0 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 max-w-full overflow-hidden">
+          {/* TAB BAR CARD: Dimension tabs on left, Range/Export/Download on right */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xs px-3 sm:px-4 pt-3 pb-0 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 max-w-full relative z-30">
             
             {/* Left Dimension Tabs: Created on | Status | Lost Reasons | Assignee | Rating | Call status | Number of calls placed | Custom */}
-            <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar text-xs md:text-sm max-w-full">
+            <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar text-xs md:text-sm">
               {dimensionTabs.map((tab) => {
                 const isActive = activeDimension === tab.id;
                 return (
@@ -1561,34 +1561,37 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                   </button>
                 );
               })}
+            </div>
 
+            {/* Right: Date Range (when on Created on) + Export chart as CSV & Download buttons */}
+            <div className="flex items-center space-x-2 pb-3 md:pb-2.5 shrink-0 self-end md:self-auto">
               {activeDimension === 'created_on' && (
-                <div className="flex items-center space-x-1.5 pl-3 mb-2.5 border-l border-slate-200 shrink-0 relative" ref={dateRangePickerRef}>
-                  <span className="text-xs md:text-sm font-medium text-slate-500 whitespace-nowrap">Range:</span>
-                  
-                  {/* Range Dropdown Pill matching user screenshot */}
+                <div className="relative" ref={dateRangePickerRef}>
                   <button
+                    type="button"
                     onClick={() => setIsDateRangePickerOpen(!isDateRangePickerOpen)}
-                    className="bg-white border border-slate-300 rounded-full px-3.5 py-1 text-xs md:text-sm font-semibold text-slate-800 flex items-center space-x-1.5 shadow-2xs hover:border-slate-400 cursor-pointer transition-colors"
+                    className="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 flex items-center space-x-1.5 shadow-2xs hover:border-slate-400 cursor-pointer transition-colors"
                   >
-                    <span>
+                    <span className="text-slate-500 font-normal text-[11px]">Range:</span>
+                    <span className="text-slate-800 font-bold text-[11px]">
                       {createdOnRangeType === 'custom' && customStartDate && customEndDate
                         ? `${new Date(customStartDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} - ${new Date(customEndDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}`
                         : `Past ${createdOnDaysRange} Days`}
                     </span>
-                    <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${isDateRangePickerOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isDateRangePickerOpen ? 'rotate-180' : ''}`} />
                   </button>
 
                   {/* Custom Calendar & Presets Picker Popover */}
                   {isDateRangePickerOpen && (
-                    <div className="absolute left-0 top-full mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[9999] p-3 space-y-3 text-xs font-sans animate-in fade-in zoom-in-95">
+                    <div className="absolute right-0 top-full mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 p-3 space-y-3 text-xs font-sans animate-in fade-in zoom-in-95">
                       <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
                         <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">
                           Select Date Range
                         </span>
                         <button
+                          type="button"
                           onClick={() => setIsDateRangePickerOpen(false)}
-                          className="text-slate-400 hover:text-slate-600 p-0.5"
+                          className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -1608,12 +1611,13 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                             return (
                               <button
                                 key={p.days}
+                                type="button"
                                 onClick={() => {
                                   setCreatedOnRangeType('days');
                                   setCreatedOnDaysRange(p.days);
                                   setIsDateRangePickerOpen(false);
                                 }}
-                                className={`px-2.5 py-1.5 rounded-lg text-left text-xs font-medium cursor-pointer transition-colors ${
+                                className={`px-2.5 py-1.5 rounded-lg text-left text-[11px] font-medium cursor-pointer transition-colors ${
                                   isSelected 
                                     ? 'bg-indigo-50 text-indigo-900 font-bold border border-indigo-200' 
                                     : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-100'
@@ -1655,6 +1659,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                         </div>
 
                         <button
+                          type="button"
                           onClick={() => {
                             if (customStartDate && customEndDate) {
                               setCreatedOnRangeType('custom');
@@ -1671,10 +1676,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                   )}
                 </div>
               )}
-            </div>
 
-            {/* Right: Export chart as CSV & Download buttons */}
-            <div className="flex items-center space-x-2 pb-3 md:pb-2.5 shrink-0 self-end md:self-auto">
               <div className="relative" ref={exportChartRef}>
                 <button
                   onClick={() => setIsExportChartOpen(!isExportChartOpen)}

@@ -133,6 +133,27 @@ export interface TenantActivity {
   timestamp: string;
 }
 
+export interface TenantCall {
+  id: string;
+  tenantId: string;
+  leadId?: string;
+  leadName: string;
+  leadPhone: string;
+  callStart: string;
+  callEnd: string;
+  durationSeconds: number;
+  agentId?: string;
+  agentName?: string;
+  assigneeName: string;
+  callType?: 'incoming' | 'outgoing' | 'missed' | 'outbound' | string;
+  disposition?: string;
+  recordingUrl?: string;
+  callNotes?: string;
+  assigneeRemarks?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface LocalStoreSchema {
   tenants: Record<string, ClientTenant>;
   agents: Record<string, TenantAgent[]>;
@@ -140,6 +161,7 @@ interface LocalStoreSchema {
   stages: Record<string, TenantStage[]>;
   fields: Record<string, TenantFieldSetting[]>;
   tasks: Record<string, TenantTask[]>;
+  calls: Record<string, TenantCall[]>;
   integrations: Record<string, TenantIntegration[]>;
   activities: Record<string, TenantActivity[]>;
   lostReasons: Record<string, string[]>;
@@ -685,6 +707,69 @@ export class MultiTenantDatabase {
   public async deleteTask(tenantId: string, taskId: string): Promise<boolean> {
     if (!this.store.tasks[tenantId]) return false;
     this.store.tasks[tenantId] = this.store.tasks[tenantId].filter((t) => t.id !== taskId);
+    this.saveStore();
+    return true;
+  }
+
+  // =========================================================================
+  // 6b. CALLS (STRICTLY SCOPED TO tenantId WITH ASSIGNEE NAME)
+  // =========================================================================
+  public async getCalls(tenantId: string): Promise<TenantCall[]> {
+    return this.store.calls[tenantId] || [];
+  }
+
+  public async saveCall(tenantId: string, callData: Partial<TenantCall>): Promise<TenantCall> {
+    if (!this.store.calls[tenantId]) {
+      this.store.calls[tenantId] = [];
+    }
+
+    const existingIndex = this.store.calls[tenantId].findIndex((c) => c.id === callData.id);
+    let call: TenantCall;
+
+    if (existingIndex >= 0) {
+      call = {
+        ...this.store.calls[tenantId][existingIndex],
+        ...callData,
+        tenantId,
+        updatedAt: new Date().toISOString()
+      };
+      this.store.calls[tenantId][existingIndex] = call;
+    } else {
+      const now = new Date();
+      const duration = Number(callData.durationSeconds) || 0;
+      const startTime = callData.callStart || now.toISOString();
+      const endTime = callData.callEnd || new Date(new Date(startTime).getTime() + duration * 1000).toISOString();
+
+      call = {
+        id: callData.id || `call-${Date.now()}`,
+        tenantId,
+        leadId: callData.leadId,
+        leadName: callData.leadName || 'Contact',
+        leadPhone: callData.leadPhone || '',
+        callStart: startTime,
+        callEnd: endTime,
+        durationSeconds: duration,
+        agentId: callData.agentId,
+        agentName: callData.agentName,
+        assigneeName: callData.assigneeName || callData.agentName || 'Agent',
+        callType: callData.callType || 'outgoing',
+        disposition: callData.disposition || 'Connected',
+        recordingUrl: callData.recordingUrl,
+        callNotes: callData.callNotes,
+        assigneeRemarks: callData.assigneeRemarks,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString()
+      };
+      this.store.calls[tenantId].unshift(call);
+    }
+
+    this.saveStore();
+    return call;
+  }
+
+  public async deleteCall(tenantId: string, callId: string): Promise<boolean> {
+    if (!this.store.calls[tenantId]) return false;
+    this.store.calls[tenantId] = this.store.calls[tenantId].filter((c) => c.id !== callId);
     this.saveStore();
     return true;
   }

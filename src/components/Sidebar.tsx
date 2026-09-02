@@ -135,6 +135,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: 'campaigns' as TabType, label: 'Campaigns & Tags', icon: Tag },
         { id: 'filters' as any, label: 'Saved Filters', icon: Filter, isFilterAction: true },
+        { id: 'calls' as TabType, label: 'My Calls', icon: PhoneCall },
       ]
     }
   ];
