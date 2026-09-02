@@ -768,21 +768,81 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `leads_${activeDimension}_chart_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    link.setAttribute('download', `leads_${activeDimension}_chart_${new Date(  // Helper to extract group value for any lead when grouping
+  const getLeadGroupValue = (l: Lead, groupKey: string): string => {
+    if (groupKey === 'Source') return l.source || 'Direct';
+    if (groupKey === 'Assignee') return l.ownerAgentName || activeAgent?.name || 'Unassigned';
+    if (groupKey === 'Status') return l.status || 'Fresh';
+    if (groupKey === 'Rating') {
+      const score = l.aiScore || (l.rating ? l.rating * 20 : 0);
+      if (score >= 90) return '5 Stars';
+      if (score >= 70) return '4 Stars';
+      if (score >= 50) return '3 Stars';
+      if (score >= 30) return '2 Stars';
+      if (score > 0) return '1 Star';
+      return 'Unrated';
+    }
+    if (groupKey === 'Creation Date') {
+      if (!l.createdAt) return 'Recent';
+      const d = new Date(l.createdAt);
+      return isNaN(d.getTime()) ? 'Recent' : d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+    }
+    return 'Other';
   };
 
-  const isAllCurrentPageSelected = currentPaginatedLeads.length > 0 && currentPaginatedLeads.every(l => selectedLeadIds.includes(l.id));
+  const getGroupColor = (name: string, idx: number): string => {
+    const PRESETS: Record<string, string> = {
+      'Facebook Ads': '#1877f2',
+      'Meta Ads': '#0081fb',
+      'Google Ads': '#ea4335',
+      'Website Inbound': '#10b981',
+      'Direct': '#6366f1',
+      'WhatsApp': '#25d366',
+      'Instagram': '#e1306c',
+      'Referral': '#f59e0b',
+      'JustDial': '#ff7000',
+      'IndiaMart': '#3f51b5',
+      'Fresh': '#3b82f6',
+      'Contacted': '#8b5cf6',
+      'Follow Up': '#f59e0b',
+      'Demo Scheduled': '#06b6d4',
+      'Proposal Sent': '#10b981',
+      'Converted': '#059669',
+      'Lost': '#ef4444',
+      '5 Stars': '#059669',
+      '4 Stars': '#10b981',
+      '3 Stars': '#f59e0b',
+      '2 Stars': '#f97316',
+      '1 Star': '#ef4444',
+      'Unrated': '#94a3b8'
+    };
+    if (PRESETS[name]) return PRESETS[name];
+    const pal = ['#4f46e5', '#0d9488', '#d97706', '#e11d48', '#7c3aed', '#2563eb', '#059669', '#db2777', '#ca8a04', '#475569', '#628c83', '#8d8b83'];
+    return pal[idx % pal.length];
+  };
 
-  // Dynamic Graph Calculation from Actual Database
+  const computeBreakdown = (bucketLeads: Lead[], gKey: string) => {
+    if (gKey === 'none' || bucketLeads.length === 0) return undefined;
+    const map: Record<string, number> = {};
+    bucketLeads.forEach(l => {
+      const val = getLeadGroupValue(l, gKey);
+      map[val] = (map[val] || 0) + 1;
+    });
+    const bTotal = bucketLeads.length || 1;
+    return Object.entries(map).map(([gName, cnt], idx) => ({
+      groupKey: gName,
+      count: cnt,
+      color: getGroupColor(gName, idx),
+      percentage: ((cnt / bTotal) * 100).toFixed(1) + '%'
+    })).sort((a, b) => b.count - a.count);
+  };
+
+  // Dynamic Graph Calculation from Actual Database with Full Group-By Support
   const activeChartData = useMemo(() => {
     const total = filteredAndSortedLeads.length || 1;
-    // Palette with screenshot-matching Sage green (#628c83) and Slate brown (#8d8b83) as primary tones
     const colors = [
-      '#628c83', // Sage green (Matches Fresh in screenshot)
-      '#8d8b83', // Slate grey/brown (Matches Interested in screenshot)
+      '#628c83', // Sage green (Fresh in screenshot)
+      '#8d8b83', // Slate grey/brown
       '#4f46e5', // Indigo
       '#0d9488', // Teal
       '#d97706', // Amber
@@ -796,39 +856,38 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
     ];
 
     if (activeDimension === 'status') {
-      const counts: Record<string, number> = {};
-
-      // Initialize all available statuses
+      const leadMap: Record<string, Lead[]> = {};
       availableStatuses.forEach((stgName) => {
-        counts[stgName] = 0;
+        leadMap[stgName] = [];
       });
 
       filteredAndSortedLeads.forEach((l) => {
         const status = l.status || 'Fresh';
-        counts[status] = (counts[status] || 0) + 1;
+        if (!leadMap[status]) leadMap[status] = [];
+        leadMap[status].push(l);
       });
 
-      return Object.entries(counts)
-        .filter(([_, count]) => count > 0 || availableStatuses.length <= 4)
-        .map(([label, count], idx) => {
+      return Object.entries(leadMap)
+        .filter(([_, arr]) => arr.length > 0 || availableStatuses.length <= 4)
+        .map(([label, arr], idx) => {
           const stageConfig = stages.find(s => s.name.toLowerCase() === label.toLowerCase());
+          const count = arr.length;
           return {
             label,
             value: count,
             displayValue: count > 999 ? (count / 1000).toFixed(1) + 'k' : count.toString(),
             displayCount: count.toString(),
             percentage: ((count / total) * 100).toFixed(2) + '%',
-            color: stageConfig?.color || colors[idx % colors.length]
+            color: stageConfig?.color || colors[idx % colors.length],
+            breakdown: computeBreakdown(arr, groupBy)
           };
         })
         .sort((a, b) => b.value - a.value);
 
     } else if (activeDimension === 'lost_reasons') {
-      const counts: Record<string, number> = {};
-
-      // Initialize default lost reasons
+      const leadMap: Record<string, Lead[]> = {};
       lostReasons.forEach((r) => {
-        counts[r] = 0;
+        leadMap[r] = [];
       });
 
       const lostLeads = filteredAndSortedLeads.filter(l => (l.status || '').toLowerCase() === 'lost' || l.lostReason);
@@ -836,158 +895,183 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
 
       lostLeads.forEach((l) => {
         const r = l.lostReason || 'Unknown Reason';
-        counts[r] = (counts[r] || 0) + 1;
+        if (!leadMap[r]) leadMap[r] = [];
+        leadMap[r].push(l);
       });
 
-      return Object.entries(counts)
-        .map(([label, count], idx) => ({
-          label,
-          value: count,
-          displayValue: count > 999 ? (count / 1000).toFixed(1) + 'k' : count.toString(),
-          displayCount: count.toString(),
-          percentage: ((count / lostTotal) * 100).toFixed(2) + '%',
-          color: colors[idx % colors.length]
-        }))
+      return Object.entries(leadMap)
+        .map(([label, arr], idx) => {
+          const count = arr.length;
+          return {
+            label,
+            value: count,
+            displayValue: count > 999 ? (count / 1000).toFixed(1) + 'k' : count.toString(),
+            displayCount: count.toString(),
+            percentage: ((count / lostTotal) * 100).toFixed(2) + '%',
+            color: colors[idx % colors.length],
+            breakdown: computeBreakdown(arr, groupBy)
+          };
+        })
         .sort((a, b) => b.value - a.value);
 
     } else if (activeDimension === 'assignee') {
-      const counts: Record<string, number> = {};
-      
-      // Initialize counts for all created database agents
+      const leadMap: Record<string, Lead[]> = {};
       if (agents && agents.length > 0) {
         agents.forEach((ag) => {
-          counts[ag.name] = 0;
+          leadMap[ag.name] = [];
         });
       }
-      counts['Unassigned'] = 0;
+      leadMap['Unassigned'] = [];
 
       filteredAndSortedLeads.forEach((l) => {
         const name = l.ownerAgentName || activeAgent?.name || 'Unassigned';
-        counts[name] = (counts[name] || 0) + 1;
+        if (!leadMap[name]) leadMap[name] = [];
+        leadMap[name].push(l);
       });
 
-      return Object.entries(counts)
-        .filter(([_, count]) => count > 0 || (agents.length <= 5))
-        .map(([label, count], idx) => ({
+      return Object.entries(leadMap)
+        .filter(([_, arr]) => arr.length > 0 || (agents.length <= 5))
+        .map(([label, arr], idx) => {
+          const count = arr.length;
+          return {
+            label,
+            value: count,
+            displayValue: count > 999 ? (count / 1000).toFixed(1) + 'k' : count.toString(),
+            displayCount: count.toString(),
+            percentage: ((count / total) * 100).toFixed(2) + '%',
+            color: colors[idx % colors.length],
+            breakdown: computeBreakdown(arr, groupBy)
+          };
+        })
+        .sort((a, b) => b.value - a.value);
+
+    } else if (activeDimension === 'rating') {
+      const leadMap: Record<string, Lead[]> = {
+        '5 Stars': [],
+        '4 Stars': [],
+        '3 Stars': [],
+        '2 Stars': [],
+        '1 Star': [],
+        'Unrated': []
+      };
+
+      filteredAndSortedLeads.forEach((l) => {
+        const score = l.aiScore || (l.rating ? l.rating * 20 : 0);
+        if (score >= 90) leadMap['5 Stars'].push(l);
+        else if (score >= 70) leadMap['4 Stars'].push(l);
+        else if (score >= 50) leadMap['3 Stars'].push(l);
+        else if (score >= 30) leadMap['2 Stars'].push(l);
+        else if (score > 0) leadMap['1 Star'].push(l);
+        else leadMap['Unrated'].push(l);
+      });
+
+      return Object.entries(leadMap).map(([label, arr], idx) => {
+        const count = arr.length;
+        return {
           label,
           value: count,
           displayValue: count > 999 ? (count / 1000).toFixed(1) + 'k' : count.toString(),
           displayCount: count.toString(),
           percentage: ((count / total) * 100).toFixed(2) + '%',
-          color: colors[idx % colors.length]
-        }))
-        .sort((a, b) => b.value - a.value);
-
-    } else if (activeDimension === 'rating') {
-      const ratingBuckets: Record<string, number> = {
-        '5 Stars': 0,
-        '4 Stars': 0,
-        '3 Stars': 0,
-        '2 Stars': 0,
-        '1 Star': 0,
-        'Unrated': 0
-      };
-
-      filteredAndSortedLeads.forEach((l) => {
-        const score = l.aiScore || (l.rating ? l.rating * 20 : 0);
-        if (score >= 90) ratingBuckets['5 Stars']++;
-        else if (score >= 70) ratingBuckets['4 Stars']++;
-        else if (score >= 50) ratingBuckets['3 Stars']++;
-        else if (score >= 30) ratingBuckets['2 Stars']++;
-        else if (score > 0) ratingBuckets['1 Star']++;
-        else ratingBuckets['Unrated']++;
+          color: colors[idx % colors.length],
+          breakdown: computeBreakdown(arr, groupBy)
+        };
       });
 
-      return Object.entries(ratingBuckets).map(([label, count], idx) => ({
-        label,
-        value: count,
-        displayValue: count > 999 ? (count / 1000).toFixed(1) + 'k' : count.toString(),
-        displayCount: count.toString(),
-        percentage: ((count / total) * 100).toFixed(2) + '%',
-        color: colors[idx % colors.length]
-      }));
-
     } else if (activeDimension === 'call_status') {
-      const statusBuckets: Record<string, number> = {
-        'Connected': 0,
-        'Follow-up Required': 0,
-        'Busy / No Answer': 0,
-        'Wrong Number': 0,
-        'Call Later': 0,
-        'Not Dialed': 0
+      const leadMap: Record<string, Lead[]> = {
+        'Connected': [],
+        'Follow-up Required': [],
+        'Busy / No Answer': [],
+        'Wrong Number': [],
+        'Call Later': [],
+        'Not Dialed': []
       };
 
       filteredAndSortedLeads.forEach((l) => {
         const history = l.callHistory || [];
         if (history.length === 0) {
-          statusBuckets['Not Dialed']++;
+          leadMap['Not Dialed'].push(l);
         } else {
           const lastCall = history[history.length - 1];
           const outcome = (lastCall.outcome || lastCall.status || '').toLowerCase();
-          if (outcome.includes('connect') || outcome.includes('interest')) statusBuckets['Connected']++;
-          else if (outcome.includes('follow')) statusBuckets['Follow-up Required']++;
-          else if (outcome.includes('busy') || outcome.includes('no answer')) statusBuckets['Busy / No Answer']++;
-          else if (outcome.includes('wrong')) statusBuckets['Wrong Number']++;
-          else if (outcome.includes('later')) statusBuckets['Call Later']++;
-          else statusBuckets['Connected']++;
+          if (outcome.includes('connect') || outcome.includes('interest')) leadMap['Connected'].push(l);
+          else if (outcome.includes('follow')) leadMap['Follow-up Required'].push(l);
+          else if (outcome.includes('busy') || outcome.includes('no answer')) leadMap['Busy / No Answer'].push(l);
+          else if (outcome.includes('wrong')) leadMap['Wrong Number'].push(l);
+          else if (outcome.includes('later')) leadMap['Call Later'].push(l);
+          else leadMap['Connected'].push(l);
         }
       });
 
-      return Object.entries(statusBuckets).map(([label, count], idx) => ({
-        label,
-        value: count,
-        displayValue: count > 999 ? (count / 1000).toFixed(1) + 'k' : count.toString(),
-        displayCount: count.toString(),
-        percentage: ((count / total) * 100).toFixed(2) + '%',
-        color: colors[idx % colors.length]
-      }));
+      return Object.entries(leadMap).map(([label, arr], idx) => {
+        const count = arr.length;
+        return {
+          label,
+          value: count,
+          displayValue: count > 999 ? (count / 1000).toFixed(1) + 'k' : count.toString(),
+          displayCount: count.toString(),
+          percentage: ((count / total) * 100).toFixed(2) + '%',
+          color: colors[idx % colors.length],
+          breakdown: computeBreakdown(arr, groupBy)
+        };
+      });
 
     } else if (activeDimension === 'calls_placed') {
-      const callsBuckets: Record<string, number> = {
-        '0 Calls': 0,
-        '1 Call': 0,
-        '2-3 Calls': 0,
-        '4-5 Calls': 0,
-        '6+ Calls': 0
+      const leadMap: Record<string, Lead[]> = {
+        '0 Calls': [],
+        '1 Call': [],
+        '2-3 Calls': [],
+        '4-5 Calls': [],
+        '6+ Calls': []
       };
 
       filteredAndSortedLeads.forEach((l) => {
         const numCalls = (l.callHistory || []).length;
-        if (numCalls === 0) callsBuckets['0 Calls']++;
-        else if (numCalls === 1) callsBuckets['1 Call']++;
-        else if (numCalls <= 3) callsBuckets['2-3 Calls']++;
-        else if (numCalls <= 5) callsBuckets['4-5 Calls']++;
-        else callsBuckets['6+ Calls']++;
+        if (numCalls === 0) leadMap['0 Calls'].push(l);
+        else if (numCalls === 1) leadMap['1 Call'].push(l);
+        else if (numCalls <= 3) leadMap['2-3 Calls'].push(l);
+        else if (numCalls <= 5) leadMap['4-5 Calls'].push(l);
+        else leadMap['6+ Calls'].push(l);
       });
 
-      return Object.entries(callsBuckets).map(([label, count], idx) => ({
-        label,
-        value: count,
-        displayValue: count > 999 ? (count / 1000).toFixed(1) + 'k' : count.toString(),
-        displayCount: count.toString(),
-        percentage: ((count / total) * 100).toFixed(2) + '%',
-        color: colors[idx % colors.length]
-      }));
+      return Object.entries(leadMap).map(([label, arr], idx) => {
+        const count = arr.length;
+        return {
+          label,
+          value: count,
+          displayValue: count > 999 ? (count / 1000).toFixed(1) + 'k' : count.toString(),
+          displayCount: count.toString(),
+          percentage: ((count / total) * 100).toFixed(2) + '%',
+          color: colors[idx % colors.length],
+          breakdown: computeBreakdown(arr, groupBy)
+        };
+      });
 
     } else if (activeDimension === 'custom') {
-      const sourceCounts: Record<string, number> = {};
+      const leadMap: Record<string, Lead[]> = {};
 
       filteredAndSortedLeads.forEach((l) => {
         const src = l.source || 'Direct';
-        sourceCounts[src] = (sourceCounts[src] || 0) + 1;
+        if (!leadMap[src]) leadMap[src] = [];
+        leadMap[src].push(l);
       });
 
-      return Object.entries(sourceCounts).map(([label, count], idx) => ({
-        label,
-        value: count,
-        displayValue: count > 999 ? (count / 1000).toFixed(1) + 'k' : count.toString(),
-        displayCount: count.toString(),
-        percentage: ((count / total) * 100).toFixed(2) + '%',
-        color: colors[idx % colors.length]
-      })).sort((a, b) => b.value - a.value);
+      return Object.entries(leadMap).map(([label, arr], idx) => {
+        const count = arr.length;
+        return {
+          label,
+          value: count,
+          displayValue: count > 999 ? (count / 1000).toFixed(1) + 'k' : count.toString(),
+          displayCount: count.toString(),
+          percentage: ((count / total) * 100).toFixed(2) + '%',
+          color: colors[idx % colors.length],
+          breakdown: computeBreakdown(arr, groupBy)
+        };
+      }).sort((a, b) => b.value - a.value);
 
     } else if (activeDimension === 'created_on') {
-      const pastDaysList: { label: string; isoDate: string; count: number }[] = [];
+      const pastDaysList: { label: string; isoDate: string; leads: Lead[] }[] = [];
       
       if (createdOnRangeType === 'custom' && customStartDate && customEndDate) {
         const start = new Date(customStartDate + 'T00:00:00');
@@ -1001,7 +1085,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
             day: '2-digit',
             month: 'short'
           });
-          pastDaysList.push({ label, isoDate, count: 0 });
+          pastDaysList.push({ label, isoDate, leads: [] });
           current.setDate(current.getDate() + 1);
           countDays++;
         }
@@ -1016,7 +1100,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
             day: '2-digit',
             month: 'short'
           });
-          pastDaysList.push({ label, isoDate, count: 0 });
+          pastDaysList.push({ label, isoDate, leads: [] });
         }
       }
 
@@ -1043,24 +1127,43 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
         const leadIsoDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         const match = pastDaysList.find((item) => item.isoDate === leadIsoDate);
         if (match) {
-          match.count += 1;
+          match.leads.push(l);
         }
       });
 
-      const daysTotal = pastDaysList.reduce((acc, p) => acc + p.count, 0) || total;
+      const daysTotal = pastDaysList.reduce((acc, p) => acc + p.leads.length, 0) || total;
 
-      return pastDaysList.map((item, idx) => ({
-        label: item.label,
-        value: item.count,
-        displayValue: item.count > 999 ? (item.count / 1000).toFixed(1) + 'k' : item.count.toString(),
-        displayCount: item.count.toString(),
-        percentage: ((item.count / daysTotal) * 100).toFixed(2) + '%',
-        color: colors[idx % colors.length]
-      }));
+      return pastDaysList.map((item, idx) => {
+        const count = item.leads.length;
+        return {
+          label: item.label,
+          value: count,
+          displayValue: count > 999 ? (count / 1000).toFixed(1) + 'k' : count.toString(),
+          displayCount: count.toString(),
+          percentage: ((count / daysTotal) * 100).toFixed(2) + '%',
+          color: colors[idx % colors.length],
+          breakdown: computeBreakdown(item.leads, groupBy)
+        };
+      });
     }
 
     return [];
-  }, [activeDimension, filteredAndSortedLeads, agents, stages, createdOnDaysRange, createdOnRangeType, customStartDate, customEndDate, availableStatuses, lostReasons]);
+  }, [activeDimension, groupBy, filteredAndSortedLeads, agents, stages, createdOnDaysRange, createdOnRangeType, customStartDate, customEndDate, availableStatuses, lostReasons]);
+
+  // Overall active groups across the dataset for Legend display
+  const allActiveGroups = useMemo(() => {
+    if (groupBy === 'none') return [];
+    const map: Record<string, number> = {};
+    filteredAndSortedLeads.forEach((l) => {
+      const val = getLeadGroupValue(l, groupBy);
+      map[val] = (map[val] || 0) + 1;
+    });
+    return Object.entries(map).map(([gName, cnt], idx) => ({
+      key: gName,
+      count: cnt,
+      color: getGroupColor(gName, idx)
+    })).sort((a, b) => b.count - a.count);
+  }, [filteredAndSortedLeads, groupBy]);
 
   // Dimension Tabs Configuration (Exact order from user's screenshot: Created on | Status | Lost Reasons | Assignee | Rating | Call status | Number of calls placed | Custom)
   const dimensionTabs: { id: AnalyticsDimension; label: string }[] = [
@@ -1765,30 +1868,44 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                   )}
                 </div>
 
-                {/* Group By Selector */}
+                {/* Group By Selector with Active State */}
                 <div className="relative" ref={groupByRef}>
                   <button
+                    type="button"
                     onClick={() => setIsGroupByOpen(!isGroupByOpen)}
-                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium flex items-center space-x-1.5 cursor-pointer shadow-2xs"
+                    className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center space-x-1.5 cursor-pointer shadow-2xs transition-all ${
+                      groupBy !== 'none'
+                        ? 'bg-indigo-50 border-indigo-200 text-indigo-700 font-bold'
+                        : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'
+                    }`}
                   >
-                    <span>Group By</span>
-                    <ChevronDown className="w-3 h-3 text-slate-400" />
+                    <span>{groupBy === 'none' ? 'Group By' : `Group By: ${groupBy}`}</span>
+                    <ChevronDown className={`w-3 h-3 transition-transform ${isGroupByOpen ? 'rotate-180 text-indigo-600' : 'text-slate-400'}`} />
                   </button>
 
                   {isGroupByOpen && (
-                    <div className="absolute left-0 top-full mt-1.5 w-36 bg-white border border-slate-200 rounded-xl shadow-xl z-40 p-1 space-y-0.5 text-xs">
-                      {['none', 'Source', 'Assignee', 'Creation Date', 'Rating'].map((g) => (
+                    <div className="absolute left-0 top-full mt-1.5 w-40 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-1 space-y-0.5 text-xs font-sans animate-in fade-in zoom-in-95">
+                      {[
+                        { id: 'none', label: 'None' },
+                        { id: 'Source', label: 'Source' },
+                        { id: 'Assignee', label: 'Assignee' },
+                        { id: 'Status', label: 'Status' },
+                        { id: 'Rating', label: 'Rating' },
+                        { id: 'Creation Date', label: 'Creation Date' },
+                      ].map((g) => (
                         <button
-                          key={g}
+                          key={g.id}
+                          type="button"
                           onClick={() => {
-                            setGroupBy(g);
+                            setGroupBy(g.id);
                             setIsGroupByOpen(false);
                           }}
-                          className={`w-full text-left px-2.5 py-1.5 rounded-lg capitalize cursor-pointer ${
-                            groupBy === g ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-700 hover:bg-slate-50'
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
+                            groupBy === g.id ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-700 hover:bg-slate-50'
                           }`}
                         >
-                          {g === 'none' ? 'None' : g}
+                          <span>{g.label}</span>
+                          {groupBy === g.id && <Check className="w-3.5 h-3.5 text-indigo-600" />}
                         </button>
                       ))}
                     </div>
@@ -1797,7 +1914,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
 
               </div>
 
-              {/* Right: [ View 1918 leads ] Solid Deep Purple Button */}
+              {/* Right: [ View leads ] Solid Deep Purple Button */}
               <button
                 onClick={() => setViewMode('table')}
                 className="w-full sm:w-auto justify-center bg-[#3a2088] hover:bg-[#2c186b] text-white text-xs font-semibold px-4 py-2 rounded-lg cursor-pointer transition-colors shadow-2xs flex items-center space-x-1.5"
@@ -1872,7 +1989,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                   </div>
                 </div>
               ) : chartType === 'bar' ? (
-                /* HORIZONTAL BAR CHART MODE */
+                /* HORIZONTAL BAR CHART MODE (with Group By Stacked Support) */
                 <div className="w-full h-full space-y-2.5 py-2 overflow-y-auto max-h-72">
                   {(() => {
                     const maxVal = Math.max(...activeChartData.map(d => d.value), 1);
@@ -1888,12 +2005,33 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                           className="flex items-center space-x-2 sm:space-x-3 text-xs group cursor-pointer"
                         >
                           <span className="w-20 sm:w-28 text-[10px] sm:text-[11px] font-medium text-slate-700 truncate text-right shrink-0">{item.label}</span>
-                          <div className="flex-1 bg-slate-100 rounded-full h-3.5 sm:h-4 overflow-hidden relative">
-                            <div
-                              className="h-full rounded-full transition-all duration-500 group-hover:opacity-90"
-                              style={{ width: `${barWidth}%`, backgroundColor: item.color }}
-                            />
-                          </div>
+                          
+                          {item.breakdown && item.breakdown.length > 0 ? (
+                            <div className="flex-1 bg-slate-100 rounded-full h-3.5 sm:h-4 overflow-hidden flex" style={{ width: `${barWidth}%` }}>
+                              {item.breakdown.map((seg, sIdx) => {
+                                const segWidthPercent = (seg.count / item.value) * 100;
+                                return (
+                                  <div
+                                    key={sIdx}
+                                    style={{
+                                      width: `${segWidthPercent}%`,
+                                      backgroundColor: seg.color
+                                    }}
+                                    title={`${item.label} → ${seg.groupKey}: ${seg.count} (${seg.percentage})`}
+                                    className="h-full hover:brightness-110 transition-all cursor-pointer"
+                                  />
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="flex-1 bg-slate-100 rounded-full h-3.5 sm:h-4 overflow-hidden relative">
+                              <div
+                                className="h-full rounded-full transition-all duration-500 group-hover:opacity-90"
+                                style={{ width: `${barWidth}%`, backgroundColor: item.color }}
+                              />
+                            </div>
+                          )}
+
                           <span className="w-12 sm:w-16 text-[10px] sm:text-[11px] font-bold text-slate-800 font-mono shrink-0">{item.displayValue}</span>
                         </div>
                       );
@@ -1901,7 +2039,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                   })()}
                 </div>
               ) : (
-                /* VERTICAL COLUMN CHART MODE (Exact match to screenshot) */
+                /* VERTICAL COLUMN CHART MODE (Exact match to screenshot with Stacked Group-By) */
                 <div className="w-full max-w-full flex flex-col justify-between overflow-hidden">
                   <div className="relative h-64 sm:h-72 pl-7 sm:pl-12 pr-1 sm:pr-4 w-full max-w-full">
                     
@@ -1914,7 +2052,6 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                     {(() => {
                       const maxVal = Math.max(...activeChartData.map(d => d.value), 0);
 
-                      // Calculate dynamic nice ceiling based on exact data values
                       const computeNiceScale = (max: number) => {
                         if (max <= 0) return { topCeil: 5, ticks: [5, 4, 3, 2, 1, 0] };
                         if (max <= 5) return { topCeil: 5, ticks: [5, 4, 3, 2, 1, 0] };
@@ -1978,6 +2115,10 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                         return activeChartData.map((item, index) => {
                           const barHeightPercent = Math.max((item.value / topCeil) * 100, item.value > 0 ? 3 : 0.5);
 
+                          const tooltipText = item.breakdown && item.breakdown.length > 0
+                            ? `${item.label} (${item.value} total):\n` + item.breakdown.map(b => `• ${b.groupKey}: ${b.count} (${b.percentage})`).join('\n')
+                            : `${item.label}: ${item.displayCount || item.value} leads (${item.percentage})`;
+
                           return (
                             <div 
                               key={index} 
@@ -1991,21 +2132,43 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                                 }
                                 setViewMode('table');
                               }}
-                              title={`${item.label}: ${item.displayCount || item.value} leads (${item.percentage})`}
+                              title={tooltipText}
                             >
                               {/* Value Above Bar */}
                               <span className="text-[9px] sm:text-[11px] font-bold text-slate-800 mb-0.5 select-none font-mono">
                                 {item.displayValue}
                               </span>
 
-                              {/* Solid Bar */}
-                              <div 
-                                className="w-full max-w-[28px] sm:max-w-[48px] rounded-t-sm transition-all duration-300 group-hover:opacity-90 group-hover:shadow-md"
-                                style={{
-                                  height: `${barHeightPercent}%`,
-                                  backgroundColor: item.color
-                                }}
-                              />
+                              {/* Stacked Group-By Bar or Solid Bar */}
+                              {item.breakdown && item.breakdown.length > 0 ? (
+                                <div 
+                                  className="w-full max-w-[28px] sm:max-w-[48px] rounded-t-sm overflow-hidden flex flex-col-reverse transition-all duration-300 group-hover:shadow-md border-t border-white/40"
+                                  style={{ height: `${barHeightPercent}%` }}
+                                >
+                                  {item.breakdown.map((seg, sIdx) => {
+                                    const segHeightPercent = (seg.count / item.value) * 100;
+                                    return (
+                                      <div
+                                        key={sIdx}
+                                        style={{
+                                          height: `${segHeightPercent}%`,
+                                          backgroundColor: seg.color
+                                        }}
+                                        title={`${item.label} → ${seg.groupKey}: ${seg.count} (${seg.percentage})`}
+                                        className="w-full hover:brightness-110 transition-all border-b border-black/10"
+                                      />
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <div 
+                                  className="w-full max-w-[28px] sm:max-w-[48px] rounded-t-sm transition-all duration-300 group-hover:opacity-90 group-hover:shadow-md"
+                                  style={{
+                                    height: `${barHeightPercent}%`,
+                                    backgroundColor: item.color
+                                  }}
+                                />
+                              )}
 
                               {/* Label Below Bar */}
                               <div className="h-7 pt-1 flex items-start justify-center text-center w-full min-w-0">
@@ -2023,6 +2186,20 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
               )}
 
             </div>
+
+            {/* Visual Legend when Group-By is Active */}
+            {groupBy !== 'none' && allActiveGroups.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-center flex-wrap gap-2.5 sm:gap-4 text-xs font-sans animate-in fade-in">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Grouped by {groupBy}:</span>
+                {allActiveGroups.map((g) => (
+                  <div key={g.key} className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-full shadow-2xs hover:bg-slate-100 transition-colors">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0 shadow-xs" style={{ backgroundColor: g.color }} />
+                    <span className="font-semibold text-slate-700 text-[11px]">{g.key}</span>
+                    <span className="text-[10px] font-mono text-slate-500 font-bold">({g.count})</span>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Bottom X-Axis Axis Title ("Status" / "Assignee" / "Rating" etc.) */}
             <div className="text-center text-xs font-medium text-slate-600 mt-2 select-none">
