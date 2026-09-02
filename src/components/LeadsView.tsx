@@ -2713,7 +2713,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                                         {avatar.initials}
                                       </span>
                                       <span className="text-slate-700 text-xs font-normal truncate max-w-[180px]">
-                                        {lead.ownerAgentName || activeAgent?.name || 'Madhava sai nagendra'}
+                                        {lead.ownerAgentName || activeAgent?.name || 'Unassigned'}
                                       </span>
                                     </div>
                                   </td>
@@ -2802,7 +2802,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
             <div className="space-y-3">
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
                 <p className="text-sm font-bold text-slate-900">{reassignModalLead.name}</p>
-                <p className="text-xs text-slate-600">Current Assignee: <strong className="text-indigo-600">{reassignModalLead.ownerAgentName || activeAgent?.name || 'Madhava sai nagendra'}</strong></p>
+                <p className="text-xs text-slate-600">Current Assignee: <strong className="text-indigo-600">{reassignModalLead.ownerAgentName || activeAgent?.name || 'Unassigned'}</strong></p>
               </div>
 
               <div>

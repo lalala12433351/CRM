@@ -310,7 +310,7 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
     const assignedAgent = agents.find((a) => a.id === assignedAgentId);
     // If created without an assignee, automatically assign to current user account creating the lead
     const finalOwnerId = assignedAgent ? assignedAgent.id : (assignedAgentId || activeAgent?.id || agents[0]?.id || 'agent-admin');
-    const finalOwnerName = assignedAgent ? assignedAgent.name : (agents.find((a) => a.id === assignedAgentId)?.name || activeAgent?.name || agents[0]?.name || 'Madhava sai nagendra');
+    const finalOwnerName = assignedAgent ? assignedAgent.name : (agents.find((a) => a.id === assignedAgentId)?.name || activeAgent?.name || agents[0]?.name || 'Unassigned');
     const finalPhone = `${countryCode} ${rawPhone.trim()}`;
     const finalSource: LeadSource = leadSource === ('Other' as any) ? (customLeadSource as any || 'Manual Entry') : leadSource;
 

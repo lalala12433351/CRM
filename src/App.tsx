@@ -372,7 +372,7 @@ export function App() {
   const visibleAgents = activeAgentsList;
 
   const defaultOwnerId = activeAgent?.id || visibleAgents[0]?.id || 'agent-admin';
-  const defaultOwnerName = activeAgent?.name || visibleAgents[0]?.name || 'Madhava sai nagendra';
+  const defaultOwnerName = activeAgent?.name || visibleAgents[0]?.name || 'System Administrator';
 
   // Automatically assign any unassigned leads to the active logged in user that created them & guarantee default status is Fresh
   const sanitizedLeads = useMemo(() => {

@@ -353,27 +353,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       return true;
     });
 
-    const allAgentEntries: Agent[] = [...agents];
-    leads.forEach(l => {
-      if (l.ownerAgentName && !allAgentEntries.some(a => a.name.toLowerCase() === l.ownerAgentName?.toLowerCase())) {
-        allAgentEntries.push({
-          id: l.ownerAgentId || `agent-${l.ownerAgentName}`,
-          name: l.ownerAgentName,
-          email: '',
-          phone: '',
-          role: 'Caller',
-          companyName: '',
-          isAdmin: false,
-          status: 'online',
-          avatar: '',
-          totalCallsToday: 0,
-          talkTimeMinutes: 0,
-          convertedLeadsCount: 0,
-          revenueGenerated: 0,
-          responseTimeMinutes: 1.0
-        });
-      }
-    });
+    // Strictly show ONLY actual registered users from agents list
+    const allAgentEntries: Agent[] = agents && agents.length > 0 ? [...agents] : (activeAgent ? [activeAgent] : []);
 
     const rows = allAgentEntries.map(ag => {
       const agLeads = timeframeFilteredLeads.filter(l => 

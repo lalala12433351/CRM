@@ -95,8 +95,8 @@ router.post('/integrations/sync', async (req: Request, res: Response) => {
       aiReasoning: `High intent lead ingested via ${platformName} live integration connector.`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      ownerAgentId: 'agent-ms',
-      ownerAgentName: 'Madhava sai nagendra',
+      ownerAgentId: 'agent-admin',
+      ownerAgentName: 'Unassigned',
       customFields: { integrationId: id, syncMethod: 'UI In-App Sync Engine' },
       tags: [platformName, 'UI Sync Ingested'],
       notes: `In-App lead sync triggered for ${platformName}`
