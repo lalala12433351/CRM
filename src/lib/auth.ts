@@ -106,11 +106,16 @@ export async function loginWithApi(email: string, password?: string): Promise<{ 
   // ─────────────────────────────────────────────────────────────────────────
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1200);
+
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
 
     const data = await response.json();
 
@@ -127,7 +132,7 @@ export async function loginWithApi(email: string, password?: string): Promise<{ 
 
     return { success: false, error: data.error || 'Invalid email or password.' };
   } catch (err: any) {
-    // Server unreachable — validate against the single allowed admin account only
+    // Server unreachable / timed out — validate against admin credentials with zero delay
     const cleanEmail        = email.trim().toLowerCase();
     const isCorrectEmail    = cleanEmail === ALLOWED_EMAIL.toLowerCase() || cleanEmail === 'admin@kiteaviation.com';
     const inputPass         = (password || '').trim();
@@ -137,13 +142,14 @@ export async function loginWithApi(email: string, password?: string): Promise<{ 
       return { success: false, error: 'Invalid email or password. Access is restricted to admin@kiteaviation.' };
     }
 
-    // Credentials match — build the admin session
+    // Credentials match — build the admin session immediately
     const adminUser: Agent = {
       id: 'agent_kiteaviation_admin',
       name: 'Kite Aviation Admin',
       email: ALLOWED_EMAIL,
       phone: '',
       companyName: 'Kite Aviation',
+      tenantId: 'company_kite_aviation',
       role: 'Admin',
       isAdmin: true,
       status: 'online',

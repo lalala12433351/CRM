@@ -217,9 +217,9 @@ export function App() {
     seedDatabase();
   }, []);
 
-  // Fetch all domain data from database when activeTenantId is ready
+  // Fetch all domain data from database when authenticated and activeTenantId is ready
   useEffect(() => {
-    if (!activeTenantId) return;
+    if (!isAuthenticated || !currentUser || !activeTenantId || activeTenantId === 'default_tenant') return;
 
     // 1. Fetch live Leads from DB
     fetchWithTenantAuth('/api/leads')
@@ -310,10 +310,10 @@ export function App() {
   };
 
   const handleLoginSuccess = (agent: Agent) => {
-    setCurrentUser(agent);
-    setActiveAgentId(agent.id);
     localStorage.setItem('pixbe_auth_user', JSON.stringify(agent));
     sessionStorage.setItem('pixbe_auth_user', JSON.stringify(agent));
+    setCurrentUser(agent);
+    setActiveAgentId(agent.id);
     if (agent.companyName) {
       setWorkspaceProfile([{ id: 'default_workspace', name: agent.companyName }]);
     }
@@ -322,14 +322,15 @@ export function App() {
     showToast(`Welcome back, ${agent.name || 'User'}!`);
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
+    localStorage.removeItem('pixbe_auth_user');
+    localStorage.removeItem('pixbe_auth_token');
+    sessionStorage.removeItem('pixbe_auth_user');
+    sessionStorage.removeItem('pixbe_auth_token');
     setCurrentUser(null);
     setIsAuthenticated(false);
     setIsLoggingIn(false);
-    sessionStorage.removeItem('pixbe_auth_user');
-    localStorage.removeItem('pixbe_auth_user');
-    localStorage.removeItem('pixbe_auth_token');
-    await logoutWithApi().catch(() => {});
+    logoutWithApi().catch(() => {});
     showToast('Logged out of workspace.');
   };
 

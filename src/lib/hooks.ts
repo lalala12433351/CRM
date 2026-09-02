@@ -12,7 +12,11 @@ export function useSyncState<T extends { id: string }>(collectionName: string, t
   };
 
   useEffect(() => {
-    const colRef = getCollectionRef();
+    // Only subscribe to Firestore when there is an active workspace tenant
+    if (!tenantId || tenantId === 'default_tenant') {
+      return;
+    }
+    const colRef = collection(db, 'tenants', activeTenantId, collectionName);
     const unsubscribe = onSnapshot(colRef, (snapshot) => {
       const items: T[] = [];
       snapshot.forEach((docSnap) => {
@@ -31,7 +35,7 @@ export function useSyncState<T extends { id: string }>(collectionName: string, t
       console.warn(`Firestore sync notice for ${collectionName} (${activeTenantId}):`, error.message);
     });
     return () => unsubscribe();
-  }, [collectionName, activeTenantId]);
+  }, [collectionName, activeTenantId, tenantId]);
 
   const setSyncData = (action: T[] | ((prev: T[]) => T[])) => {
     setData((prev) => {
