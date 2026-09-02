@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   PhoneCall, 
   Trophy, 
@@ -70,8 +70,19 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const [callTypeFilter, setCallTypeFilter] = useState<string>('ALL');
   const [callSortOption, setCallSortOption] = useState<'newest' | 'oldest' | 'duration_desc' | 'duration_asc'>('newest');
 
-  // Leaderboard Sorting State
-  type LeaderboardSortOption = 'deals_desc' | 'revenue_desc' | 'calls_desc' | 'talk_time_desc' | 'win_rate_desc';
+  // Leaderboard Sorting State - Comprehensive sorting options
+  type LeaderboardSortOption = 
+    | 'deals_desc' 
+    | 'deals_asc'
+    | 'revenue_desc' 
+    | 'revenue_asc'
+    | 'calls_desc' 
+    | 'calls_asc'
+    | 'talk_time_desc' 
+    | 'talk_time_asc'
+    | 'win_rate_desc'
+    | 'name_asc';
+
   const [leaderboardSortBy, setLeaderboardSortBy] = useState<LeaderboardSortOption>('deals_desc');
 
   // Individual Telecaller Report State
@@ -121,13 +132,30 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     }
   };
 
+  // Safe helper function to parse any lead date string
+  const parseItemDate = (dateStr?: string): Date => {
+    if (!dateStr || dateStr === 'Just Now') return new Date();
+    if (dateStr.includes('ago')) {
+      const d = new Date();
+      const match = dateStr.match(/(\d+)\s*(d|day|days|h|hour|hours|m|min|minute|minutes)/i);
+      if (match) {
+        const val = parseInt(match[1], 10);
+        const unit = match[2].toLowerCase();
+        if (unit.startsWith('d')) d.setDate(d.getDate() - val);
+        else if (unit.startsWith('h')) d.setHours(d.getHours() - val);
+      }
+      return d;
+    }
+    const parsed = new Date(dateStr);
+    return isNaN(parsed.getTime()) ? new Date() : parsed;
+  };
+
   // Safe helper function to check if a timestamp falls within fromDate & toDate
   const isDateInRange = (timestampStr: string) => {
     if (!fromDate && !toDate) return true;
     if (!timestampStr) return true;
     try {
-      const parsedDate = new Date(timestampStr);
-      if (isNaN(parsedDate.getTime())) return true;
+      const parsedDate = parseItemDate(timestampStr);
       const itemDate = parsedDate.toISOString().slice(0, 10);
       if (fromDate && itemDate < fromDate) return false;
       if (toDate && itemDate > toDate) return false;
@@ -180,7 +208,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const totalTalkTimeSecs = dateFilteredCalls.reduce((acc, c) => acc + (c.durationSeconds || 0), 0);
   // Revenue calculated STRICTLY based on converted leads (status: Converted / Won) and their estimated deal values
   const totalSales = dateFilteredLeads
-    .filter(l => l.status === 'Converted' || l.status === 'Won')
+    .filter(l => (l.status || '').toLowerCase() === 'converted' || (l.status || '').toLowerCase() === 'won')
     .reduce((acc, l) => acc + (Number(l.dealValue) || 0), 0);
 
   const formatSecs = (secs: number) => {
@@ -215,53 +243,70 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     }
   };
 
-  // Calculations for Leaderboard
-  const rankedAgents = [...agents].map((agent) => {
-    const agentCalls = dateFilteredCalls.filter(c => c.agentId === agent.id || c.agentName.toLowerCase() === agent.name.toLowerCase());
-    const agentLeads = dateFilteredLeads.filter(l => l.ownerAgentId === agent.id || l.ownerAgentName?.toLowerCase() === agent.name.toLowerCase());
-    
-    const hasActiveDateFilter = Boolean(fromDate || toDate);
+  // Calculations for Leaderboard - Dynamic with Full Sort Criteria
+  const rankedAgents = useMemo(() => {
+    return [...agents].map((agent) => {
+      const agentCalls = dateFilteredCalls.filter(c => 
+        c.agentId === agent.id || 
+        (c.agentName && c.agentName.toLowerCase() === agent.name.toLowerCase()) ||
+        (c.assigneeName && c.assigneeName.toLowerCase() === agent.name.toLowerCase())
+      );
+      const agentLeads = dateFilteredLeads.filter(l => 
+        l.ownerAgentId === agent.id || 
+        (l.ownerAgentName && l.ownerAgentName.toLowerCase() === agent.name.toLowerCase())
+      );
+      
+      const hasActiveDateFilter = Boolean(fromDate || toDate || datePreset !== 'ALL');
 
-    const totalCallsCount = hasActiveDateFilter
-      ? agentCalls.length
-      : (agentCalls.length || agent.totalCallsToday || 0);
+      const totalCallsCount = hasActiveDateFilter
+        ? agentCalls.length
+        : (agentCalls.length || agent.totalCallsToday || 0);
 
-    const convertedCount = hasActiveDateFilter
-      ? agentLeads.filter(l => l.status === 'Converted').length
-      : (agent.convertedLeadsCount || agentLeads.filter(l => l.status === 'Converted').length);
+      const convertedCount = hasActiveDateFilter
+        ? agentLeads.filter(l => (l.status || '').toLowerCase() === 'converted' || (l.status || '').toLowerCase() === 'won').length
+        : (agent.convertedLeadsCount || agentLeads.filter(l => (l.status || '').toLowerCase() === 'converted' || (l.status || '').toLowerCase() === 'won').length);
 
-    const totalTalkSecs = agentCalls.reduce((sum, c) => sum + (c.durationSeconds || 0), 0) || (hasActiveDateFilter ? 0 : agent.talkTimeMinutes * 60);
-    const revenue = agentLeads
-      .filter(l => l.status === 'Converted' || l.status === 'Won')
-      .reduce((sum, l) => sum + (Number(l.dealValue) || 0), 0);
-    const winRate = totalCallsCount > 0 ? Math.round((convertedCount / totalCallsCount) * 100) : 0;
+      const totalTalkSecs = agentCalls.reduce((sum, c) => sum + (c.durationSeconds || 0), 0) || (hasActiveDateFilter ? 0 : (agent.talkTimeMinutes || 0) * 60);
+      const revenue = agentLeads
+        .filter(l => (l.status || '').toLowerCase() === 'converted' || (l.status || '').toLowerCase() === 'won')
+        .reduce((sum, l) => sum + (Number(l.dealValue) || 0), 0);
+      const winRate = totalCallsCount > 0 ? Math.round((convertedCount / totalCallsCount) * 100) : (convertedCount > 0 ? 100 : 0);
 
-    return {
-      ...agent,
-      calculatedCalls: totalCallsCount,
-      calculatedConverted: convertedCount,
-      calculatedTalkTimeSecs: totalTalkSecs,
-      calculatedRevenue: revenue,
-      winRate
-    };
-  }).sort((a, b) => {
-    if (leaderboardSortBy === 'deals_desc') {
-      return b.calculatedConverted - a.calculatedConverted || b.calculatedRevenue - a.calculatedRevenue;
-    }
-    if (leaderboardSortBy === 'revenue_desc') {
-      return b.calculatedRevenue - a.calculatedRevenue || b.calculatedConverted - a.calculatedConverted;
-    }
-    if (leaderboardSortBy === 'calls_desc') {
-      return b.calculatedCalls - a.calculatedCalls;
-    }
-    if (leaderboardSortBy === 'talk_time_desc') {
-      return b.calculatedTalkTimeSecs - a.calculatedTalkTimeSecs;
-    }
-    if (leaderboardSortBy === 'win_rate_desc') {
-      return b.winRate - a.winRate;
-    }
-    return 0;
-  });
+      return {
+        ...agent,
+        calculatedCalls: totalCallsCount,
+        calculatedConverted: convertedCount,
+        calculatedTalkTimeSecs: totalTalkSecs,
+        calculatedRevenue: revenue,
+        winRate
+      };
+    }).sort((a, b) => {
+      switch (leaderboardSortBy) {
+        case 'deals_desc':
+          return b.calculatedConverted - a.calculatedConverted || b.calculatedRevenue - a.calculatedRevenue || b.calculatedCalls - a.calculatedCalls;
+        case 'deals_asc':
+          return a.calculatedConverted - b.calculatedConverted || a.calculatedRevenue - b.calculatedRevenue;
+        case 'revenue_desc':
+          return b.calculatedRevenue - a.calculatedRevenue || b.calculatedConverted - a.calculatedConverted;
+        case 'revenue_asc':
+          return a.calculatedRevenue - b.calculatedRevenue || a.calculatedConverted - b.calculatedConverted;
+        case 'calls_desc':
+          return b.calculatedCalls - a.calculatedCalls || b.calculatedTalkTimeSecs - a.calculatedTalkTimeSecs;
+        case 'calls_asc':
+          return a.calculatedCalls - b.calculatedCalls;
+        case 'talk_time_desc':
+          return b.calculatedTalkTimeSecs - a.calculatedTalkTimeSecs || b.calculatedCalls - a.calculatedCalls;
+        case 'talk_time_asc':
+          return a.calculatedTalkTimeSecs - b.calculatedTalkTimeSecs;
+        case 'win_rate_desc':
+          return b.winRate - a.winRate || b.calculatedConverted - a.calculatedConverted;
+        case 'name_asc':
+          return a.name.localeCompare(b.name);
+        default:
+          return b.calculatedConverted - a.calculatedConverted;
+      }
+    });
+  }, [agents, dateFilteredCalls, dateFilteredLeads, fromDate, toDate, datePreset, leaderboardSortBy]);
 
   // Individual Agent Selection & Calls
   const currentAgentReport = rankedAgents.find(a => a.id === selectedAgentId) || rankedAgents[0];
@@ -325,16 +370,23 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
   const maxBarVal = Math.max(...hourlyData.map(d => d.calls), 1);
 
-  // Common Reusable Date Range Control Bar Component
+  // Common Reusable Mobile-Optimized Date Range Control Bar Component
   const renderDateRangeControlBar = () => (
-    <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
-        {/* Preset Selector Buttons */}
-        <div className="flex items-center space-x-1 bg-slate-50 p-1 rounded-lg border border-slate-200 flex-wrap gap-1">
-          <span className="text-[10px] text-slate-500 uppercase px-2 font-bold flex items-center space-x-1">
-            <Calendar className="w-3 h-3 text-indigo-600" />
-            <span>Date Range:</span>
-          </span>
+    <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3">
+      {/* Top Row: Preset Buttons (Smooth Horizontal Scroll on Mobile) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex items-center space-x-1.5 text-xs font-mono font-bold text-slate-700">
+          <Calendar className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+          <span className="uppercase text-[11px] tracking-wider text-slate-500">Date Range:</span>
+          {datePreset !== 'CUSTOM' && (
+            <span className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200/80 px-2 py-0.5 rounded-full font-bold">
+              {datePreset === 'ALL' ? 'All Time' : datePreset === 'TODAY' ? 'Today' : datePreset === 'YESTERDAY' ? 'Yesterday' : datePreset === 'LAST_7' ? 'Past 7 Days' : 'Past 30 Days'}
+            </span>
+          )}
+        </div>
+
+        {/* Preset Selector Buttons: Horizontally scrollable without ugly scrollbar on mobile */}
+        <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar py-0.5 -mx-1 px-1">
           {([
             { id: 'ALL', label: 'All Time' },
             { id: 'TODAY', label: 'Today' },
@@ -346,21 +398,24 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             <button
               key={p.id}
               onClick={() => handlePresetChange(p.id)}
-              className={`px-2.5 py-1 rounded transition-all cursor-pointer text-xs font-bold ${
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer text-[11px] sm:text-xs font-bold whitespace-nowrap shrink-0 ${
                 datePreset === p.id 
                   ? 'bg-indigo-600 text-white shadow-2xs' 
-                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200'
+                  : 'text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200'
               }`}
             >
               {p.label}
             </button>
           ))}
         </div>
+      </div>
 
-        {/* Date Inputs */}
-        <div className="flex flex-wrap items-center space-x-2 text-xs font-mono">
-          <div className="flex items-center space-x-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
-            <span className="text-[10px] text-slate-500 uppercase font-bold">From:</span>
+      {/* Bottom Row: Date Inputs (Grid 2-col on Mobile, Flex on Desktop) & Reset */}
+      <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 text-xs font-mono">
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 flex-1">
+          {/* From Date Input */}
+          <div className="flex items-center space-x-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 focus-within:border-indigo-400 focus-within:bg-white transition-all">
+            <span className="text-[10px] text-slate-500 uppercase font-bold shrink-0">From:</span>
             <input
               type="date"
               value={fromDate}
@@ -368,12 +423,13 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 setFromDate(e.target.value);
                 setDatePreset('CUSTOM');
               }}
-              className="bg-transparent text-slate-900 focus:outline-none cursor-pointer text-xs font-bold"
+              className="w-full bg-transparent text-slate-900 focus:outline-none cursor-pointer text-xs font-bold font-sans"
             />
           </div>
 
-          <div className="flex items-center space-x-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
-            <span className="text-[10px] text-slate-500 uppercase font-bold">To:</span>
+          {/* To Date Input */}
+          <div className="flex items-center space-x-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 focus-within:border-indigo-400 focus-within:bg-white transition-all">
+            <span className="text-[10px] text-slate-500 uppercase font-bold shrink-0">To:</span>
             <input
               type="date"
               value={toDate}
@@ -381,29 +437,31 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 setToDate(e.target.value);
                 setDatePreset('CUSTOM');
               }}
-              className="bg-transparent text-slate-900 focus:outline-none cursor-pointer text-xs font-bold"
+              className="w-full bg-transparent text-slate-900 focus:outline-none cursor-pointer text-xs font-bold font-sans"
             />
           </div>
-
-          {(fromDate || toDate || datePreset !== 'ALL') && (
-            <button
-              onClick={() => handlePresetChange('ALL')}
-              className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 cursor-pointer border border-slate-200 transition-all"
-              title="Reset Date Range Filter"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
-          )}
         </div>
+
+        {/* Reset Button */}
+        {(fromDate || toDate || datePreset !== 'ALL') && (
+          <button
+            onClick={() => handlePresetChange('ALL')}
+            className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 cursor-pointer border border-slate-200 transition-all flex items-center justify-center space-x-1.5 text-xs font-bold self-end sm:self-center shrink-0"
+            title="Reset Date Range Filter"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+            <span>Reset</span>
+          </button>
+        )}
       </div>
     </div>
   );
 
   return (
-    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6 font-sans text-slate-900">
+    <div className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto space-y-4 sm:space-y-6 font-sans text-slate-900">
       
-      {/* HEADER */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
+      {/* HEADER: Fully responsive for mobile & desktop */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">
             {activeSubTab === 'call_logs' && 'Calls & Activity Report'}
@@ -417,51 +475,51 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* SubTab Navigation Controls */}
-          <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          {/* SubTab Navigation Controls: Mobile-friendly grid / flex */}
+          <div className="w-full sm:w-auto grid grid-cols-3 sm:flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
             <button
               onClick={() => setActiveSubTab('call_logs')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
                 activeSubTab === 'call_logs'
                   ? 'bg-white text-slate-900 shadow-2xs border border-slate-200'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <PhoneCall className="w-3.5 h-3.5 text-slate-600" />
-              <span>Call Logs</span>
+              <PhoneCall className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+              <span className="truncate">Call Logs</span>
             </button>
 
             <button
               onClick={() => setActiveSubTab('leaderboard')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
                 activeSubTab === 'leaderboard'
                   ? 'bg-white text-slate-900 shadow-2xs border border-slate-200'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <Trophy className="w-3.5 h-3.5 text-slate-600" />
-              <span>Leaderboard</span>
+              <Trophy className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <span className="truncate">Leaderboard</span>
             </button>
 
             <button
               onClick={() => setActiveSubTab('user_report')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
                 activeSubTab === 'user_report'
                   ? 'bg-white text-slate-900 shadow-2xs border border-slate-200'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <UserCheck className="w-3.5 h-3.5 text-slate-600" />
-              <span>User Report</span>
+              <UserCheck className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+              <span className="truncate">User Report</span>
             </button>
           </div>
 
           <button
             onClick={handleExportCsv}
-            className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold flex items-center space-x-1.5 border border-slate-200 cursor-pointer transition-all shadow-2xs"
+            className="w-full sm:w-auto justify-center px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all cursor-pointer shadow-2xs flex items-center space-x-1.5"
           >
-            <Download className="w-3.5 h-3.5 text-slate-600" />
+            <Download className="w-3.5 h-3.5 text-slate-500" />
             <span>Export CSV</span>
           </button>
         </div>
@@ -715,68 +773,133 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           {/* COMMON DATE RANGE FILTER BAR */}
           {renderDateRangeControlBar()}
 
-          {/* LEADERBOARD SORTING OPTIONS BAR */}
-          <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+          {/* LEADERBOARD SORTING OPTIONS BAR (Mobile-Optimized) */}
+          <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono">
             <div className="flex items-center space-x-2">
-              <Trophy className="w-4 h-4 text-amber-500" />
-              <span className="font-bold text-slate-900 text-sm">Leaderboard Performance Ranking</span>
+              <Trophy className="w-4 h-4 text-amber-500 shrink-0" />
+              <span className="font-bold text-slate-900 text-xs sm:text-sm">Leaderboard Performance Ranking</span>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <span className="text-slate-600 font-bold flex items-center space-x-1">
-                <ArrowUpDown className="w-3.5 h-3.5 text-indigo-600" />
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
+              <span className="text-slate-600 font-bold flex items-center space-x-1 text-xs shrink-0">
+                <ArrowUpDown className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
                 <span>Rank Telecallers By:</span>
               </span>
-              <CustomDropdown<'deals_desc' | 'revenue_desc' | 'calls_desc' | 'talk_time_desc' | 'win_rate_desc'>
+              <CustomDropdown<LeaderboardSortOption>
                 value={leaderboardSortBy}
                 onChange={(val) => setLeaderboardSortBy(val)}
                 options={[
                   { value: 'deals_desc', label: 'Converted Deals (High to Low)' },
+                  { value: 'deals_asc', label: 'Converted Deals (Low to High)' },
                   { value: 'revenue_desc', label: 'Revenue Won (High to Low)' },
+                  { value: 'revenue_asc', label: 'Revenue Won (Low to High)' },
                   { value: 'calls_desc', label: 'Total Call Volume (High to Low)' },
+                  { value: 'calls_asc', label: 'Total Call Volume (Low to High)' },
                   { value: 'talk_time_desc', label: 'Talk Time Duration (High to Low)' },
+                  { value: 'talk_time_asc', label: 'Talk Time Duration (Low to High)' },
                   { value: 'win_rate_desc', label: 'Win Rate % (High to Low)' },
+                  { value: 'name_asc', label: 'Telecaller Name (A-Z)' },
                 ]}
                 align="right"
+                wrapperClassName="w-full sm:w-64"
+                className="w-full text-xs font-bold"
               />
             </div>
           </div>
 
           {/* Summary Row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 text-xs font-mono">
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
               <span className="text-[10px] text-slate-500 font-bold uppercase">Active Telecallers</span>
-              <p className="text-xl font-bold text-slate-900 mt-0.5">{rankedAgents.length}</p>
+              <p className="text-lg sm:text-xl font-bold text-slate-900 mt-0.5">{rankedAgents.length}</p>
             </div>
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
               <span className="text-[10px] text-slate-500 font-bold uppercase">Period Calls Made</span>
-              <p className="text-xl font-bold text-slate-900 mt-0.5">{totalCalls}</p>
+              <p className="text-lg sm:text-xl font-bold text-slate-900 mt-0.5">{totalCalls}</p>
             </div>
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
               <span className="text-[10px] text-slate-500 font-bold uppercase">Period Talk Time</span>
-              <p className="text-xl font-bold text-slate-900 mt-0.5">{formatSecs(totalTalkTimeSecs)}</p>
+              <p className="text-lg sm:text-xl font-bold text-slate-900 mt-0.5">{formatSecs(totalTalkTimeSecs)}</p>
             </div>
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
               <span className="text-[10px] text-slate-500 font-bold uppercase">Period Deals Won</span>
-              <p className="text-xl font-bold text-purple-700 mt-0.5">
+              <p className="text-lg sm:text-xl font-bold text-purple-700 mt-0.5">
                 {rankedAgents.reduce((sum, a) => sum + a.calculatedConverted, 0)}
               </p>
             </div>
           </div>
 
-          {/* Leaderboard Table */}
+          {/* Leaderboard Table with Interactive Sort Headers */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs font-mono text-slate-800">
-                <thead className="bg-slate-50 text-slate-600 uppercase text-[10px] border-b border-slate-200 font-bold">
+            <div className="overflow-x-auto ios-scroll">
+              <table className="w-full text-left text-xs font-mono text-slate-800 min-w-[600px]">
+                <thead className="bg-slate-50 text-slate-600 uppercase text-[10px] border-b border-slate-200 font-bold select-none">
                   <tr>
                     <th className="px-4 py-3">Rank</th>
-                    <th className="px-4 py-3">Telecaller</th>
-                    <th className="px-4 py-3">Total Calls</th>
-                    <th className="px-4 py-3">Talk Time</th>
-                    <th className="px-4 py-3">Deals Won</th>
-                    <th className="px-4 py-3">Revenue Won</th>
-                    <th className="px-4 py-3">Win Rate</th>
+                    <th 
+                      onClick={() => setLeaderboardSortBy(leaderboardSortBy === 'name_asc' ? 'deals_desc' : 'name_asc')}
+                      className="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors"
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Telecaller</span>
+                        {leaderboardSortBy === 'name_asc' && <span className="text-indigo-600 font-bold">▲</span>}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => setLeaderboardSortBy(leaderboardSortBy === 'calls_desc' ? 'calls_asc' : 'calls_desc')}
+                      className={`px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors ${
+                        leaderboardSortBy.startsWith('calls') ? 'text-indigo-600 bg-indigo-50/50' : ''
+                      }`}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Total Calls</span>
+                        {leaderboardSortBy === 'calls_desc' ? <span>▼</span> : leaderboardSortBy === 'calls_asc' ? <span>▲</span> : <ArrowUpDown className="w-2.5 h-2.5 opacity-40" />}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => setLeaderboardSortBy(leaderboardSortBy === 'talk_time_desc' ? 'talk_time_asc' : 'talk_time_desc')}
+                      className={`px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors ${
+                        leaderboardSortBy.startsWith('talk_time') ? 'text-indigo-600 bg-indigo-50/50' : ''
+                      }`}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Talk Time</span>
+                        {leaderboardSortBy === 'talk_time_desc' ? <span>▼</span> : leaderboardSortBy === 'talk_time_asc' ? <span>▲</span> : <ArrowUpDown className="w-2.5 h-2.5 opacity-40" />}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => setLeaderboardSortBy(leaderboardSortBy === 'deals_desc' ? 'deals_asc' : 'deals_desc')}
+                      className={`px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors ${
+                        leaderboardSortBy.startsWith('deals') ? 'text-indigo-600 bg-indigo-50/50' : ''
+                      }`}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Deals Won</span>
+                        {leaderboardSortBy === 'deals_desc' ? <span>▼</span> : leaderboardSortBy === 'deals_asc' ? <span>▲</span> : <ArrowUpDown className="w-2.5 h-2.5 opacity-40" />}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => setLeaderboardSortBy(leaderboardSortBy === 'revenue_desc' ? 'revenue_asc' : 'revenue_desc')}
+                      className={`px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors ${
+                        leaderboardSortBy.startsWith('revenue') ? 'text-indigo-600 bg-indigo-50/50' : ''
+                      }`}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Revenue Won</span>
+                        {leaderboardSortBy === 'revenue_desc' ? <span>▼</span> : leaderboardSortBy === 'revenue_asc' ? <span>▲</span> : <ArrowUpDown className="w-2.5 h-2.5 opacity-40" />}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => setLeaderboardSortBy(leaderboardSortBy === 'win_rate_desc' ? 'deals_desc' : 'win_rate_desc')}
+                      className={`px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors ${
+                        leaderboardSortBy === 'win_rate_desc' ? 'text-indigo-600 bg-indigo-50/50' : ''
+                      }`}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Win Rate</span>
+                        {leaderboardSortBy === 'win_rate_desc' ? <span>▼</span> : <ArrowUpDown className="w-2.5 h-2.5 opacity-40" />}
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
