@@ -39,14 +39,11 @@
                          onChange={(e) => onUpdateLead({ ...lead, status: e.target.value as LeadStatus })}
                          className="appearance-none bg-slate-200 hover:bg-slate-300 text-slate-800 font-medium py-1 pl-3 pr-7 rounded-md text-xs cursor-pointer focus:outline-none transition-colors border-none"
                        >
-                         <option value="Fresh">Fresh</option>
-                         <option value="New Lead">New Lead</option>
-                         <option value="Contacted">Contacted</option>
-                         <option value="Interested">Interested</option>
-                         <option value="Warm">Warm</option>
-                         <option value="Follow Up">Follow Up</option>
-                         <option value="Converted">Converted</option>
-                         <option value="Lost">Lost</option>
+                         {(stages || []).map((stage: any) => (
+                           <option key={stage.id || stage.name} value={stage.name}>
+                             {stage.name}
+                           </option>
+                         ))}
                        </select>
                        <ChevronDown className="w-3 h-3 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-600"/>
                      </div>

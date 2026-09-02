@@ -23,8 +23,7 @@ import {
   Code,
   LayoutGrid
 } from 'lucide-react';
-import { ReportsSubTab } from './ReportsView';
-import { AutomationsSubTab } from './WorkflowsView';
+import { ReportsSubTab, AutomationsSubTab } from '../pages';
 
 export type TabType = 
   | 'dashboard' 

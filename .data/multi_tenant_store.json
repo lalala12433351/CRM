@@ -274,10 +274,23 @@
           "HighIntent"
         ],
         "createdAt": "Just Now",
-        "updatedAt": "Just Now",
+        "updatedAt": "2026-09-02T12:47:16.953Z",
         "pincode": "",
         "priority": "Hot",
-        "whatsappOptIn": true
+        "whatsappOptIn": true,
+        "deal_value": 342,
+        "activities": [
+          {
+            "id": "act-1788353236939",
+            "leadId": "lead-1788342781533",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "edit",
+            "title": "Updated Deal Value (₹)",
+            "description": "Changed to \"342\"",
+            "timestamp": "2026-09-02T12:47:16.939Z"
+          }
+        ]
       },
       {
         "id": "lead-1788334867413",
@@ -298,15 +311,52 @@
         "aiRating": "Hot",
         "aiReasoning": "Inbound lead entry",
         "notes": "Added manually.",
-        "customFields": {},
+        "customFields": {
+          "car": "santro",
+          "f-1788343133996": "santro"
+        },
         "tags": [
           "HighIntent"
         ],
         "createdAt": "Just Now",
-        "updatedAt": "Just Now",
+        "updatedAt": "2026-09-02T12:47:09.535Z",
         "pincode": "",
         "priority": "Hot",
-        "whatsappOptIn": true
+        "whatsappOptIn": true,
+        "car": "santro",
+        "activities": [
+          {
+            "id": "act-1788353229200",
+            "leadId": "lead-1788334867413",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "edit",
+            "title": "Updated Deal Value (₹)",
+            "description": "Changed to \"3424\"",
+            "timestamp": "2026-09-02T12:47:09.200Z"
+          },
+          {
+            "id": "act-1788352827959",
+            "leadId": "lead-1788334867413",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "edit",
+            "title": "Updated Deal Value (₹)",
+            "description": "Changed to \"34\"",
+            "timestamp": "2026-09-02T12:40:27.959Z"
+          },
+          {
+            "id": "act-1788352757726",
+            "leadId": "lead-1788334867413",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "edit",
+            "title": "Updated car",
+            "description": "Changed to \"santro\"",
+            "timestamp": "2026-09-02T12:39:17.726Z"
+          }
+        ],
+        "deal_value": 3424
       },
       {
         "id": "lead-1788334402873",
@@ -341,32 +391,174 @@
         "id": "lead-1788329656975",
         "tenantId": "company_kite_aviation",
         "name": "FSDF",
-        "phone": "+91 3455555555",
+        "phone": "+91 2423432442",
         "email": "",
         "company": "",
         "city": "Not Specified",
         "state": "Not Specified",
-        "source": "Website Form",
+        "source": "IndiaMart",
         "status": "Fresh",
         "pipelineStageId": "stage-1",
-        "dealValue": 2123,
+        "dealValue": 212,
         "ownerAgentId": "agent-1788331750812",
         "ownerAgentName": "DSSFSD",
         "aiScore": 88,
         "aiRating": "Hot",
         "aiReasoning": "Inbound lead entry",
         "notes": "Added manually.",
-        "customFields": {},
+        "customFields": {
+          "car": "no car",
+          "f-1788343133996": "no car",
+          "deal_value": 212,
+          "dealValue": 212,
+          "f-deal-val": 212,
+          "Deal Value (₹)": 212
+        },
         "tags": [
           "HighIntent"
         ],
         "createdAt": "Just Now",
-        "updatedAt": "2026-09-02T11:27:24.499Z",
+        "updatedAt": "2026-09-02T13:13:43.651Z",
         "pincode": "",
         "priority": "Hot",
         "whatsappOptIn": true,
         "followUpAt": "2026-09-02T16:30:00",
-        "assignedTo": "agent-1788331750812"
+        "assignedTo": "agent-1788331750812",
+        "deal_value": 212,
+        "activities": [
+          {
+            "id": "act-1788354140003",
+            "leadId": "lead-1788329656975",
+            "agentId": "agent-1788331750812",
+            "agentName": "DSSFSD",
+            "type": "edit",
+            "title": "Updated Number",
+            "description": "Changed to \"34555555666\"",
+            "timestamp": "2026-09-02T13:02:20.003Z"
+          },
+          {
+            "id": "act-1788354128634",
+            "leadId": "lead-1788329656975",
+            "agentId": "agent-1788331750812",
+            "agentName": "DSSFSD",
+            "type": "edit",
+            "title": "Updated Lead Source",
+            "description": "Changed to \"IndiaMart\"",
+            "timestamp": "2026-09-02T13:02:08.634Z"
+          },
+          {
+            "id": "act-1788354116581",
+            "leadId": "lead-1788329656975",
+            "agentId": "agent-1788331750812",
+            "agentName": "DSSFSD",
+            "type": "edit",
+            "title": "Updated car",
+            "description": "Changed to \"no car\"",
+            "timestamp": "2026-09-02T13:01:56.581Z"
+          },
+          {
+            "id": "act-1788353190409",
+            "leadId": "lead-1788329656975",
+            "agentId": "agent-1788331750812",
+            "agentName": "DSSFSD",
+            "type": "edit",
+            "title": "Updated car",
+            "description": "Changed to \"Empty\"",
+            "timestamp": "2026-09-02T12:46:30.409Z"
+          },
+          {
+            "id": "act-1788353187655",
+            "leadId": "lead-1788329656975",
+            "agentId": "agent-1788331750812",
+            "agentName": "DSSFSD",
+            "type": "edit",
+            "title": "Updated Deal Value (₹)",
+            "description": "Changed to \"21233\"",
+            "timestamp": "2026-09-02T12:46:27.655Z"
+          },
+          {
+            "id": "act-1788353184620",
+            "leadId": "lead-1788329656975",
+            "agentId": "agent-1788331750812",
+            "agentName": "DSSFSD",
+            "type": "edit",
+            "title": "Updated Deal Value (₹)",
+            "description": "Changed to \"21233\"",
+            "timestamp": "2026-09-02T12:46:24.620Z"
+          },
+          {
+            "id": "act-1788353182139",
+            "leadId": "lead-1788329656975",
+            "agentId": "agent-1788331750812",
+            "agentName": "DSSFSD",
+            "type": "edit",
+            "title": "Updated Number",
+            "description": "Changed to \"+91 3455555555\"",
+            "timestamp": "2026-09-02T12:46:22.139Z"
+          },
+          {
+            "id": "act-1788353172811",
+            "leadId": "lead-1788329656975",
+            "agentId": "agent-1788331750812",
+            "agentName": "DSSFSD",
+            "type": "edit",
+            "title": "Updated Number",
+            "description": "Changed to \"345555555\"",
+            "timestamp": "2026-09-02T12:46:12.811Z"
+          },
+          {
+            "id": "act-1788353168140",
+            "leadId": "lead-1788329656975",
+            "agentId": "agent-1788331750812",
+            "agentName": "DSSFSD",
+            "type": "edit",
+            "title": "Updated Lead Source",
+            "description": "Changed to \"Google Ads\"",
+            "timestamp": "2026-09-02T12:46:08.140Z"
+          },
+          {
+            "id": "act-1788353164240",
+            "leadId": "lead-1788329656975",
+            "agentId": "agent-1788331750812",
+            "agentName": "DSSFSD",
+            "type": "edit",
+            "title": "Updated Lead Source",
+            "description": "Changed to \"Google Ads\"",
+            "timestamp": "2026-09-02T12:46:04.240Z"
+          },
+          {
+            "id": "act-1788353157195",
+            "leadId": "lead-1788329656975",
+            "agentId": "agent-1788331750812",
+            "agentName": "DSSFSD",
+            "type": "edit",
+            "title": "Updated car",
+            "description": "Changed to \"Empty\"",
+            "timestamp": "2026-09-02T12:45:57.195Z"
+          },
+          {
+            "id": "act-1788353151522",
+            "leadId": "lead-1788329656975",
+            "agentId": "agent-1788331750812",
+            "agentName": "DSSFSD",
+            "type": "edit",
+            "title": "Updated car",
+            "description": "Changed to \"qweq\"",
+            "timestamp": "2026-09-02T12:45:51.522Z"
+          },
+          {
+            "id": "act-1788353146857",
+            "leadId": "lead-1788329656975",
+            "agentId": "agent-1788331750812",
+            "agentName": "DSSFSD",
+            "type": "edit",
+            "title": "Updated Deal Value (₹)",
+            "description": "Changed to \"123\"",
+            "timestamp": "2026-09-02T12:45:46.857Z"
+          }
+        ],
+        "car": "no car",
+        "f-1788343133996": "no car"
       },
       {
         "id": "lead-1788329296907",
@@ -387,15 +579,43 @@
         "aiRating": "Hot",
         "aiReasoning": "Inbound lead entry",
         "notes": "Added manually.",
-        "customFields": {},
+        "customFields": {
+          "car": "hi",
+          "f-1788343133996": "hi"
+        },
         "tags": [
           "HighIntent"
         ],
         "createdAt": "Just Now",
-        "updatedAt": "Just Now",
+        "updatedAt": "2026-09-02T12:55:52.630Z",
         "pincode": "",
         "priority": "Hot",
-        "whatsappOptIn": true
+        "whatsappOptIn": true,
+        "car": "hi",
+        "f-1788343133996": "hi",
+        "activities": [
+          {
+            "id": "act-1788353752610",
+            "leadId": "lead-1788329296907",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "edit",
+            "title": "Updated Deal Value (₹)",
+            "description": "Changed to \"123\"",
+            "timestamp": "2026-09-02T12:55:52.610Z"
+          },
+          {
+            "id": "act-1788353717797",
+            "leadId": "lead-1788329296907",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "edit",
+            "title": "Updated car",
+            "description": "Changed to \"hi\"",
+            "timestamp": "2026-09-02T12:55:17.797Z"
+          }
+        ],
+        "deal_value": 123
       },
       {
         "id": "lead-1788323122427",
@@ -409,7 +629,7 @@
         "source": "Facebook Ads",
         "status": "Follow Up",
         "pipelineStageId": "stage-1",
-        "dealValue": 0,
+        "dealValue": 231,
         "ownerAgentId": "agent_kiteaviation_admin",
         "ownerAgentName": "Kite Aviation Admin",
         "aiScore": 88,
@@ -417,16 +637,93 @@
         "aiReasoning": "Inbound lead entry",
         "notes": "Added manually.",
         "lostReason": "No Need",
-        "customFields": {},
+        "customFields": {
+          "car": "santroo",
+          "f-1788343133996": "santroo",
+          "deal_value": 231,
+          "dealValue": 231,
+          "f-deal-val": 231,
+          "Deal Value (₹)": 231
+        },
         "tags": [
           "HighIntent"
         ],
         "createdAt": "Just Now",
-        "updatedAt": "2026-09-02T11:19:31.394Z",
+        "updatedAt": "2026-09-02T13:01:42.190Z",
         "pincode": "",
         "priority": "Hot",
         "whatsappOptIn": true,
         "activities": [
+          {
+            "id": "act-1788353210055",
+            "leadId": "lead-1788323122427",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "edit",
+            "title": "Updated Deal Value (₹)",
+            "description": "Changed to \"23\"",
+            "timestamp": "2026-09-02T12:46:50.055Z"
+          },
+          {
+            "id": "act-1788353200069",
+            "leadId": "lead-1788323122427",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "edit",
+            "title": "Updated Deal Value (₹)",
+            "description": "Changed to \"23\"",
+            "timestamp": "2026-09-02T12:46:40.069Z"
+          },
+          {
+            "id": "act-1788352922189",
+            "leadId": "lead-1788323122427",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "edit",
+            "title": "Updated Deal Value (₹)",
+            "description": "Changed to \"354\"",
+            "timestamp": "2026-09-02T12:42:02.189Z"
+          },
+          {
+            "id": "act-1788352687257",
+            "leadId": "lead-1788323122427",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "edit",
+            "title": "Updated car",
+            "description": "Changed to \"santro\"",
+            "timestamp": "2026-09-02T12:38:07.257Z"
+          },
+          {
+            "id": "act-1788352684112",
+            "leadId": "lead-1788323122427",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "edit",
+            "title": "Updated Deal Value (₹)",
+            "description": "Changed to \"Empty\"",
+            "timestamp": "2026-09-02T12:38:04.112Z"
+          },
+          {
+            "id": "act-1788352669428",
+            "leadId": "lead-1788323122427",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "edit",
+            "title": "Updated Deal Value (₹)",
+            "description": "Changed to \"34234\"",
+            "timestamp": "2026-09-02T12:37:49.428Z"
+          },
+          {
+            "id": "act-1788352637385",
+            "leadId": "lead-1788323122427",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "edit",
+            "title": "Updated Deal Value (₹)",
+            "description": "Changed to \"23\"",
+            "timestamp": "2026-09-02T12:37:17.385Z"
+          },
           {
             "id": "act-1788345771892",
             "leadId": "lead-1788323122427",
@@ -437,7 +734,10 @@
             "description": "Changed to \"400\"",
             "timestamp": "2026-09-02T10:42:51.892Z"
           }
-        ]
+        ],
+        "car": "santroo",
+        "deal_value": 231,
+        "f-1788343133996": "santroo"
       },
       {
         "id": "lead-1788257663855",
@@ -451,7 +751,7 @@
         "source": "Facebook Ads",
         "status": "Fresh",
         "pipelineStageId": "stage-1",
-        "dealValue": 0,
+        "dealValue": 212313,
         "ownerAgentId": "agent_kiteaviation_admin",
         "ownerAgentName": "Kite Aviation Admin",
         "aiScore": 88,
@@ -465,7 +765,7 @@
           "HighIntent"
         ],
         "createdAt": "Just Now",
-        "updatedAt": "2026-09-02T11:07:19.357Z",
+        "updatedAt": "2026-09-02T13:00:11.233Z",
         "pincode": "",
         "priority": "Hot",
         "whatsappOptIn": true,
@@ -473,6 +773,36 @@
         "rating": 4,
         "followUpAt": "2026-09-10T15:58",
         "activities": [
+          {
+            "id": "act-1788354010905",
+            "leadId": "lead-1788257663855",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "edit",
+            "title": "Updated Deal Value (₹)",
+            "description": "Changed to \"2123\"",
+            "timestamp": "2026-09-02T13:00:10.905Z"
+          },
+          {
+            "id": "act-1788353281992",
+            "leadId": "lead-1788257663855",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "edit",
+            "title": "Updated Lead Source",
+            "description": "Changed to \"Facebook Ads\"",
+            "timestamp": "2026-09-02T12:48:01.992Z"
+          },
+          {
+            "id": "act-1788353275090",
+            "leadId": "lead-1788257663855",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin",
+            "type": "edit",
+            "title": "Updated Deal Value (₹)",
+            "description": "Changed to \"212313\"",
+            "timestamp": "2026-09-02T12:47:55.090Z"
+          },
           {
             "id": "act-1788347239018",
             "leadId": "lead-1788257663855",
@@ -575,7 +905,8 @@
             "status": "Pending",
             "createdAt": "2026-09-02T10:55:18.595Z"
           }
-        ]
+        ],
+        "deal_value": 212313
       }
     ]
   },
@@ -2696,7 +3027,416 @@
   "activities": {
     "company_apex_dynamics": [],
     "company_zenith_aviation": [],
-    "company_wfwwfwf": []
+    "company_wfwwfwf": [],
+    "company_kite_aviation": [
+      {
+        "id": "act-1788354823643",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788329656975",
+        "agentId": "agent-1788331750812",
+        "agentName": "DSSFSD",
+        "type": "edit",
+        "title": "Updated Number",
+        "description": "Changed to \"2423432442\"",
+        "timestamp": "2026-09-02T13:13:43.643Z"
+      },
+      {
+        "id": "act-1788354801656",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788329656975",
+        "agentId": "agent-1788331750812",
+        "agentName": "DSSFSD",
+        "type": "edit",
+        "title": "Updated Deal Value (₹)",
+        "description": "Changed to \"212\"",
+        "timestamp": "2026-09-02T13:13:21.656Z"
+      },
+      {
+        "id": "act-1788354159723",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788329656975",
+        "agentId": "agent-1788331750812",
+        "agentName": "DSSFSD",
+        "type": "edit",
+        "title": "Updated Number",
+        "description": "Changed to \"34555555\"",
+        "timestamp": "2026-09-02T13:02:39.723Z"
+      },
+      {
+        "id": "act-1788354140003",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788329656975",
+        "agentId": "agent-1788331750812",
+        "agentName": "DSSFSD",
+        "type": "edit",
+        "title": "Updated Number",
+        "description": "Changed to \"34555555666\"",
+        "timestamp": "2026-09-02T13:02:20.003Z"
+      },
+      {
+        "id": "act-1788354128634",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788329656975",
+        "agentId": "agent-1788331750812",
+        "agentName": "DSSFSD",
+        "type": "edit",
+        "title": "Updated Lead Source",
+        "description": "Changed to \"IndiaMart\"",
+        "timestamp": "2026-09-02T13:02:08.634Z"
+      },
+      {
+        "id": "act-1788354116581",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788329656975",
+        "agentId": "agent-1788331750812",
+        "agentName": "DSSFSD",
+        "type": "edit",
+        "title": "Updated car",
+        "description": "Changed to \"no car\"",
+        "timestamp": "2026-09-02T13:01:56.581Z"
+      },
+      {
+        "id": "act-1788354112672",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788329656975",
+        "agentId": "agent-1788331750812",
+        "agentName": "DSSFSD",
+        "type": "edit",
+        "title": "Updated Deal Value (₹)",
+        "description": "Changed to \"212322\"",
+        "timestamp": "2026-09-02T13:01:52.672Z"
+      },
+      {
+        "id": "act-1788354102184",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788323122427",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "edit",
+        "title": "Updated car",
+        "description": "Changed to \"santroo\"",
+        "timestamp": "2026-09-02T13:01:42.184Z"
+      },
+      {
+        "id": "act-1788354097713",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788323122427",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "edit",
+        "title": "Updated Deal Value (₹)",
+        "description": "Changed to \"231\"",
+        "timestamp": "2026-09-02T13:01:37.713Z"
+      },
+      {
+        "id": "act-1788354010905",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788257663855",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "edit",
+        "title": "Updated Deal Value (₹)",
+        "description": "Changed to \"2123\"",
+        "timestamp": "2026-09-02T13:00:10.905Z"
+      },
+      {
+        "id": "act-1788353752610",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788329296907",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "edit",
+        "title": "Updated Deal Value (₹)",
+        "description": "Changed to \"123\"",
+        "timestamp": "2026-09-02T12:55:52.610Z"
+      },
+      {
+        "id": "act-1788353717797",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788329296907",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "edit",
+        "title": "Updated car",
+        "description": "Changed to \"hi\"",
+        "timestamp": "2026-09-02T12:55:17.797Z"
+      },
+      {
+        "id": "act-1788353710360",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788257663855",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "edit",
+        "title": "Updated Deal Value (₹)",
+        "description": "Changed to \"21231\"",
+        "timestamp": "2026-09-02T12:55:10.360Z"
+      },
+      {
+        "id": "act-1788353281992",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788257663855",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "edit",
+        "title": "Updated Lead Source",
+        "description": "Changed to \"Facebook Ads\"",
+        "timestamp": "2026-09-02T12:48:01.992Z"
+      },
+      {
+        "id": "act-1788353275090",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788257663855",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "edit",
+        "title": "Updated Deal Value (₹)",
+        "description": "Changed to \"212313\"",
+        "timestamp": "2026-09-02T12:47:55.090Z"
+      },
+      {
+        "id": "act-1788353236939",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788342781533",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "edit",
+        "title": "Updated Deal Value (₹)",
+        "description": "Changed to \"342\"",
+        "timestamp": "2026-09-02T12:47:16.939Z"
+      },
+      {
+        "id": "act-1788353229200",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788334867413",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "edit",
+        "title": "Updated Deal Value (₹)",
+        "description": "Changed to \"3424\"",
+        "timestamp": "2026-09-02T12:47:09.200Z"
+      },
+      {
+        "id": "act-1788353210055",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788323122427",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "edit",
+        "title": "Updated Deal Value (₹)",
+        "description": "Changed to \"23\"",
+        "timestamp": "2026-09-02T12:46:50.055Z"
+      },
+      {
+        "id": "act-1788353200069",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788323122427",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "edit",
+        "title": "Updated Deal Value (₹)",
+        "description": "Changed to \"23\"",
+        "timestamp": "2026-09-02T12:46:40.069Z"
+      },
+      {
+        "id": "act-1788353190409",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788329656975",
+        "agentId": "agent-1788331750812",
+        "agentName": "DSSFSD",
+        "type": "edit",
+        "title": "Updated car",
+        "description": "Changed to \"Empty\"",
+        "timestamp": "2026-09-02T12:46:30.409Z"
+      },
+      {
+        "id": "act-1788353187655",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788329656975",
+        "agentId": "agent-1788331750812",
+        "agentName": "DSSFSD",
+        "type": "edit",
+        "title": "Updated Deal Value (₹)",
+        "description": "Changed to \"21233\"",
+        "timestamp": "2026-09-02T12:46:27.655Z"
+      },
+      {
+        "id": "act-1788353184620",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788329656975",
+        "agentId": "agent-1788331750812",
+        "agentName": "DSSFSD",
+        "type": "edit",
+        "title": "Updated Deal Value (₹)",
+        "description": "Changed to \"21233\"",
+        "timestamp": "2026-09-02T12:46:24.620Z"
+      },
+      {
+        "id": "act-1788353182139",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788329656975",
+        "agentId": "agent-1788331750812",
+        "agentName": "DSSFSD",
+        "type": "edit",
+        "title": "Updated Number",
+        "description": "Changed to \"+91 3455555555\"",
+        "timestamp": "2026-09-02T12:46:22.139Z"
+      },
+      {
+        "id": "act-1788353172811",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788329656975",
+        "agentId": "agent-1788331750812",
+        "agentName": "DSSFSD",
+        "type": "edit",
+        "title": "Updated Number",
+        "description": "Changed to \"345555555\"",
+        "timestamp": "2026-09-02T12:46:12.811Z"
+      },
+      {
+        "id": "act-1788353168140",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788329656975",
+        "agentId": "agent-1788331750812",
+        "agentName": "DSSFSD",
+        "type": "edit",
+        "title": "Updated Lead Source",
+        "description": "Changed to \"Google Ads\"",
+        "timestamp": "2026-09-02T12:46:08.140Z"
+      },
+      {
+        "id": "act-1788353164240",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788329656975",
+        "agentId": "agent-1788331750812",
+        "agentName": "DSSFSD",
+        "type": "edit",
+        "title": "Updated Lead Source",
+        "description": "Changed to \"Google Ads\"",
+        "timestamp": "2026-09-02T12:46:04.240Z"
+      },
+      {
+        "id": "act-1788353157195",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788329656975",
+        "agentId": "agent-1788331750812",
+        "agentName": "DSSFSD",
+        "type": "edit",
+        "title": "Updated car",
+        "description": "Changed to \"Empty\"",
+        "timestamp": "2026-09-02T12:45:57.195Z"
+      },
+      {
+        "id": "act-1788353151522",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788329656975",
+        "agentId": "agent-1788331750812",
+        "agentName": "DSSFSD",
+        "type": "edit",
+        "title": "Updated car",
+        "description": "Changed to \"qweq\"",
+        "timestamp": "2026-09-02T12:45:51.522Z"
+      },
+      {
+        "id": "act-1788353146857",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788329656975",
+        "agentId": "agent-1788331750812",
+        "agentName": "DSSFSD",
+        "type": "edit",
+        "title": "Updated Deal Value (₹)",
+        "description": "Changed to \"123\"",
+        "timestamp": "2026-09-02T12:45:46.857Z"
+      },
+      {
+        "id": "act-1788352922189",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788323122427",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "edit",
+        "title": "Updated Deal Value (₹)",
+        "description": "Changed to \"354\"",
+        "timestamp": "2026-09-02T12:42:02.189Z"
+      },
+      {
+        "id": "act-1788352827959",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788334867413",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "edit",
+        "title": "Updated Deal Value (₹)",
+        "description": "Changed to \"34\"",
+        "timestamp": "2026-09-02T12:40:27.959Z"
+      },
+      {
+        "id": "act-1788352757726",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788334867413",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "edit",
+        "title": "Updated car",
+        "description": "Changed to \"santro\"",
+        "timestamp": "2026-09-02T12:39:17.726Z"
+      },
+      {
+        "id": "act-1788352687257",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788323122427",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "edit",
+        "title": "Updated car",
+        "description": "Changed to \"santro\"",
+        "timestamp": "2026-09-02T12:38:07.257Z"
+      },
+      {
+        "id": "act-1788352684112",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788323122427",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "edit",
+        "title": "Updated Deal Value (₹)",
+        "description": "Changed to \"Empty\"",
+        "timestamp": "2026-09-02T12:38:04.112Z"
+      },
+      {
+        "id": "act-1788352669428",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788323122427",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "edit",
+        "title": "Updated Deal Value (₹)",
+        "description": "Changed to \"34234\"",
+        "timestamp": "2026-09-02T12:37:49.428Z"
+      },
+      {
+        "id": "act-1788352637385",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788323122427",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "edit",
+        "title": "Updated Deal Value (₹)",
+        "description": "Changed to \"23\"",
+        "timestamp": "2026-09-02T12:37:17.385Z"
+      },
+      {
+        "id": "act-1788352431317",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788257663855",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "edit",
+        "title": "Updated Deal Value (₹)",
+        "description": "Changed to \"212313\"",
+        "timestamp": "2026-09-02T12:33:51.317Z"
+      }
+    ]
   },
   "lostReasons": {
     "default_tenant": [

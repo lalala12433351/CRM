@@ -1,40 +1,47 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSyncState } from './lib/hooks';
 import { seedDatabase, clearAllLeadsFromFirestore } from './lib/db';
+// Reusable UI Components & Modals
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import { MobileBottomNav } from './components/MobileBottomNav';
-import { DashboardView } from './components/DashboardView';
-import { LeadsView } from './components/LeadsView';
-import { OmnichannelInboxView } from './components/OmnichannelInboxView';
-import { PipelineView } from './components/PipelineView';
-import { WhatsAppCrmView } from './components/WhatsAppCrmView';
-import { WorkflowsView, AutomationsSubTab } from './components/WorkflowsView';
-import { CallingLogsView } from './components/CallingLogsView';
-import { MyCallsView } from './components/MyCallsView';
-import { AnalyticsView } from './components/AnalyticsView';
-import { TeamView } from './components/TeamView';
-import { MarketingView } from './components/MarketingView';
-import { DocsAndSignView } from './components/DocsAndSignView';
-import { AddLeadView } from './components/AddLeadView';
-import { FollowUpsView } from './components/FollowUpsView';
-import { ReportsView, ReportsSubTab } from './components/ReportsView';
-import { IntegrationsView } from './components/IntegrationsView';
-import { SettingsView, SettingsTab } from './components/SettingsView';
-import { CampaignsView } from './components/CampaignsView';
-import { FieldsSettingsView } from './components/FieldsSettingsView';
-import { CallFeedbackSettingsView } from './components/CallFeedbackSettingsView';
-import { TasksView } from './components/TasksView';
-
 import { LeadDetailModal } from './components/LeadDetailModal';
 import { AiVoiceBotModal } from './components/AiVoiceBotModal';
 import { GoogleSheetsIntegrationModal } from './components/GoogleSheetsIntegrationModal';
 import { CommandPalette } from './components/CommandPalette';
 import { AiCopilotModal } from './components/AiCopilotModal';
 import { PowerDialerQueueModal } from './components/PowerDialerQueueModal';
-import { LoginView } from './components/LoginView';
-import { SignUpView } from './components/SignUpView';
 import { PixbeLoadingScreen } from './components/PixbeLoadingScreen';
+
+// Page Components & Types from ./pages
+import {
+  DashboardPage as DashboardView,
+  LeadsPage as LeadsView,
+  OmnichannelInboxPage as OmnichannelInboxView,
+  PipelinePage as PipelineView,
+  WhatsAppCrmPage as WhatsAppCrmView,
+  WorkflowsPage as WorkflowsView,
+  MyCallsPage as MyCallsView,
+  AnalyticsPage as AnalyticsView,
+  TeamPage as TeamView,
+  MarketingPage as MarketingView,
+  DocsAndSignPage as DocsAndSignView,
+  AddLeadPage as AddLeadView,
+  FollowUpsPage as FollowUpsView,
+  ReportsPage as ReportsView,
+  IntegrationsPage as IntegrationsView,
+  SettingsPage as SettingsView,
+  CampaignsPage as CampaignsView,
+  TasksPage as TasksView,
+  LoginPage as LoginView,
+  SignUpPage as SignUpView,
+  AutomationsSubTab,
+  ReportsSubTab,
+  SettingsTab,
+  CallingLogsPage as CallingLogsView,
+  FieldsSettingsPage as FieldsSettingsView,
+  CallFeedbackSettingsPage as CallFeedbackSettingsView,
+} from './pages';
 import { PhoneCall, X, Users } from 'lucide-react';
 import { verifyCurrentSession, logoutWithApi, fetchWithTenantAuth } from './lib/auth';
 import { formatArcleName } from './utils/brandUtils';
@@ -73,21 +80,25 @@ import {
 } from './types';
 
 import { getAgentPermissionRights } from './utils/permissionUtils';
+import { getInitialViewFromUrl, syncUrlWithView, pathToView } from './utils/navigation';
 import { ShieldCheck } from 'lucide-react';
 
 export const StagesContext = React.createContext<PipelineStage[]>(INITIAL_STAGES);
 
 export function App() {
-  // Navigation & Active View State (persisted so view is not lost on edits or refresh)
+  // Navigation & Active View State (synchronized with browser URL and history)
   const [currentView, setCurrentView] = useState<string>(() => {
-    try {
-      return localStorage.getItem('pixbe_current_view') || 'leads';
-    } catch {
-      return 'leads';
-    }
+    return getInitialViewFromUrl('leads');
   });
   const [reportsSubTab, setReportsSubTab] = useState<ReportsSubTab>(() => {
     try {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const tab = params.get('tab') as ReportsSubTab;
+        if (tab && ['call_logs', 'agent_performance', 'lead_analytics', 'hourly_distribution'].includes(tab)) {
+          return tab;
+        }
+      }
       return (localStorage.getItem('pixbe_reports_subtab') as ReportsSubTab) || 'call_logs';
     } catch {
       return 'call_logs';
@@ -95,6 +106,13 @@ export function App() {
   });
   const [automationsSubTab, setAutomationsSubTab] = useState<AutomationsSubTab>(() => {
     try {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const tab = params.get('tab') as AutomationsSubTab;
+        if (tab && ['workflows', 'automations', 'canvas'].includes(tab)) {
+          return tab;
+        }
+      }
       return (localStorage.getItem('pixbe_automations_subtab') as AutomationsSubTab) || 'workflows';
     } catch {
       return 'workflows';
@@ -102,6 +120,13 @@ export function App() {
   });
   const [settingsSubTab, setSettingsSubTab] = useState<SettingsTab>(() => {
     try {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const tab = params.get('tab') as SettingsTab;
+        if (tab && ['general', 'pipelines', 'team', 'fields', 'permissions', 'lost_reasons', 'security'].includes(tab)) {
+          return tab;
+        }
+      }
       return (localStorage.getItem('pixbe_settings_subtab') as SettingsTab) || 'general';
     } catch {
       return 'general';
@@ -111,12 +136,89 @@ export function App() {
   const [selectedCampaignHandle, setSelectedCampaignHandle] = useState<string>('@master-form-iata-cargo');
   const [activeFilterId, setActiveFilterId] = useState<string>('all_leads');
 
-  // Keep navigation states synchronized with localStorage
+  // Keep navigation states synchronized with browser URL & localStorage
+  // Real-World Authentication & Session State
+  const [currentUser, setCurrentUser] = useState<Agent | null>(() => {
+    const stored = localStorage.getItem('pixbe_auth_user') || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pixbe_auth_user') : null);
+    if (stored) {
+      try {
+        return JSON.parse(stored) as Agent;
+      } catch (e) {}
+    }
+    return null;
+  });
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    const stored = localStorage.getItem('pixbe_auth_user') || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pixbe_auth_user') : null);
+    return !!stored;
+  });
+  const [authScreen, setAuthScreen] = useState<'login' | 'signup'>(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.toLowerCase().replace(/\/+$/, '');
+      if (path === '/signup' || path === '/sign-up') return 'signup';
+      if (path === '/login') return 'login';
+    }
+    return 'login';
+  });
+  const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
+
+  // Keep navigation states synchronized with browser URL & localStorage
   useEffect(() => {
-    try {
-      localStorage.setItem('pixbe_current_view', currentView);
-    } catch {}
-  }, [currentView]);
+    if (!isAuthenticated) {
+      const targetPath = authScreen === 'signup' ? '/signup' : '/login';
+      const currentPath = typeof window !== 'undefined' ? window.location.pathname.toLowerCase().replace(/\/+$/, '') : '';
+      if (currentPath !== targetPath) {
+        window.history.replaceState(null, '', targetPath);
+      }
+      return;
+    }
+
+    // When authenticated: if the URL is /login or /signup or root /, navigate to the active CRM view
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.toLowerCase().replace(/\/+$/, '');
+      if (path === '/login' || path === '/signup' || path === '/sign-up' || path === '') {
+        syncUrlWithView(currentView || 'leads');
+        return;
+      }
+    }
+
+    const activeSubTab = 
+      currentView === 'reports' ? reportsSubTab :
+      currentView === 'workflows' ? automationsSubTab :
+      currentView === 'settings' ? settingsSubTab : undefined;
+
+    syncUrlWithView(currentView, activeSubTab);
+  }, [isAuthenticated, authScreen, currentView, reportsSubTab, automationsSubTab, settingsSubTab]);
+
+  // Handle browser Back / Forward history navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname.toLowerCase().replace(/\/+$/, '');
+
+      if (!isAuthenticated) {
+        if (path === '/signup' || path === '/sign-up') {
+          setAuthScreen('signup');
+        } else if (path === '/login') {
+          setAuthScreen('login');
+        }
+        return;
+      }
+
+      const viewFromPath = pathToView(window.location.pathname);
+      if (viewFromPath && viewFromPath !== currentView) {
+        setCurrentView(viewFromPath);
+      }
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab) {
+        if (viewFromPath === 'reports') setReportsSubTab(tab as ReportsSubTab);
+        if (viewFromPath === 'workflows') setAutomationsSubTab(tab as AutomationsSubTab);
+        if (viewFromPath === 'settings') setSettingsSubTab(tab as SettingsTab);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [currentView, isAuthenticated]);
 
   useEffect(() => {
     try {
@@ -142,23 +244,6 @@ export function App() {
     { id: 'active_leads', name: 'All Active Leads', iconType: 'arrow' },
     { id: 'followup_leads', name: 'Followup Leads', iconType: 'filter' },
   ];
-
-  // Real-World Authentication & Session State
-  const [currentUser, setCurrentUser] = useState<Agent | null>(() => {
-    const stored = localStorage.getItem('pixbe_auth_user') || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pixbe_auth_user') : null);
-    if (stored) {
-      try {
-        return JSON.parse(stored) as Agent;
-      } catch (e) {}
-    }
-    return null;
-  });
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    const stored = localStorage.getItem('pixbe_auth_user') || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pixbe_auth_user') : null);
-    return !!stored;
-  });
-  const [authScreen, setAuthScreen] = useState<'login' | 'signup'>('login');
-  const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
 
   // Active authenticated tenant id
   const activeTenantId = currentUser?.tenantId || (typeof localStorage !== 'undefined' ? (() => {
@@ -359,8 +444,10 @@ export function App() {
   };
 
   const handleLoginSuccess = async (agent: Agent) => {
-    localStorage.setItem('pixbe_auth_user', JSON.stringify(agent));
-    sessionStorage.setItem('pixbe_auth_user', JSON.stringify(agent));
+    try {
+      localStorage.setItem('pixbe_auth_user', JSON.stringify(agent));
+      sessionStorage.setItem('pixbe_auth_user', JSON.stringify(agent));
+    } catch (e) {}
     setCurrentUser(agent);
     setActiveAgentId(agent.id);
     if (agent.companyName) {
@@ -368,29 +455,33 @@ export function App() {
     }
     setIsAuthenticated(true);
     setIsLoggingIn(false);
+
+    // Clean browser redirection to /leads ensuring all collections hydrate freshly
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.toLowerCase().replace(/\/+$/, '');
+      if (path === '/login' || path === '/signup' || path === '/sign-up' || path === '') {
+        window.location.href = '/leads';
+        return;
+      }
+    }
+
     await loadTenantDomainData(agent.tenantId || 'default_tenant');
     showToast(`Welcome back, ${agent.name || 'User'}!`);
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('pixbe_auth_user');
-    localStorage.removeItem('pixbe_auth_token');
-    sessionStorage.removeItem('pixbe_auth_user');
-    sessionStorage.removeItem('pixbe_auth_token');
-    setCurrentUser(null);
-    setIsAuthenticated(false);
-    setIsLoggingIn(false);
-    setLeads([]);
-    setAgents([]);
-    setStages([]);
-    setCrmTasks([]);
-    setActivities([]);
-    setMessages([]);
-    setCallRecords([]);
-    setDetailLead(null);
-    setVoiceBotLead(null);
+    try {
+      localStorage.removeItem('pixbe_auth_user');
+      localStorage.removeItem('pixbe_auth_token');
+      sessionStorage.removeItem('pixbe_auth_user');
+      sessionStorage.removeItem('pixbe_auth_token');
+    } catch (e) {}
     logoutWithApi().catch(() => {});
-    showToast('Logged out of workspace.');
+    
+    // Clean full navigation to /login to ensure the login page and subsequent logins render cleanly
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
   };
 
   const handleSelectAgent = (agentId: string) => {
@@ -654,8 +745,11 @@ export function App() {
     const existing = leads.find((l) => l.id === updated.id);
     const stageChanged = existing && existing.status !== updated.status;
     
-    setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
-    if (detailLead?.id === updated.id) setDetailLead(updated);
+    setLeads((prev) => {
+      const exists = prev.some((l) => l.id === updated.id);
+      return exists ? prev.map((l) => (l.id === updated.id ? { ...l, ...updated } : l)) : [updated, ...prev];
+    });
+    if (detailLead?.id === updated.id) setDetailLead((prev) => (prev ? { ...prev, ...updated } : updated));
 
     fetchWithTenantAuth('/api/leads', {
       method: 'POST',
@@ -668,17 +762,25 @@ export function App() {
   };
 
   const handlePartialUpdateLead = (leadId: string, updates: Partial<Lead>) => {
-    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, ...updates, updatedAt: new Date().toISOString() } : l)));
-    if (detailLead?.id === leadId) setDetailLead((prev) => prev ? { ...prev, ...updates } : null);
+    setLeads((prev) => {
+      const exists = prev.some((l) => l.id === leadId);
+      if (exists) {
+        return prev.map((l) => (l.id === leadId ? { ...l, ...updates, updatedAt: new Date().toISOString() } : l));
+      } else {
+        const found = leads.find((l) => l.id === leadId);
+        if (found) {
+          return [{ ...found, ...updates, updatedAt: new Date().toISOString() }, ...prev];
+        }
+        return prev;
+      }
+    });
+    if (detailLead?.id === leadId) setDetailLead((prev) => (prev ? { ...prev, ...updates } : null));
     showToast('Lead follow-up / details updated');
 
-    const existing = leads.find((l) => l.id === leadId);
-    if (existing) {
-      fetchWithTenantAuth('/api/leads', {
-        method: 'POST',
-        body: JSON.stringify({ ...existing, ...updates })
-      }).catch((err) => console.warn('Lead DB update notice:', err));
-    }
+    fetchWithTenantAuth('/api/leads', {
+      method: 'POST',
+      body: JSON.stringify({ id: leadId, ...updates })
+    }).catch((err) => console.warn('Lead DB update notice:', err));
     
     if (updates.status) {
       triggerConversionDispatch(leadId, updates.status);
@@ -892,7 +994,12 @@ export function App() {
             handleLoginSuccess(registeredUser);
             showToast(`Company workspace provisioned for ${registeredUser.companyName || 'your account'}!`);
           }}
-          onSwitchToLogin={() => setAuthScreen('login')}
+          onSwitchToLogin={() => {
+            setAuthScreen('login');
+            if (typeof window !== 'undefined') {
+              window.history.pushState(null, '', '/login');
+            }
+          }}
         />
       );
     }
@@ -900,7 +1007,12 @@ export function App() {
       <LoginView
         agents={agents.length > 0 ? agents : INITIAL_AGENTS}
         onLogin={handleLoginSuccess}
-        onSwitchToSignUp={() => setAuthScreen('signup')}
+        onSwitchToSignUp={() => {
+          setAuthScreen('signup');
+          if (typeof window !== 'undefined') {
+            window.history.pushState(null, '', '/signup');
+          }
+        }}
       />
     );
   }
@@ -1391,15 +1503,20 @@ export function App() {
             };
             setActivities((prev) => [newActivity, ...prev]);
 
-            // Persist activity inside the lead's own record in database
-            const currentLead = leads.find((l) => l.id === newActivity.leadId) || detailLead;
-            if (currentLead) {
-              const updatedLead: Lead = {
-                ...currentLead,
-                activities: [newActivity, ...(currentLead.activities || []).filter((a) => a.id !== newActivity.id)]
-              };
-              handleUpdateLead(updatedLead);
-            }
+            // Persist activity inside the lead's own record in state and database safely
+            setLeads((prev) =>
+              prev.map((l) => {
+                if (l.id === newActivity.leadId) {
+                  const updatedLead = {
+                    ...l,
+                    activities: [newActivity, ...(l.activities || []).filter((a) => a.id !== newActivity.id)],
+                    updatedAt: new Date().toISOString()
+                  };
+                  return updatedLead;
+                }
+                return l;
+              })
+            );
 
             // Also post to backend /api/activities
             fetchWithTenantAuth('/api/activities', {

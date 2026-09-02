@@ -26,8 +26,7 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import { TabType } from './Sidebar';
-import { ReportsSubTab } from './ReportsView';
-import { AutomationsSubTab } from './WorkflowsView';
+import { ReportsSubTab, AutomationsSubTab } from '../pages';
 import { Agent, isAgentAdmin } from '../types';
 import { formatArcleName } from '../utils/brandUtils';
 

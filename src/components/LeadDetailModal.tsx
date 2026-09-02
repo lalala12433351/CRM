@@ -70,6 +70,7 @@ import { getStatusStyle } from '../utils/statusStyles';
 import { StagesContext } from '../App';
 import { getFieldTypeIcon } from './ColumnCustomizerModal';
 import { fetchWithTenantAuth } from '../lib/auth';
+import { validateField, validatePhone, validateCurrencyOrNumber, validateText, validateEmail } from '../lib/validation';
 
 interface LeadDetailModalProps {
   lead: Lead | null;
@@ -93,7 +94,7 @@ interface LeadDetailModalProps {
 }
 
 export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
-  lead,
+  lead: initialLead,
   allLeads = [],
   agents,
   activities,
@@ -112,14 +113,22 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   isEmbedded = false,
   campaignHandle,
 }) => {
-  if (!lead) return null;
+  const [currentLead, setCurrentLead] = useState<Lead | null>(initialLead);
+
+  useEffect(() => {
+    setCurrentLead(initialLead);
+  }, [initialLead]);
 
   const stages = useContext(StagesContext);
 
   // Dynamic Fields from Settings & Inline Editing State
   const [editingFieldKey, setEditingFieldKey] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState<string>('');
+  const [fieldValidationError, setFieldValidationError] = useState<string | null>(null);
   const [saveSuccessFieldKey, setSaveSuccessFieldKey] = useState<string | null>(null);
+
+  const lead = currentLead;
+  if (!lead) return null;
 
   // Active user-configured fields in Settings (excluding top header fields name & status)
   const detailFields = useMemo(() => {
@@ -130,72 +139,136 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
 
   const getLeadFieldDisplayValue = (field: CustomFieldDef): string => {
     if (!lead) return '';
-    const key = field.name;
-    if (key === 'phone') return lead.phone || '';
-    if (key === 'email') return lead.email || '';
-    if (key === 'alternate_phone' || key === 'alternatePhone') return lead.alternatePhone || '';
-    if (key === 'company') return lead.company || '';
-    if (key === 'city') return lead.city || '';
-    if (key === 'state') return lead.state || '';
-    if (key === 'pincode') return lead.pincode || '';
-    if (key === 'address') return lead.address || '';
-    if (key === 'source') return lead.source || '';
-    if (key === 'deal_value' || key === 'dealValue') return lead.dealValue ? String(lead.dealValue) : '';
-    if (key === 'notes' || key === 'special_remarks') return lead.notes || '';
-    
-    if (lead.customFields && lead.customFields[key] !== undefined && lead.customFields[key] !== null) {
-      return String(lead.customFields[key]);
+    const key = field.name || field.id || '';
+    const idKey = field.id || '';
+    const labelKey = field.label ? field.label.toLowerCase().replace(/\s+/g, '_') : '';
+    const labelLower = (field.label || '').toLowerCase();
+
+    if (key === 'phone' || idKey === 'f-phone' || field.type === 'phone') return lead.phone || '';
+    if (key === 'email' || idKey === 'f-email' || field.type === 'email') return lead.email || '';
+    if (key === 'alternate_phone' || key === 'alternatePhone' || idKey === 'f-alt-phone') return lead.alternatePhone || lead.altPhone || '';
+    if (key === 'company' || idKey === 'f-company') return lead.company || '';
+    if (key === 'city' || idKey === 'f-city') return lead.city || '';
+    if (key === 'state' || idKey === 'f-state') return lead.state || '';
+    if (key === 'pincode' || idKey === 'f-pincode') return lead.pincode || '';
+    if (key === 'address' || idKey === 'f-addr') return lead.address || '';
+    if (key === 'source' || idKey === 'f-source' || labelLower.includes('source')) return lead.source || '';
+    if (key === 'deal_value' || key === 'dealValue' || idKey === 'f-deal-val' || labelLower.includes('deal value')) {
+      if (lead.dealValue !== undefined && lead.dealValue !== null && lead.dealValue !== 0) return String(lead.dealValue);
+      if ((lead as any).deal_value !== undefined && (lead as any).deal_value !== null && (lead as any).deal_value !== 0) return String((lead as any).deal_value);
+      if (lead.customFields?.deal_value !== undefined && lead.customFields?.deal_value !== null && lead.customFields?.deal_value !== 0) return String(lead.customFields.deal_value);
+      if (lead.customFields?.dealValue !== undefined && lead.customFields?.dealValue !== null && lead.customFields?.dealValue !== 0) return String(lead.customFields.dealValue);
+      return '';
     }
-    if ((lead as any)[key] !== undefined && (lead as any)[key] !== null) {
-      return String((lead as any)[key]);
+    if (key === 'notes' || key === 'special_remarks' || idKey === 'f-notes') return lead.notes || '';
+    
+    // Check all possible keys in customFields
+    const candidateKeys = [key, idKey, labelKey, field.label, field.name, field.id, labelLower].filter(Boolean) as string[];
+    if (lead.customFields) {
+      for (const k of candidateKeys) {
+        if (lead.customFields[k] !== undefined && lead.customFields[k] !== null && String(lead.customFields[k]).trim() !== '') {
+          return String(lead.customFields[k]);
+        }
+      }
+    }
+    for (const k of candidateKeys) {
+      if ((lead as any)[k] !== undefined && (lead as any)[k] !== null && String((lead as any)[k]).trim() !== '') {
+        return String((lead as any)[k]);
+      }
     }
     return '';
   };
 
   const handleStartEditField = (field: CustomFieldDef) => {
-    setEditingFieldKey(field.name || field.id);
+    setEditingFieldKey(field.name || field.id || field.label);
     setEditingValue(getLeadFieldDisplayValue(field));
+    setFieldValidationError(null);
   };
 
   const handleSaveFieldEdit = (field: CustomFieldDef, rawValue: string) => {
     if (!lead) return;
     const trimmed = rawValue.trim();
-    const key = field.name;
+
+    // Strict Validation Check against limits and formatting
+    const validation = validateField(field, trimmed);
+    if (!validation.isValid) {
+      setFieldValidationError(validation.error || 'Validation error');
+      return;
+    }
+    setFieldValidationError(null);
+
+    const key = field.name || field.id || field.label.toLowerCase().replace(/\s+/g, '_');
+    const idKey = field.id || '';
+    const labelLower = (field.label || '').toLowerCase();
+    const labelKey = field.label ? field.label.toLowerCase().replace(/\s+/g, '_') : '';
 
     const updatedLead: Lead = {
       ...lead,
       updatedAt: new Date().toISOString()
     };
 
-    if (key === 'phone') {
-      const cleaned = trimmed ? (trimmed.startsWith('+') ? trimmed : trimmed.startsWith('91') ? `+${trimmed}` : `+91 ${trimmed}`) : '';
+    if (key === 'phone' || idKey === 'f-phone' || field.type === 'phone') {
+      const rawDigits = trimmed.replace(/\D/g, '');
+      const last10 = (rawDigits.startsWith('91') && rawDigits.length > 10 ? rawDigits.slice(2) : rawDigits).slice(0, 10);
+      const cleaned = last10 ? `+91 ${last10}` : '';
       updatedLead.phone = cleaned;
-    } else if (key === 'email') {
+    } else if (key === 'email' || idKey === 'f-email' || field.type === 'email') {
       updatedLead.email = trimmed;
-    } else if (key === 'alternate_phone' || key === 'alternatePhone') {
-      updatedLead.alternatePhone = trimmed;
-    } else if (key === 'company') {
+    } else if (key === 'alternate_phone' || key === 'alternatePhone' || idKey === 'f-alt-phone') {
+      const rawDigits = trimmed.replace(/\D/g, '');
+      const last10 = (rawDigits.startsWith('91') && rawDigits.length > 10 ? rawDigits.slice(2) : rawDigits).slice(0, 10);
+      const cleaned = last10 ? `+91 ${last10}` : '';
+      updatedLead.alternatePhone = cleaned;
+      updatedLead.altPhone = cleaned;
+    } else if (key === 'company' || idKey === 'f-company') {
       updatedLead.company = trimmed;
-    } else if (key === 'city') {
+    } else if (key === 'city' || idKey === 'f-city') {
       updatedLead.city = trimmed;
-    } else if (key === 'state') {
+    } else if (key === 'state' || idKey === 'f-state') {
       updatedLead.state = trimmed;
-    } else if (key === 'pincode') {
-      updatedLead.pincode = trimmed;
-    } else if (key === 'address') {
+    } else if (key === 'pincode' || idKey === 'f-pincode') {
+      updatedLead.pincode = trimmed.replace(/\D/g, '').slice(0, 6);
+    } else if (key === 'address' || idKey === 'f-addr') {
       updatedLead.address = trimmed;
-    } else if (key === 'source') {
+    } else if (key === 'source' || idKey === 'f-source' || labelLower.includes('source')) {
       updatedLead.source = (trimmed as any) || lead.source;
-    } else if (key === 'deal_value' || key === 'dealValue') {
-      updatedLead.dealValue = Number(trimmed) || 0;
+    } else if (key === 'deal_value' || key === 'dealValue' || idKey === 'f-deal-val' || labelLower.includes('deal value')) {
+      const numericVal = trimmed === '' ? 0 : Number(trimmed.replace(/[^\d.]/g, '')) || 0;
+      updatedLead.dealValue = numericVal;
+      (updatedLead as any).deal_value = numericVal;
+      (updatedLead as any).dealValue = numericVal;
+      updatedLead.customFields = {
+        ...(updatedLead.customFields || {}),
+        deal_value: numericVal,
+        dealValue: numericVal,
+        'f-deal-val': numericVal,
+        [key]: numericVal,
+        ...(field.label ? { [field.label]: numericVal } : {})
+      };
+    } else if (key === 'notes' || key === 'special_remarks' || idKey === 'f-notes') {
+      updatedLead.notes = trimmed;
     } else {
       updatedLead.customFields = {
         ...(updatedLead.customFields || {}),
-        [key]: trimmed
+        [key]: trimmed,
+        ...(idKey ? { [idKey]: trimmed } : {}),
+        ...(field.name ? { [field.name]: trimmed } : {}),
+        ...(field.label ? { [field.label]: trimmed } : {}),
+        ...(labelKey ? { [labelKey]: trimmed } : {}),
+        ...(labelLower ? { [labelLower]: trimmed } : {})
       };
+      (updatedLead as any)[key] = trimmed;
+      if (labelKey) (updatedLead as any)[labelKey] = trimmed;
+      if (field.label) (updatedLead as any)[field.label] = trimmed;
+      if (field.name) (updatedLead as any)[field.name] = trimmed;
+      if (field.id) (updatedLead as any)[field.id] = trimmed;
     }
 
+    setCurrentLead(updatedLead);
     onUpdateLead(updatedLead);
+    setEditingFieldKey(null);
+    setSaveSuccessFieldKey(field.name || field.id || field.label);
+    setTimeout(() => setSaveSuccessFieldKey(null), 2500);
 
     // Direct database persistence sync
     fetchWithTenantAuth('/api/leads', {
@@ -213,11 +286,8 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
       description: `Changed to "${trimmed || 'Empty'}"`,
       timestamp: new Date().toISOString()
     });
-
-    setSaveSuccessFieldKey(field.name);
-    setTimeout(() => setSaveSuccessFieldKey(null), 1800);
-    setEditingFieldKey(null);
   };
+
   const [activeTab, setActiveTab] = useState<'timeline' | 'tasks' | 'whatsapp' | 'calls' | 'notes' | 'attribution'>('timeline');
   const [whatsAppText, setWhatsAppText] = useState('');
   const [noteText, setNoteText] = useState(lead.notes || '');
@@ -268,31 +338,8 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
     const leadSpecific = Array.isArray(lead.activities) ? lead.activities : [];
     const globalMatching = (activities || []).filter((a) => a.leadId === lead.id);
 
-    const anchorEvents: ActivityLog[] = [
-      {
-        id: `anchor-fb-${lead.id}`,
-        leadId: lead.id,
-        type: 'facebook_form',
-        title: 'Lead Capture',
-        description: 'Lead Capture from Inbound Lead Form & Connected Social Page',
-        timestamp: lead.createdAt || new Date(Date.now() - 21 * 3600000).toISOString(),
-        agentId: 'bot',
-        agentName: 'Meta Form'
-      },
-      {
-        id: `anchor-capi-${lead.id}`,
-        leadId: lead.id,
-        type: 'capi',
-        title: 'CAPI 200',
-        description: 'Conversion API Event Handshake Confirmed',
-        timestamp: lead.createdAt || new Date(Date.now() - 24 * 3600000).toISOString(),
-        agentId: 'bot',
-        agentName: 'CAPI'
-      }
-    ];
-
     const seen = new Set<string>();
-    const all = [...leadSpecific, ...globalMatching, ...anchorEvents].filter((act) => {
+    const all = [...leadSpecific, ...globalMatching].filter((act) => {
       if (!act || !act.id) return false;
       if (seen.has(act.id)) return false;
       seen.add(act.id);
@@ -1253,8 +1300,8 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                         );
                       })()}
 
-                      {/* Scheduled Follow-Up Date/Time Pill */}
-                      {lead.followUpAt && (
+                      {/* Scheduled Follow-Up Date/Time Pill (Only for Follow Up stage) */}
+                      {lead.followUpAt && (lead.status === 'Follow Up' || lead.status === 'Follow-Up' || (lead.status || '').toLowerCase().includes('follow')) && (
                         <button
                           type="button"
                           onClick={() => {
@@ -1511,12 +1558,13 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                     const moreFields = detailFields.slice(8);
 
                     const renderFieldItem = (field: CustomFieldDef) => {
-                      const isEditing = editingFieldKey === (field.name || field.id);
+                      const fieldKey = field.name || field.id || field.label;
+                      const isEditing = editingFieldKey === fieldKey;
                       const displayVal = getLeadFieldDisplayValue(field);
-                      const isRecentlySaved = saveSuccessFieldKey === field.name;
+                      const isRecentlySaved = saveSuccessFieldKey === fieldKey;
 
                       return (
-                        <div key={field.id || field.name} className="group relative">
+                        <div key={field.id || field.name || field.label} className="group relative">
                           {/* Field Header */}
                           <div className="flex items-center text-slate-400 mb-1 justify-between">
                             <div className="flex items-center space-x-1.5 min-w-0">
@@ -1549,75 +1597,171 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                               }}
                               className="flex items-center space-x-1 mt-1"
                               onClick={(e) => e.stopPropagation()}
-                            >
-                              {field.type === 'dropdown' && field.options && field.options.length > 0 ? (
-                                <select
-                                  autoFocus
-                                  value={editingValue}
-                                  onChange={(e) => setEditingValue(e.target.value)}
-                                  className="w-full text-xs bg-white border border-indigo-500 rounded-md px-2 py-1 focus:outline-none shadow-xs"
-                                >
-                                  <option value="">Select option...</option>
-                                  {field.options.map((opt) => (
-                                    <option key={opt} value={opt}>{opt}</option>
-                                  ))}
-                                </select>
-                              ) : field.type === 'phone' ? (
-                                <div className="flex items-center w-full bg-white border border-indigo-500 rounded-md px-2 py-0.5 shadow-xs">
-                                  <span className="mr-1 text-sm">🇮🇳</span>
-                                  <span className="text-xs text-slate-500 font-semibold mr-1">91</span>
-                                  <input
-                                    autoFocus
-                                    type="tel"
-                                    value={editingValue.replace(/^\+?91\s*/, '')}
-                                    onChange={(e) => setEditingValue(e.target.value.replace(/\D/g, ''))}
-                                    className="w-full text-xs focus:outline-none"
-                                    placeholder="Phone number"
-                                  />
-                                </div>
-                              ) : field.type === 'date' ? (
-                                <input
-                                  autoFocus
-                                  type="date"
-                                  value={editingValue}
-                                  onChange={(e) => setEditingValue(e.target.value)}
-                                  className="w-full text-xs bg-white border border-indigo-500 rounded-md px-2 py-1 focus:outline-none shadow-xs"
-                                />
-                              ) : field.type === 'number' || field.type === 'currency' ? (
-                                <input
-                                  autoFocus
-                                  type="number"
-                                  value={editingValue}
-                                  onChange={(e) => setEditingValue(e.target.value)}
-                                  className="w-full text-xs bg-white border border-indigo-500 rounded-md px-2 py-1 focus:outline-none shadow-xs"
-                                  placeholder="0"
-                                />
-                              ) : (
-                                <input
-                                  autoFocus
-                                  type="text"
-                                  value={editingValue}
-                                  onChange={(e) => setEditingValue(e.target.value)}
-                                  className="w-full text-xs bg-white border border-indigo-500 rounded-md px-2 py-1 focus:outline-none shadow-xs"
-                                  placeholder={`Enter ${field.label}...`}
-                                />
-                              )}
+                            >                              <div className="w-full space-y-1">
+                                <div className="flex items-center space-x-1">
+                                  {field.type === 'dropdown' && field.options && field.options.length > 0 ? (
+                                    <select
+                                      autoFocus
+                                      value={editingValue}
+                                      onChange={(e) => {
+                                        const newVal = e.target.value;
+                                        setEditingValue(newVal);
+                                        handleSaveFieldEdit(field, newVal);
+                                      }}
+                                      onBlur={() => handleSaveFieldEdit(field, editingValue)}
+                                      className="w-full text-xs bg-white border border-indigo-500 rounded-md px-2 py-1 focus:outline-none shadow-xs cursor-pointer"
+                                    >
+                                      <option value="">Select option...</option>
+                                      {field.options.map((opt) => (
+                                        <option key={opt} value={opt}>{opt}</option>
+                                      ))}
+                                    </select>
+                                  ) : field.type === 'phone' ? (
+                                    <div className={`flex items-center w-full bg-white border ${fieldValidationError ? 'border-rose-500 ring-1 ring-rose-200' : 'border-indigo-500'} rounded-md px-2 py-0.5 shadow-xs`}>
+                                      <span className="mr-1 text-sm">🇮🇳</span>
+                                      <span className="text-xs text-slate-500 font-semibold mr-1">91</span>
+                                      <input
+                                        autoFocus
+                                        type="tel"
+                                        maxLength={10}
+                                        value={editingValue.replace(/^\+?91\s*/, '')}
+                                        onChange={(e) => {
+                                          const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                          setEditingValue(digitsOnly);
+                                          const validation = validatePhone(digitsOnly, field.required);
+                                          if (!validation.isValid && digitsOnly.length > 0) {
+                                            setFieldValidationError(validation.error || 'Invalid phone number');
+                                          } else {
+                                            setFieldValidationError(null);
+                                          }
+                                        }}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleSaveFieldEdit(field, editingValue);
+                                          } else if (e.key === 'Escape') {
+                                            setEditingFieldKey(null);
+                                            setFieldValidationError(null);
+                                          }
+                                        }}
+                                        onBlur={() => handleSaveFieldEdit(field, editingValue)}
+                                        className="w-full text-xs focus:outline-none"
+                                        placeholder="10-digit number"
+                                      />
+                                    </div>
+                                  ) : field.type === 'date' ? (
+                                    <input
+                                      autoFocus
+                                      type="date"
+                                      value={editingValue}
+                                      onChange={(e) => {
+                                        const newVal = e.target.value;
+                                        setEditingValue(newVal);
+                                        handleSaveFieldEdit(field, newVal);
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          handleSaveFieldEdit(field, editingValue);
+                                        } else if (e.key === 'Escape') {
+                                          setEditingFieldKey(null);
+                                          setFieldValidationError(null);
+                                        }
+                                      }}
+                                      onBlur={() => handleSaveFieldEdit(field, editingValue)}
+                                      className="w-full text-xs bg-white border border-indigo-500 rounded-md px-2 py-1 focus:outline-none shadow-xs"
+                                    />
+                                  ) : field.type === 'number' || field.type === 'currency' ? (
+                                    <input
+                                      autoFocus
+                                      type="number"
+                                      min={field.minValue ?? 0}
+                                      max={field.maxValue ?? 1000000000}
+                                      value={editingValue}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setEditingValue(val);
+                                        const res = validateCurrencyOrNumber(val, field, field.required);
+                                        if (!res.isValid && val.trim() !== '') {
+                                          setFieldValidationError(res.error || 'Invalid amount');
+                                        } else {
+                                          setFieldValidationError(null);
+                                        }
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          handleSaveFieldEdit(field, editingValue);
+                                        } else if (e.key === 'Escape') {
+                                          setEditingFieldKey(null);
+                                          setFieldValidationError(null);
+                                        }
+                                      }}
+                                      onBlur={() => handleSaveFieldEdit(field, editingValue)}
+                                      className={`w-full text-xs bg-white border ${fieldValidationError ? 'border-rose-500 ring-1 ring-rose-200' : 'border-indigo-500'} rounded-md px-2 py-1 focus:outline-none shadow-xs`}
+                                      placeholder={field.placeholder || "0"}
+                                    />
+                                  ) : (
+                                    <input
+                                      autoFocus
+                                      type={field.type === 'email' ? 'email' : 'text'}
+                                      maxLength={field.maxLength}
+                                      value={editingValue}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setEditingValue(val);
+                                        const res = validateField(field, val);
+                                        if (!res.isValid && val.trim() !== '') {
+                                          setFieldValidationError(res.error || 'Invalid text');
+                                        } else {
+                                          setFieldValidationError(null);
+                                        }
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          handleSaveFieldEdit(field, editingValue);
+                                        } else if (e.key === 'Escape') {
+                                          setEditingFieldKey(null);
+                                          setFieldValidationError(null);
+                                        }
+                                      }}
+                                      onBlur={() => handleSaveFieldEdit(field, editingValue)}
+                                      className={`w-full text-xs bg-white border ${fieldValidationError ? 'border-rose-500 ring-1 ring-rose-200' : 'border-indigo-500'} rounded-md px-2 py-1 focus:outline-none shadow-xs`}
+                                      placeholder={`Enter ${field.label}...`}
+                                    />
+                                  )}
 
-                              <button
-                                type="submit"
-                                className="p-1 rounded bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer shrink-0"
-                                title="Save to database"
-                              >
-                                <Check className="w-3.5 h-3.5 stroke-[3]" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setEditingFieldKey(null)}
-                                className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 cursor-pointer shrink-0"
-                                title="Cancel"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
+                                  <button
+                                    type="button"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => handleSaveFieldEdit(field, editingValue)}
+                                    className="p-1 rounded bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer shrink-0 shadow-2xs"
+                                    title="Save to database"
+                                  >
+                                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => {
+                                      setEditingFieldKey(null);
+                                      setFieldValidationError(null);
+                                    }}
+                                    className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 cursor-pointer shrink-0"
+                                    title="Cancel"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+
+                                {fieldValidationError && (
+                                  <p className="text-[11px] text-rose-600 font-semibold flex items-center gap-1 animate-in fade-in">
+                                    <AlertTriangle className="w-3 h-3 text-rose-500 shrink-0" />
+                                    <span>{fieldValidationError}</span>
+                                  </p>
+                                )}
+                              </div>
                             </form>
                           ) : (
                             <div

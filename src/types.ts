@@ -246,6 +246,8 @@ export interface CustomFieldDef {
   variableDefaultValue?: string;
   minLength?: number;
   maxLength?: number;
+  minValue?: number;
+  maxValue?: number;
   isSearchable?: boolean;
   category?: 'Primary' | 'Contact' | 'Academic/Career' | 'General' | 'Custom';
   /** Fresh Lead Response Timer: minutes after creation during which the call-now countdown badge is shown (stored on sentinel record id='__fresh_lead_timer__') */
