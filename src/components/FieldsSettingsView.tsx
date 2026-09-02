@@ -349,17 +349,16 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
       {/* 1. TOP BAR / TITLE */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
         <div>
-          <div className="flex items-center space-x-2">
-            <h1 className="text-2xl md:text-3xl font-bold font-sans text-slate-900 tracking-tight flex items-center gap-2">
-              <span>Fields Settings</span>
-            </h1>
-          </div>
-          <div className="flex items-center space-x-2 text-xs text-slate-500 mt-1 font-normal font-sans">
-            <span>Lead Id</span>
+          <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight">
+            Fields Settings
+          </h2>
+          <div className="flex items-center space-x-2 text-xs text-slate-500 mt-0.5 font-normal font-sans">
+            <span>Lead Id configuration & custom field definitions for your CRM workspace.</span>
+            <span>•</span>
             <a 
               href="#learn-more" 
               onClick={(e) => { e.preventDefault(); onShowToast('Lead ID represents the primary unique identifier key for deduplication and phone lookup.'); }} 
-              className="text-slate-700 hover:text-slate-900 hover:underline font-normal"
+              className="text-indigo-600 hover:text-indigo-800 hover:underline font-medium"
             >
               Learn more
             </a>
@@ -371,14 +370,14 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
           {onBackToLeads && (
             <button
               onClick={onBackToLeads}
-              className="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-all cursor-pointer"
+              className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-all cursor-pointer"
             >
               Back to Leads
             </button>
           )}
           <button
             onClick={handleOpenAddModal}
-            className="px-4 py-2.5 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs md:text-sm font-medium transition-all cursor-pointer flex items-center space-x-1.5 shadow-sm shadow-blue-500/20"
+            className="px-3.5 py-2 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-semibold transition-all cursor-pointer flex items-center space-x-1.5 shadow-2xs"
           >
             <Plus className="w-3.5 h-3.5 text-white" />
             <span>Add Field</span>
@@ -413,9 +412,9 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
       {/* 3. PRIMARY FIELDS (ASSIGN) */}
       <div className="space-y-2 font-sans">
         <div className="flex items-center justify-between">
-          <h2 className="text-xs font-bold font-sans text-slate-900 uppercase tracking-wider">
-            PRIMARY FIELDS (ASSIGN)
-          </h2>
+          <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+            Primary Fields (Assign)
+          </h3>
           <span className="text-[11px] text-slate-400 font-normal hidden sm:inline">Header slot previews shown on lead card header</span>
         </div>
 
@@ -483,9 +482,9 @@ export const FieldsSettingsView: React.FC<FieldsSettingsViewProps> = ({
       {/* 4. OTHER FIELDS */}
       <div className="space-y-2.5 pt-1 font-sans">
         <div className="flex items-center justify-between">
-          <h2 className="text-xs font-bold font-sans text-slate-900 uppercase tracking-wider">
-            OTHER FIELDS
-          </h2>
+          <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+            Other Fields
+          </h3>
           <span className="text-xs font-normal text-slate-500">
             {filteredFields.length} results found
           </span>

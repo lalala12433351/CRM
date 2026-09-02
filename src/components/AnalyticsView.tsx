@@ -422,20 +422,14 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ leads, hourlyMetri
                   : 'Hourly Telecaller Activity, Call Connectivity & Conversions'}
               </span>
             </h2>
-            <p className="text-[11px] text-slate-500">
-              {activeChartMode === 'cpl_volume' 
-                ? 'Dual-axis comparison: Bars show lead volume, line displays Cost Per Lead in ₹ against ₹250 benchmark' 
-                : activeChartMode === 'spend_revenue'
-                ? 'ROI comparison: Ad capital deployed versus actual revenue realized across channels'
-                : 'Intraday hourly conversion distribution to optimize caller shift schedules'}
-            </p>
+            <p className="text-xs text-slate-500">Live ROI & CPL tracking across all acquisition campaigns</p>
           </div>
 
-          {/* Mode Tabs */}
-          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+          {/* Toggle Metrics Sub-Tab */}
+          <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-lg w-full sm:w-auto overflow-x-auto ios-scroll">
             <button
               onClick={() => setActiveChartMode('cpl_volume')}
-              className={`px-3 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
+              className={`flex-1 sm:flex-none px-2.5 sm:px-3 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer whitespace-nowrap text-center ${
                 activeChartMode === 'cpl_volume' 
                   ? 'bg-white text-indigo-700 font-bold shadow-2xs' 
                   : 'text-slate-600 hover:text-slate-900'
@@ -445,7 +439,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ leads, hourlyMetri
             </button>
             <button
               onClick={() => setActiveChartMode('spend_revenue')}
-              className={`px-3 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
+              className={`flex-1 sm:flex-none px-2.5 sm:px-3 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer whitespace-nowrap text-center ${
                 activeChartMode === 'spend_revenue' 
                   ? 'bg-white text-indigo-700 font-bold shadow-2xs' 
                   : 'text-slate-600 hover:text-slate-900'
@@ -455,7 +449,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ leads, hourlyMetri
             </button>
             <button
               onClick={() => setActiveChartMode('hourly_flow')}
-              className={`px-3 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
+              className={`flex-1 sm:flex-none px-2.5 sm:px-3 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer whitespace-nowrap text-center ${
                 activeChartMode === 'hourly_flow' 
                   ? 'bg-white text-indigo-700 font-bold shadow-2xs' 
                   : 'text-slate-600 hover:text-slate-900'
@@ -467,10 +461,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ leads, hourlyMetri
         </div>
 
         {/* Chart View Area */}
-        <div className="h-72 sm:h-80 w-full pt-2">
+        <div className="h-64 sm:h-80 w-full pt-2">
           {activeChartMode === 'cpl_volume' && (
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={channelChartData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+              <ComposedChart data={channelChartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                 <XAxis 
                   dataKey="name" 

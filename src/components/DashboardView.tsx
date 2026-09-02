@@ -22,6 +22,23 @@ import {
   ChevronsRight
 } from 'lucide-react';
 import { Lead, Agent, PipelineStage, HourlyMetric, isAgentAdmin, CustomFieldDef, formatDealValue } from '../types';
+import { CustomDropdown, DropdownOption } from './CustomDropdown';
+
+function parseLeadCreatedMs(createdAt?: string): number {
+  if (!createdAt || createdAt === 'Just Now' || createdAt === 'Just now') return Date.now();
+  const parsed = new Date(createdAt).getTime();
+  if (!isNaN(parsed)) return parsed;
+  const match = createdAt.match(/(\d+)\s*(m|min|h|hour|d|day)/i);
+  if (match) {
+    const val = parseInt(match[1], 10);
+    const unit = match[2].toLowerCase();
+    const now = Date.now();
+    if (unit.startsWith('m')) return now - val * 60_000;
+    if (unit.startsWith('h')) return now - val * 3_600_000;
+    if (unit.startsWith('d')) return now - val * 86_400_000;
+  }
+  return 0;
+}
 
 interface DashboardViewProps {
   leads: Lead[];
@@ -69,7 +86,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [followUpRemarks, setFollowUpRemarks] = useState('');
 
   // Lead by Stages Widget State
-  const [stagesTimeframe, setStagesTimeframe] = useState<'today' | 'yesterday' | 'week' | 'month' | 'all'>('today');
+  const [stagesTimeframe, setStagesTimeframe] = useState<'today' | 'yesterday' | 'week' | 'month' | 'all' | 'custom'>('today');
+  const [stagesCustomStartDate, setStagesCustomStartDate] = useState<string>(() => {
+    return new Date().toISOString().slice(0, 10);
+  });
+  const [stagesCustomEndDate, setStagesCustomEndDate] = useState<string>(() => {
+    return new Date().toISOString().slice(0, 10);
+  });
+
+  const timeframeOptions: DropdownOption<'today' | 'yesterday' | 'week' | 'month' | 'custom' | 'all'>[] = [
+    { value: 'today', label: 'Today' },
+    { value: 'yesterday', label: 'Yesterday' },
+    { value: 'week', label: 'This Week' },
+    { value: 'month', label: 'This Month' },
+    { value: 'custom', label: 'Custom Date' },
+    { value: 'all', label: 'All Time' },
+  ];
   const [stagesAssigneeSearch, setStagesAssigneeSearch] = useState('');
   const [stagesSortCol, setStagesSortCol] = useState<'name' | 'fresh' | 'active' | 'won' | 'lost'>('name');
   const [stagesSortDir, setStagesSortDir] = useState<'asc' | 'desc'>('asc');
@@ -211,6 +243,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return [...stageNames, ...uniqueExtras];
   }, [stages, leads]);
 
+  const sourceDropdownOptions: DropdownOption<string>[] = useMemo(() => [
+    { value: 'ALL', label: 'All Sources' },
+    ...availableSources.map((src) => ({ value: src, label: src }))
+  ], [availableSources]);
+
+  const stageDropdownOptions: DropdownOption<string>[] = useMemo(() => [
+    { value: 'ALL', label: 'All Stages' },
+    ...availableStages.map((stg) => ({ value: stg, label: stg }))
+  ], [availableStages]);
+
   const getSourceCount = (src: string) => {
     return leads.filter((l) => l.source && l.source.toLowerCase() === src.toLowerCase()).length;
   };
@@ -286,12 +328,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
     const timeframeFilteredLeads = leads.filter(l => {
       if (stagesTimeframe === 'all') return true;
-      const createdTime = l.createdAt ? new Date(l.createdAt).getTime() : 0;
+      const createdTime = l.createdAt ? parseLeadCreatedMs(l.createdAt) : 0;
       if (!createdTime) return true;
       if (stagesTimeframe === 'today') return createdTime >= startOfToday;
       if (stagesTimeframe === 'yesterday') return createdTime >= startOfYesterday && createdTime < startOfToday;
       if (stagesTimeframe === 'week') return createdTime >= startOfWeek;
       if (stagesTimeframe === 'month') return createdTime >= startOfMonth;
+      if (stagesTimeframe === 'custom') {
+        let matches = true;
+        if (stagesCustomStartDate) {
+          const startMs = new Date(`${stagesCustomStartDate}T00:00:00`).getTime();
+          if (!isNaN(startMs)) {
+            matches = matches && createdTime >= startMs;
+          }
+        }
+        if (stagesCustomEndDate) {
+          const endMs = new Date(`${stagesCustomEndDate}T23:59:59.999`).getTime();
+          if (!isNaN(endMs)) {
+            matches = matches && createdTime <= endMs;
+          }
+        }
+        return matches;
+      }
       return true;
     });
 
@@ -369,7 +427,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         lost: totalLost
       }
     };
-  }, [leads, agents, stagesTimeframe, stagesAssigneeSearch, stagesSortCol, stagesSortDir]);
+  }, [leads, agents, stagesTimeframe, stagesCustomStartDate, stagesCustomEndDate, stagesAssigneeSearch, stagesSortCol, stagesSortDir]);
 
   const getInitials = (name: string = '') => {
     const clean = name.trim();
@@ -566,23 +624,36 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center space-x-3 self-end sm:self-auto">
-            <div className="flex items-center space-x-1.5 text-xs text-slate-600">
+          <div className="flex flex-wrap items-center gap-2.5 self-end sm:self-auto">
+            <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-600">
               <span className="text-[11px] text-slate-500 font-medium">Created on</span>
-              <div className="relative">
-                <select
-                  value={stagesTimeframe}
-                  onChange={(e) => setStagesTimeframe(e.target.value as any)}
-                  className="appearance-none bg-slate-50 border border-slate-200/80 rounded-xl px-2.5 py-1.5 pr-6 text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-600 cursor-pointer shadow-2xs"
-                >
-                  <option value="today">Today</option>
-                  <option value="yesterday">Yesterday</option>
-                  <option value="week">This Week</option>
-                  <option value="month">This Month</option>
-                  <option value="all">All Time</option>
-                </select>
-                <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
+              <CustomDropdown<'today' | 'yesterday' | 'week' | 'month' | 'custom' | 'all'>
+                value={stagesTimeframe}
+                onChange={(val) => setStagesTimeframe(val)}
+                options={timeframeOptions}
+                align="right"
+              />
+
+              {stagesTimeframe === 'custom' && (
+                <div className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs shadow-2xs">
+                  <Calendar className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                  <input
+                    type="date"
+                    value={stagesCustomStartDate}
+                    onChange={(e) => setStagesCustomStartDate(e.target.value)}
+                    className="bg-transparent text-slate-800 text-xs font-medium focus:outline-none cursor-pointer"
+                    title="From date"
+                  />
+                  <span className="text-slate-400 text-xs font-medium">to</span>
+                  <input
+                    type="date"
+                    value={stagesCustomEndDate}
+                    onChange={(e) => setStagesCustomEndDate(e.target.value)}
+                    className="bg-transparent text-slate-800 text-xs font-medium focus:outline-none cursor-pointer"
+                    title="To date"
+                  />
+                </div>
+              )}
             </div>
 
             <button
@@ -821,16 +892,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           )}
 
           {/* Search & Filter Controls */}
-          <div className="flex flex-wrap items-center gap-2 text-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs">
             {/* Search Bar Input */}
-            <div className="relative flex-1 min-w-[200px] max-w-xs">
+            <div className="relative w-full sm:w-auto sm:flex-1 sm:max-w-xs">
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 placeholder="Search by name, number or email"
                 value={tableSearch}
                 onChange={(e) => setTableSearch(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-lg pl-8 pr-6 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#3a2088] focus:ring-1 focus:ring-[#3a2088] shadow-2xs font-sans placeholder:text-slate-400"
+                className="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-6 py-2 sm:py-1.5 text-xs text-slate-800 focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 shadow-2xs font-sans placeholder:text-slate-400"
               />
               {tableSearch && (
                 <button
@@ -842,37 +913,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               )}
             </div>
 
-            {/* All Sources Dropdown */}
-            <select
-              value={tableSourceFilter}
-              onChange={(e) => setTableSourceFilter(e.target.value)}
-              className="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#3a2088] focus:ring-1 focus:ring-[#3a2088] cursor-pointer shadow-2xs font-sans font-medium"
-            >
-              <option value="ALL">All Sources</option>
-              {availableSources.map((src) => {
-                return (
-                  <option key={src} value={src}>
-                    {src}
-                  </option>
-                );
-              })}
-            </select>
+            {/* Dropdown Filters (Side-by-side on mobile, inline on desktop) */}
+            <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto items-center">
+              <CustomDropdown<string>
+                value={tableSourceFilter}
+                onChange={(val) => setTableSourceFilter(val)}
+                options={sourceDropdownOptions}
+                align="left"
+                wrapperClassName="w-full sm:w-auto"
+              />
 
-            {/* All Stages Dropdown */}
-            <select
-              value={tableStatusFilter}
-              onChange={(e) => setTableStatusFilter(e.target.value)}
-              className="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#3a2088] focus:ring-1 focus:ring-[#3a2088] cursor-pointer shadow-2xs font-sans font-medium"
-            >
-              <option value="ALL">All Stages</option>
-              {availableStages.map((stgName) => {
-                return (
-                  <option key={stgName} value={stgName}>
-                    {stgName}
-                  </option>
-                );
-              })}
-            </select>
+              <CustomDropdown<string>
+                value={tableStatusFilter}
+                onChange={(val) => setTableStatusFilter(val)}
+                options={stageDropdownOptions}
+                align="left"
+                wrapperClassName="w-full sm:w-auto"
+              />
+            </div>
 
             {/* Reset Filters Button */}
             {(tableSourceFilter !== 'ALL' || tableStatusFilter !== 'ALL' || tableSearch !== '') && (
@@ -882,7 +940,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   setTableStatusFilter('ALL');
                   setTableSearch('');
                 }}
-                className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold border border-slate-200 transition-all cursor-pointer"
+                className="w-full sm:w-auto px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold border border-slate-200 transition-all cursor-pointer text-center"
               >
                 Reset Filters
               </button>
@@ -919,17 +977,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <span className="text-slate-700 font-medium">{lead.phone}</span>
                   </div>
 
-                  <div className="flex items-center space-x-1.5 pt-1">
+                  <div className="flex items-center justify-end space-x-2 pt-1.5">
                     <button
                       onClick={() => handleCallLead(lead)}
-                      className="flex-1 py-1.5 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium flex items-center justify-center space-x-1 cursor-pointer"
+                      className="py-1 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium flex items-center space-x-1.5 cursor-pointer shadow-2xs transition-all"
                     >
                       <PhoneCall className="w-3 h-3" />
                       <span>Call</span>
                     </button>
                     <button
                       onClick={() => onOpenLeadDetail(lead)}
-                      className="py-1.5 px-3 rounded-lg bg-white border border-slate-200 text-slate-700 text-xs font-medium cursor-pointer"
+                      className="py-1 px-3 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium cursor-pointer transition-all"
                     >
                       View
                     </button>

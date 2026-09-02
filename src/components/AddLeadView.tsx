@@ -32,6 +32,7 @@ import {
   Database
 } from 'lucide-react';
 import { Lead, Agent, LeadSource, LeadStatus, CustomFieldDef } from '../types';
+import { CustomDropdown, DropdownOption } from './CustomDropdown';
 
 interface AddLeadViewProps {
   leads: Lead[];
@@ -612,16 +613,19 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
                 <div className="grid grid-cols-3 gap-2">
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1">Code</label>
-                    <select
+                    <CustomDropdown<string>
                       value={countryCode}
-                      onChange={(e) => setCountryCode(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-slate-900 focus:outline-none focus:border-indigo-500"
-                    >
-                      <option value="+91">+91 (IN)</option>
-                      <option value="+1">+1 (US)</option>
-                      <option value="+44">+44 (UK)</option>
-                      <option value="+971">+971 (UAE)</option>
-                    </select>
+                      onChange={(val) => setCountryCode(val)}
+                      options={[
+                        { value: '+91', label: '+91 (IN)' },
+                        { value: '+1', label: '+1 (US)' },
+                        { value: '+44', label: '+44 (UK)' },
+                        { value: '+971', label: '+971 (UAE)' },
+                      ]}
+                      align="left"
+                      wrapperClassName="w-full"
+                      className="w-full bg-slate-50"
+                    />
                   </div>
                   <div className="col-span-2">
                     <label className="block text-slate-700 font-semibold mb-1">
@@ -677,29 +681,33 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
                   </div>
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1">State</label>
-                    <select
+                    <CustomDropdown<string>
                       value={state}
-                      onChange={(e) => handleStateChange(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-2 text-slate-900 focus:outline-none focus:border-indigo-500"
-                    >
-                      <option value="">Select State</option>
-                      {Object.keys(INDIA_STATES_CITIES).sort().map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
+                      onChange={(val) => handleStateChange(val)}
+                      options={[
+                        { value: '', label: 'Select State' },
+                        ...Object.keys(INDIA_STATES_CITIES).sort().map((s) => ({ value: s, label: s }))
+                      ]}
+                      placeholder="Select State"
+                      align="left"
+                      wrapperClassName="w-full"
+                      className="w-full bg-slate-50"
+                    />
                   </div>
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1">City</label>
-                    <select
+                    <CustomDropdown<string>
                       value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-2 text-slate-900 focus:outline-none focus:border-indigo-500"
-                    >
-                      <option value="">{state ? 'Select City' : 'Select State first'}</option>
-                      {(INDIA_STATES_CITIES[state] || []).map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
+                      onChange={(val) => setCity(val)}
+                      options={[
+                        { value: '', label: state ? 'Select City' : 'Select State first' },
+                        ...(INDIA_STATES_CITIES[state] || []).map((c) => ({ value: c, label: c }))
+                      ]}
+                      placeholder={state ? 'Select City' : 'Select State first'}
+                      align="left"
+                      wrapperClassName="w-full"
+                      className="w-full bg-slate-50"
+                    />
                   </div>
                 </div>
               </div>
@@ -717,36 +725,42 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1">Lead Source</label>
-                    <select
+                    <CustomDropdown<LeadSource>
                       value={leadSource}
-                      onChange={(e) => setLeadSource(e.target.value as LeadSource)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs sm:text-sm text-slate-900 font-medium focus:outline-none focus:border-indigo-500 max-w-full truncate"
-                    >
-                      <option value="Facebook Ads" className="text-xs sm:text-sm py-1">Facebook Ads</option>
-                      <option value="Google Ads" className="text-xs sm:text-sm py-1">Google Ads</option>
-                      <option value="WhatsApp" className="text-xs sm:text-sm py-1">WhatsApp</option>
-                      <option value="Website Form" className="text-xs sm:text-sm py-1">Website Form</option>
-                      <option value="IndiaMart" className="text-xs sm:text-sm py-1">IndiaMart</option>
-                      <option value="JustDial" className="text-xs sm:text-sm py-1">JustDial</option>
-                      <option value="Referral" className="text-xs sm:text-sm py-1">Referral</option>
-                      <option value="Other" className="text-xs sm:text-sm py-1">Other</option>
-                    </select>
+                      onChange={(val) => setLeadSource(val)}
+                      options={[
+                        { value: 'Facebook Ads', label: 'Facebook Ads' },
+                        { value: 'Google Ads', label: 'Google Ads' },
+                        { value: 'WhatsApp', label: 'WhatsApp' },
+                        { value: 'Website Form', label: 'Website Form' },
+                        { value: 'IndiaMart', label: 'IndiaMart' },
+                        { value: 'JustDial', label: 'JustDial' },
+                        { value: 'Referral', label: 'Referral' },
+                        { value: 'Other', label: 'Other' },
+                      ]}
+                      align="left"
+                      wrapperClassName="w-full"
+                      className="w-full bg-slate-50"
+                    />
                   </div>
 
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1">Lead Status</label>
-                    <select
+                    <CustomDropdown<LeadStatus>
                       value={leadStatus}
-                      onChange={(e) => setLeadStatus(e.target.value as LeadStatus)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs sm:text-sm text-slate-900 font-medium focus:outline-none focus:border-indigo-500 max-w-full truncate"
-                    >
-                      <option value="New Lead" className="text-xs sm:text-sm py-1">New Lead</option>
-                      <option value="Contacted" className="text-xs sm:text-sm py-1">Contacted</option>
-                      <option value="Follow-Up Scheduled" className="text-xs sm:text-sm py-1">Follow-Up Scheduled</option>
-                      <option value="Interested" className="text-xs sm:text-sm py-1">Interested</option>
-                      <option value="Converted" className="text-xs sm:text-sm py-1">Converted</option>
-                      <option value="Lost" className="text-xs sm:text-sm py-1">Lost</option>
-                    </select>
+                      onChange={(val) => setLeadStatus(val)}
+                      options={[
+                        { value: 'New Lead', label: 'New Lead' },
+                        { value: 'Contacted', label: 'Contacted' },
+                        { value: 'Follow-Up Scheduled', label: 'Follow-Up Scheduled' },
+                        { value: 'Interested', label: 'Interested' },
+                        { value: 'Converted', label: 'Converted' },
+                        { value: 'Lost', label: 'Lost' },
+                      ]}
+                      align="left"
+                      wrapperClassName="w-full"
+                      className="w-full bg-slate-50"
+                    />
                   </div>
                 </div>
 
@@ -761,18 +775,20 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
                       Auto Assign
                     </button>
                   </div>
-                  <select
+                  <CustomDropdown<string>
                     value={assignedAgentId}
-                    onChange={(e) => setAssignedAgentId(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 font-medium focus:outline-none focus:border-indigo-500"
-                  >
-                    <option value="" className="bg-white text-slate-500 font-medium">Auto-Assign to Me ({activeAgent?.name || 'Creator'})</option>
-                    {agents.map((agent) => (
-                      <option key={agent.id} value={agent.id} className="bg-white text-slate-900 font-medium py-1">
-                        {agent.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setAssignedAgentId(val)}
+                    options={[
+                      { value: '', label: `Auto-Assign to Me (${activeAgent?.name || 'Creator'})` },
+                      ...agents.map((agent) => ({
+                        value: agent.id,
+                        label: agent.name,
+                      })),
+                    ]}
+                    align="left"
+                    wrapperClassName="w-full"
+                    className="w-full bg-slate-50"
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -857,23 +873,23 @@ export const AddLeadView: React.FC<AddLeadViewProps> = ({
                         </label>
 
                         {field.type === 'dropdown' ? (
-                          <select
-                            value={val}
-                            onChange={(e) =>
+                          <CustomDropdown<string>
+                            value={val || ''}
+                            onChange={(newVal) =>
                               setCustomFieldValues((prev) => ({
                                 ...prev,
-                                [field.name]: e.target.value,
+                                [field.name]: newVal,
                               }))
                             }
-                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-500"
-                          >
-                            <option value="">-- Select {field.label} --</option>
-                            {field.options?.map((opt) => (
-                              <option key={opt} value={opt}>
-                                {opt}
-                              </option>
-                            ))}
-                          </select>
+                            options={[
+                              { value: '', label: `-- Select ${field.label} --` },
+                              ...(field.options || []).map((opt) => ({ value: opt, label: opt })),
+                            ]}
+                            placeholder={`-- Select ${field.label} --`}
+                            align="left"
+                            wrapperClassName="w-full"
+                            className="w-full bg-slate-50"
+                          />
                         ) : field.type === 'boolean' ? (
                           <label className="flex items-center space-x-2 pt-1 cursor-pointer">
                             <input

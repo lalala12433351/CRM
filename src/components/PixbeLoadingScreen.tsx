@@ -9,34 +9,30 @@ interface PixbeLoadingScreenProps {
 export const PixbeLoadingScreen: React.FC<PixbeLoadingScreenProps> = ({ companyName, userName, onFinish }) => {
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState('Authenticating workspace...');
+  const onFinishRef = React.useRef(onFinish);
+  onFinishRef.current = onFinish;
 
   useEffect(() => {
     const timer1 = setTimeout(() => {
-      setProgress(35);
-      setStatusText(companyName ? `Connecting to ${companyName}...` : 'Connecting to database...');
-    }, 400);
+      setProgress(50);
+      setStatusText(companyName ? `Connecting to ${companyName}...` : 'Connecting to workspace...');
+    }, 100);
 
     const timer2 = setTimeout(() => {
-      setProgress(70);
-      setStatusText('Syncing leads, pipeline & permissions...');
-    }, 1000);
-
-    const timer3 = setTimeout(() => {
       setProgress(100);
       setStatusText('Workspace ready...');
-    }, 1600);
+    }, 250);
 
-    const timer4 = setTimeout(() => {
-      if (onFinish) onFinish();
-    }, 2000);
+    const timer3 = setTimeout(() => {
+      if (onFinishRef.current) onFinishRef.current();
+    }, 400);
 
     return () => {
       clearTimeout(timer1);
       clearTimeout(timer2);
       clearTimeout(timer3);
-      clearTimeout(timer4);
     };
-  }, [companyName, onFinish]);
+  }, []);
 
   return (
     <div className="fixed inset-0 z-50 min-h-screen w-full bg-gradient-to-br from-[#005cee] to-[#0048cb] flex items-center justify-center p-6 select-none relative overflow-hidden font-sans text-white animate-in fade-in duration-300">

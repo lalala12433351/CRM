@@ -930,147 +930,184 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* TABS & CONTENT LAYOUT */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 font-sans pt-2">
 
-        {/* SIDEBAR NAVIGATION TABS */}
-        <div className="lg:col-span-3 space-y-1.5 bg-white border border-slate-100 rounded-3xl p-3 h-fit shadow-xs font-sans">
-          <p className="text-[10px] font-sans font-bold text-slate-400 uppercase tracking-wider px-3 py-2">
+        {/* CONFIGURATION SECTIONS (Navigation Sidebar) */}
+        <div className="lg:col-span-3 space-y-1.5 font-sans">
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2">
             Configuration Sections
           </p>
 
           <button
             onClick={() => setActiveTab('profile')}
-            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${activeTab === 'profile'
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
+              activeTab === 'profile'
                 ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
                 : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
-              }`}
+            }`}
           >
-            <User className={`w-4 h-4 shrink-0 ${activeTab === 'profile' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
-            <span className="flex-1 text-left font-sans">My Profile</span>
+            <div className="flex items-center space-x-3 min-w-0 flex-1 text-left">
+              <User className={`w-4 h-4 shrink-0 ${activeTab === 'profile' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+              <span className="truncate">My Profile</span>
+            </div>
           </button>
 
           <button
             onClick={() => setActiveTab('fields')}
-            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${activeTab === 'fields'
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
+              activeTab === 'fields'
                 ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
                 : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
-              }`}
+            }`}
           >
-            <SlidersHorizontal className={`w-4 h-4 shrink-0 ${activeTab === 'fields' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
-            <span className="flex-1 text-left font-sans">Fields Settings</span>
-            <span className={`text-[10px] font-sans px-2 py-0.5 rounded-full font-bold ${activeTab === 'fields' ? 'bg-blue-100 text-[#2563eb]' : 'bg-slate-200/70 text-slate-600'
-              }`}>
+            <div className="flex items-center space-x-3 min-w-0 flex-1 text-left">
+              <SlidersHorizontal className={`w-4 h-4 shrink-0 ${activeTab === 'fields' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+              <span className="truncate">Fields Settings</span>
+            </div>
+            <span className={`shrink-0 ml-2 text-[10px] font-sans px-2 py-0.5 rounded-full font-bold ${
+              activeTab === 'fields' ? 'bg-blue-100 text-[#2563eb]' : 'bg-slate-200/70 text-slate-600'
+            }`}>
               {localCustomFields.length}
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab('permissions')}
-            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${activeTab === 'permissions'
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
+              activeTab === 'permissions'
                 ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
                 : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
-              }`}
+            }`}
           >
-            <ShieldCheck className={`w-4 h-4 shrink-0 ${activeTab === 'permissions' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
-            <span className="flex-1 text-left font-sans">Permission Templates</span>
-            <span className={`text-[10px] font-sans px-2 py-0.5 rounded-full font-bold ${activeTab === 'permissions' ? 'bg-blue-100 text-[#2563eb]' : 'bg-slate-200/70 text-slate-600'
-              }`}>
+            <div className="flex items-center space-x-3 min-w-0 flex-1 text-left">
+              <ShieldCheck className={`w-4 h-4 shrink-0 ${activeTab === 'permissions' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+              <span className="truncate">Permission Templates</span>
+            </div>
+            <span className={`shrink-0 ml-2 text-[10px] font-sans px-2 py-0.5 rounded-full font-bold ${
+              activeTab === 'permissions' ? 'bg-blue-100 text-[#2563eb]' : 'bg-slate-200/70 text-slate-600'
+            }`}>
               {localTemplates.length}
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab('general')}
-            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${activeTab === 'general'
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
+              activeTab === 'general'
                 ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
                 : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
-              }`}
+            }`}
           >
-            <Building2 className={`w-4 h-4 shrink-0 ${activeTab === 'general' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
-            <span className="font-sans">General & Business</span>
+            <div className="flex items-center space-x-3 min-w-0 flex-1 text-left">
+              <Building2 className={`w-4 h-4 shrink-0 ${activeTab === 'general' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+              <span className="truncate">General & Business</span>
+            </div>
           </button>
 
           <button
             onClick={() => setActiveTab('pipeline')}
-            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${activeTab === 'pipeline'
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
+              activeTab === 'pipeline'
                 ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
                 : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
-              }`}
+            }`}
           >
-            <Kanban className={`w-4 h-4 shrink-0 ${activeTab === 'pipeline' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
-            <span className="flex-1 text-left font-sans">Pipeline Stages & Colors</span>
-            <span className={`text-[10px] font-sans px-2 py-0.5 rounded-full font-bold ${activeTab === 'pipeline' ? 'bg-blue-100 text-[#2563eb]' : 'bg-amber-100 text-amber-700'
-              }`}>
+            <div className="flex items-center space-x-3 min-w-0 flex-1 text-left">
+              <Kanban className={`w-4 h-4 shrink-0 ${activeTab === 'pipeline' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+              <span className="truncate">Pipeline Stages & Colors</span>
+            </div>
+            <span className={`shrink-0 ml-2 text-[10px] font-sans px-2 py-0.5 rounded-full font-bold ${
+              activeTab === 'pipeline' ? 'bg-blue-100 text-[#2563eb]' : 'bg-amber-100 text-amber-700'
+            }`}>
               New
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab('billing')}
-            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${activeTab === 'billing'
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
+              activeTab === 'billing'
                 ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
                 : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
-              }`}
+            }`}
           >
-            <CreditCard className={`w-4 h-4 shrink-0 ${activeTab === 'billing' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
-            <span className="flex-1 text-left font-sans">Buy Licenses & Billing</span>
-            <span className={`text-[10px] font-sans px-2 py-0.5 rounded-full font-bold ${activeTab === 'billing' ? 'bg-blue-100 text-[#2563eb]' : 'bg-emerald-100 text-emerald-700'
-              }`}>
+            <div className="flex items-center space-x-3 min-w-0 flex-1 text-left">
+              <CreditCard className={`w-4 h-4 shrink-0 ${activeTab === 'billing' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+              <span className="truncate">Buy Licenses & Billing</span>
+            </div>
+            <span className={`shrink-0 ml-2 text-[10px] font-sans px-2 py-0.5 rounded-full font-bold ${
+              activeTab === 'billing' ? 'bg-blue-100 text-[#2563eb]' : 'bg-emerald-100 text-emerald-700'
+            }`}>
               Billing
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab('telephony')}
-            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${activeTab === 'telephony'
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
+              activeTab === 'telephony'
                 ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
                 : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
-              }`}
+            }`}
           >
-            <PhoneCall className={`w-4 h-4 shrink-0 ${activeTab === 'telephony' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
-            <span className="font-sans">Telephony & Dialer</span>
+            <div className="flex items-center space-x-3 min-w-0 flex-1 text-left">
+              <PhoneCall className={`w-4 h-4 shrink-0 ${activeTab === 'telephony' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+              <span className="truncate">Telephony & Dialer</span>
+            </div>
           </button>
 
           <button
             onClick={() => setActiveTab('ai_scoring')}
-            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${activeTab === 'ai_scoring'
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
+              activeTab === 'ai_scoring'
                 ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
                 : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
-              }`}
+            }`}
           >
-            <Bot className={`w-4 h-4 shrink-0 ${activeTab === 'ai_scoring' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
-            <span className="font-sans">AI & Lead Scoring</span>
+            <div className="flex items-center space-x-3 min-w-0 flex-1 text-left">
+              <Bot className={`w-4 h-4 shrink-0 ${activeTab === 'ai_scoring' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+              <span className="truncate">AI & Lead Scoring</span>
+            </div>
           </button>
 
           <button
             onClick={() => setActiveTab('whatsapp')}
-            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${activeTab === 'whatsapp'
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
+              activeTab === 'whatsapp'
                 ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
                 : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
-              }`}
+            }`}
           >
-            <MessageSquare className={`w-4 h-4 shrink-0 ${activeTab === 'whatsapp' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
-            <span className="font-sans">WhatsApp & Automation</span>
+            <div className="flex items-center space-x-3 min-w-0 flex-1 text-left">
+              <MessageSquare className={`w-4 h-4 shrink-0 ${activeTab === 'whatsapp' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+              <span className="truncate">WhatsApp & Automation</span>
+            </div>
           </button>
 
           <button
             onClick={() => setActiveTab('notifications')}
-            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${activeTab === 'notifications'
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
+              activeTab === 'notifications'
                 ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
                 : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
-              }`}
+            }`}
           >
-            <Bell className={`w-4 h-4 shrink-0 ${activeTab === 'notifications' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
-            <span className="font-sans">Notifications & Alerts</span>
+            <div className="flex items-center space-x-3 min-w-0 flex-1 text-left">
+              <Bell className={`w-4 h-4 shrink-0 ${activeTab === 'notifications' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+              <span className="truncate">Notifications & Alerts</span>
+            </div>
           </button>
 
           <button
             onClick={() => setActiveTab('security')}
-            className={`w-full flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${activeTab === 'security'
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
+              activeTab === 'security'
                 ? 'bg-[#eff6ff] text-[#2563eb] font-bold border border-blue-100'
                 : 'bg-[#f8fafc] hover:bg-slate-100/80 text-slate-600 font-medium border border-transparent'
-              }`}
+            }`}
           >
-            <ShieldCheck className={`w-4 h-4 shrink-0 ${activeTab === 'security' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
-            <span className="font-sans">Security & Permissions</span>
+            <div className="flex items-center space-x-3 min-w-0 flex-1 text-left">
+              <ShieldCheck className={`w-4 h-4 shrink-0 ${activeTab === 'security' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+              <span className="truncate">Security & Permissions</span>
+            </div>
           </button>
         </div>
 
@@ -1082,9 +1119,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <div className="space-y-6">
               <div className="border-b border-slate-200 pb-3 flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight flex items-center space-x-2">
-                    <User className="w-5 h-5 text-indigo-600" />
-                    <span>My Profile</span>
+                  <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight">
+                    My Profile
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
                     Manage your personal profile picture, display name, email, and contact details.
@@ -1246,9 +1282,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {activeTab === 'general' && (
             <div className="space-y-5">
               <div className="border-b border-slate-200 pb-3">
-                <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight flex items-center space-x-2">
-                  <Building2 className="w-4 h-4 text-indigo-600" />
-                  <span>General Workspace Profile</span>
+                <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight">
+                  General Workspace Profile
                 </h2>
               </div>
 
@@ -1615,9 +1650,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <div className="space-y-6">
               <div className="border-b border-slate-200 pb-3 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight flex items-center space-x-2">
-                    <Kanban className="w-5 h-5 text-indigo-600" />
-                    <span>Pipeline Stages & Color Customization</span>
+                  <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight">
+                    Pipeline Stages & Color Customization
                   </h2>
                 </div>
 
@@ -1939,9 +1973,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {activeTab === 'telephony' && (
             <div className="space-y-5">
               <div className="border-b border-slate-200 pb-3">
-                <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight flex items-center space-x-2">
-                  <PhoneCall className="w-4 h-4 text-emerald-600" />
-                  <span>Telephony & Call Settings</span>
+                <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight">
+                  Telephony & Call Settings
                 </h2>
               </div>
 
@@ -2025,9 +2058,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {activeTab === 'ai_scoring' && (
             <div className="space-y-5">
               <div className="border-b border-slate-200 pb-3">
-                <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight flex items-center space-x-2">
-                  <Bot className="w-4 h-4 text-amber-600" />
-                  <span>Gemini AI & Predictive Lead Scoring</span>
+                <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight">
+                  Gemini AI & Predictive Lead Scoring
                 </h2>
               </div>
 
@@ -2121,9 +2153,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {activeTab === 'whatsapp' && (
             <div className="space-y-5">
               <div className="border-b border-slate-200 pb-3">
-                <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight flex items-center space-x-2">
-                  <MessageSquare className="w-4 h-4 text-emerald-600" />
-                  <span>WhatsApp Business API & Webhooks</span>
+                <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight">
+                  WhatsApp Business API & Webhooks
                 </h2>
               </div>
 
@@ -2184,9 +2215,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {activeTab === 'notifications' && (
             <div className="space-y-5">
               <div className="border-b border-slate-200 pb-3">
-                <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight flex items-center space-x-2">
-                  <Bell className="w-4 h-4 text-amber-600" />
-                  <span>Notification Preferences & Real-time Alerts</span>
+                <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight">
+                  Notification Preferences & Real-time Alerts
                 </h2>
               </div>
 
@@ -2251,9 +2281,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {activeTab === 'security' && (
             <div className="space-y-5">
               <div className="border-b border-slate-200 pb-3">
-                <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight flex items-center space-x-2">
-                  <ShieldCheck className="w-4 h-4 text-indigo-600" />
-                  <span>Security & Data Access Controls</span>
+                <h2 className="text-lg md:text-xl font-bold font-sans text-slate-900 tracking-tight">
+                  Security & Data Access Controls
                 </h2>
               </div>
 
@@ -2307,9 +2336,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               {/* Header Title Bar */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-200 pb-3">
                 <div>
-                  <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight flex items-center space-x-2 font-sans">
-                    <CreditCard className="w-4 h-4 text-purple-600" />
-                    <span>Buy Licenses</span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight font-sans">
+                    Buy Licenses
                   </h2>
                   <p className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 font-normal font-noto">
                     Manage your billing, active subscription licenses & payment transaction history

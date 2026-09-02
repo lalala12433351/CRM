@@ -214,9 +214,6 @@ export function App() {
   // Real database fetch strictly scoped to activeTenantId
   useEffect(() => {
     seedDatabase();
-    // Clear persistent storage so opening the app in a new window/tab or initial visit always presents the login page
-    localStorage.removeItem('pixbe_auth_user');
-    localStorage.removeItem('pixbe_auth_token');
   }, []);
 
   // Fetch all domain data from database when activeTenantId is ready
@@ -314,20 +311,24 @@ export function App() {
   const handleLoginSuccess = (agent: Agent) => {
     setCurrentUser(agent);
     setActiveAgentId(agent.id);
+    localStorage.setItem('pixbe_auth_user', JSON.stringify(agent));
     sessionStorage.setItem('pixbe_auth_user', JSON.stringify(agent));
     if (agent.companyName) {
       setWorkspaceProfile([{ id: 'default_workspace', name: agent.companyName }]);
     }
-    setIsLoggingIn(true);
+    setIsAuthenticated(true);
+    setIsLoggingIn(false);
+    showToast(`Welcome back, ${agent.name || 'User'}!`);
   };
 
   const handleLogout = async () => {
-    await logoutWithApi();
     setCurrentUser(null);
     setIsAuthenticated(false);
+    setIsLoggingIn(false);
     sessionStorage.removeItem('pixbe_auth_user');
     localStorage.removeItem('pixbe_auth_user');
     localStorage.removeItem('pixbe_auth_token');
+    await logoutWithApi().catch(() => {});
     showToast('Logged out of workspace.');
   };
 
@@ -908,6 +909,8 @@ export function App() {
               if (tab === 'workflows') setAutomationsSubTab(subTab as AutomationsSubTab);
             }
           }} 
+          automationsSubTab={automationsSubTab}
+          reportsSubTab={reportsSubTab}
           unassignedLeadsCount={leads.filter((l) => !l.ownerAgentId).length}
           missedCallsCount={callRecords.filter((c) => c.type === 'missed').length}
           globalSavedFilters={globalSavedFilters}

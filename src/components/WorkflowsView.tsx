@@ -52,6 +52,14 @@ export const WorkflowsView: React.FC<WorkflowsViewProps> = ({
   onShowToast
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<AutomationsSubTab>(initialSubTab);
+
+  // Synchronize activeSubTab whenever initialSubTab prop changes from sidebar
+  React.useEffect(() => {
+    if (initialSubTab) {
+      setActiveSubTab(initialSubTab);
+    }
+  }, [initialSubTab]);
+
   const [timeRange, setTimeRange] = useState<'All' | '24h' | '7d' | '30d'>('24h');
   
   // Tab states (Published vs Draft)
@@ -236,89 +244,6 @@ export const WorkflowsView: React.FC<WorkflowsViewProps> = ({
 
   return (
     <div className="p-3 md:p-6 space-y-5 max-w-7xl mx-auto text-slate-900 font-sans">
-      
-      {/* TOP AUTOMATIONS NAVIGATION TABS */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-2 shadow-2xs flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 md:pb-0">
-          <button
-            onClick={() => setActiveSubTab('workflows')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-2 shrink-0 ${
-              activeSubTab === 'workflows'
-                ? 'bg-[#3a2088] text-white shadow-xs'
-                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80'
-            }`}
-          >
-            <GitBranch className="w-3.5 h-3.5" />
-            <span>Workflows</span>
-          </button>
-
-          <button
-            onClick={() => setActiveSubTab('schedules')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-2 shrink-0 ${
-              activeSubTab === 'schedules'
-                ? 'bg-[#3a2088] text-white shadow-xs'
-                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80'
-            }`}
-          >
-            <Calendar className="w-3.5 h-3.5" />
-            <span>Schedules</span>
-          </button>
-
-          <button
-            onClick={() => setActiveSubTab('salesform')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-2 shrink-0 ${
-              activeSubTab === 'salesform'
-                ? 'bg-[#3a2088] text-white shadow-xs'
-                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80'
-            }`}
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>Salesforms</span>
-          </button>
-
-          <button
-            onClick={() => setActiveSubTab('api_templates')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-2 shrink-0 ${
-              activeSubTab === 'api_templates'
-                ? 'bg-[#3a2088] text-white shadow-xs'
-                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80'
-            }`}
-          >
-            <Code className="w-3.5 h-3.5" />
-            <span>API Templates</span>
-          </button>
-
-          <button
-            onClick={() => setActiveSubTab('webhooks')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-2 shrink-0 ${
-              activeSubTab === 'webhooks'
-                ? 'bg-[#3a2088] text-white shadow-xs'
-                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80'
-            }`}
-          >
-            <Webhook className="w-3.5 h-3.5" />
-            <span>Webhooks</span>
-          </button>
-
-          <button
-            onClick={() => setActiveSubTab('apps')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-2 shrink-0 ${
-              activeSubTab === 'apps'
-                ? 'bg-[#3a2088] text-white shadow-xs'
-                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80'
-            }`}
-          >
-            <LayoutGrid className="w-3.5 h-3.5" />
-            <span>Apps</span>
-          </button>
-        </div>
-
-        <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 font-mono pr-2">
-          <Sparkles className="w-3.5 h-3.5 text-[#3a2088]" />
-          <span>Automation Engine</span>
-        </div>
-      </div>
-
       {/* ========================================================================= */}
       {/* 1. WORKFLOWS VIEW (Exact match to Screenshot 1)                           */}
       {/* ========================================================================= */}

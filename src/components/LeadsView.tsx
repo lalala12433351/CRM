@@ -1538,13 +1538,13 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
       {/* VIEW MODE 1: ANALYTICS & CHART VIEW (Exact match to uploaded screenshot)  */}
       {/* ========================================================================= */}
       {viewMode === 'chart' && (
-        <div className="px-4 sm:px-6 space-y-4">
+        <div className="px-3 sm:px-6 space-y-4 max-w-full overflow-hidden">
           
           {/* TAB BAR CARD: Dimension tabs on left, Export/Download on right (Exact match to screenshot) */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-2xs px-4 pt-3 pb-0 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xs px-3 sm:px-4 pt-3 pb-0 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 max-w-full overflow-hidden">
             
             {/* Left Dimension Tabs: Created on | Status | Lost Reasons | Assignee | Rating | Call status | Number of calls placed | Custom */}
-            <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar text-xs md:text-sm">
+            <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar text-xs md:text-sm max-w-full">
               {dimensionTabs.map((tab) => {
                 const isActive = activeDimension === tab.id;
                 return (
@@ -1720,10 +1720,10 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
           </div>
 
           {/* MAIN BAR CHART CARD (Exact match to screenshot) */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-2xs p-5 relative">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xs p-3.5 sm:p-5 relative max-w-full overflow-hidden">
             
             {/* Top Card Controls: [ 📊 Bar ⌵ ] [ Group By ⌵ ] -------- [ View 1918 leads ] */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
               
               {/* Left Controls */}
               <div className="flex items-center space-x-2">
@@ -1798,19 +1798,19 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
               {/* Right: [ View 1918 leads ] Solid Deep Purple Button */}
               <button
                 onClick={() => setViewMode('table')}
-                className="bg-[#3a2088] hover:bg-[#2c186b] text-white text-xs font-semibold px-4 py-2 rounded-lg cursor-pointer transition-colors shadow-2xs flex items-center space-x-1.5"
+                className="w-full sm:w-auto justify-center bg-[#3a2088] hover:bg-[#2c186b] text-white text-xs font-semibold px-4 py-2 rounded-lg cursor-pointer transition-colors shadow-2xs flex items-center space-x-1.5"
               >
                 <span>View {totalLeadsCount} leads</span>
               </button>
             </div>
 
             {/* CHART DISPLAY AREA */}
-            <div className="relative min-h-[340px] pt-4 pb-2">
+            <div className="relative min-h-[300px] sm:min-h-[340px] pt-3 pb-2 w-full max-w-full overflow-hidden">
               
               {chartType === 'donut' ? (
                 /* DONUT CHART MODE */
                 <div className="w-full flex flex-col md:flex-row items-center justify-center gap-6 py-2">
-                  <div className="relative w-52 h-52 flex items-center justify-center shrink-0">
+                  <div className="relative w-48 h-48 sm:w-52 sm:h-52 flex items-center justify-center shrink-0">
                     <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
                       {(() => {
                         const total = activeChartData.reduce((acc, curr) => acc + curr.value, 0) || 1;
@@ -1850,7 +1850,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs font-sans max-h-56 overflow-y-auto w-full max-w-md">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-sans max-h-56 overflow-y-auto w-full max-w-md">
                     {activeChartData.map((item, idx) => (
                       <div
                         key={idx}
@@ -1883,16 +1883,16 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                             if (activeDimension === 'status') setSelectedStatus(item.label);
                             setViewMode('table');
                           }}
-                          className="flex items-center space-x-3 text-xs group cursor-pointer"
+                          className="flex items-center space-x-2 sm:space-x-3 text-xs group cursor-pointer"
                         >
-                          <span className="w-28 text-[11px] font-medium text-slate-700 truncate text-right">{item.label}</span>
-                          <div className="flex-1 bg-slate-100 rounded-full h-4 overflow-hidden relative">
+                          <span className="w-20 sm:w-28 text-[10px] sm:text-[11px] font-medium text-slate-700 truncate text-right shrink-0">{item.label}</span>
+                          <div className="flex-1 bg-slate-100 rounded-full h-3.5 sm:h-4 overflow-hidden relative">
                             <div
                               className="h-full rounded-full transition-all duration-500 group-hover:opacity-90"
                               style={{ width: `${barWidth}%`, backgroundColor: item.color }}
                             />
                           </div>
-                          <span className="w-16 text-[11px] font-bold text-slate-800 font-mono">{item.displayValue}</span>
+                          <span className="w-12 sm:w-16 text-[10px] sm:text-[11px] font-bold text-slate-800 font-mono shrink-0">{item.displayValue}</span>
                         </div>
                       );
                     });
@@ -1900,11 +1900,11 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                 </div>
               ) : (
                 /* VERTICAL COLUMN CHART MODE (Exact match to screenshot) */
-                <div className="w-full flex flex-col justify-between">
-                  <div className="relative h-72 pl-14 pr-4">
+                <div className="w-full max-w-full flex flex-col justify-between overflow-hidden">
+                  <div className="relative h-64 sm:h-72 pl-7 sm:pl-12 pr-1 sm:pr-4 w-full max-w-full">
                     
                     {/* Y-Axis Title ("Leads Count") */}
-                    <div className="absolute left-1 top-1/2 -translate-y-1/2 -rotate-90 text-[11px] font-medium text-slate-500 tracking-wide select-none origin-center whitespace-nowrap">
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 -rotate-90 text-[9px] sm:text-[11px] font-medium text-slate-400 tracking-wide select-none origin-center whitespace-nowrap hidden xs:block">
                       Leads Count
                     </div>
 
@@ -1938,10 +1938,10 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                       const { topCeil, ticks } = computeNiceScale(maxVal);
 
                       return (
-                        <div className="absolute inset-0 pl-12 pr-4 flex flex-col justify-between pointer-events-none">
+                        <div className="absolute inset-0 pl-6 sm:pl-10 pr-1 sm:pr-4 flex flex-col justify-between pointer-events-none">
                           {ticks.map((t, idx) => (
-                            <div key={idx} className="w-full flex items-center space-x-2">
-                              <span className="w-9 text-[10px] text-slate-400 text-right font-mono">
+                            <div key={idx} className="w-full flex items-center space-x-1.5">
+                              <span className="w-5 sm:w-8 text-[8px] sm:text-[10px] text-slate-400 text-right font-mono shrink-0">
                                 {t >= 1000 ? (t / 1000).toFixed(t % 1000 === 0 ? 0 : 1) + 'k' : t.toLocaleString()}
                               </span>
                               <div className="flex-1 border-b border-slate-100" />
@@ -1952,7 +1952,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                     })()}
 
                     {/* Column Bars */}
-                    <div className="relative z-10 w-full h-full flex items-end justify-around gap-4 px-2 pb-1">
+                    <div className="relative z-10 w-full h-full flex items-end justify-between sm:justify-around gap-1 sm:gap-2 px-0.5 sm:px-1 pb-1">
                       {(() => {
                         const maxVal = Math.max(...activeChartData.map(d => d.value), 0);
                         const computeNiceTop = (max: number) => {
@@ -1979,7 +1979,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                           return (
                             <div 
                               key={index} 
-                              className="flex-1 max-w-[120px] flex flex-col items-center justify-end h-full group relative cursor-pointer"
+                              className="flex-1 flex flex-col items-center justify-end h-full group relative cursor-pointer min-w-0 px-0.5"
                               onClick={() => {
                                 if (activeDimension === 'status') {
                                   setSelectedStatus(item.label);
@@ -1992,13 +1992,13 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                               title={`${item.label}: ${item.displayCount || item.value} leads (${item.percentage})`}
                             >
                               {/* Value Above Bar */}
-                              <span className="text-[11px] font-bold text-slate-800 mb-1 select-none transition-transform group-hover:-translate-y-1 font-mono">
+                              <span className="text-[9px] sm:text-[11px] font-bold text-slate-800 mb-0.5 select-none font-mono">
                                 {item.displayValue}
                               </span>
 
                               {/* Solid Bar */}
                               <div 
-                                className="w-full max-w-[64px] rounded-t-sm transition-all duration-300 group-hover:opacity-90 group-hover:shadow-md"
+                                className="w-full max-w-[28px] sm:max-w-[48px] rounded-t-sm transition-all duration-300 group-hover:opacity-90 group-hover:shadow-md"
                                 style={{
                                   height: `${barHeightPercent}%`,
                                   backgroundColor: item.color
@@ -2006,8 +2006,8 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                               />
 
                               {/* Label Below Bar */}
-                              <div className="h-6 pt-1 flex items-start justify-center text-center w-full">
-                                <span className="text-xs text-slate-700 font-medium truncate max-w-[90px]">
+                              <div className="h-7 pt-1 flex items-start justify-center text-center w-full min-w-0">
+                                <span className="text-[9px] sm:text-xs text-slate-700 font-medium truncate max-w-full block text-center" title={item.label}>
                                   {item.label}
                                 </span>
                               </div>

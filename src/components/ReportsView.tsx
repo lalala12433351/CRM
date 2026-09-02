@@ -23,6 +23,7 @@ import {
 import { CallRecord, Agent, Lead, ActivityLog } from '../types';
 import { CallRecordingPlayer } from './CallRecordingPlayer';
 import { UserAvatar } from './UserAvatar';
+import { CustomDropdown, DropdownOption } from './CustomDropdown';
 
 export type ReportsSubTab = 'call_logs' | 'leaderboard' | 'user_report';
 
@@ -506,30 +507,32 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   <span className="text-[10px] text-slate-500">Peak: 12 PM - 02 PM</span>
                 </div>
 
-                <div className="h-44 flex items-end justify-between gap-1.5 pt-4 pb-2 border-b border-slate-100">
-                  {hourlyData.map((d) => {
-                    const heightPct = (d.calls / maxBarVal) * 100;
-                    return (
-                      <div key={d.hour} className="flex-1 flex flex-col items-center gap-1 group">
-                        {d.calls > 0 && (
-                          <span className="text-[9px] font-mono text-slate-700 font-bold opacity-0 group-hover:opacity-100 transition-opacity">
-                            {d.calls}
+                <div className="overflow-x-auto ios-scroll pb-2">
+                  <div className="h-44 min-w-[280px] flex items-end justify-between gap-1.5 pt-4 pb-2 border-b border-slate-100">
+                    {hourlyData.map((d) => {
+                      const heightPct = (d.calls / maxBarVal) * 100;
+                      return (
+                        <div key={d.hour} className="flex-1 flex flex-col items-center gap-1 group">
+                          {d.calls > 0 && (
+                            <span className="text-[9px] font-mono text-slate-700 font-bold opacity-0 group-hover:opacity-100 transition-opacity">
+                              {d.calls}
+                            </span>
+                          )}
+                          <div className="w-full bg-slate-100 rounded-t h-full flex items-end">
+                            <div
+                              className={`w-full rounded-t transition-all ${
+                                d.calls > 40 ? 'bg-indigo-600' : d.calls > 0 ? 'bg-indigo-400' : 'bg-transparent'
+                              }`}
+                              style={{ height: `${Math.max(heightPct, 3)}%` }}
+                            />
+                          </div>
+                          <span className="text-[8px] font-mono text-slate-500 rotate-45 origin-left mt-1 whitespace-nowrap">
+                            {d.hour}
                           </span>
-                        )}
-                        <div className="w-full bg-slate-100 rounded-t h-full flex items-end">
-                          <div
-                            className={`w-full rounded-t transition-all ${
-                              d.calls > 40 ? 'bg-indigo-600' : d.calls > 0 ? 'bg-indigo-400' : 'bg-transparent'
-                            }`}
-                            style={{ height: `${Math.max(heightPct, 3)}%` }}
-                          />
                         </div>
-                        <span className="text-[8px] font-mono text-slate-500 rotate-45 origin-left mt-1 whitespace-nowrap">
-                          {d.hour}
-                        </span>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <p className="text-center text-xs font-mono text-slate-500 pt-2 font-medium">
@@ -557,30 +560,30 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   </div>
 
                   {/* Disposition Filter */}
-                  <select
+                  <CustomDropdown<string>
                     value={dispositionFilter}
-                    onChange={(e) => setDispositionFilter(e.target.value)}
-                    className="bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none font-bold"
-                  >
-                    <option value="ALL">All Statuses</option>
-                    <option value="Interested">Interested</option>
-                    <option value="Follow Up">Follow Up</option>
-                    <option value="Converted">Converted</option>
-                    <option value="RNR">RNR / Unreachable</option>
-                    <option value="Open">Open</option>
-                  </select>
+                    onChange={(val) => setDispositionFilter(val)}
+                    options={[
+                      { value: 'ALL', label: 'All Statuses' },
+                      { value: 'Interested', label: 'Interested' },
+                      { value: 'Follow Up', label: 'Follow Up' },
+                      { value: 'Converted', label: 'Converted' },
+                      { value: 'RNR', label: 'RNR / Unreachable' },
+                      { value: 'Open', label: 'Open' },
+                    ]}
+                    align="left"
+                  />
 
                   {/* Agent Filter */}
-                  <select
+                  <CustomDropdown<string>
                     value={agentFilter}
-                    onChange={(e) => setAgentFilter(e.target.value)}
-                    className="bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none font-bold"
-                  >
-                    <option value="ALL">All Agents</option>
-                    {agents.map(ag => (
-                      <option key={ag.id} value={ag.id}>{ag.name}</option>
-                    ))}
-                  </select>
+                    onChange={(val) => setAgentFilter(val)}
+                    options={[
+                      { value: 'ALL', label: 'All Agents' },
+                      ...agents.map(ag => ({ value: ag.id, label: ag.name }))
+                    ]}
+                    align="left"
+                  />
                 </div>
 
                 {/* TIME SORTING OPTIONS */}
@@ -590,16 +593,17 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                     <span>Sort Call Logs By:</span>
                   </span>
 
-                  <select
+                  <CustomDropdown<'newest' | 'oldest' | 'duration_desc' | 'duration_asc'>
                     value={callSortOption}
-                    onChange={(e) => setCallSortOption(e.target.value as any)}
-                    className="bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-2.5 py-1 cursor-pointer focus:outline-none font-bold text-xs"
-                  >
-                    <option value="newest">Time: Newest First</option>
-                    <option value="oldest">Time: Oldest First</option>
-                    <option value="duration_desc">Duration: Longest First</option>
-                    <option value="duration_asc">Duration: Shortest First</option>
-                  </select>
+                    onChange={(val) => setCallSortOption(val)}
+                    options={[
+                      { value: 'newest', label: 'Time: Newest First' },
+                      { value: 'oldest', label: 'Time: Oldest First' },
+                      { value: 'duration_desc', label: 'Duration: Longest First' },
+                      { value: 'duration_asc', label: 'Duration: Shortest First' },
+                    ]}
+                    align="right"
+                  />
                 </div>
               </div>
 
@@ -723,17 +727,18 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 <ArrowUpDown className="w-3.5 h-3.5 text-indigo-600" />
                 <span>Rank Telecallers By:</span>
               </span>
-              <select
+              <CustomDropdown<'deals_desc' | 'revenue_desc' | 'calls_desc' | 'talk_time_desc' | 'win_rate_desc'>
                 value={leaderboardSortBy}
-                onChange={(e) => setLeaderboardSortBy(e.target.value as any)}
-                className="bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-2.5 py-1.5 focus:outline-none font-bold cursor-pointer"
-              >
-                <option value="deals_desc">Converted Deals (High to Low)</option>
-                <option value="revenue_desc">Revenue Won (High to Low)</option>
-                <option value="calls_desc">Total Call Volume (High to Low)</option>
-                <option value="talk_time_desc">Talk Time Duration (High to Low)</option>
-                <option value="win_rate_desc">Win Rate % (High to Low)</option>
-              </select>
+                onChange={(val) => setLeaderboardSortBy(val)}
+                options={[
+                  { value: 'deals_desc', label: 'Converted Deals (High to Low)' },
+                  { value: 'revenue_desc', label: 'Revenue Won (High to Low)' },
+                  { value: 'calls_desc', label: 'Total Call Volume (High to Low)' },
+                  { value: 'talk_time_desc', label: 'Talk Time Duration (High to Low)' },
+                  { value: 'win_rate_desc', label: 'Win Rate % (High to Low)' },
+                ]}
+                align="right"
+              />
             </div>
           </div>
 
@@ -846,15 +851,12 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
             <div className="flex items-center space-x-2">
               <label className="text-slate-600 font-bold">Select Telecaller:</label>
-              <select
+              <CustomDropdown<string>
                 value={selectedAgentId}
-                onChange={(e) => setSelectedAgentId(e.target.value)}
-                className="bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-2.5 py-1.5 focus:outline-none font-bold cursor-pointer"
-              >
-                {rankedAgents.map(ag => (
-                  <option key={ag.id} value={ag.id}>{ag.name}</option>
-                ))}
-              </select>
+                onChange={(val) => setSelectedAgentId(val)}
+                options={rankedAgents.map(ag => ({ value: ag.id, label: ag.name }))}
+                align="right"
+              />
             </div>
           </div>
 
@@ -895,16 +897,17 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   <ArrowUpDown className="w-3.5 h-3.5 text-indigo-600" />
                   <span>Sort Time:</span>
                 </span>
-                <select
+                <CustomDropdown<'newest' | 'oldest' | 'duration_desc' | 'duration_asc'>
                   value={userReportCallSort}
-                  onChange={(e) => setUserReportCallSort(e.target.value as any)}
-                  className="bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-2 py-1 text-xs focus:outline-none cursor-pointer font-bold"
-                >
-                  <option value="newest">Newest First</option>
-                  <option value="oldest">Oldest First</option>
-                  <option value="duration_desc">Duration: Longest First</option>
-                  <option value="duration_asc">Duration: Shortest First</option>
-                </select>
+                  onChange={(val) => setUserReportCallSort(val)}
+                  options={[
+                    { value: 'newest', label: 'Newest First' },
+                    { value: 'oldest', label: 'Oldest First' },
+                    { value: 'duration_desc', label: 'Duration: Longest First' },
+                    { value: 'duration_asc', label: 'Duration: Shortest First' },
+                  ]}
+                  align="right"
+                />
               </div>
             </div>
 

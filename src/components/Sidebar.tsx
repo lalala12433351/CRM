@@ -48,6 +48,8 @@ export type TabType =
 interface SidebarProps {
   activeTab: TabType;
   setActiveTab: (tab: TabType, subTab?: ReportsSubTab | AutomationsSubTab) => void;
+  automationsSubTab?: AutomationsSubTab;
+  reportsSubTab?: ReportsSubTab;
   unassignedLeadsCount: number;
   missedCallsCount?: number;
   isCollapsed?: boolean;
@@ -62,6 +64,8 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ 
   activeTab, 
   setActiveTab,
+  automationsSubTab = 'workflows',
+  reportsSubTab = 'call_logs',
   unassignedLeadsCount,
   missedCallsCount = 0,
   onOpenVoiceBot,
@@ -70,9 +74,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setActiveFilterId,
   isAdmin = false
 }) => {
-  const [isReportsOpen, setIsReportsOpen] = useState(false);
-  const [isAutomationsOpen, setIsAutomationsOpen] = useState(false);
+  const [isReportsOpen, setIsReportsOpen] = useState(activeTab === 'reports');
+  const [isAutomationsOpen, setIsAutomationsOpen] = useState(activeTab === 'workflows');
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+
+  // Auto-expand submenus when active tab switches to workflows or reports
+  React.useEffect(() => {
+    if (activeTab === 'workflows') {
+      setIsAutomationsOpen(true);
+    } else if (activeTab === 'reports') {
+      setIsReportsOpen(true);
+    }
+  }, [activeTab]);
 
   // Grouped Navigation matching reference layout (MAIN MENU, TOOLS, WORKSPACE)
   const menuSections = [
@@ -148,11 +161,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     const isActive = activeTab === item.id || (item.isFilterAction && isFiltersOpen);
 
                     if (item.submenuType === 'workflows') {
+                      const currentAutomationsSubTab = automationsSubTab || 'workflows';
+                      const subItems: { id: AutomationsSubTab; label: string; icon: React.FC<{ className?: string }> }[] = [
+                        { id: 'workflows', label: 'Workflows', icon: GitBranch },
+                        { id: 'schedules', label: 'Schedules', icon: Calendar },
+                        { id: 'salesform', label: 'Salesforms', icon: FileText },
+                        { id: 'api_templates', label: 'API Templates', icon: Code },
+                        { id: 'webhooks', label: 'Webhooks', icon: Webhook },
+                        { id: 'apps', label: 'Apps', icon: LayoutGrid },
+                      ];
+
                       return (
                         <div key={item.id} className="space-y-0.5">
                           <button
                             onClick={() => {
-                              setActiveTab('workflows', 'workflows');
+                              setActiveTab('workflows', automationsSubTab || 'workflows');
                               setIsAutomationsOpen(!isAutomationsOpen);
                             }}
                             className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
@@ -170,49 +193,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                           {/* Automations Collapsible Submenu */}
                           {isAutomationsOpen && (
-                            <div className="pl-8 pr-1 space-y-0.5 py-1 text-xs">
-                              <button
-                                onClick={() => setActiveTab('workflows', 'workflows')}
-                                className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-slate-600 hover:text-indigo-700 hover:bg-indigo-50/60 font-medium cursor-pointer"
-                              >
-                                <GitBranch className="w-3.5 h-3.5 text-indigo-500" />
-                                <span>Workflows</span>
-                              </button>
-                              <button
-                                onClick={() => setActiveTab('workflows', 'schedules')}
-                                className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-slate-600 hover:text-indigo-700 hover:bg-indigo-50/60 font-medium cursor-pointer"
-                              >
-                                <Calendar className="w-3.5 h-3.5 text-indigo-500" />
-                                <span>Schedules</span>
-                              </button>
-                              <button
-                                onClick={() => setActiveTab('workflows', 'salesform')}
-                                className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-slate-600 hover:text-indigo-700 hover:bg-indigo-50/60 font-medium cursor-pointer"
-                              >
-                                <FileText className="w-3.5 h-3.5 text-indigo-500" />
-                                <span>Salesforms</span>
-                              </button>
-                              <button
-                                onClick={() => setActiveTab('workflows', 'api_templates')}
-                                className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-slate-600 hover:text-indigo-700 hover:bg-indigo-50/60 font-medium cursor-pointer"
-                              >
-                                <Code className="w-3.5 h-3.5 text-indigo-500" />
-                                <span>API Templates</span>
-                              </button>
-                              <button
-                                onClick={() => setActiveTab('workflows', 'webhooks')}
-                                className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-slate-600 hover:text-indigo-700 hover:bg-indigo-50/60 font-medium cursor-pointer"
-                              >
-                                <Webhook className="w-3.5 h-3.5 text-indigo-500" />
-                                <span>Webhooks</span>
-                              </button>
-                              <button
-                                onClick={() => setActiveTab('workflows', 'apps')}
-                                className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-slate-600 hover:text-indigo-700 hover:bg-indigo-50/60 font-medium cursor-pointer"
-                              >
-                                <LayoutGrid className="w-3.5 h-3.5 text-indigo-500" />
-                                <span>Apps</span>
-                              </button>
+                            <div className="pl-6 pr-1 space-y-0.5 py-1 text-xs">
+                              {subItems.map((sub) => {
+                                const SubIcon = sub.icon;
+                                const isSubActive = activeTab === 'workflows' && currentAutomationsSubTab === sub.id;
+                                return (
+                                  <button
+                                    key={sub.id}
+                                    onClick={() => setActiveTab('workflows', sub.id)}
+                                    className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-xs transition-all cursor-pointer ${
+                                      isSubActive
+                                        ? 'bg-indigo-100/90 text-indigo-900 font-bold shadow-2xs border border-indigo-200/60'
+                                        : 'text-slate-600 hover:text-indigo-700 hover:bg-indigo-50/60 font-medium'
+                                    }`}
+                                  >
+                                    <SubIcon className={`w-3.5 h-3.5 ${isSubActive ? 'text-indigo-600' : 'text-slate-400'}`} />
+                                    <span>{sub.label}</span>
+                                  </button>
+                                );
+                              })}
                             </div>
                           )}
                         </div>
@@ -220,11 +219,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     }
 
                     if (item.submenuType === 'reports') {
+                      const currentReportsSubTab = reportsSubTab || 'call_logs';
+                      const reportItems: { id: ReportsSubTab; label: string; icon: React.FC<{ className?: string }> }[] = [
+                        { id: 'call_logs', label: 'Call Log Report', icon: PhoneCall },
+                        { id: 'leaderboard', label: 'Leaderboard', icon: UserCheck },
+                      ];
+
                       return (
                         <div key={item.id} className="space-y-0.5">
                           <button
                             onClick={() => {
-                              setActiveTab('reports', 'call_logs');
+                              setActiveTab('reports', reportsSubTab || 'call_logs');
                               setIsReportsOpen(!isReportsOpen);
                             }}
                             className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
@@ -242,21 +247,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                           {/* Reports Collapsible Submenu */}
                           {isReportsOpen && (
-                            <div className="pl-8 pr-1 space-y-0.5 py-1 text-xs">
-                              <button
-                                onClick={() => setActiveTab('reports', 'call_logs')}
-                                className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-slate-600 hover:text-indigo-700 hover:bg-indigo-50/60 font-medium cursor-pointer"
-                              >
-                                <PhoneCall className="w-3.5 h-3.5 text-indigo-500" />
-                                <span>Call Log Report</span>
-                              </button>
-                              <button
-                                onClick={() => setActiveTab('reports', 'leaderboard')}
-                                className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-slate-600 hover:text-indigo-700 hover:bg-indigo-50/60 font-medium cursor-pointer"
-                              >
-                                <UserCheck className="w-3.5 h-3.5 text-indigo-500" />
-                                <span>Leaderboard</span>
-                              </button>
+                            <div className="pl-6 pr-1 space-y-0.5 py-1 text-xs">
+                              {reportItems.map((sub) => {
+                                const SubIcon = sub.icon;
+                                const isSubActive = activeTab === 'reports' && currentReportsSubTab === sub.id;
+                                return (
+                                  <button
+                                    key={sub.id}
+                                    onClick={() => setActiveTab('reports', sub.id)}
+                                    className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-xs transition-all cursor-pointer ${
+                                      isSubActive
+                                        ? 'bg-indigo-100/90 text-indigo-900 font-bold shadow-2xs border border-indigo-200/60'
+                                        : 'text-slate-600 hover:text-indigo-700 hover:bg-indigo-50/60 font-medium'
+                                    }`}
+                                  >
+                                    <SubIcon className={`w-3.5 h-3.5 ${isSubActive ? 'text-indigo-600' : 'text-slate-400'}`} />
+                                    <span>{sub.label}</span>
+                                  </button>
+                                );
+                              })}
                             </div>
                           )}
                         </div>
