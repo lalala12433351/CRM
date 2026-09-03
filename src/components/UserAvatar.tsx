@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 interface UserAvatarProps {
   name: string;
@@ -33,15 +33,14 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
   className = '',
   rounded = 'full'
 }) => {
-  const rawAvatar = avatarUrl || avatar;
-  // Do not use default AI / unsplash stock profile pics; use first letter name itself
-  const finalAvatar = (rawAvatar && !rawAvatar.includes('unsplash.com')) ? rawAvatar.trim() : '';
+  const [imageError, setImageError] = useState(false);
+  const rawAvatar = (avatarUrl || avatar || '').trim();
   const initial = (name?.trim()?.charAt(0) || 'U').toUpperCase();
   const gradient = getAvatarColor(name);
 
   const sizeClasses = {
     xs: 'w-6 h-6 text-[10px]',
-    sm: 'w-7 h-7 text-xs',
+    sm: 'w-7 h-7 text-[11px] font-bold',
     md: 'w-8 h-8 text-xs font-bold',
     lg: 'w-10 h-10 text-sm font-bold',
     xl: 'w-12 h-12 text-base font-bold'
@@ -54,20 +53,17 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
     '2xl': 'rounded-2xl'
   };
 
-  if (finalAvatar) {
+  if (rawAvatar && !imageError) {
     return (
       <div
         className={`${sizeClasses[size]} ${roundedClasses[rounded]} overflow-hidden shrink-0 shadow-2xs select-none border border-slate-200/60 ${className}`}
         title={name}
       >
         <img
-          src={finalAvatar}
+          src={rawAvatar}
           alt={name}
           className="w-full h-full object-cover"
-          onError={(e) => {
-            // Fallback if image fails to load
-            (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
-          }}
+          onError={() => setImageError(true)}
         />
       </div>
     );

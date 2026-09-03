@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef, useEffect, useContext } from 'react';
 import { 
   Search, 
@@ -43,8 +44,21 @@ import {
   Clock,
   UserCheck,
   LayoutGrid,
-  Timer
+  Timer,
+  ToggleLeft,
+  ThumbsDown,
+  Trophy,
+  Headphones,
+  Zap,
+  Globe,
+  IndianRupee,
+  MapPin,
+  Building2,
+  UserPlus,
+  ArrowLeft,
+  Tag
 } from 'lucide-react';
+import { UserAvatar } from '../components/UserAvatar';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FRESH LEAD RESPONSE TIMER BADGE
@@ -124,6 +138,18 @@ import { StatusBadge } from '../components/StatusBadge';
 import { getStatusStyle } from '../utils/statusStyles';
 import { LeadSummaryModal } from '../components/LeadSummaryModal';
 import { StagesContext } from '../App';
+import { 
+  DynamicCondition, 
+  ConditionOperator, 
+  FieldDataType, 
+  ConditionFieldDef, 
+  DATA_TYPE_OPERATOR_MAPPING, 
+  getOperatorLabel, 
+  isUnaryOperator,
+  getDynamicFieldOptions,
+  evaluateLeadAgainstConditions
+} from '../utils/conditionFilterEngine';
+import { ConditionFilterChipsBar } from '../components/ConditionFilterChipsBar';
 
 interface LeadsViewProps {
   leads: Lead[];
@@ -194,7 +220,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
   const stages = useContext(StagesContext);
 
   // Main View Toggle: 'chart' (Analytics/Graph) vs 'table' (Data Grid)
-  const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
+  const [viewMode, setViewMode] = useState<'chart' | 'table'>('table');
   const [activeDimension, setActiveDimension] = useState<AnalyticsDimension>('created_on');
   const [chartType, setChartType] = useState<'bar' | 'column' | 'donut'>('column');
   const [isChartTypeOpen, setIsChartTypeOpen] = useState(false);
@@ -233,6 +259,52 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
   const [customEndDate, setCustomEndDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [isDateRangePickerOpen, setIsDateRangePickerOpen] = useState(false);
   const dateRangePickerRef = useRef<HTMLDivElement>(null);
+
+  // Custom Dimension Field Picker State
+  const [selectedCustomFieldKey, setSelectedCustomFieldKey] = useState<string>('');
+  const [isCustomFieldDropdownOpen, setIsCustomFieldDropdownOpen] = useState(false);
+  const [customFieldSearchTerm, setCustomFieldSearchTerm] = useState('');
+  const customFieldDropdownRef = useRef<HTMLDivElement>(null);
+
+  const getCustomFieldIcon = (type?: string) => {
+    switch (type) {
+      case 'date':
+        return <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />;
+      case 'boolean':
+        return <CheckSquare className="w-3.5 h-3.5 text-slate-400 shrink-0" />;
+      case 'dropdown':
+        return <List className="w-3.5 h-3.5 text-slate-400 shrink-0" />;
+      case 'currency':
+      case 'number':
+        return <IndianRupee className="w-3.5 h-3.5 text-slate-400 shrink-0" />;
+      case 'phone':
+        return <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />;
+      case 'email':
+        return <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />;
+      default:
+        return <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />;
+    }
+  };
+
+  const activeCustomFieldDef = useMemo(() => {
+    const list = (customFields || []).filter((f) => !f.isHidden && f.id !== TIMER_SENTINEL_ID);
+    if (!selectedCustomFieldKey && list.length > 0) return list[0];
+    return list.find((f) => f.name === selectedCustomFieldKey || f.id === selectedCustomFieldKey) || list[0];
+  }, [customFields, selectedCustomFieldKey]);
+
+  const selectableCustomFields = useMemo(() => {
+    const baseFields = (customFields || []).filter((f) => !f.isHidden && f.id !== TIMER_SENTINEL_ID);
+    if (!customFieldSearchTerm.trim()) return baseFields;
+    const q = customFieldSearchTerm.toLowerCase();
+    return baseFields.filter((f) => f.label.toLowerCase().includes(q) || f.name.toLowerCase().includes(q));
+  }, [customFields, customFieldSearchTerm]);
+
+  useEffect(() => {
+    if (!selectedCustomFieldKey && customFields && customFields.length > 0) {
+      const firstField = customFields.find((f) => !f.isHidden && f.id !== TIMER_SENTINEL_ID) || customFields[0];
+      setSelectedCustomFieldKey(firstField.name || firstField.id);
+    }
+  }, [customFields, selectedCustomFieldKey]);
 
   // Dynamically compute all unique lead statuses present in database + pipeline stages
   const availableStatuses = useMemo(() => {
@@ -360,6 +432,208 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
       .map((key) => allAvailableFields.find((f) => f.name === key || f.id === key))
       .filter(Boolean) as CustomFieldDef[];
   }, [selectedColumnKeys, allAvailableFields]);
+
+  // ── Dynamic Condition Builder State (Matching User's Strict Specifications) ──────────
+  const [activeConditions, setActiveConditions] = useState<DynamicCondition[]>([]);
+  const [isAddConditionModalOpen, setIsAddConditionModalOpen] = useState(false);
+  const [conditionSearchQuery, setConditionSearchQuery] = useState('');
+
+  // Dynamic Options Context for categorical, lost reasons, stages, agents, sources
+  const optionsContext = useMemo(() => ({
+    leads,
+    agents,
+    stages,
+    lostReasons,
+    customFields
+  }), [leads, agents, stages, lostReasons, customFields]);
+
+  // Standard + Custom Fields definitions for Condition Builder dynamically derived ONLY from user field stages
+  const allConditionFields = useMemo<ConditionFieldDef[]>(() => {
+    const fieldsList: ConditionFieldDef[] = [];
+    const addedKeys = new Set<string>();
+
+    (customFields || []).forEach(cf => {
+      if (cf.id === TIMER_SENTINEL_ID) return;
+      const key = cf.name || cf.id;
+      if (addedKeys.has(key)) return;
+      addedKeys.add(key);
+
+      const label = cf.label || cf.name || cf.id;
+      const typeLower = (cf.type || 'text').toLowerCase();
+      const nameLower = key.toLowerCase();
+      const labelLower = label.toLowerCase();
+
+      let dataType: FieldDataType = 'text';
+      let defaultOperator: ConditionOperator = 'contains';
+      let icon = Sliders;
+      let defaultValue = '';
+
+      if (typeLower === 'phone' || nameLower.includes('phone') || labelLower.includes('phone') || labelLower === 'number') {
+        dataType = 'phone';
+        defaultOperator = 'begins_with';
+        icon = Phone;
+        defaultValue = '+91';
+      } else if (typeLower === 'email' || nameLower.includes('email') || labelLower.includes('email')) {
+        dataType = 'text';
+        defaultOperator = 'is_not_empty';
+        icon = Mail;
+      } else if (typeLower === 'number' || typeLower === 'currency' || nameLower.includes('deal') || labelLower.includes('deal') || labelLower.includes('value')) {
+        dataType = 'number';
+        defaultOperator = 'greater_than';
+        icon = IndianRupee;
+        defaultValue = '50000';
+      } else if (typeLower === 'date' || nameLower.includes('created') || nameLower.includes('date') || labelLower.includes('date')) {
+        dataType = 'date';
+        defaultOperator = 'is';
+        icon = Calendar;
+      } else if (typeLower === 'boolean' || typeLower === 'checkbox') {
+        dataType = 'boolean';
+        defaultOperator = 'is_true';
+        icon = ToggleLeft;
+      } else if (nameLower === 'lostreason' || nameLower === 'lost_reason' || labelLower.includes('lost reason')) {
+        dataType = 'lost_reason';
+        defaultOperator = 'is';
+        icon = AlertCircle;
+      } else if (nameLower === 'assignee' || nameLower === 'owner' || nameLower === 'createdby' || labelLower.includes('assignee') || labelLower.includes('created by')) {
+        dataType = 'user';
+        defaultOperator = 'is';
+        icon = User;
+      } else if (nameLower === 'status' || nameLower === 'stage' || labelLower.includes('status') || labelLower.includes('stage')) {
+        dataType = 'select';
+        defaultOperator = 'in';
+        icon = Layers;
+      } else if (nameLower === 'source' || labelLower.includes('source')) {
+        dataType = 'select';
+        defaultOperator = 'in';
+        icon = Globe;
+      } else if (nameLower === 'company' || labelLower.includes('company')) {
+        dataType = 'text';
+        defaultOperator = 'contains';
+        icon = Building2;
+      } else if (nameLower === 'city' || nameLower === 'state' || nameLower === 'address' || labelLower.includes('city') || labelLower.includes('location')) {
+        dataType = 'text';
+        defaultOperator = 'contains';
+        icon = MapPin;
+      } else if (typeLower === 'dropdown' || typeLower === 'multiselect') {
+        dataType = 'select';
+        defaultOperator = 'in';
+        icon = Layers;
+      } else {
+        dataType = 'text';
+        defaultOperator = 'contains';
+        icon = FileText;
+      }
+
+      fieldsList.push({
+        id: key,
+        label: label,
+        icon: icon,
+        dataType: dataType,
+        category: cf.category || 'Field Stages',
+        options: cf.options,
+        defaultOperator: defaultOperator,
+        defaultValue: defaultValue
+      });
+    });
+
+    // Ensure stage properties (Status, Lost Reason, Assignee) are available if not in customFields
+    if (!addedKeys.has('status')) {
+      fieldsList.push({
+        id: 'status',
+        label: 'Lead Status',
+        icon: Layers,
+        dataType: 'select',
+        category: 'Field Stages',
+        defaultOperator: 'in'
+      });
+    }
+    if (!addedKeys.has('lostReason') && !addedKeys.has('lost_reason')) {
+      fieldsList.push({
+        id: 'lostReason',
+        label: 'Lost Reason',
+        icon: AlertCircle,
+        dataType: 'lost_reason',
+        category: 'Field Stages',
+        defaultOperator: 'is'
+      });
+    }
+    if (!addedKeys.has('assignee')) {
+      fieldsList.push({
+        id: 'assignee',
+        label: 'Assignee',
+        icon: User,
+        dataType: 'user',
+        category: 'Field Stages',
+        defaultOperator: 'is'
+      });
+    }
+
+    return fieldsList;
+  }, [customFields]);
+
+  // Quick Trigger Items derived dynamically from user's active field stages
+  const quickConditionTriggers = useMemo(() => {
+    return allConditionFields.map(fld => ({
+      id: fld.id,
+      label: fld.label,
+      fieldId: fld.id,
+      icon: fld.icon,
+      dataType: fld.dataType,
+      defaultOperator: fld.defaultOperator,
+      defaultValue: fld.defaultValue || ''
+    }));
+  }, [allConditionFields]);
+
+
+    // Search filtered condition fields in modal
+  const filteredConditionFields = useMemo(() => {
+    if (!conditionSearchQuery.trim()) return allConditionFields;
+    const q = conditionSearchQuery.toLowerCase();
+    return allConditionFields.filter(f => 
+      f.label.toLowerCase().includes(q) || f.category.toLowerCase().includes(q)
+    );
+  }, [allConditionFields, conditionSearchQuery]);
+
+  const handleAddConditionFromField = (field: ConditionFieldDef) => {
+    const dynamicOpts = getDynamicFieldOptions(field.id, field.dataType, optionsContext);
+    const newCond: DynamicCondition = {
+      id: `cond_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      fieldId: field.id,
+      fieldLabel: field.label,
+      dataType: field.dataType,
+      operator: field.defaultOperator,
+      value: field.defaultValue || (dynamicOpts.length > 0 ? dynamicOpts[0] : ''),
+      iconType: field.id
+    };
+    setActiveConditions(prev => [...prev, newCond]);
+    setIsAddConditionModalOpen(false);
+    setConditionSearchQuery('');
+  };
+
+  const handleAddConditionFromTrigger = (trigger: typeof quickConditionTriggers[0]) => {
+    const dynamicOpts = getDynamicFieldOptions(trigger.fieldId, trigger.dataType, optionsContext);
+    const newCond: DynamicCondition = {
+      id: `cond_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      fieldId: trigger.fieldId,
+      fieldLabel: trigger.label,
+      dataType: trigger.dataType,
+      operator: trigger.defaultOperator,
+      value: trigger.defaultValue || (dynamicOpts.length > 0 ? dynamicOpts[0] : ''),
+      iconType: trigger.id
+    };
+    setActiveConditions(prev => [...prev, newCond]);
+    setIsAddConditionModalOpen(false);
+    setConditionSearchQuery('');
+  };
+
+  const handleRemoveCondition = (id: string) => {
+    setActiveConditions(prev => prev.filter(c => c.id !== id));
+  };
+
+  const handleUpdateCondition = (id: string, updates: Partial<DynamicCondition>) => {
+    setActiveConditions(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  };
+
 
   // Other Modals
   const [showImportModal, setShowImportModal] = useState(false);
@@ -553,6 +827,9 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
       if (dateRangePickerRef.current && !dateRangePickerRef.current.contains(event.target as Node)) {
         setIsDateRangePickerOpen(false);
       }
+      if (customFieldDropdownRef.current && !customFieldDropdownRef.current.contains(event.target as Node)) {
+        setIsCustomFieldDropdownOpen(false);
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -721,6 +998,15 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
         }
       }
 
+      // 6. Real-Time Dynamic Condition Filtering Engine
+      if (activeConditions.length > 0) {
+        const matchesAll = evaluateLeadAgainstConditions(lead, activeConditions, {
+          agents,
+          leadRatings
+        });
+        if (!matchesAll) return false;
+      }
+
       return true;
     });
 
@@ -743,7 +1029,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
     });
 
     return result;
-  }, [leads, activeFilterId, selectedAssignee, selectedStatus, selectedDateFilter, searchTerm, searchField, sortField, sortOrder, leadRatings]);
+  }, [leads, activeFilterId, selectedAssignee, selectedStatus, selectedDateFilter, searchTerm, searchField, sortField, sortOrder, leadRatings, activeConditions, agents, customFields, stages, lostReasons]);
 
   // Paginated leads
   const actualFilteredCount = filteredAndSortedLeads.length;
@@ -1250,10 +1536,60 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
           breakdown: computeBreakdown(item.leads, groupBy)
         };
       });
+
+    } else if (activeDimension === 'custom') {
+      const targetField = (customFields || []).find((f) => f.name === selectedCustomFieldKey || f.id === selectedCustomFieldKey) || customFields?.[0];
+      const fieldKey = targetField?.name || selectedCustomFieldKey || 'custom';
+
+      const leadMap: Record<string, Lead[]> = {};
+
+      filteredAndSortedLeads.forEach((l) => {
+        let val: any = undefined;
+        if (l.customFields && l.customFields[fieldKey] !== undefined) {
+          val = l.customFields[fieldKey];
+        } else if (l.customFields && targetField?.id && l.customFields[targetField.id] !== undefined) {
+          val = l.customFields[targetField.id];
+        } else if ((l as any)[fieldKey] !== undefined) {
+          val = (l as any)[fieldKey];
+        }
+
+        let bucketLabel = 'null';
+        if (val === undefined || val === null || val === '' || val === 'Empty' || val === 'empty') {
+          bucketLabel = 'null';
+        } else if (typeof val === 'boolean') {
+          bucketLabel = val ? 'true' : 'false';
+        } else if (val === 'true' || val === 'false') {
+          bucketLabel = val;
+        } else {
+          bucketLabel = String(val);
+        }
+
+        if (!leadMap[bucketLabel]) leadMap[bucketLabel] = [];
+        leadMap[bucketLabel].push(l);
+      });
+
+      const sortedEntries = Object.entries(leadMap).sort((a, b) => {
+        if (a[0] === 'null') return -1;
+        if (b[0] === 'null') return 1;
+        return b[1].length - a[1].length;
+      });
+
+      return sortedEntries.map(([label, bucketLeads], idx) => {
+        const count = bucketLeads.length;
+        return {
+          label,
+          value: count,
+          displayValue: count > 999 ? (count / 1000).toFixed(1) + 'k' : count.toString(),
+          displayCount: count.toString(),
+          percentage: ((count / total) * 100).toFixed(2) + '%',
+          color: colors[idx % colors.length],
+          breakdown: computeBreakdown(bucketLeads, groupBy)
+        };
+      });
     }
 
     return [];
-  }, [activeDimension, groupBy, filteredAndSortedLeads, agents, stages, createdOnDaysRange, createdOnRangeType, customStartDate, customEndDate, availableStatuses, lostReasons]);
+  }, [activeDimension, groupBy, filteredAndSortedLeads, agents, stages, createdOnDaysRange, createdOnRangeType, customStartDate, customEndDate, availableStatuses, lostReasons, selectedCustomFieldKey, customFields]);
 
   // Overall active groups across the dataset for Legend display
   const allActiveGroups = useMemo(() => {
@@ -1286,7 +1622,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
     <div className="w-full bg-[#f8fafc] min-h-screen text-slate-800 font-sans pb-16">
       
       {/* 1. TOP VIEW HEADER ROW */}
-      <div className="px-4 sm:px-6 pt-4 pb-3 flex items-center justify-between">
+      <div className="px-4 sm:px-6 pt-4 pb-3 flex items-center justify-between relative z-10">
         {/* Left: View title dropdown button + Edit + Refresh + Add */}
         <div className="flex items-center space-x-2 relative">
           
@@ -1308,7 +1644,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
 
             {/* FILTERS / SAVED VIEWS FLOATING POPOVER */}
             {isAdmin && isFiltersDropdownOpen && (
-              <div className="absolute left-0 top-full mt-1.5 w-64 bg-white rounded-2xl border border-slate-200/90 shadow-2xl z-50 p-2.5 space-y-1.5 animate-in fade-in slide-in-from-top-1 text-xs">
+              <div className="absolute left-0 top-full mt-1.5 w-64 bg-white rounded-2xl border border-slate-200/90 shadow-2xl z-[9999] p-2.5 space-y-1.5 animate-in fade-in slide-in-from-top-1 text-xs">
                 
                 {/* Popover Header */}
                 <div className="flex items-center justify-between px-2 py-1 border-b border-slate-100 pb-2">
@@ -1352,6 +1688,16 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
               </div>
             )}
           </div>
+
+          {/* '+' Button to open Add Condition Modal (Matching User's Request) */}
+          <button
+            type="button"
+            onClick={() => setIsAddConditionModalOpen(true)}
+            className="w-7 h-7 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 hover:border-purple-300 text-purple-700 flex items-center justify-center transition-all cursor-pointer shadow-2xs shrink-0 group ml-0.5"
+            title="Add Condition Filter"
+          >
+            <Plus className="w-4 h-4 text-purple-600 group-hover:scale-110 transition-transform duration-150" />
+          </button>
         </div>
 
         {/* Right: View Toggle (Analytics / Chart View & List View Switcher) */}
@@ -1405,7 +1751,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
       </div>
 
       {/* 2. FILTER PILLS ROW (Assignee | Status | Creation Date) */}
-      <div className="px-4 sm:px-6 mb-3 relative z-50">
+      <div className="px-4 sm:px-6 mb-3 relative z-0">
         <div className="flex items-center gap-2 flex-wrap">
           
           {/* In Table view, show the full unified search bar. In Chart view, show the clean filter pills as shown in screenshot */}
@@ -1548,9 +1894,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                           }`}
                         >
                           <div className="flex items-center space-x-2 min-w-0">
-                            <div className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[9px] font-bold text-slate-700 shrink-0">
-                              {getAgentAvatar(ag.name).initials}
-                            </div>
+                            <UserAvatar name={ag.name} avatarUrl={ag.avatar} size="xs" rounded="full" />
                             <div className="truncate">
                               <p className="font-semibold text-slate-900 leading-tight truncate text-xs">{ag.name}</p>
                               <p className="text-[9px] text-slate-400 leading-tight">{ag.role || 'Caller'}</p>
@@ -1747,6 +2091,16 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
       {/* ========================================================================= */}
       {viewMode === 'chart' && (
         <div className="px-3 sm:px-6 space-y-4 max-w-full overflow-hidden">
+
+                    {/* DYNAMIC CONDITION FILTER CHIPS BAR */}
+          <ConditionFilterChipsBar
+            activeConditions={activeConditions}
+            onUpdateCondition={handleUpdateCondition}
+            onRemoveCondition={handleRemoveCondition}
+            onClearAllConditions={() => setActiveConditions([])}
+            optionsContext={optionsContext}
+          />
+
           
           {/* TAB BAR CARD: Dimension tabs on left, Range/Export/Download on right */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-2xs px-3 sm:px-4 pt-3 pb-0 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 max-w-full relative z-20">
@@ -2016,6 +2370,78 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                     </div>
                   )}
                 </div>
+
+                {/* Custom Field Selector Dropdown (When activeDimension is 'custom') */}
+                {activeDimension === 'custom' && (
+                  <div className="relative" ref={customFieldDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomFieldDropdownOpen(!isCustomFieldDropdownOpen)}
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 text-xs font-medium flex items-center space-x-1.5 shadow-2xs cursor-pointer transition-all"
+                    >
+                      {activeCustomFieldDef ? getCustomFieldIcon(activeCustomFieldDef.type) : <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
+                      <span className="font-semibold">{activeCustomFieldDef?.label || 'Select Custom Field'}</span>
+                      <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${isCustomFieldDropdownOpen ? 'rotate-180 text-indigo-600' : ''}`} />
+                    </button>
+
+                    {isCustomFieldDropdownOpen && (
+                      <div className="absolute left-0 top-full mt-1.5 w-64 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 p-2.5 space-y-2 animate-in fade-in zoom-in-95 text-xs font-sans">
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={customFieldSearchTerm}
+                            onChange={(e) => setCustomFieldSearchTerm(e.target.value)}
+                            placeholder="Search fields"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white transition-all"
+                            autoFocus
+                          />
+                        </div>
+
+                        <div className="max-h-56 overflow-y-auto space-y-0.5 py-1">
+                          {selectableCustomFields.map((fld) => {
+                            const isSelected = selectedCustomFieldKey === fld.name || selectedCustomFieldKey === fld.id;
+                            return (
+                              <button
+                                key={fld.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCustomFieldKey(fld.name || fld.id);
+                                  setIsCustomFieldDropdownOpen(false);
+                                }}
+                                className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
+                                  isSelected
+                                    ? 'bg-[#ede9fe] text-[#5b21b6] font-bold'
+                                    : 'text-slate-700 hover:bg-slate-50 font-medium'
+                                }`}
+                              >
+                                <div className="flex items-center space-x-2 min-w-0">
+                                  {getCustomFieldIcon(fld.type)}
+                                  <span className="truncate">{fld.label}</span>
+                                </div>
+                                {isSelected && <Check className="w-3.5 h-3.5 text-[#5b21b6] shrink-0 ml-1" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <div className="flex justify-end pt-1.5 border-t border-slate-100">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCustomFieldSearchTerm('');
+                              if (customFields && customFields.length > 0) {
+                                setSelectedCustomFieldKey(customFields[0].name || customFields[0].id);
+                              }
+                            }}
+                            className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
               </div>
 
@@ -2355,6 +2781,18 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
       {/* ========================================================================= */}
       {viewMode === 'table' && (
         <div className="space-y-2">
+
+          {/* DYNAMIC CONDITION FILTER CHIPS BAR */}
+          <div className="px-4 sm:px-6">
+            <ConditionFilterChipsBar
+              activeConditions={activeConditions}
+              onUpdateCondition={handleUpdateCondition}
+              onRemoveCondition={handleRemoveCondition}
+              onClearAllConditions={() => setActiveConditions([])}
+              optionsContext={optionsContext}
+            />
+          </div>
+
           
           {/* PAGINATION & ACTIONS SUB-BAR */}
           <div className="px-4 sm:px-6 mb-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
@@ -2427,51 +2865,19 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                     <Edit3 className="w-3.5 h-3.5" />
                     <span>Bulk Edit</span>
                   </button>
-                  <div className="relative h-full" ref={moreMenuRef}>
-                    <button onClick={() => setShowMoreMenu(!showMoreMenu)} className="px-3 text-slate-600 hover:text-slate-900 font-medium flex items-center space-x-1 whitespace-nowrap h-full transition-colors cursor-pointer hover:bg-slate-50 rounded-r-md">
-                      <span>More</span>
-                      <ChevronDown className="w-3 h-3 text-slate-400" />
-                    </button>
-                    {showMoreMenu && (
-                      <div className="absolute right-0 top-[calc(100%+4px)] w-64 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-2 text-xs">
-                        <div className="px-3 pb-1 text-slate-400 font-medium text-[10px] uppercase tracking-wider">Export</div>
-                        <button onClick={() => { handleExportCsv(); setShowMoreMenu(false); }} className="w-full px-3 py-1.5 text-left font-medium text-slate-700 hover:bg-slate-50 flex items-center space-x-2 cursor-pointer">
-                          <Download className="w-3.5 h-3.5 text-slate-500" />
-                          <span>Export {selectedLeadIds.length} Leads</span>
-                        </button>
-                        <button className="w-full px-3 py-1.5 text-left font-medium text-slate-700 hover:bg-slate-50 flex items-center space-x-2 cursor-pointer">
-                          <BarChart2 className="w-3.5 h-3.5 text-slate-500" />
-                          <span>Export Activity Report</span>
-                        </button>
-                        <button className="w-full px-3 py-1.5 text-left font-medium text-slate-700 hover:bg-slate-50 flex items-center space-x-2 cursor-pointer">
-                          <FileSpreadsheet className="w-3.5 h-3.5 text-slate-500" />
-                          <span>Export Sales Form Report</span>
-                        </button>
-
-                        <div className="px-3 pt-2 pb-1 text-slate-400 font-medium text-[10px] uppercase tracking-wider mt-1 border-t border-slate-100">Smart Actions</div>
-                        <button className="w-full px-3 py-1.5 text-left font-medium text-indigo-700 hover:bg-indigo-50 flex flex-col cursor-pointer group">
-                          <div className="flex items-center space-x-2">
-                            <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-                            <span>AI Call Summary</span>
-                          </div>
-                          <span className="text-[10px] text-slate-400 group-hover:text-indigo-400 ml-5">Generate an AI summary from call activity</span>
-                        </button>
-
-                        <div className="px-3 pt-2 pb-1 text-slate-400 font-medium text-[10px] uppercase tracking-wider mt-1 border-t border-slate-100">Growth</div>
-                        <button className="w-full px-3 py-1.5 text-left font-medium text-slate-700 hover:bg-slate-50 flex items-center space-x-2 cursor-pointer">
-                          <AtSign className="w-3.5 h-3.5 text-slate-500" />
-                          <span>Create Campaign</span>
-                        </button>
-
-                        <div className="mt-1 pt-1 border-t border-slate-100">
-                          <button onClick={() => { handleBulkDelete(); setShowMoreMenu(false); }} className="w-full px-3 py-1.5 text-left font-medium text-rose-600 hover:bg-rose-50 flex items-center space-x-2 cursor-pointer">
-                            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                            <span>Delete {selectedLeadIds.length} Leads</span>
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  <button
+                    onClick={() => {
+                      if (onDeleteLead) {
+                        selectedLeadIds.forEach(id => onDeleteLead(id));
+                      }
+                      setSelectedLeadIds([]);
+                    }}
+                    className="px-3 text-rose-600 hover:text-rose-700 hover:bg-rose-50 font-medium flex items-center space-x-1.5 whitespace-nowrap h-full transition-colors cursor-pointer rounded-r-md"
+                    title={`Delete ${selectedLeadIds.length} Selected Leads`}
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                    <span>Delete {selectedLeadIds.length > 1 ? `${selectedLeadIds.length} Leads` : 'Lead'}</span>
+                  </button>
                 </div>
               ) : (
                 <>
@@ -2657,9 +3063,12 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                       </a>
                       
                       <div className="flex items-center space-x-1.5">
-                        <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${avatar.bg}`}>
-                          {avatar.initials}
-                        </span>
+                        <UserAvatar
+                          name={lead.ownerAgentName || 'Unassigned'}
+                          avatarUrl={agents.find((a) => a.name === lead.ownerAgentName || a.id === lead.ownerAgentId)?.avatar || (activeAgent?.name === lead.ownerAgentName ? activeAgent.avatar : undefined)}
+                          size="xs"
+                          rounded="full"
+                        />
                         <span className="text-[11px] text-slate-600 truncate max-w-[100px]">
                           {lead.ownerAgentName || 'Unassigned'}
                         </span>
@@ -2863,9 +3272,12 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                                 return (
                                   <td key={field.id} className="px-3.5 py-2.5 whitespace-nowrap">
                                     <div className="flex items-center space-x-2">
-                                      <span className={`w-5.5 h-5.5 rounded-full flex items-center justify-center text-[10px] font-bold ${avatar.bg}`}>
-                                        {avatar.initials}
-                                      </span>
+                                      <UserAvatar
+                                        name={lead.ownerAgentName || activeAgent?.name || 'Unassigned'}
+                                        avatarUrl={agents.find((a) => a.name === lead.ownerAgentName || a.id === lead.ownerAgentId)?.avatar || (activeAgent?.name === lead.ownerAgentName ? activeAgent.avatar : undefined)}
+                                        size="xs"
+                                        rounded="full"
+                                      />
                                       <span className="text-slate-700 text-xs font-normal truncate max-w-[180px]">
                                         {lead.ownerAgentName || activeAgent?.name || 'Unassigned'}
                                       </span>
@@ -3322,6 +3734,134 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* MODAL 5: 'Add a new condition' Modal / Drawer (Matching User's Pictures 1 & 2) */}
+      {isAddConditionModalOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-[99999] p-3 sm:p-4"
+          onClick={() => {
+            setIsAddConditionModalOpen(false);
+            setConditionSearchQuery('');
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 flex flex-col max-h-[88vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Top Search Bar (Matching Picture 1 & 2 Header: [<-] [ Add a new condition ] [ 🔍 ]) */}
+            <div className="p-3 border-b border-slate-100 flex items-center gap-2.5 bg-slate-50/70">
+              <button
+                onClick={() => {
+                  setIsAddConditionModalOpen(false);
+                  setConditionSearchQuery('');
+                }}
+                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600 transition-colors cursor-pointer"
+                title="Back"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+
+              <div className="flex-1 flex items-center bg-white border border-slate-200 rounded-xl px-3 py-1.5 focus-within:border-purple-500 focus-within:ring-2 focus-within:ring-purple-100 transition-all shadow-2xs">
+                <input
+                  type="text"
+                  value={conditionSearchQuery}
+                  onChange={(e) => setConditionSearchQuery(e.target.value)}
+                  placeholder="Add a new condition"
+                  autoFocus
+                  className="w-full bg-transparent text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none font-medium"
+                />
+              </div>
+
+              <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0 shadow-2xs">
+                <Search className="w-4 h-4 text-purple-700" />
+              </div>
+            </div>
+
+            {/* Quick Trigger Chips Horizontal Strip (Matching Picture 1 & 2) */}
+            <div className="px-3.5 py-2.5 border-b border-slate-100 bg-white overflow-x-auto no-scrollbar flex items-center gap-2 shrink-0">
+              {quickConditionTriggers.map((trig) => {
+                const Icon = trig.icon;
+                return (
+                  <button
+                    key={trig.id}
+                    onClick={() => handleAddConditionFromTrigger(trig)}
+                    className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:border-purple-400 hover:bg-purple-50 text-slate-700 hover:text-purple-700 text-xs font-semibold whitespace-nowrap transition-all cursor-pointer shrink-0 shadow-2xs active:scale-95"
+                  >
+                    <Icon className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                    <span>{trig.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Fields Section Header */}
+            <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <div className="flex items-center space-x-1.5">
+                <Sliders className="w-3.5 h-3.5 text-purple-600" />
+                <span>Fields</span>
+              </div>
+              <span className="text-[10px] font-medium text-slate-400">
+                {filteredConditionFields.length} available
+              </span>
+            </div>
+
+            {/* Scrollable Fields List (Matching Picture 1 & 2) */}
+            <div className="flex-1 overflow-y-auto p-2 divide-y divide-slate-100 max-h-[420px]">
+              {filteredConditionFields.length === 0 ? (
+                <div className="text-center py-8 text-slate-400 text-xs">
+                  No matching condition fields found.
+                </div>
+              ) : (
+                filteredConditionFields.map((fld) => {
+                  const Icon = fld.icon;
+                  return (
+                    <button
+                      key={fld.id}
+                      onClick={() => handleAddConditionFromField(fld)}
+                      className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-purple-50/80 transition-colors text-left group cursor-pointer"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="w-7 h-7 rounded-lg bg-slate-100 group-hover:bg-purple-100 flex items-center justify-center text-slate-600 group-hover:text-purple-700 transition-colors">
+                          <Icon className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold text-slate-800 group-hover:text-purple-900">
+                            {fld.label}
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            {fld.category}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="text-purple-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Plus className="w-4 h-4" />
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs">
+              <span className="text-[11px] text-slate-500">
+                Select any field to filter table leads dynamically
+              </span>
+              <button
+                onClick={() => {
+                  setIsAddConditionModalOpen(false);
+                  setConditionSearchQuery('');
+                }}
+                className="px-3.5 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold transition-colors cursor-pointer text-xs"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
     </div>
   );

@@ -471,13 +471,7 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                     {/* Name & Avatar */}
                     <td className="py-3.5 px-4">
                       <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200/80 text-slate-700 font-bold text-xs flex items-center justify-center shrink-0 uppercase shadow-2xs">
-                          {ag.avatar ? (
-                            <img src={ag.avatar} alt={ag.name} className="w-full h-full object-cover rounded-full" />
-                          ) : (
-                            <span>{getInitials(ag.name)}</span>
-                          )}
-                        </div>
+                        <UserAvatar name={ag.name} avatarUrl={ag.avatar} size="md" rounded="full" />
                         <div>
                           <p className="font-semibold text-slate-900 text-xs sm:text-sm">{ag.name}</p>
                           <p className="text-[11px] text-slate-500 font-normal">{ag.email}</p>

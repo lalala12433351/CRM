@@ -1033,7 +1033,7 @@ export function App() {
 
   return (
     <StagesContext.Provider value={activeStages}>
-    <div className="min-h-screen glass-mesh-bg text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
+    <div className="h-screen h-[100dvh] max-w-[100vw] overflow-x-hidden glass-mesh-bg text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
       {/* Toast Alert Banner */}
       {toastMessage && (
         <div className="fixed top-16 right-6 z-50 glass-card text-slate-800 px-4 py-2.5 rounded-xl text-xs font-sans font-semibold flex items-center">
@@ -1070,7 +1070,7 @@ export function App() {
       />
 
       {/* Main Layout */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden min-h-0">
         {/* Left Sidebar */}
         <Sidebar 
           activeTab={currentView as any} 
@@ -1092,7 +1092,7 @@ export function App() {
         />
 
         {/* View Router */}
-        <main className="flex-1 overflow-y-auto bg-transparent p-3 md:p-5 pb-20 md:pb-5 ios-scroll">
+        <main className="flex-1 overflow-y-auto bg-transparent p-3 md:p-5 pb-24 md:pb-5 ios-scroll min-h-0">
           {currentView === 'add_lead' && (
             <AddLeadView
               leads={leads}
@@ -1100,19 +1100,26 @@ export function App() {
               customFields={customFields}
               activeAgent={activeAgent}
               onSaveLead={(newLead, stayOnPage) => {
-                setLeads((prev) => [newLead, ...prev]);
+                const leadWithDate: Lead = {
+                  ...newLead,
+                  createdAt: (newLead.createdAt && newLead.createdAt !== 'Just Now' && newLead.createdAt !== 'Just now')
+                    ? newLead.createdAt
+                    : new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                };
+                setLeads((prev) => [leadWithDate, ...prev]);
                 fetchWithTenantAuth('/api/leads', {
                   method: 'POST',
-                  body: JSON.stringify(newLead)
+                  body: JSON.stringify(leadWithDate)
                 }).catch((err) => console.warn('Lead DB save notice:', err));
 
-                if (newLead.whatsappOptIn) {
+                if (leadWithDate.whatsappOptIn) {
                   const autoMsg: WhatsAppMessage = {
                     id: `msg-${Date.now()}`,
-                    leadId: newLead.id,
+                    leadId: leadWithDate.id,
                     direction: 'outbound',
                     channel: 'whatsapp',
-                    content: `Hi ${newLead.name}, thank you for contacting us! Our representative ${newLead.ownerAgentName || 'team'} will assist you shortly regarding your inquiry.`,
+                    content: `Hi ${leadWithDate.name}, thank you for contacting us! Our representative ${leadWithDate.ownerAgentName || 'team'} will assist you shortly regarding your inquiry.`,
                     timestamp: new Date().toISOString(),
                     status: 'delivered'
                   };
@@ -1120,18 +1127,18 @@ export function App() {
 
                   const autoAct: ActivityLog = {
                     id: `act-${Date.now()}`,
-                    leadId: newLead.id,
+                    leadId: leadWithDate.id,
                     agentId: activeAgent.id,
                     agentName: activeAgent.name,
                     type: 'whatsapp',
                     title: 'Automated WhatsApp Intro Dispatched',
-                    description: `Automated welcome introduction message dispatched to ${newLead.phone} via WhatsApp.`,
+                    description: `Automated welcome introduction message dispatched to ${leadWithDate.phone} via WhatsApp.`,
                     timestamp: new Date().toISOString()
                   };
                   setActivities((prev) => [autoAct, ...prev]);
-                  showToast(`New Lead Saved & Automated WhatsApp Intro Message Dispatched to ${newLead.name}!`);
+                  showToast(`New Lead Saved & Automated WhatsApp Intro Message Dispatched to ${leadWithDate.name}!`);
                 } else {
-                  showToast(`New Lead Ingested: ${newLead.name}`);
+                  showToast(`New Lead Ingested: ${leadWithDate.name}`);
                 }
 
                 if (!stayOnPage) {
@@ -1139,10 +1146,17 @@ export function App() {
                 }
               }}
               onSaveAndCall={(newLead) => {
-                setLeads((prev) => [newLead, ...prev]);
+                const leadWithDate: Lead = {
+                  ...newLead,
+                  createdAt: (newLead.createdAt && newLead.createdAt !== 'Just Now' && newLead.createdAt !== 'Just now')
+                    ? newLead.createdAt
+                    : new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                };
+                setLeads((prev) => [leadWithDate, ...prev]);
                 fetchWithTenantAuth('/api/leads', {
                   method: 'POST',
-                  body: JSON.stringify(newLead)
+                  body: JSON.stringify(leadWithDate)
                 }).catch((err) => console.warn('Lead DB save notice:', err));
 
                 if (newLead.whatsappOptIn) {

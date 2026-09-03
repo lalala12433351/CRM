@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Lead, Agent, PipelineStage, HourlyMetric, isAgentAdmin, CustomFieldDef, formatDealValue } from '../types';
 import { CustomDropdown, DropdownOption } from '../components/CustomDropdown';
+import { UserAvatar } from '../components/UserAvatar';
 
 function parseLeadCreatedMs(createdAt?: string): number {
   if (!createdAt || createdAt === 'Just Now' || createdAt === 'Just now') return Date.now();
@@ -358,8 +359,11 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
       return true;
     });
 
-    // Strictly show ONLY actual registered users from agents list
-    const allAgentEntries: Agent[] = agents && agents.length > 0 ? [...agents] : (activeAgent ? [activeAgent] : []);
+    // Strictly show all registered team members including active logged-in admin
+    const allAgentEntries: Agent[] = [...(agents || [])];
+    if (activeAgent && !allAgentEntries.some(a => a.id === activeAgent.id || a.name.toLowerCase() === activeAgent.name.toLowerCase())) {
+      allAgentEntries.unshift(activeAgent);
+    }
 
     const rows = allAgentEntries.map(ag => {
       const agLeads = timeframeFilteredLeads.filter(l => 
@@ -539,8 +543,14 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
                   </div>
 
                   {/* Assignee Column */}
-                  <div className="col-span-4 min-w-0">
-                    <p className="text-slate-600 truncate text-[11px]">{lead.ownerAgentName || 'Unassigned'}</p>
+                  <div className="col-span-4 flex items-center space-x-2 min-w-0">
+                    <UserAvatar
+                      name={lead.ownerAgentName || 'Unassigned'}
+                      avatarUrl={agents.find((a) => a.name === lead.ownerAgentName || a.id === lead.ownerAgentId)?.avatar || (activeAgent?.name === lead.ownerAgentName ? activeAgent.avatar : undefined)}
+                      size="xs"
+                      rounded="full"
+                    />
+                    <p className="text-slate-700 font-medium truncate text-[11px]">{lead.ownerAgentName || 'Unassigned'}</p>
                   </div>
 
                   {/* Contact Column (Left-Aligned with generous gap between phone number and action buttons) */}
@@ -749,13 +759,7 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
                     {/* Assignee Name + Avatar */}
                     <td className="py-3 px-3">
                       <div className="flex items-center space-x-2.5">
-                        <div className="w-7 h-7 rounded-full bg-purple-100 text-purple-700 font-bold text-[11px] flex items-center justify-center shrink-0 border border-purple-200/60 uppercase">
-                          {row.agent.avatar ? (
-                            <img src={row.agent.avatar} alt={row.name} className="w-full h-full object-cover rounded-full" />
-                          ) : (
-                            <span>{getInitials(row.name)}</span>
-                          )}
-                        </div>
+                        <UserAvatar name={row.name} avatarUrl={row.agent.avatar} size="sm" rounded="full" />
                         <span className="font-semibold text-slate-900 truncate max-w-[160px] sm:max-w-xs">
                           {row.name}
                         </span>
@@ -845,13 +849,7 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
                   if (!selectedAgent) return null;
                   return (
                     <>
-                      {selectedAgent.avatar ? (
-                        <img src={selectedAgent.avatar} alt={selectedAgent.name} className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-2xs" />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-sm border border-indigo-200">
-                          {selectedAgent.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-                        </div>
-                      )}
+                      <UserAvatar name={selectedAgent.name} avatarUrl={selectedAgent.avatar} size="lg" rounded="full" />
                       <div>
                         <div className="flex items-center space-x-2">
                           <h3 className="text-sm font-bold text-slate-900">{selectedAgent.name}'s Assigned Leads</h3>

@@ -438,10 +438,45 @@ export class MultiTenantDatabase {
     }
 
     const now = new Date().toISOString();
+    
+    // Resolve and preserve accurate ISO timestamp
+    let resolvedCreatedAt = now;
+    if (leadData.createdAt && leadData.createdAt !== 'Just Now' && leadData.createdAt !== 'Just now') {
+      if (leadData.createdAt.includes('ago')) {
+        const match = leadData.createdAt.match(/(\d+)\s*(d|day|days|h|hour|hours|m|min|minute|minutes)/i);
+        if (match) {
+          const val = parseInt(match[1], 10);
+          const unit = match[2].toLowerCase();
+          const d = new Date();
+          if (unit.startsWith('d')) d.setDate(d.getDate() - val);
+          else if (unit.startsWith('h')) d.setHours(d.getHours() - val);
+          else if (unit.startsWith('m')) d.setMinutes(d.getMinutes() - val);
+          resolvedCreatedAt = d.toISOString();
+        } else {
+          resolvedCreatedAt = now;
+        }
+      } else {
+        const parsed = new Date(leadData.createdAt).getTime();
+        resolvedCreatedAt = !isNaN(parsed) ? new Date(parsed).toISOString() : now;
+      }
+    } else if (leadData.id) {
+      const numMatch = leadData.id.match(/(\d{10,14})/);
+      if (numMatch) {
+        const ts = parseInt(numMatch[1], 10);
+        if (!isNaN(ts) && ts > 1500000000000 && ts < 2500000000000) {
+          resolvedCreatedAt = new Date(ts).toISOString();
+        }
+      }
+    }
+
     let savedLead: TenantLead;
 
     if (existingIndex >= 0 && this.store.leads[targetTenantId]) {
       const existing = this.store.leads[targetTenantId][existingIndex];
+      const preservedCreatedAt = (existing.createdAt && existing.createdAt !== 'Just Now' && existing.createdAt !== 'Just now')
+        ? existing.createdAt
+        : resolvedCreatedAt;
+
       savedLead = {
         ...existing,
         ...leadData,
@@ -450,6 +485,7 @@ export class MultiTenantDatabase {
           ...(leadData.customFields || {})
         },
         tenantId: targetTenantId,
+        createdAt: preservedCreatedAt,
         updatedAt: now
       };
       this.store.leads[targetTenantId][existingIndex] = savedLead;
@@ -476,9 +512,9 @@ export class MultiTenantDatabase {
         lostReason: leadData.lostReason || undefined,
         customFields: leadData.customFields || {},
         tags: leadData.tags || [],
-        createdAt: leadData.createdAt || now,
-        updatedAt: now,
-        ...leadData
+        ...leadData,
+        createdAt: resolvedCreatedAt,
+        updatedAt: now
       };
       this.store.leads[targetTenantId].unshift(savedLead);
     }

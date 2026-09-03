@@ -80,172 +80,9 @@ interface CampaignDef {
   errors: number;
 }
 
-const CAMPAIGNS_LIST: CampaignDef[] = [
-  { id: 'camp-1', handle: '@meta-facebook-lead-ads', name: 'Meta Facebook Lead Ads', totalLeads: 0, newLeads: 0, progress: 0, members: ['FB', 'API'], errors: 0 }
-];
-
-const INITIAL_CAMPAIGN_LEADS: Lead[] = [
-  {
-    id: 'camp-lead-1',
-    name: 'C. M. Vinoth PrabhuytttTtttd',
-    phone: '918760066773',
-    email: 'vinoth.prabhu@example.com',
-    company: 'SRM Institute',
-    city: 'India',
-    state: 'Tamil Nadu',
-    source: 'Master Form Tamil Nadu',
-    status: 'Job enquiry',
-    pipelineStageId: 'stage-1',
-    dealValue: 0,
-    aiScore: 85,
-    aiRating: 'Hot',
-    aiReasoning: 'Enquired about professional course from SRM',
-    notes: 'Professor recommended him',
-    createdAt: '1m 38s 1d ago CONNECTED He is from SRM; a professor asked him for...',
-    updatedAt: new Date().toISOString(),
-    ownerAgentId: 'agent-phil',
-    ownerAgentName: 'philemon',
-    customFields: {
-      form_name: 'Master Form Tamil Nadu',
-      date_of_joining: 'Empty',
-      address: 'Empty',
-      age: 'Empty'
-    },
-    tags: ['Tamil Nadu', 'Job Enquiry']
-  },
-  {
-    id: 'camp-lead-2',
-    name: 'Santhosh',
-    phone: '918428646408',
-    email: 'santhosh@example.com',
-    company: 'Direct Lead',
-    city: 'Chennai',
-    state: 'Tamil Nadu',
-    source: 'Master Form Tamil Nadu',
-    status: 'RNR',
-    pipelineStageId: 'stage-1',
-    dealValue: 0,
-    aiScore: 60,
-    aiRating: 'Warm',
-    aiReasoning: 'Call ringing but not responding',
-    notes: '',
-    createdAt: '1d ago',
-    updatedAt: new Date().toISOString(),
-    ownerAgentId: 'agent-phil',
-    ownerAgentName: 'philemon',
-    customFields: { form_name: 'Master Form Tamil Nadu' },
-    tags: ['Tamil Nadu']
-  },
-  {
-    id: 'camp-lead-3',
-    name: 'Rithika',
-    phone: '919003513027',
-    email: 'rithika@example.com',
-    company: 'Direct Lead',
-    city: 'Coimbatore',
-    state: 'Tamil Nadu',
-    source: 'Master Form Tamil Nadu',
-    status: 'Open',
-    pipelineStageId: 'stage-1',
-    dealValue: 0,
-    aiScore: 78,
-    aiRating: 'Hot',
-    aiReasoning: 'Connected and interested in admissions',
-    notes: '',
-    createdAt: '3m 45s 1d ago CONNECTED',
-    updatedAt: new Date().toISOString(),
-    ownerAgentId: 'agent-phil',
-    ownerAgentName: 'philemon',
-    customFields: { form_name: 'Master Form Tamil Nadu' },
-    tags: ['Tamil Nadu']
-  },
-  {
-    id: 'camp-lead-4',
-    name: 'Mohamed Thangal',
-    phone: '919944085381',
-    email: 'mohamed@example.com',
-    company: 'Direct Lead',
-    city: 'Madurai',
-    state: 'Tamil Nadu',
-    source: 'Master Form Tamil Nadu',
-    status: 'RNR',
-    pipelineStageId: 'stage-1',
-    dealValue: 0,
-    aiScore: 65,
-    aiRating: 'Warm',
-    aiReasoning: 'Follow up required',
-    notes: '',
-    createdAt: '3m 40s 5d ago CONNECTED',
-    updatedAt: new Date().toISOString(),
-    ownerAgentId: 'agent-phil',
-    ownerAgentName: 'philemon',
-    customFields: { form_name: 'Master Form Tamil Nadu' },
-    tags: ['Tamil Nadu']
-  },
-  {
-    id: 'camp-lead-5',
-    name: 'Hussain',
-    phone: '918110927314',
-    email: 'hussain@example.com',
-    company: 'Direct Lead',
-    city: 'Salem',
-    state: 'Tamil Nadu',
-    source: 'Master Form Tamil Nadu',
-    status: 'RNR',
-    pipelineStageId: 'stage-1',
-    dealValue: 0,
-    aiScore: 50,
-    aiRating: 'Cold',
-    aiReasoning: 'Phone was switched off',
-    notes: '',
-    createdAt: '0s 5d ago SWITCHED OFF',
-    updatedAt: new Date().toISOString(),
-    ownerAgentId: 'agent-phil',
-    ownerAgentName: 'philemon',
-    customFields: { form_name: 'Master Form Tamil Nadu' },
-    tags: ['Tamil Nadu']
-  },
-  {
-    id: 'camp-lead-6',
-    name: 'Shaik Anwarbasha',
-    phone: '919885929009',
-    email: 'shaik@example.com',
-    company: 'Direct Lead',
-    city: 'Tiruchirappalli',
-    state: 'Tamil Nadu',
-    source: 'Master Form Tamil Nadu',
-    status: 'Job enquiry',
-    pipelineStageId: 'stage-1',
-    dealValue: 0,
-    aiScore: 72,
-    aiRating: 'Warm',
-    aiReasoning: 'Inquired about job openings',
-    notes: '',
-    createdAt: '5d ago',
-    updatedAt: new Date().toISOString(),
-    ownerAgentId: 'agent-phil',
-    ownerAgentName: 'philemon',
-    customFields: { form_name: 'Master Form Tamil Nadu' },
-    tags: ['Tamil Nadu']
-  }
-];
-
-const CAMPAIGN_ASSIGNEES = [
-  { name: 'Akhitha Rameshan', percentage: 50.6, color: '#9BD3BA' },
-  { name: 'Ummema Sufiya BM', percentage: 11.2, color: '#70C0FA' },
-  { name: 'Radhika M R', percentage: 10.1, color: '#F8CF48' },
-  { name: 'Farzana', percentage: 9.0, color: '#66CFBA' },
-  { name: 'Risvana Rahim', percentage: 6.2, color: '#B08246' },
-  { name: 'philemon', percentage: 6.2, color: '#8993DC' },
-  { name: 'Munavvir', percentage: 2.8, color: '#4CD4E8' },
-  { name: 'Harish', percentage: 1.7, color: '#8FE0B9' },
-  { name: 'Ashly James', percentage: 1.1, color: '#F36565' },
-  { name: 'Madhava sai nagendra', percentage: 1.1, color: '#A0E236' },
-];
-
 export const CampaignsPage: React.FC<CampaignsViewProps> = ({
-  leads,
-  agents,
+  leads = [],
+  agents = [],
   activities = [],
   messages = [],
   callRecords = [],
@@ -263,48 +100,46 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
   onShowToast
 }) => {
   const stages = useContext(StagesContext);
-  const [customCampaigns, setCustomCampaigns] = useState<string[]>(['Master Form Tamil Nadu']);
+  const [customCampaigns, setCustomCampaigns] = useState<string[]>([]);
   const [campaignSearchQuery, setCampaignSearchQuery] = useState('');
   const [isAddingCampaign, setIsAddingCampaign] = useState(false);
   const [newCampaignInput, setNewCampaignInput] = useState('');
 
-  // Dynamic Campaign list derived from live leads prop & TeleCRM campaign forms
+  // Dynamic Campaign list derived strictly from live leads prop
   const campaignsList = useMemo(() => {
-    const defaultCampaigns = [
-      'Master Form Tamil Nadu',
-      'Master Form IATA Cargo',
-      'Master Form',
-      'Vendor-Data-Kerala',
-      'IATA Meta 01',
-      'Master Form-Kerala-Vendor-Data',
-      'Master Form IATA',
-      'Master Form-IATA-Cargo-V2',
-      ...customCampaigns
-    ];
+    const rawCampaigns = new Set<string>();
+    if (leads && leads.length > 0) {
+      leads.forEach((l) => {
+        const key = (l.customFields && l.customFields.form_name) || l.source || 'General';
+        if (key && key !== 'Empty') rawCampaigns.add(key);
+      });
+    }
+    customCampaigns.forEach((c) => rawCampaigns.add(c));
+    if (rawCampaigns.size === 0) rawCampaigns.add('All Inbound Leads');
 
     const groupedMap = new Map<string, Lead[]>();
-    defaultCampaigns.forEach(cName => groupedMap.set(cName, []));
+    Array.from(rawCampaigns).forEach((cName) => groupedMap.set(cName, []));
 
     if (leads && leads.length > 0) {
-      leads.forEach(l => {
-        const key = (l.customFields && l.customFields.form_name) || l.source || 'Master Form Tamil Nadu';
+      leads.forEach((l) => {
+        const key = (l.customFields && l.customFields.form_name) || l.source || 'All Inbound Leads';
         if (!groupedMap.has(key)) groupedMap.set(key, []);
         groupedMap.get(key)!.push(l);
       });
     }
 
     return Array.from(groupedMap.entries()).map(([campName, leadList], idx) => {
-      const freshCount = leadList.filter(l => l.status === 'Fresh' || l.status === 'Open').length;
+      const freshCount = leadList.filter((l) => l.status === 'Fresh' || l.status === 'Open').length;
       return {
         id: `camp-dyn-${idx}`,
         handle: `@${campName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
         name: campName,
-        totalLeads: leadList.length > 0 ? leadList.length : (campName === 'Master Form Tamil Nadu' ? 9 : 0),
-        newLeads: freshCount > 0 ? freshCount : 6,
-        progress: campName === 'Master Form Tamil Nadu' ? 33 : Math.round(((leadList.length - freshCount) / (leadList.length || 1)) * 100),
-        members: leadList.length > 0 
-          ? Array.from(new Set(leadList.map(l => l.ownerAgentName || 'philemon'))).map(n => n.split(' ').map(x=>x[0]).join('').toUpperCase())
-          : ['P', 'AR', 'RM', 'US'],
+        totalLeads: leadList.length,
+        newLeads: freshCount,
+        progress: leadList.length > 0 ? Math.round(((leadList.length - freshCount) / leadList.length) * 100) : 0,
+        members: Array.from(new Set(leadList.map((l) => l.ownerAgentName || 'Admin'))).map((n) =>
+          n.split(' ').map((x) => x[0]).join('').toUpperCase()
+        ),
         errors: 0
       };
     });
@@ -344,28 +179,20 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
   const [selectedAssigneeFilter, setSelectedAssigneeFilter] = useState<string>('All');
   const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false);
 
-  // Campaign Leads List State derived directly from live leads prop
+  // Campaign Leads List State derived directly from database leads prop
   const campaignLeads = useMemo(() => {
-    const defaultLeads = INITIAL_CAMPAIGN_LEADS.map((initL) => {
-      const live = (leads || []).find((l) => l.id === initL.id);
-      return live || initL;
-    });
+    if (!leads || leads.length === 0) return [];
+    if (!activeCampaign || activeCampaign.name === 'All Inbound Leads') return leads;
 
-    if (!activeCampaign) return (leads && leads.length > 0) ? leads : defaultLeads;
-
-    const matched = (leads || []).filter((l) => {
-      const key = (l.customFields && l.customFields.form_name) || l.source || (l as any).campaignName || '';
+    const matched = leads.filter((l) => {
+      const key = (l.customFields && l.customFields.form_name) || l.source || '';
       return (
         key.toLowerCase().includes(activeCampaign.name.toLowerCase()) ||
         activeCampaign.name.toLowerCase().includes(key.toLowerCase())
       );
     });
 
-    if (matched.length > 0) return matched;
-    if (activeCampaign.name === 'Master Form Tamil Nadu' || activeCampaign.handle.includes('tamil-nadu')) {
-      return defaultLeads;
-    }
-    return (leads && leads.length > 0) ? leads.slice(0, 10) : defaultLeads;
+    return matched.length > 0 ? matched : leads;
   }, [leads, activeCampaign]);
 
   const [selectedLead, setSelectedLead] = useState<Lead | null>(() => campaignLeads[0] || null);
@@ -523,6 +350,30 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
       return matchesSearch && matchesAssignee;
     });
   }, [campaignLeads, searchQuery, selectedAssigneeFilter]);
+
+  // Dynamic Assignee Distribution for active campaign
+  const dynamicAssignees = useMemo(() => {
+    const pal = ['#9BD3BA', '#70C0FA', '#F8CF48', '#66CFBA', '#B08246', '#8993DC', '#4CD4E8', '#8FE0B9', '#F36565', '#A0E236'];
+    const total = campaignLeads.length || 1;
+    const map = new Map<string, number>();
+
+    campaignLeads.forEach((l) => {
+      const name = l.ownerAgentName || 'Unassigned';
+      map.set(name, (map.get(name) || 0) + 1);
+    });
+
+    if (map.size === 0 && agents.length > 0) {
+      agents.forEach((ag) => map.set(ag.name, 0));
+    }
+
+    const entries = Array.from(map.entries());
+    return entries.map(([name, count], idx) => ({
+      name,
+      count,
+      percentage: Number(((count / total) * 100).toFixed(1)),
+      color: pal[idx % pal.length]
+    })).sort((a, b) => b.count - a.count);
+  }, [campaignLeads, agents]);
 
   // Solid SVG Pie Chart Slice Renderer for all reports
   const renderSvgPie = (items: Array<{ percentage: number; color: string }>, size = 100) => {
@@ -888,29 +739,33 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
                   <div className="grid grid-cols-12 gap-3 items-center">
                     <div className="col-span-5 flex items-center justify-center">
                       <svg className="w-32 h-32" viewBox="0 0 140 140">
-                        {renderSvgPie(CAMPAIGN_ASSIGNEES.map(a => ({ percentage: a.percentage, color: a.color })), 140)}
+                        {renderSvgPie(dynamicAssignees.map(a => ({ percentage: a.percentage, color: a.color })), 140)}
                       </svg>
                     </div>
 
                     <div className="col-span-7 space-y-1.5 text-xs">
-                      {CAMPAIGN_ASSIGNEES.map((item, idx) => (
-                        <div 
-                          key={idx} 
-                          onClick={() => setSelectedAssigneeFilter(item.name)}
-                          className={`flex items-start space-x-2 text-[11px] leading-tight p-1 rounded-md cursor-pointer transition-colors ${
-                            selectedAssigneeFilter === item.name ? 'bg-indigo-50 font-bold' : 'hover:bg-slate-50'
-                          }`}
-                        >
-                          <span 
-                            className="w-2.5 h-2.5 rounded-full shrink-0 mt-0.5" 
-                            style={{ backgroundColor: item.color }} 
-                          />
-                          <div className="text-slate-800">
-                            <span>{item.name}</span>{' '}
-                            <span className="text-slate-600 font-medium">({item.percentage}%)</span>
+                      {dynamicAssignees.length === 0 ? (
+                        <p className="text-slate-400 text-[11px]">No assigned leads yet.</p>
+                      ) : (
+                        dynamicAssignees.map((item, idx) => (
+                          <div 
+                            key={idx} 
+                            onClick={() => setSelectedAssigneeFilter(item.name)}
+                            className={`flex items-start space-x-2 text-[11px] leading-tight p-1 rounded-md cursor-pointer transition-colors ${
+                              selectedAssigneeFilter === item.name ? 'bg-indigo-50 font-bold' : 'hover:bg-slate-50'
+                            }`}
+                          >
+                            <span 
+                              className="w-2.5 h-2.5 rounded-full shrink-0 mt-0.5" 
+                              style={{ backgroundColor: item.color }} 
+                            />
+                            <div className="text-slate-800">
+                              <span>{item.name}</span>{' '}
+                              <span className="text-slate-600 font-medium">({item.percentage}%)</span>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
                   </div>
                 </div>

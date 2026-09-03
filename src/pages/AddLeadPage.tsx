@@ -425,8 +425,8 @@ export const AddLeadPage: React.FC<AddLeadViewProps> = ({
       dealValue: Number(dealValue) || 0,
       ownerAgentId: finalOwnerId,
       ownerAgentName: finalOwnerName,
-      createdAt: 'Just Now',
-      updatedAt: 'Just Now',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       aiScore: 80,
       aiRating: 'Hot',
       aiReasoning: 'Inbound lead entry',
@@ -507,18 +507,65 @@ export const AddLeadPage: React.FC<AddLeadViewProps> = ({
   const [isImporting, setIsImporting] = useState(false);
   const [importFinished, setImportFinished] = useState(false);
 
+  const [parsedCsvRows, setParsedCsvRows] = useState<Partial<Lead>[]>([]);
+
   const handleSimulateCsvDrop = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFileName(e.target.files[0].name);
+      const file = e.target.files[0];
+      setFileName(file.name);
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = (event.target?.result as string) || '';
+        const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+        if (lines.length > 1) {
+          const headers = lines[0].split(',').map((h) => h.trim().replace(/^["']|["']$/g, '').toLowerCase());
+          const nameIdx = headers.findIndex((h) => h.includes('name') || h.includes('full'));
+          const phoneIdx = headers.findIndex((h) => h.includes('phone') || h.includes('mobile') || h.includes('num'));
+          const emailIdx = headers.findIndex((h) => h.includes('email') || h.includes('mail'));
+          const companyIdx = headers.findIndex((h) => h.includes('comp') || h.includes('org'));
+          const cityIdx = headers.findIndex((h) => h.includes('city') || h.includes('loc'));
+          const sourceIdx = headers.findIndex((h) => h.includes('source') || h.includes('channel'));
+          const dealIdx = headers.findIndex((h) => h.includes('deal') || h.includes('val') || h.includes('amount'));
+
+          const parsedLeads: Partial<Lead>[] = [];
+          for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(',').map((c) => c.trim().replace(/^["']|["']$/g, ''));
+            const name = (nameIdx >= 0 ? cols[nameIdx] : cols[0]) || `Lead #${i}`;
+            const phone = (phoneIdx >= 0 ? cols[phoneIdx] : cols[1]) || '';
+            const email = (emailIdx >= 0 ? cols[emailIdx] : '') || '';
+            const company = (companyIdx >= 0 ? cols[companyIdx] : '') || '';
+            const city = (cityIdx >= 0 ? cols[cityIdx] : '') || '';
+            const source = (sourceIdx >= 0 ? cols[sourceIdx] : '') || 'CSV Import';
+            const dealValue = (dealIdx >= 0 ? Number(cols[dealIdx]) : 0) || 0;
+
+            if (name || phone) {
+              parsedLeads.push({
+                name,
+                phone,
+                email,
+                company,
+                city,
+                source,
+                dealValue,
+                status: 'Fresh',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              });
+            }
+          }
+          setParsedCsvRows(parsedLeads);
+        }
+      };
+      reader.readAsText(file);
       setCsvStep(2);
     }
   };
 
   const handleDownloadSampleCsv = () => {
     const headers = ['Full Name', 'Phone Number', 'Email ID', 'Company Name', 'City', 'Lead Source', 'Deal Value'];
-    const row1 = ['Vikram Sharma', '+919876543210', 'vikram@sharmagroup.in', 'Sharma Enterprises', 'Mumbai', 'Facebook Ads', '250000'];
-    const row2 = ['Neha Kulkarni', '+919988776655', 'neha.k@puneventure.com', 'Pune Venture', 'Pune', 'IndiaMart', '180000'];
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), row1.join(','), row2.join(',')].join('\n');
+    const row1 = ['Sample Customer', '+919876543210', 'customer@example.com', 'Enterprise Inc', 'Mumbai', 'Website', '150000'];
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), row1.join(',')].join('\n');
     
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
@@ -541,12 +588,9 @@ export const AddLeadPage: React.FC<AddLeadViewProps> = ({
           setIsImporting(false);
           setImportFinished(true);
 
-          const dummyBulkLeads: Partial<Lead>[] = [
-            { name: 'Vikram Sharma', phone: '+91 9876543210', email: 'vikram@sharmagroup.in', company: 'Sharma Enterprises', city: 'Mumbai', source: 'Facebook Ads', dealValue: 250000, status: 'New Lead' },
-            { name: 'Neha Kulkarni', phone: '+91 9988776655', email: 'neha.k@puneventure.com', company: 'Pune Venture', city: 'Pune', source: 'IndiaMart', dealValue: 180000, status: 'New Lead' },
-            { name: 'Ananya Roy', phone: '+91 9831002233', email: 'ananya@roytech.com', company: 'Roy Tech Solutions', city: 'Kolkata', source: 'Google Ads', dealValue: 320000, status: 'New Lead' },
-          ];
-          onImportBulkLeads(dummyBulkLeads);
+          if (parsedCsvRows.length > 0) {
+            onImportBulkLeads(parsedCsvRows);
+          }
           return 100;
         }
         return prev + 25;
@@ -579,8 +623,8 @@ export const AddLeadPage: React.FC<AddLeadViewProps> = ({
       dealValue: 150000,
       ownerAgentId: assigned?.id || activeAgent?.id || agents[0]?.id || 'agent-admin',
       ownerAgentName: assigned?.name || activeAgent?.name || agents[0]?.name || 'System Administrator',
-      createdAt: 'Just Now',
-      updatedAt: 'Just Now',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       aiScore: 92,
       aiRating: 'Hot',
       aiReasoning: `Ingested automatically from ${integProvider} live webhook`,

@@ -28,6 +28,7 @@ import {
 import { TabType } from './Sidebar';
 import { ReportsSubTab, AutomationsSubTab } from '../pages';
 import { Agent, isAgentAdmin } from '../types';
+import { UserAvatar } from './UserAvatar';
 import { formatArcleName } from '../utils/brandUtils';
 
 interface MobileBottomNavProps {
@@ -117,12 +118,12 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   return (
     <>
       {/* FIXED iOS BOTTOM NAVIGATION BAR */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 border-t border-slate-200 z-40 md:hidden pb-safe shadow-lg">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 z-50 md:hidden pb-safe shadow-lg select-none">
         <div className="grid grid-cols-5 items-center h-14 px-1">
           {/* Tab 1: Dashboard */}
           <button
             onClick={() => handleSelectNavTab('dashboard')}
-            className={`flex flex-col items-center justify-center py-1 transition-all cursor-pointer ${
+            className={`flex flex-col items-center justify-center py-1 transition-all touch-manipulation select-none active:scale-95 cursor-pointer ${
               activeTab === 'dashboard' ? 'text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -138,7 +139,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           {/* Tab 2: Leads */}
           <button
             onClick={() => handleSelectNavTab('leads')}
-            className={`flex flex-col items-center justify-center py-1 transition-all cursor-pointer ${
+            className={`flex flex-col items-center justify-center py-1 transition-all touch-manipulation select-none active:scale-95 cursor-pointer ${
               activeTab === 'leads' ? 'text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -159,7 +160,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           {/* Tab 3: Unified Inbox (replacing WhatsApp for mobile devices) */}
           <button
             onClick={() => handleSelectNavTab('inbox')}
-            className={`flex flex-col items-center justify-center py-1 transition-all cursor-pointer ${
+            className={`flex flex-col items-center justify-center py-1 transition-all touch-manipulation select-none active:scale-95 cursor-pointer ${
               activeTab === 'inbox' ? 'text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -175,7 +176,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           {/* Tab 4: Follow-Ups */}
           <button
             onClick={() => handleSelectNavTab('followups')}
-            className={`flex flex-col items-center justify-center py-1 transition-all cursor-pointer ${
+            className={`flex flex-col items-center justify-center py-1 transition-all touch-manipulation select-none active:scale-95 cursor-pointer ${
               activeTab === 'followups' ? 'text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -196,7 +197,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           {/* Tab 5: All Views / Drawer Menu */}
           <button
             onClick={() => setIsDrawerOpen(true)}
-            className={`flex flex-col items-center justify-center py-1 transition-all cursor-pointer ${
+            className={`flex flex-col items-center justify-center py-1 transition-all touch-manipulation select-none active:scale-95 cursor-pointer ${
               isDrawerOpen ? 'text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -212,7 +213,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       {isDrawerOpen && (
         <div 
           onClick={() => setIsDrawerOpen(false)}
-          className="fixed inset-0 z-50 md:hidden bg-slate-900/60 flex flex-col justify-end animate-in fade-in duration-200 cursor-pointer"
+          className="fixed inset-0 z-[60] md:hidden bg-slate-900/60 flex flex-col justify-end animate-in fade-in duration-200 cursor-pointer"
         >
           <div 
             className="bg-white rounded-t-3xl max-h-[88vh] flex flex-col w-full shadow-2xl animate-in slide-in-from-bottom duration-300 pb-safe font-noto cursor-default"
@@ -346,7 +347,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                           : 'bg-white border border-slate-200 text-slate-700'
                       }`}
                     >
-                      <img src={ag.avatar} alt={ag.name} className="w-4 h-4 rounded-full object-cover" />
+                      <UserAvatar name={ag.name} avatarUrl={ag.avatar} size="xs" rounded="full" />
                       <span>{ag.name.split(' ')[0]}</span>
                     </button>
                   ))}
