@@ -16,28 +16,21 @@ export const TriggerNode: React.FC<NodeProps> = memo(({ data, selected }) => {
       }`}
     >
       {/* Node Header (Solid Background, No Gradient, No Header Icon, No Badge) */}
-      <div className="flex items-center justify-between px-3 py-2 bg-[#3a2088] text-white rounded-t-lg">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-[#3a2088] text-white rounded-t-lg">
         <div className="text-[11px] font-medium tracking-wider uppercase">
           <span>EVENT (TRIGGER)</span>
         </div>
       </div>
 
       {/* Node Body */}
-      <div className="p-3">
-        <div className="flex items-center gap-2.5">
-          <div className="p-1.5 rounded-md bg-purple-50 text-[#3a2088] border border-purple-200 shrink-0">
-            <DynamicIcon name={nodeData.iconName || 'Zap'} className="w-4 h-4" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-normal text-slate-800 truncate">
-              {nodeData.label || 'Trigger Event'}
-            </div>
-          </div>
+      <div className="p-4">
+        <div className="text-xs font-normal text-slate-800 truncate">
+          {nodeData.label || 'Trigger Event'}
         </div>
 
         {/* Configuration summary pill */}
         {nodeData.config?.triggerEvent && (
-          <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500 font-normal">
+          <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500 font-normal">
             <span className="font-mono text-[#3a2088] truncate max-w-[170px]">
               {nodeData.config.triggerEvent}
             </span>

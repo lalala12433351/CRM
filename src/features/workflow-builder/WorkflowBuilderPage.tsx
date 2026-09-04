@@ -57,8 +57,108 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
     simulationLogs
   } = useWorkflowGraph(initialWorkflow);
 
+  const initialSampleExecutions: ExecutionRecord[] = [
+    {
+      id: '#EX-8902',
+      triggerName: 'New Facebook Lead Ingest',
+      leadName: 'Amit Sharma',
+      leadPhone: '+91 98123 45678',
+      status: 'success',
+      duration: '0.8s',
+      timestamp: 'Just now',
+      createdAt: new Date().toISOString(),
+      logs: [
+        { step: 1, title: 'Lead Ingest Fired', status: 'success', message: 'Payload received from webhook listener' },
+        { step: 2, title: 'Condition Evaluated', status: 'success', message: 'Phone valid & fresh lead stage verified' },
+        { step: 3, title: 'Action Dispatched', status: 'success', message: 'WhatsApp template sent successfully' }
+      ]
+    },
+    {
+      id: '#EX-8901',
+      triggerName: 'Website Contact Form',
+      leadName: 'Priya Patel',
+      leadPhone: '+91 98765 43210',
+      status: 'sleeping',
+      duration: '15m delay',
+      timestamp: '15 mins ago',
+      createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+      logs: [
+        { step: 1, title: 'Form Submitted', status: 'success', message: 'Contact form webhook triggered' },
+        { step: 2, title: 'Delay Timer Active', status: 'success', message: 'Sleeping for 15 minutes before follow-up' }
+      ]
+    },
+    {
+      id: '#EX-8900',
+      triggerName: 'WhatsApp Inbound Message',
+      leadName: 'Rahul Verma',
+      leadPhone: '+91 91234 56789',
+      status: 'waiting',
+      duration: '2h window',
+      timestamp: '45 mins ago',
+      createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+      logs: [
+        { step: 1, title: 'Incoming WA Message', status: 'success', message: 'Opt-in confirmed' },
+        { step: 2, title: 'Waiting for Agent Reply', status: 'success', message: 'Assigned to Round Robin queue' }
+      ]
+    },
+    {
+      id: '#EX-8899',
+      triggerName: 'Meta Lead Ad Trigger',
+      leadName: 'Neha Singh',
+      leadPhone: '+91 99887 76655',
+      status: 'pending',
+      duration: 'Queued',
+      timestamp: '2 hours ago',
+      createdAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
+      logs: [
+        { step: 1, title: 'Lead Ad Event Ingested', status: 'success', message: 'Queued for API rate-limit dispatch' }
+      ]
+    },
+    {
+      id: '#EX-8898',
+      triggerName: 'API Webhook Inbound',
+      leadName: 'Vikram Malhotra',
+      leadPhone: '+91 90011 22334',
+      status: 'failed',
+      duration: '1.2s',
+      timestamp: '5 hours ago',
+      createdAt: new Date(Date.now() - 5 * 3600 * 1000).toISOString(),
+      logs: [
+        { step: 1, title: 'Webhook Triggered', status: 'success', message: 'Payload received' },
+        { step: 2, title: 'HTTP Post Failed', status: 'failed', message: 'CRM endpoint returned 502 Bad Gateway' }
+      ]
+    },
+    {
+      id: '#EX-8897',
+      triggerName: 'Manual Campaign Trigger',
+      leadName: 'Ananya Roy',
+      leadPhone: '+91 97711 22334',
+      status: 'success',
+      duration: '0.6s',
+      timestamp: 'Yesterday',
+      createdAt: new Date(Date.now() - 26 * 3600 * 1000).toISOString(),
+      logs: [
+        { step: 1, title: 'Campaign Start', status: 'success', message: 'Lead enrolled in sequence' },
+        { step: 2, title: 'Template Sent', status: 'success', message: 'Delivered' }
+      ]
+    },
+    {
+      id: '#EX-8896',
+      triggerName: 'Meta Lead Ad Trigger',
+      leadName: 'Sanjay Gupta',
+      leadPhone: '+91 95544 33221',
+      status: 'success',
+      duration: '0.9s',
+      timestamp: '4 days ago',
+      createdAt: new Date(Date.now() - 4 * 86400 * 1000).toISOString(),
+      logs: [
+        { step: 1, title: 'Lead Synced', status: 'success', message: 'Meta CAPI triggered' }
+      ]
+    }
+  ];
+
   const [activeTab, setActiveTab] = useState<'editor' | 'executions'>('editor');
-  const [executions, setExecutions] = useState<ExecutionRecord[]>([]);
+  const [executions, setExecutions] = useState<ExecutionRecord[]>(initialSampleExecutions);
   const [showJsonModal, setShowJsonModal] = useState(false);
   const [showSimulationModal, setShowSimulationModal] = useState(false);
   const [copiedJson, setCopiedJson] = useState(false);
@@ -89,6 +189,7 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
       status: 'success',
       duration: `${(Math.random() * 1.2 + 0.4).toFixed(1)}s`,
       timestamp: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      createdAt: new Date().toISOString(),
       logs: [
         { step: 1, title: 'Lead Ingest Fired', status: 'success', message: 'Payload received from webhook listener' },
         { step: 2, title: 'Condition Evaluated', status: 'success', message: 'Phone valid & fresh lead stage verified' },

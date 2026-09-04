@@ -1,23 +1,29 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Filter,
   Clock,
   CheckCircle2,
   XCircle,
-  Loader2,
+  Moon,
+  Hourglass,
   X
 } from 'lucide-react';
+
+export type ExecutionStatus = 'success' | 'failed' | 'sleeping' | 'waiting' | 'pending';
+export type TimeFilterOption = 'all' | '1hour' | '24hours' | '7days' | '30days';
 
 export interface ExecutionRecord {
   id: string;
   triggerName: string;
   leadName: string;
   leadPhone: string;
-  status: 'success' | 'failed' | 'running';
+  status: ExecutionStatus;
   duration: string;
   timestamp: string;
+  createdAt?: string;
   logs?: { step: number; title: string; status: 'success' | 'failed'; message: string }[];
 }
 
@@ -25,27 +31,165 @@ interface WorkflowExecutionsTableProps {
   executions?: ExecutionRecord[];
 }
 
+const statusOptions: { value: 'all' | ExecutionStatus; label: string }[] = [
+  { value: 'all', label: 'All Statuses' },
+  { value: 'success', label: 'Success' },
+  { value: 'failed', label: 'Failed' },
+  { value: 'sleeping', label: 'Sleeping' },
+  { value: 'waiting', label: 'Waiting' },
+  { value: 'pending', label: 'Pending' }
+];
+
+const timeOptions: { value: TimeFilterOption; label: string }[] = [
+  { value: 'all', label: 'All Time' },
+  { value: '1hour', label: 'Last Hour' },
+  { value: '24hours', label: 'Last 24 Hours' },
+  { value: '7days', label: 'Last 7 Days' },
+  { value: '30days', label: 'Last 30 Days' }
+];
+
+interface CustomDropdownProps<T extends string> {
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (val: T) => void;
+  icon: React.ReactNode;
+}
+
+function CustomDropdown<T extends string>({
+  value,
+  options,
+  onChange,
+  icon
+}: CustomDropdownProps<T>) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const selectedOption = options.find((opt) => opt.value === value) || options[0];
+
+  return (
+    <div className="relative inline-block text-left" ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="inline-flex items-center gap-2 text-xs font-normal text-slate-700 bg-white border border-slate-200 hover:border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#3a2088] cursor-pointer shadow-2xs transition-colors"
+      >
+        {icon}
+        <span>{selectedOption.label}</span>
+        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-1.5 bg-white border border-slate-200/90 rounded-xl shadow-xl p-1.5 min-w-[155px] z-50 animate-in fade-in zoom-in-95 duration-100">
+          <div className="space-y-0.5">
+            {options.map((opt) => {
+              const isSelected = opt.value === value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => {
+                    onChange(opt.value);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full text-left px-3.5 py-2 text-sm rounded-lg transition-colors cursor-pointer block ${
+                    isSelected
+                      ? 'bg-[#EDE9FE] text-[#3a2088] font-medium'
+                      : 'text-[#0f3b6c] hover:bg-slate-50 font-normal'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export const WorkflowExecutionsTable: React.FC<WorkflowExecutionsTableProps> = ({
   executions = []
 }) => {
-  const [statusFilter, setStatusFilter] = useState<'all' | 'success' | 'failed' | 'running'>('all');
-  const [timeFilter, setTimeFilter] = useState<'all' | 'today' | '7days' | '30days'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | ExecutionStatus>('all');
+  const [timeFilter, setTimeFilter] = useState<TimeFilterOption>('all');
   const [selectedExecution, setSelectedExecution] = useState<ExecutionRecord | null>(null);
 
   // Filtered list
   const filteredExecutions = useMemo(() => {
+    const now = Date.now();
     return executions.filter((item) => {
       if (statusFilter !== 'all' && item.status !== statusFilter) return false;
+
+      if (timeFilter !== 'all' && item.createdAt) {
+        const itemTime = new Date(item.createdAt).getTime();
+        const diffMs = now - itemTime;
+        if (timeFilter === '1hour' && diffMs > 3600 * 1000) return false;
+        if (timeFilter === '24hours' && diffMs > 24 * 3600 * 1000) return false;
+        if (timeFilter === '7days' && diffMs > 7 * 24 * 3600 * 1000) return false;
+        if (timeFilter === '30days' && diffMs > 30 * 24 * 3600 * 1000) return false;
+      }
       return true;
     });
-  }, [executions, statusFilter]);
+  }, [executions, statusFilter, timeFilter]);
 
   const totalCount = filteredExecutions.length;
   const pageRangeText = totalCount === 0 ? '0-0 of 0' : `1-${totalCount} of ${totalCount}`;
 
+  const renderStatusBadge = (status: ExecutionStatus) => {
+    switch (status) {
+      case 'success':
+        return (
+          <span className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-normal">
+            <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Success
+          </span>
+        );
+      case 'failed':
+        return (
+          <span className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-0.5 rounded-full bg-rose-50 text-[#DC2626] border border-rose-200 font-normal">
+            <XCircle className="w-3 h-3 text-[#DC2626]" /> Failed
+          </span>
+        );
+      case 'sleeping':
+        return (
+          <span className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 font-normal">
+            <Moon className="w-3 h-3 text-indigo-600" /> Sleeping
+          </span>
+        );
+      case 'waiting':
+        return (
+          <span className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-normal">
+            <Clock className="w-3 h-3 text-amber-600" /> Waiting
+          </span>
+        );
+      case 'pending':
+        return (
+          <span className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-300 font-normal">
+            <Hourglass className="w-3 h-3 text-slate-500" /> Pending
+          </span>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full bg-white font-sans select-none overflow-hidden">
-      {/* Top Filter & Pagination Bar (Matching Image 2) */}
+      {/* Top Filter & Pagination Bar */}
       <div className="h-12 px-6 border-b border-slate-200/80 flex items-center justify-between bg-white shrink-0">
         {/* Left: Pagination Controls */}
         <div className="flex items-center gap-3 text-xs text-slate-500 font-normal">
@@ -66,39 +210,23 @@ export const WorkflowExecutionsTable: React.FC<WorkflowExecutionsTableProps> = (
           </button>
         </div>
 
-        {/* Right: Filters */}
+        {/* Right: Custom Floating Popover Filters */}
         <div className="flex items-center gap-3">
           {/* Status Filter Dropdown */}
-          <div className="relative inline-flex items-center">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="appearance-none text-xs font-normal text-slate-700 bg-white border border-slate-200 rounded-md pl-7 pr-7 py-1.5 focus:outline-none focus:border-[#3a2088] cursor-pointer shadow-2xs"
-            >
-              <option value="all">All Statuses</option>
-              <option value="success">Success</option>
-              <option value="failed">Failed</option>
-              <option value="running">In Progress</option>
-            </select>
-            <Filter className="w-3.5 h-3.5 text-slate-400 absolute left-2 pointer-events-none" />
-            <span className="text-[10px] text-slate-400 absolute right-2 pointer-events-none">▼</span>
-          </div>
+          <CustomDropdown
+            value={statusFilter}
+            options={statusOptions}
+            onChange={(val) => setStatusFilter(val)}
+            icon={<Filter className="w-3.5 h-3.5 text-slate-400" />}
+          />
 
           {/* Time Filter Dropdown */}
-          <div className="relative inline-flex items-center">
-            <select
-              value={timeFilter}
-              onChange={(e) => setTimeFilter(e.target.value as any)}
-              className="appearance-none text-xs font-normal text-slate-700 bg-white border border-slate-200 rounded-md pl-7 pr-7 py-1.5 focus:outline-none focus:border-[#3a2088] cursor-pointer shadow-2xs"
-            >
-              <option value="all">All Time</option>
-              <option value="today">Today</option>
-              <option value="7days">Last 7 Days</option>
-              <option value="30days">Last 30 Days</option>
-            </select>
-            <Clock className="w-3.5 h-3.5 text-slate-400 absolute left-2 pointer-events-none" />
-            <span className="text-[10px] text-slate-400 absolute right-2 pointer-events-none">▼</span>
-          </div>
+          <CustomDropdown
+            value={timeFilter}
+            options={timeOptions}
+            onChange={(val) => setTimeFilter(val)}
+            icon={<Clock className="w-3.5 h-3.5 text-slate-400" />}
+          />
         </div>
       </div>
 
@@ -137,21 +265,7 @@ export const WorkflowExecutionsTable: React.FC<WorkflowExecutionsTableProps> = (
                       <div className="text-[11px] text-slate-400 mt-0.5 font-mono">{exec.leadPhone}</div>
                     </td>
                     <td className="py-3 px-6">
-                      {exec.status === 'success' && (
-                        <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-normal">
-                          <CheckCircle2 className="w-3 h-3" /> Success
-                        </span>
-                      )}
-                      {exec.status === 'failed' && (
-                        <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-rose-50 text-[#DC2626] border border-rose-200 font-normal">
-                          <XCircle className="w-3 h-3" /> Failed
-                        </span>
-                      )}
-                      {exec.status === 'running' && (
-                        <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-purple-50 text-[#3a2088] border border-purple-200 font-normal">
-                          <Loader2 className="w-3 h-3 animate-spin" /> In Progress
-                        </span>
-                      )}
+                      {renderStatusBadge(exec.status)}
                     </td>
                     <td className="py-3 px-6 text-slate-600 font-mono text-[11px]">
                       {exec.duration}
@@ -192,14 +306,16 @@ export const WorkflowExecutionsTable: React.FC<WorkflowExecutionsTableProps> = (
                   <div key={log.step} className="p-2.5 bg-slate-50 rounded border border-slate-200 text-xs">
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-medium text-slate-800">Step {log.step}: {log.title}</span>
-                      <span className="text-emerald-600 text-[10px]">✓ Passed</span>
+                      <span className={log.status === 'success' ? 'text-emerald-600 text-[10px]' : 'text-rose-600 text-[10px]'}>
+                        {log.status === 'success' ? '✓ Passed' : '✗ Failed'}
+                      </span>
                     </div>
                     <p className="text-[11px] text-slate-500 font-normal">{log.message}</p>
                   </div>
                 ))
               ) : (
                 <div className="py-6 text-center text-xs text-slate-500 font-normal">
-                  All step actions executed successfully in {selectedExecution.duration}.
+                  All step actions executed in {selectedExecution.duration}.
                 </div>
               )}
             </div>
