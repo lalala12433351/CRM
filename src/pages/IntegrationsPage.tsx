@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from '../context/ToastContext';
 import { 
   Search, 
   Globe, 
@@ -1026,7 +1027,7 @@ export const IntegrationsPage: React.FC<IntegrationsViewProps> = ({
             <span className="text-[11px] md:text-xs text-[#7A5E00]">
               Stay on top of your pipeline — enable browser notifications for instant lead and task alerts.{' '}
               <button 
-                onClick={() => alert('Browser notifications enabled successfully!')}
+                onClick={() => toast.success('Browser push notifications enabled successfully!', 'Notifications')}
                 className="underline font-bold text-[#6B5300] hover:text-black cursor-pointer"
               >
                 Enable

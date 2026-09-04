@@ -62,7 +62,9 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
         <img
           src={rawAvatar}
           alt={name}
-          className="w-full h-full object-cover"
+          loading="lazy"
+          decoding="async"
+          className="w-full h-full object-cover transition-opacity duration-200"
           onError={() => setImageError(true)}
         />
       </div>

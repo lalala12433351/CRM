@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Lead, WhatsAppMessage } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
+import { EmptyState } from '../components/EmptyState';
 
 interface OmnichannelInboxProps {
   leads: Lead[];
@@ -116,7 +117,7 @@ export const OmnichannelInboxPage: React.FC<OmnichannelInboxProps> = ({
           </div>
         </div>
 
-        {/* Channel filter chips (Only actual channels, no 'All Channels') */}
+        {/* Channel filter chips */}
         <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
           {['whatsapp', 'instagram', 'facebook', 'email', 'sms'].map((ch) => (
             <button
@@ -136,7 +137,7 @@ export const OmnichannelInboxPage: React.FC<OmnichannelInboxProps> = ({
 
       {/* Main Inbox Box */}
       <div className="bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-xs grid grid-cols-1 md:grid-cols-12 min-h-[560px] max-h-[calc(100vh-14rem)]">
-        {/* Left Column: Conversations List (Hidden on mobile if viewing thread) */}
+        {/* Left Column: Conversations List */}
         <div className={`${mobileShowThread ? 'hidden md:flex' : 'flex'} md:col-span-4 lg:col-span-4 flex-col border-r border-slate-200/80 bg-slate-50/50`}>
           {/* Search Input */}
           <div className="p-3 border-b border-slate-200/80 bg-white">
@@ -155,8 +156,11 @@ export const OmnichannelInboxPage: React.FC<OmnichannelInboxProps> = ({
           {/* Conversation List */}
           <div className="overflow-y-auto divide-y divide-slate-100 flex-1">
             {filteredLeads.length === 0 ? (
-              <div className="p-6 text-center text-slate-400 text-xs font-['Poppins',sans-serif]">
-                No matching conversations found.
+              <div className="p-4">
+                <EmptyState
+                  title="No Conversations"
+                  description="No conversations match your search or filter."
+                />
               </div>
             ) : (
               filteredLeads.map((lead) => {
@@ -198,7 +202,7 @@ export const OmnichannelInboxPage: React.FC<OmnichannelInboxProps> = ({
           </div>
         </div>
 
-        {/* Right Column: Chat Thread & Composer (Visible on mobile if viewing thread) */}
+        {/* Right Column: Chat Thread & Composer */}
         <div className={`${!mobileShowThread ? 'hidden md:flex' : 'flex'} md:col-span-8 lg:col-span-8 flex-col bg-white h-full`}>
           {selectedLead ? (
             <>
@@ -226,7 +230,14 @@ export const OmnichannelInboxPage: React.FC<OmnichannelInboxProps> = ({
                         )}
                       </p>
                       <div className="flex items-center space-x-2 text-[11px] text-slate-500 truncate mt-0.5">
-                        <span>{selectedLead.phone}</span>
+                        <a 
+                          href={`tel:${selectedLead.phone}`} 
+                          onClick={(e) => e.stopPropagation()} 
+                          className="hover:text-indigo-600 hover:underline font-mono"
+                          title={`Call ${selectedLead.phone}`}
+                        >
+                          {selectedLead.phone}
+                        </a>
                         <span>•</span>
                         <StatusBadge status={selectedLead.status} size="xs" />
                       </div>
@@ -319,8 +330,11 @@ export const OmnichannelInboxPage: React.FC<OmnichannelInboxProps> = ({
               </form>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center p-8 text-center text-slate-400 text-xs">
-              Select a conversation from the left to view messages.
+            <div className="flex-1 flex items-center justify-center p-8">
+              <EmptyState 
+                title="No Conversation Selected" 
+                description="Select a lead conversation from the list to view chat history and compose messages."
+              />
             </div>
           )}
         </div>
@@ -328,8 +342,6 @@ export const OmnichannelInboxPage: React.FC<OmnichannelInboxProps> = ({
     </div>
   );
 };
-
-
 
 export const OmnichannelInboxView = OmnichannelInboxPage;
 export default OmnichannelInboxPage;

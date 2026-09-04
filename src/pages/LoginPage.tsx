@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Agent } from '../types';
 import { loginWithApi } from '../lib/auth';
+import { toast } from '../context/ToastContext';
 
 interface LoginViewProps {
   agents: Agent[];
@@ -230,7 +231,7 @@ export const LoginPage: React.FC<LoginViewProps> = ({ agents, onLogin, onSwitchT
               <button
                 type="button"
                 onClick={() => {
-                  alert('A reset link has been dispatched to your email address.');
+                  toast.success('A password reset link has been dispatched to your email address.', 'Reset Link Sent');
                   setShowForgotModal(false);
                 }}
                 className="w-full py-2.5 rounded-full bg-[#0066f6] hover:bg-[#0057df] text-white text-xs font-semibold transition-all cursor-pointer"

@@ -426,13 +426,13 @@ export const FieldsSettingsPage: React.FC<FieldsSettingsViewProps> = ({
           <div className="flex items-center space-x-2 text-xs text-slate-500 mt-0.5 font-normal font-sans">
             <span>Lead Id configuration & custom field definitions for your CRM workspace.</span>
             <span>•</span>
-            <a 
-              href="#learn-more" 
-              onClick={(e) => { e.preventDefault(); onShowToast('Lead ID represents the primary unique identifier key for deduplication and phone lookup.'); }} 
-              className="text-indigo-600 hover:text-indigo-800 hover:underline font-medium"
+            <button 
+              type="button"
+              onClick={() => onShowToast('Lead ID represents the primary unique identifier key for deduplication and phone lookup.')} 
+              className="text-indigo-600 hover:text-indigo-800 hover:underline font-medium cursor-pointer"
             >
               Learn more
-            </a>
+            </button>
           </div>
         </div>
 

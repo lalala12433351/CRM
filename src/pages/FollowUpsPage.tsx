@@ -23,6 +23,9 @@ import {
   Columns3
 } from 'lucide-react';
 import { Lead, Agent, CallRecord, CustomFieldDef, isAgentAdmin, formatDealValue } from '../types';
+import { toast } from '../context/ToastContext';
+import { EmptyState } from '../components/EmptyState';
+
 import { CallRecordingPlayer } from '../components/CallRecordingPlayer';
 import { StatusBadge } from '../components/StatusBadge';
 import { LeadSummaryModal } from '../components/LeadSummaryModal';
@@ -219,7 +222,15 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
     if (key === 'phone' || idKey === 'f-phone' || field.type === 'phone' || labelLower.includes('phone')) {
       return (
         <td key={field.id || field.name} className="py-3.5 px-4 font-mono font-medium text-slate-800 whitespace-nowrap min-w-[140px]">
-          {lead.phone || '-'}
+          {lead.phone ? (
+            <a 
+              href={`tel:${lead.phone}`}
+              onClick={(e) => e.stopPropagation()}
+              className="hover:text-indigo-600 hover:underline transition-colors"
+            >
+              {lead.phone}
+            </a>
+          ) : '-'}
         </td>
       );
     }
@@ -228,7 +239,17 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
     if (key === 'email' || idKey === 'f-email' || field.type === 'email' || labelLower.includes('email')) {
       return (
         <td key={field.id || field.name} className="py-3.5 px-4 text-slate-600 whitespace-nowrap">
-          <span className="text-slate-800 font-medium truncate block max-w-[160px]">{lead.email || '-'}</span>
+          {lead.email ? (
+            <a 
+              href={`mailto:${lead.email}`}
+              onClick={(e) => e.stopPropagation()}
+              className="text-slate-800 font-medium truncate block max-w-[160px] hover:text-indigo-600 hover:underline transition-colors"
+            >
+              {lead.email}
+            </a>
+          ) : (
+            <span className="text-slate-400 font-medium truncate block max-w-[160px]">-</span>
+          )}
         </td>
       );
     }
@@ -413,7 +434,7 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
     const selectedDateTime = new Date(combinedDate);
     const now = new Date();
     if (selectedDateTime < now) {
-      alert('Cannot schedule a follow-up in the past. Please select a future date and time.');
+      toast.warning('Cannot schedule a follow-up in the past. Please select a future date and time.', 'Follow-up Time');
       return;
     }
 
@@ -431,6 +452,7 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
       updatedAt: new Date().toISOString()
     });
 
+    toast.success(`Follow-up scheduled for ${targetLead.name}!`, 'Follow-up Saved');
     setShowScheduleModal(false);
     setModalLeadId('');
     setModalAssigneeId('');
@@ -444,7 +466,7 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
     const selectedDateTime = new Date(rescheduleDate);
     const now = new Date();
     if (selectedDateTime < now) {
-      alert('Cannot reschedule a follow-up to a past date/time. Please select a future date and time.');
+      toast.warning('Cannot reschedule a follow-up to a past date/time. Please select a future date and time.', 'Reschedule Time');
       return;
     }
 
@@ -453,6 +475,7 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
       followUpAt: rescheduleDate,
       updatedAt: new Date().toISOString()
     });
+    toast.success('Follow-up rescheduled successfully!', 'Reschedule Complete');
     setRescheduleLeadId(null);
     setRescheduleDate('');
   };
@@ -746,7 +769,20 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-normal">
-                  {displayedLeads.map((lead) => {
+                  {displayedLeads.length === 0 ? (
+                    <tr>
+                      <td colSpan={visibleFields.length + 1} className="p-4">
+                        <EmptyState
+                          title="No Follow-Ups Due"
+                          description="You have no pending follow-ups or alarms scheduled in this timeframe."
+                          actionLabel="Schedule Follow-up"
+                          onAction={() => setShowScheduleModal(true)}
+                          compact
+                        />
+                      </td>
+                    </tr>
+                  ) : (
+                    displayedLeads.map((lead) => {
                     return (
                       <tr 
                         key={lead.id}
@@ -827,7 +863,7 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
                         </td>
                       </tr>
                     );
-                  })}
+                  }))}
                 </tbody>
               </table>
             </div>

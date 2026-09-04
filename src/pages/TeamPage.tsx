@@ -438,7 +438,7 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                       title="No Team Members Found"
                       description="No users or agents match your search filter. Click below to add a new team member."
                       actionLabel="Add Member"
-                      onAction={() => setIsAddModalOpen(true)}
+                      onAction={() => setIsAddUserModalOpen(true)}
                       compact
                     />
                   </td>
@@ -563,7 +563,7 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                     </td>
                   </tr>
                 );
-              })}
+              }))}
             </tbody>
           </table>
         </div>

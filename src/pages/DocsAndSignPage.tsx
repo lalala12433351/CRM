@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FileText, CheckCircle2, Download, Send, Plus, Sparkles, PenTool, ShieldCheck, Database, Server, Code2, Globe, Layers, CheckSquare, Copy, Check } from 'lucide-react';
 import { Lead } from '../types';
+import { toast } from '../context/ToastContext';
 
 interface DocsAndSignViewProps {
   leads: Lead[];
@@ -31,7 +32,7 @@ export const DocsAndSignPage: React.FC<DocsAndSignViewProps> = ({ leads }) => {
 ---
 
 ## 1. PROJECT OVERVIEW & EXECUTIVE SUMMARY
-The goal of this project is to build a high-performance, full-stack TeleCRM & Sales Pipeline Management platform tailored for tele-calling teams, sales managers, and digital marketers. The application automates lead capture, agent distribution, power dialing, WhatsApp marketing, follow-up scheduling, and real-time sales reporting.
+The goal of this project is to build a high-performance, full-stack TeleCRM & Sales Pipeline Management platform tailored for tele-calling teams, sales managers, and digital marketers. The system automates lead capture, agent distribution, power dialing, WhatsApp marketing, follow-up scheduling, and real-time sales reporting.
 
 ---
 
@@ -63,6 +64,7 @@ The goal of this project is to build a high-performance, full-stack TeleCRM & Sa
   const handleCopy = () => {
     navigator.clipboard.writeText(sowMarkdownText);
     setCopied(true);
+    toast.success('Scope of work copied to clipboard for Google Docs!', 'Copied');
     setTimeout(() => setCopied(false), 2500);
   };
 
@@ -81,6 +83,7 @@ The goal of this project is to build a high-performance, full-stack TeleCRM & Sa
     ]);
     setDocTitle('');
     setShowModal(false);
+    toast.success('Client proposal generated and sent for E-Signature!', 'Proposal Created');
   };
 
   return (
@@ -189,7 +192,7 @@ The goal of this project is to build a high-performance, full-stack TeleCRM & Sa
                 </button>
 
                 <button
-                  onClick={() => alert('Exporting Scope of Work PDF document...')}
+                  onClick={() => toast.info('Exporting Scope of Work PDF document...', 'Document Export')}
                   className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer flex items-center space-x-1.5 shadow-2xs transition-all"
                 >
                   <Download className="w-3.5 h-3.5" />
@@ -209,7 +212,6 @@ The goal of this project is to build a high-performance, full-stack TeleCRM & Sa
             {/* Rendered Document Body */}
             <div className="p-6 md:p-12 bg-slate-50">
               <div className="bg-white text-slate-900 p-8 md:p-12 rounded-xl border border-slate-200 shadow-sm space-y-6 text-xs leading-relaxed font-sans max-w-4xl mx-auto">
-                
                 {/* Document Header Title */}
                 <div className="border-b border-slate-200 pb-5 space-y-2">
                   <div className="inline-block px-2.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-mono font-bold uppercase tracking-wider">
@@ -253,7 +255,6 @@ The goal of this project is to build a high-performance, full-stack TeleCRM & Sa
                     </div>
                   </div>
                 </div>
-
               </div>
             </div>
           </div>
@@ -304,7 +305,10 @@ The goal of this project is to build a high-performance, full-stack TeleCRM & Sa
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right space-x-2">
-                        <button className="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold cursor-pointer">
+                        <button 
+                          onClick={() => toast.info(`Downloading proposal PDF for ${d.leadName}...`, 'PDF Download')}
+                          className="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold cursor-pointer"
+                        >
                           Download PDF
                         </button>
                       </td>
@@ -384,7 +388,6 @@ The goal of this project is to build a high-performance, full-stack TeleCRM & Sa
     </div>
   );
 };
-
 
 export const DocsAndSignView = DocsAndSignPage;
 export default DocsAndSignPage;

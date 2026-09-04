@@ -74,6 +74,12 @@
       font-size: 14px !important;
     }
   }
+
+  /* Universal responsive media constraint */
+  img, video, canvas, svg {
+    max-width: 100%;
+    height: auto;
+  }
 }
 
 /* ========================================================================== */

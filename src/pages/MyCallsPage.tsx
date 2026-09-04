@@ -797,7 +797,7 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
                         title="No Call Logs Found"
                         description="No call recordings or logs match your current filter conditions."
                         actionLabel="Log a Call"
-                        onAction={() => setShowLogCallModal(true)}
+                        onAction={() => setIsLogCallModalOpen(true)}
                         compact
                       />
                     </td>

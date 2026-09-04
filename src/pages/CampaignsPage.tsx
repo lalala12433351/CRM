@@ -48,6 +48,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { getStatusStyle, getStatusBadgeClasses } from '../utils/statusStyles';
 import { StagesContext } from '../App';
 import { LeadDetailModal } from '../components/LeadDetailModal';
+import { toast } from '../context/ToastContext';
 
 interface CampaignsViewProps {
   leads: Lead[];
@@ -728,7 +729,7 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
                 <div className="p-3.5 pt-1 border-t border-slate-100 space-y-3 bg-white">
                   <div className="flex justify-end">
                     <button 
-                      onClick={() => alert('Viewing campaign assignment details')}
+                      onClick={() => toast.info('Viewing campaign assignment diagnostics: 5 leads require phone validation before auto-dispatch.', 'Campaign Diagnostics')}
                       className="text-xs font-semibold text-[#DC2626] hover:underline flex items-center space-x-1 cursor-pointer"
                     >
                       <AlertCircle className="w-3.5 h-3.5 text-[#DC2626]" />

@@ -68,6 +68,7 @@ import { CallRecordingPlayer } from './CallRecordingPlayer';
 import { StatusBadge } from './StatusBadge';
 import { getStatusStyle } from '../utils/statusStyles';
 import { StagesContext } from '../App';
+import { toast } from '../context/ToastContext';
 import { getFieldTypeIcon } from './ColumnCustomizerModal';
 import { fetchWithTenantAuth } from '../lib/auth';
 import { validateField, validatePhone, validateCurrencyOrNumber, validateText, validateEmail } from '../lib/validation';
@@ -755,7 +756,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
 
     const selectedDateTime = new Date(combinedDate);
     if (selectedDateTime < new Date()) {
-      alert('Please select a future date and time for the follow-up.');
+      toast.warning('Please select a future date and time for the follow-up.', 'Invalid Schedule Time');
       return;
     }
 
@@ -829,7 +830,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
 
     const selectedDateTime = new Date(combinedDate);
     if (selectedDateTime < new Date()) {
-      alert('Cannot schedule a follow-up in the past. Please select a future date and time.');
+      toast.warning('Cannot schedule a follow-up in the past. Please select a future date and time.', 'Invalid Schedule Time');
       return;
     }
 
@@ -1062,7 +1063,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
     if (followUpDate) {
       const selected = new Date(followUpDate);
       if (selected < new Date()) {
-        alert('Cannot schedule a follow-up in the past. Please select a future date and time.');
+        toast.warning('Cannot schedule a follow-up in the past. Please select a future date and time.', 'Invalid Schedule Time');
         return;
       }
     }
@@ -1503,7 +1504,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                           <MoreVertical className="w-4 h-4"/>
                           {showMoreOptions && (
                             <div onClick={(e) => e.stopPropagation()} className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 shadow-xl rounded-lg py-1.5 z-20 text-sm font-medium">
-                            <button onClick={(e) => { e.stopPropagation(); setShowMoreOptions(false); navigator.clipboard.writeText(`${window.location.origin}/lead/${lead.id}`); alert('Log Link copied!'); }} className="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-700">Copy Log Link</button>
+                            <button onClick={(e) => { e.stopPropagation(); setShowMoreOptions(false); navigator.clipboard.writeText(`${window.location.origin}/lead/${lead.id}`); toast.success('Lead link copied to clipboard!', 'Link Copied'); }} className="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-700">Copy Log Link</button>
                             <button onClick={(e) => { e.stopPropagation(); setShowMoreOptions(false); handleToggleInvalidFlag(); }} className="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-700">{lead.isInvalid ? 'Unblock Lead' : 'Block Lead'}</button>
                             <button onClick={(e) => { e.stopPropagation(); setShowMoreOptions(false); if(window.confirm('Are you sure you want to delete this lead?')) { if(onDeleteLead) onDeleteLead(lead.id); onClose(); } }} className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600">Delete Lead</button>
                           </div>

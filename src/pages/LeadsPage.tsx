@@ -59,6 +59,7 @@ import {
   Tag
 } from 'lucide-react';
 import { UserAvatar } from '../components/UserAvatar';
+import { EmptyState } from '../components/EmptyState';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FRESH LEAD RESPONSE TIMER BADGE
@@ -2990,9 +2991,12 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
           {/* MOBILE LEADS CARDS LIST (Visible on < md when mobileViewStyle === 'cards') */}
           <div className={`space-y-2.5 px-3 sm:px-4 ${mobileViewStyle === 'table' ? 'hidden' : 'block md:hidden'}`}>
             {currentPaginatedLeads.length === 0 ? (
-              <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400 text-xs shadow-2xs">
-                No leads match your current search or filter conditions.
-              </div>
+              <EmptyState 
+                title="No Leads Found" 
+                description={searchTerm ? "No leads match your current search or filter conditions. Try adjusting your search keyword." : "Your CRM dataset is currently empty. Click below to add a new lead."}
+                actionLabel={searchTerm ? "Clear Search" : "+ Add New Lead"}
+                onAction={searchTerm ? () => setSearchTerm('') : () => onAddNewLead()}
+              />
             ) : (
               currentPaginatedLeads.map((lead) => {
                 const avatar = getAgentAvatar(lead.ownerAgentName);
@@ -3173,8 +3177,13 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                   <tbody className="divide-y divide-slate-100">
                     {currentPaginatedLeads.length === 0 ? (
                       <tr>
-                        <td colSpan={visibleFields.length + 2} className="px-4 py-12 text-center text-slate-400 text-xs">
-                          No leads match your current search or filter conditions.
+                        <td colSpan={visibleFields.length + 2} className="px-4 py-8">
+                          <EmptyState 
+                            title="No Leads Found" 
+                            description={searchTerm ? "No leads match your current search or filter conditions. Try adjusting your search keyword." : "Your CRM dataset is currently empty. Click below to add a new lead."}
+                            actionLabel={searchTerm ? "Clear Search" : "+ Add New Lead"}
+                            onAction={searchTerm ? () => setSearchTerm('') : () => onAddNewLead()}
+                          />
                         </td>
                       </tr>
                     ) : (
@@ -3292,6 +3301,44 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                                     <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${getSourceBadgeStyle(lead.source)}`}>
                                       {lead.source || 'Direct'}
                                     </span>
+                                  </td>
+                                );
+                              }
+
+                              if (field.name === 'phone' || field.type === 'phone' || field.id === 'f-phone') {
+                                return (
+                                  <td key={field.id} className="px-3.5 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                                    {val && val !== '—' ? (
+                                      <a 
+                                        href={`tel:${val}`}
+                                        className="font-mono text-slate-800 font-semibold hover:text-indigo-600 hover:underline inline-flex items-center space-x-1"
+                                        title={`Call ${val}`}
+                                      >
+                                        <Phone className="w-3 h-3 text-slate-400" />
+                                        <span>{val}</span>
+                                      </a>
+                                    ) : (
+                                      <span className="text-slate-400">—</span>
+                                    )}
+                                  </td>
+                                );
+                              }
+
+                              if (field.name === 'email' || field.type === 'email' || field.id === 'f-email') {
+                                return (
+                                  <td key={field.id} className="px-3.5 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                                    {val && val !== '—' ? (
+                                      <a 
+                                        href={`mailto:${val}`}
+                                        className="text-slate-700 hover:text-indigo-600 hover:underline inline-flex items-center space-x-1 max-w-[180px] truncate"
+                                        title={`Send email to ${val}`}
+                                      >
+                                        <Mail className="w-3 h-3 text-slate-400 shrink-0" />
+                                        <span className="truncate">{val}</span>
+                                      </a>
+                                    ) : (
+                                      <span className="text-slate-400">—</span>
+                                    )}
                                   </td>
                                 );
                               }

@@ -24,6 +24,7 @@ import {
 import { Lead, Agent, PipelineStage, HourlyMetric, isAgentAdmin, CustomFieldDef, formatDealValue } from '../types';
 import { CustomDropdown, DropdownOption } from '../components/CustomDropdown';
 import { UserAvatar } from '../components/UserAvatar';
+import { toast } from '../context/ToastContext';
 
 function parseLeadCreatedMs(createdAt?: string): number {
   if (!createdAt || createdAt === 'Just Now' || createdAt === 'Just now') return Date.now();
@@ -155,7 +156,7 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
   // Helper to enforce assignee calling authority
   const handleCallLead = (lead: Lead) => {
     if (lead.ownerAgentId && activeAgent && lead.ownerAgentId !== activeAgent.id) {
-      alert(`Call Authority Restricted: Lead "${lead.name}" is assigned to ${lead.ownerAgentName}. Only ${lead.ownerAgentName} has authority to place calls to this lead.`);
+      toast.warning(`Lead "${lead.name}" is assigned to ${lead.ownerAgentName}. Only ${lead.ownerAgentName} has authority to place calls to this lead.`, 'Call Authority Restricted');
       return;
     }
     window.location.href = `tel:${lead.phone}`;

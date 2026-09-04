@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Agent, CrmTask, formatDealValue } from '../types';
 import { isAgentAdmin } from '../types';
+import { EmptyState } from '../components/EmptyState';
 
 interface TasksViewProps {
   agents: Agent[];
@@ -381,9 +382,13 @@ export const TasksPage: React.FC<TasksViewProps> = ({
               <tbody className="divide-y divide-slate-100">
                 {visibleTasks.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="p-10 text-center text-slate-400 text-sm">
-                      <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-30 text-slate-400" />
-                      {isAdmin ? 'No tasks found. Click "Create Task" to add tasks to database.' : 'No tasks assigned to you yet.'}
+                    <td colSpan={8} className="p-8">
+                      <EmptyState
+                        title="No Tasks Found"
+                        description={searchQuery ? "No tasks matched your search query. Try another keyword." : (isAdmin ? "No tasks found. Click below to add tasks to the database." : "No tasks assigned to you yet.")}
+                        actionLabel={isAdmin ? "+ Create Task" : undefined}
+                        onAction={isAdmin ? () => setShowCreateModal(true) : undefined}
+                      />
                     </td>
                   </tr>
                 ) : visibleTasks.map((task) => {
