@@ -142,7 +142,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   return (
-    <aside className="w-64 glass-panel border-r border-slate-200 flex flex-col justify-between shrink-0 hidden md:flex min-h-[calc(100vh-3.5rem)] font-sans select-none z-20">
+    <aside className="w-64 glass-panel border-r border-slate-200 flex flex-col justify-between shrink-0 hidden md:flex min-h-[calc(100vh-3.5rem)] sidebar-nav select-none z-20">
       
       {/* Top Search & Navigation List */}
       <div className="flex flex-col flex-1 overflow-y-auto px-3 py-3 space-y-4 ios-scroll">

@@ -1,33 +1,21 @@
-@import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-jetbrains: 'JetBrains Mono', monospace;
+  --font-sidebar: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-poppins: 'Poppins', sans-serif;
-  --font-inter: 'Poppins', sans-serif;
-  --font-merriweather: 'Merriweather', Georgia, serif;
-  --font-lora: 'Lora', Georgia, serif;
-  --font-open-sans: 'Open Sans', sans-serif;
-}
-
-.font-merriweather {
-  font-family: 'Merriweather', Georgia, Cambria, 'Times New Roman', Times, serif !important;
-}
-
-.font-lora {
-  font-family: 'Lora', Georgia, Cambria, 'Times New Roman', Times, serif !important;
-}
-
-.font-open-sans {
-  font-family: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
 }
 
 @layer base {
   html {
-    font-size: 100%; /* Standard base scale to avoid oversized/cluttered elements */
+    font-size: 100%;
     -webkit-text-size-adjust: 100%;
     touch-action: manipulation;
-    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     height: 100%;
     width: 100%;
   }
@@ -35,7 +23,7 @@
   body {
     background-color: #F8FAFC;
     color: #1E293B;
-    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     -webkit-tap-highlight-color: transparent;
@@ -54,18 +42,28 @@
     width: 100%;
     display: flex;
     flex-direction: column;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 
-  h1, h2, h3, h4, h5, h6, .font-heading, .font-poppins, .font-sans, .font-inter, .font-montserrat, .font-oswald, .font-noto, .font-roboto, .font-nav, .font-mono, code, pre, kbd, samp {
+  h1, h2, h3, h4, h5, h6, .font-heading, .font-sans, .font-inter {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    letter-spacing: -0.015em;
+  }
+
+  .font-mono, code, pre, kbd, samp, .font-code {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+    letter-spacing: -0.01em;
+  }
+
+  /* Preserve original font for the side navigation bar */
+  aside, .sidebar-nav, .side-nav, [data-sidebar="true"] {
     font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-    letter-spacing: -0.02em;
+  }
+  aside *, .sidebar-nav *, .side-nav *, [data-sidebar="true"] * {
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 
-  .font-merriweather {
-    font-family: 'Merriweather', Georgia, Cambria, 'Times New Roman', Times, serif !important;
-  }
-
-  /* Prevent auto-zoom on focus in iOS Safari for form fields while preserving compact dropdown options */
+  /* Prevent auto-zoom on focus in iOS Safari for form fields */
   @media (max-width: 768px) {
     input, textarea {
       font-size: 16px !important;
@@ -83,14 +81,14 @@
 }
 
 /* ========================================================================== */
-/* MOBILE & DESKTOP OPTIMIZED DROPDOWN SYSTEM (<select>, <option>, <optgroup>) */
+/* DROPDOWN SYSTEM (<select>, <option>, <optgroup>)                           */
 /* ========================================================================== */
 select {
-  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
   color: #0f172a !important;
   background-color: #ffffff !important;
   border-color: #cbd5e1;
-  border-radius: 0.75rem !important; /* rounded-xl */
+  border-radius: 0.75rem !important;
   cursor: pointer !important;
   font-weight: 500 !important;
   font-size: 13px !important;
@@ -107,8 +105,8 @@ select {
 
 select:focus {
   outline: none !important;
-  border-color: #6366f1 !important;
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15) !important;
+  border-color: #3a2088 !important;
+  box-shadow: 0 0 0 2px rgba(58, 32, 136, 0.15) !important;
 }
 
 /* Option item styling across browsers & mobile webviews */
@@ -118,7 +116,7 @@ select option {
   font-size: 13px !important;
   font-weight: 500 !important;
   padding: 8px 12px !important;
-  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
   line-height: 1.4 !important;
 }
 
@@ -126,8 +124,8 @@ select option:hover,
 select option:focus,
 select option:active,
 select option:checked {
-  background-color: #e0e7ff !important; /* indigo-100 */
-  color: #3730a3 !important; /* indigo-900 */
+  background-color: #ede9fe !important;
+  color: #3a2088 !important;
   font-weight: 600 !important;
 }
 
@@ -136,7 +134,7 @@ select optgroup {
   color: #475569 !important;
   font-size: 11px !important;
   font-weight: 700 !important;
-  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
   text-transform: uppercase !important;
   letter-spacing: 0.05em !important;
   padding: 6px 10px !important;
@@ -146,7 +144,7 @@ select optgroup {
 input[type="date"],
 input[type="datetime-local"],
 input[type="time"] {
-  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
   color: #0f172a !important;
   background-color: #ffffff !important;
   border-color: #cbd5e1;
@@ -189,10 +187,6 @@ input[type="time"] {
 /* iOS momentum scrolling */
 .ios-scroll {
   -webkit-overflow-scrolling: touch;
-}
-
-.font-poppins, .font-inter, .font-mono {
-  font-family: 'Poppins', sans-serif !important;
 }
 
 /* Custom Clean Scrollbars */
