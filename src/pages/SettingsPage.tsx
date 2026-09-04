@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from '../context/ToastContext';
 import {
   Settings,
   Building2,
@@ -311,7 +312,7 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
   const handleOpenProfileConfirm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!profileName.trim()) {
-      alert('Please enter a valid Display Name.');
+      toast.error('Please enter a valid Display Name.', 'Profile Settings');
       return;
     }
     setShowProfileConfirmModal(true);
@@ -716,9 +717,9 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
   const handleApplyPromo = () => {
     if (promoCode.trim().toUpperCase() === 'ARCLE20' || promoCode.trim().toUpperCase() === 'TELECRM20') {
       setPromoApplied(true);
-      if (onShowToast) onShowToast('20% Discount Code Applied!');
+      toast.success('20% Discount Code Applied!', 'Promo Code');
     } else {
-      alert('Invalid promo code. Try "TELECRM20" or "ARCLE20".');
+      toast.error('Invalid promo code. Try "TELECRM20" or "ARCLE20".', 'Promo Code');
     }
   };
 
@@ -747,12 +748,12 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
       setShowCheckoutModal(false);
       setPaymentSuccessModal(true);
 
-      if (onShowToast) onShowToast(`Payment of ₹${totalAmount.toLocaleString('en-IN')} successful! License extended.`);
+      toast.success(`Payment of ₹${totalAmount.toLocaleString('en-IN')} successful! License extended.`, 'Payment Complete');
     }, 1200);
   };
 
   const handleDownloadInvoice = (txn: any) => {
-    alert(`Downloading GST Tax Invoice ${txn.id}\nOrganization: ${billingOrg}\nAmount: ₹${txn.amount}\nStatus: Paid`);
+    toast.info(`Downloading GST Tax Invoice ${txn.id} for ${billingOrg}...`, 'GST Tax Invoice');
   };
 
   // Pipeline Stage Handlers
@@ -777,7 +778,7 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
 
   const handleDeleteStage = (stageId: string) => {
     if (localStages.length <= 2) {
-      alert('Pipeline must contain at least 2 stages.');
+      toast.warning('Pipeline must contain at least 2 stages.', 'Pipeline Settings');
       return;
     }
     setLocalStages((prev) => {
@@ -789,7 +790,7 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
 
   const handleAddCustomStage = () => {
     if (!newStageName.trim()) {
-      alert('Please enter a stage name.');
+      toast.warning('Please enter a stage name.', 'Pipeline Settings');
       return;
     }
     const newStage: PipelineStage = {
@@ -2526,7 +2527,7 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
                             Edit
                           </button>
                           <span>|</span>
-                          <button onClick={() => alert(`GSTIN: ${billingGstin}\nAddress: ${billingAddress}`)} className="hover:underline cursor-pointer">
+                          <button onClick={() => toast.info(`GSTIN: ${billingGstin} • Address: ${billingAddress}`, 'GST Billing Information', 5000)} className="hover:underline cursor-pointer">
                             View
                           </button>
                         </div>

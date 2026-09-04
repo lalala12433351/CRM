@@ -23,3 +23,4 @@ export * from './FieldsSettingsPage';
 export * from './CallFeedbackSettingsPage';
 export * from './PermissionsSettingsPage';
 export * from './SettingsPage';
+export * from './NotFoundPage';

@@ -30,6 +30,7 @@ export const VIEW_TO_PATH: Record<string, string> = {
   conversion_tracking: '/conversions',
   login: '/login',
   signup: '/signup',
+  not_found: '/404',
 };
 
 export const PATH_TO_VIEW: Record<string, string> = {
@@ -67,6 +68,8 @@ export const PATH_TO_VIEW: Record<string, string> = {
   '/login': 'login',
   '/signup': 'signup',
   '/sign-up': 'signup',
+  '/404': 'not_found',
+  '/not-found': 'not_found',
 };
 
 /**
@@ -76,7 +79,7 @@ export function pathToView(pathname: string): string | null {
   if (!pathname) return null;
   const normalized = pathname.toLowerCase().replace(/\/+$/, '') || '/';
   if (normalized === '/' || normalized === '') return null;
-  return PATH_TO_VIEW[normalized] || null;
+  return PATH_TO_VIEW[normalized] || 'not_found';
 }
 
 /**

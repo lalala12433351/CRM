@@ -41,10 +41,12 @@ import {
   CallingLogsPage as CallingLogsView,
   FieldsSettingsPage as FieldsSettingsView,
   CallFeedbackSettingsPage as CallFeedbackSettingsView,
+  NotFoundPage as NotFoundView,
 } from './pages';
 import { PhoneCall, X, Users } from 'lucide-react';
 import { verifyCurrentSession, logoutWithApi, fetchWithTenantAuth } from './lib/auth';
 import { formatArcleName } from './utils/brandUtils';
+import { toast, useToast, ToastType } from './context/ToastContext';
 
 import { 
   INITIAL_LEADS, 
@@ -342,14 +344,39 @@ export function App() {
   const activeStages = stages && stages.length > 0 ? stages : INITIAL_STAGES;
   const activeCustomFields = customFields && customFields.length > 0 ? customFields : INITIAL_CUSTOM_FIELDS;
 
-  // Dynamic Browser Tab / Document Title containing ARCLE & the given company name
+  // Dynamic Browser Tab / Document Title containing ARCLE, view name & the given company name
   useEffect(() => {
-    if (isAuthenticated && rawCompanyName) {
-      document.title = `${formatArcleName('ARCLE CRM', rawCompanyName)} & TeleSales Management`;
-    } else {
-      document.title = 'ARCLE CRM & TeleSales Management';
+    const brandName = rawCompanyName ? `${formatArcleName('ARCLE CRM', rawCompanyName)}` : 'ARCLE CRM & TeleSales';
+    if (!isAuthenticated) {
+      document.title = authScreen === 'signup' ? 'Create Account | ARCLE CRM' : 'Sign In | ARCLE CRM';
+      return;
     }
-  }, [isAuthenticated, rawCompanyName]);
+    const viewTitleMap: Record<string, string> = {
+      leads: `Leads Database | ${brandName}`,
+      dashboard: `Sales Dashboard | ${brandName}`,
+      pipeline: `Pipeline & Deals | ${brandName}`,
+      followups: `Follow-ups & Scheduled Calls | ${brandName}`,
+      tasks: `Tasks & Reminders | ${brandName}`,
+      inbox: `Unified Inbox | ${brandName}`,
+      whatsapp: `WhatsApp CRM | ${brandName}`,
+      workflows: `AI Automations & Workflows | ${brandName}`,
+      calls: `Call Records & Logs | ${brandName}`,
+      calling_logs: `Call Records & Logs | ${brandName}`,
+      reports: `Performance Reports | ${brandName}`,
+      analytics: `Conversion & CPL Analytics | ${brandName}`,
+      team: `Team & Agent Management | ${brandName}`,
+      campaigns: `Marketing Campaigns | ${brandName}`,
+      integrations: `Integrations & Webhooks | ${brandName}`,
+      docs_sign: `Docs & E-Signatures | ${brandName}`,
+      fields: `Custom Lead Fields | ${brandName}`,
+      call_feedback: `Call Feedback Settings | ${brandName}`,
+      settings: `Settings & Preferences | ${brandName}`,
+      add_lead: `Add New Lead | ${brandName}`,
+      not_found: `404 - Page Not Found | ARCLE CRM`,
+    };
+
+    document.title = viewTitleMap[currentView] || `${brandName}`;
+  }, [isAuthenticated, authScreen, currentView, rawCompanyName]);
 
   // Real database fetch strictly scoped to activeTenantId
   useEffect(() => {
@@ -504,12 +531,8 @@ export function App() {
   const [isAiCopilotOpen, setIsAiCopilotOpen] = useState<boolean>(false);
   const [isPowerDialerQueueOpen, setIsPowerDialerQueueOpen] = useState<boolean>(false);
 
-  // Toast alert banner state
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 4000);
+  const showToast = (msg: string, type: ToastType = 'success', title?: string) => {
+    toast.show(msg, type, title);
   };
 
   const activeAgentsList = agents && agents.length > 0 ? agents : (currentUser ? [currentUser] : INITIAL_AGENTS);
@@ -1034,13 +1057,6 @@ export function App() {
   return (
     <StagesContext.Provider value={activeStages}>
     <div className="h-screen h-[100dvh] max-w-[100vw] overflow-x-hidden glass-mesh-bg text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
-      {/* Toast Alert Banner */}
-      {toastMessage && (
-        <div className="fixed top-16 right-6 z-50 glass-card text-slate-800 px-4 py-2.5 rounded-xl text-xs font-sans font-semibold flex items-center">
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
       {/* Top Navbar */}
       <Navbar
         activeAgent={activeAgent}
@@ -1486,6 +1502,15 @@ export function App() {
               initialTab={settingsSubTab}
               onShowToast={(msg) => showToast(msg)} 
             />
+          )}
+
+          {![
+            'add_lead', 'dashboard', 'pipeline', 'leads', 'followups', 'tasks',
+            'inbox', 'whatsapp', 'workflows', 'calls', 'calling_logs', 'reports',
+            'analytics', 'team', 'marketing', 'campaigns', 'integrations',
+            'docs_sign', 'fields', 'call_feedback', 'settings'
+          ].includes(currentView) && (
+            <NotFoundView onNavigate={(nextView) => setCurrentView(nextView)} />
           )}
         </main>
       </div>

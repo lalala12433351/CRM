@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { toast } from '../context/ToastContext';
+import { EmptyState } from '../components/EmptyState';
 import { 
   GitBranch, 
   RotateCw, 
@@ -267,13 +269,13 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
                 To execute complex automations with ease{' '}
-                <a 
-                  href="#learn" 
-                  onClick={(e) => { e.preventDefault(); alert('Workflows automatically route incoming leads, execute webhook triggers, and schedule calls.'); }} 
-                  className="text-[#3a2088] hover:underline font-semibold"
+                <button 
+                  type="button"
+                  onClick={() => toast.info('Workflows automatically route incoming leads, execute webhook triggers, and schedule calls.', 'Automations Guide')} 
+                  className="text-[#3a2088] hover:underline font-semibold cursor-pointer"
                 >
                   Learn More
-                </a>
+                </button>
               </p>
             </div>
 
@@ -439,69 +441,81 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
                   {workflowsList
-                    .filter(w => workflowsTab === 'Draft' ? w.isDraft : !w.isDraft)
-                    .map((wf) => (
-                      <tr key={wf.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-3.5 px-4">
-                          <p className="font-bold text-slate-900 text-xs">{wf.name}</p>
-                          {wf.hasDraft && (
-                            <button
-                              onClick={() => triggerToast(`Opening draft of "${wf.name}"`)}
-                              className="text-[11px] text-[#3a2088] underline hover:text-[#2c186b] font-medium cursor-pointer"
-                            >
-                              View Draft
-                            </button>
-                          )}
-                        </td>
-                        <td className="py-3.5 px-4 text-center">
-                          <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-purple-50 border border-purple-200 text-purple-700 text-[11px] font-bold">
-                            {wf.eventIcon === 'globe' && <Globe className="w-3 h-3 text-purple-600" />}
-                            {wf.eventIcon === 'file' && <FileText className="w-3 h-3 text-purple-600" />}
-                            {wf.eventIcon === 'phone' && <Phone className="w-3 h-3 text-purple-600" />}
-                            <span>{wf.event}</span>
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 text-center">
-                          <div className="flex flex-col items-center">
-                            <label className="relative inline-flex items-center cursor-pointer">
-                              <input 
-                                type="checkbox" 
-                                checked={wf.status} 
-                                onChange={() => {
-                                  setWorkflowsList(prev => prev.map(w => w.id === wf.id ? { ...w, status: !w.status } : w));
-                                  triggerToast(`Workflow "${wf.name}" toggled ${wf.status ? 'OFF' : 'ON'}`);
-                                }}
-                                className="sr-only peer" 
-                              />
-                              <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-[#3a2088]"></div>
-                            </label>
-                            <span className="text-[10px] text-slate-400 mt-1 font-sans">{wf.statusMeta}</span>
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-4 text-center font-bold text-slate-800">{wf.totalRuns}</td>
-                        <td className="py-3.5 px-4 text-center font-bold font-mono">
-                          <span className="text-slate-900">{wf.last24hRuns}</span> / <span className="text-[#DC2626]">{wf.last24hFailures}</span>
-                        </td>
-                        <td className="py-3.5 px-4 text-right">
-                          <div className="flex items-center justify-end space-x-1.5">
-                            <button 
-                              onClick={() => handleDuplicate('Workflow', wf.name)}
-                              className="p-1.5 rounded-lg border border-slate-200/90 hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer"
-                              title="Duplicate"
-                            >
-                              <Copy className="w-3.5 h-3.5" />
-                            </button>
-                            <button 
-                              onClick={() => handleDelete(wf.id, wf.name)}
-                              className="p-1.5 rounded-lg border border-slate-200/90 hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                    .filter(w => workflowsTab === 'Draft' ? w.isDraft : !w.isDraft).length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="p-4">
+                          <EmptyState
+                            title={workflowsTab === 'Draft' ? "No Draft Workflows" : "No Active Workflows"}
+                            description="Create custom automation rules to automatically assign leads, send WhatsApp messages, and schedule tasks."
+                            actionLabel="Create Workflow"
+                            onAction={() => setShowCreateModal(true)}
+                            compact
+                          />
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      workflowsList
+                        .filter(w => workflowsTab === 'Draft' ? w.isDraft : !w.isDraft)
+                        .map((wf) => (
+                          <tr key={wf.id} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="py-3.5 px-4">
+                              <p className="font-bold text-slate-900 text-xs">{wf.name}</p>
+                              {wf.hasDraft && (
+                                <button
+                                  onClick={() => triggerToast(`Opening draft of "${wf.name}"`)}
+                                  className="text-[11px] text-[#3a2088] underline hover:text-[#2c186b] font-medium cursor-pointer"
+                                >
+                                  (Draft in progress)
+                                </button>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              <span className="inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold bg-indigo-50 text-[#3a2088] border border-indigo-200">
+                                {wf.eventsCount}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              <div className="flex flex-col items-center">
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                  <input 
+                                    type="checkbox" 
+                                    checked={wf.status} 
+                                    onChange={() => {
+                                      setWorkflowsList(prev => prev.map(w => w.id === wf.id ? { ...w, status: !w.status } : w));
+                                      triggerToast(`Workflow "${wf.name}" toggled ${wf.status ? 'OFF' : 'ON'}`);
+                                    }}
+                                    className="sr-only peer" 
+                                  />
+                                  <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-[#3a2088]"></div>
+                                </label>
+                                <span className="text-[10px] text-slate-400 mt-1 font-sans">{wf.statusMeta}</span>
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-4 text-center font-bold text-slate-800">{wf.totalRuns}</td>
+                            <td className="py-3.5 px-4 text-center font-bold font-mono">
+                              <span className="text-slate-900">{wf.last24hRuns}</span> / <span className="text-[#DC2626]">{wf.last24hFailures}</span>
+                            </td>
+                            <td className="py-3.5 px-4 text-right">
+                              <div className="flex items-center justify-end space-x-1.5">
+                                <button 
+                                  onClick={() => handleDuplicate('Workflow', wf.name)}
+                                  className="p-1.5 rounded-lg border border-slate-200/90 hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer"
+                                  title="Duplicate"
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                </button>
+                                <button 
+                                  onClick={() => handleDelete(wf.id, wf.name)}
+                                  className="p-1.5 rounded-lg border border-slate-200/90 hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                    )}
                 </tbody>
               </table>
             </div>
@@ -532,13 +546,13 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
                 To automatically keep in touch with your leads{' '}
-                <a 
-                  href="#learn" 
-                  onClick={(e) => { e.preventDefault(); alert('Schedules trigger automatic messages and drip campaigns based on custom time delays.'); }} 
-                  className="text-[#3a2088] hover:underline font-semibold"
+                <button 
+                  type="button"
+                  onClick={() => toast.info('Schedules trigger automatic messages and drip campaigns based on custom time delays.', 'Schedules Guide')} 
+                  className="text-[#3a2088] hover:underline font-semibold cursor-pointer"
                 >
                   Learn More
-                </a>
+                </button>
               </p>
             </div>
 
@@ -732,17 +746,16 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
 
               <div>
                 <p className="text-xs text-slate-400 mb-1">or</p>
-                <a 
-                  href="#doc" 
-                  onClick={(e) => { 
-                    e.preventDefault(); 
-                    alert('Endpoint: /api/webhook/ingest\nMethod: POST\nHeaders: Content-Type: application/json\nBody: { name, phone, email, source }'); 
+                <button 
+                  type="button"
+                  onClick={() => { 
+                    toast.info('Endpoint: /api/webhook/ingest • Method: POST • Headers: Content-Type: application/json • Payload: { name, phone, email, source }', 'Webhook Endpoint API Documentation', 6000); 
                   }}
                   className="text-xs font-semibold text-[#3a2088] hover:underline inline-flex items-center space-x-1 cursor-pointer"
                 >
                   <FileText className="w-3.5 h-3.5" />
                   <span>View webhook documentation</span>
-                </a>
+                </button>
               </div>
             </div>
           </div>

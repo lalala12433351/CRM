@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { Agent, isAgentAdmin } from '../types';
 import { UserAvatar } from '../components/UserAvatar';
+import { toast } from '../context/ToastContext';
+import { EmptyState } from '../components/EmptyState';
 
 interface TeamViewProps {
   agents: Agent[];
@@ -429,55 +431,74 @@ export const TeamPage: React.FC<TeamViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredAgents.map((ag) => {
-                const isSelected = selectedAgentIds.includes(ag.id);
-                const agIsAdmin = isAgentAdmin(ag);
-                const isMasterOwner = ag.role === 'Master Admin' || ag.role === 'Owner';
-                
-                // Format role nicely (Manager, Marketing, Caller)
-                let roleDisplay = ag.role || 'Caller';
-                const rLow = roleDisplay.toLowerCase();
-                if (rLow.includes('manager')) roleDisplay = 'Manager';
-                else if (rLow.includes('market')) roleDisplay = 'Marketing';
-                else if (rLow.includes('root') || rLow.includes('admin')) roleDisplay = 'Root';
-                else roleDisplay = 'Caller';
+              {filteredAgents.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-4">
+                    <EmptyState
+                      title="No Team Members Found"
+                      description="No users or agents match your search filter. Click below to add a new team member."
+                      actionLabel="Add Member"
+                      onAction={() => setIsAddModalOpen(true)}
+                      compact
+                    />
+                  </td>
+                </tr>
+              ) : (
+                filteredAgents.map((ag) => {
+                  const isSelected = selectedAgentIds.includes(ag.id);
+                  const agIsAdmin = isAgentAdmin(ag);
+                  const isMasterOwner = ag.role === 'Master Admin' || ag.role === 'Owner';
+                  
+                  // Format role nicely (Manager, Marketing, Caller)
+                  let roleDisplay = ag.role || 'Caller';
+                  const rLow = roleDisplay.toLowerCase();
+                  if (rLow.includes('manager')) roleDisplay = 'Manager';
+                  else if (rLow.includes('market')) roleDisplay = 'Marketing';
+                  else if (rLow.includes('root') || rLow.includes('admin')) roleDisplay = 'Root';
+                  else roleDisplay = 'Caller';
 
-                // Format permission nicely (Admin, Manager, Marketer, Caller)
-                let permDisplay = ag.permission;
-                if (!permDisplay) {
-                  if (agIsAdmin) permDisplay = 'Admin';
-                  else if (roleDisplay === 'Manager') permDisplay = 'Manager';
-                  else if (roleDisplay === 'Marketing') permDisplay = 'Marketer';
-                  else permDisplay = 'Caller';
-                }
+                  // Format permission nicely (Admin, Manager, Marketer, Caller)
+                  let permDisplay = ag.permission;
+                  if (!permDisplay) {
+                    if (agIsAdmin) permDisplay = 'Admin';
+                    else if (roleDisplay === 'Manager') permDisplay = 'Manager';
+                    else if (roleDisplay === 'Marketing') permDisplay = 'Marketer';
+                    else permDisplay = 'Caller';
+                  }
 
-                const permissionTemplateDisplay = `Default ${permDisplay} Permissions`;
+                  const permissionTemplateDisplay = `Default ${permDisplay} Permissions`;
 
-                return (
-                  <tr
-                    key={ag.id}
-                    className={`hover:bg-slate-50/80 transition-colors ${isSelected ? 'bg-indigo-50/30' : ''}`}
-                  >
-                    {/* Checkbox */}
-                    <td className="py-3.5 px-4">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleSelectAgent(ag.id)}
-                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                      />
-                    </td>
+                  return (
+                    <tr
+                      key={ag.id}
+                      className={`hover:bg-slate-50/80 transition-colors ${isSelected ? 'bg-indigo-50/30' : ''}`}
+                    >
+                      {/* Checkbox */}
+                      <td className="py-3.5 px-4">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectAgent(ag.id)}
+                          className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        />
+                      </td>
 
-                    {/* Name & Avatar */}
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center space-x-3">
-                        <UserAvatar name={ag.name} avatarUrl={ag.avatar} size="md" rounded="full" />
-                        <div>
-                          <p className="font-semibold text-slate-900 text-xs sm:text-sm">{ag.name}</p>
-                          <p className="text-[11px] text-slate-500 font-normal">{ag.email}</p>
+                      {/* Name & Avatar */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center space-x-3">
+                          <UserAvatar name={ag.name} avatarUrl={ag.avatar} size="md" rounded="full" />
+                          <div>
+                            <p className="font-semibold text-slate-900 text-xs sm:text-sm">{ag.name}</p>
+                            <a 
+                              href={`mailto:${ag.email}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-[11px] text-slate-500 font-normal hover:text-indigo-600 hover:underline transition-colors"
+                            >
+                              {ag.email}
+                            </a>
+                          </div>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
                     {/* Role */}
                     <td className="py-3.5 px-4 whitespace-nowrap">
@@ -1044,7 +1065,7 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    alert(`Purchase initiated for ${licensesToBuy} Core CRM license(s)! Your account will be upgraded immediately.`);
+                    toast.success(`Purchase initiated for ${licensesToBuy} Core CRM license(s)! Your account will be upgraded immediately.`, 'License Checkout');
                     setIsBuyLicensesModalOpen(false);
                   }}
                   className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow-md cursor-pointer"

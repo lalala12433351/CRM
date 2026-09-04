@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { Lead, PipelineStage, LeadStatus, CustomFieldDef, Agent, formatDealValue, formatDealValueCompact } from '../types';
 import { LeadSummaryModal } from '../components/LeadSummaryModal';
+import { toast } from '../context/ToastContext';
 
 interface PipelineViewProps {
   leads: Lead[];
@@ -109,7 +110,7 @@ export const PipelinePage: React.FC<PipelineViewProps> = ({
 
     const selectedDateTime = new Date(combinedDate);
     if (selectedDateTime < new Date()) {
-      alert('Cannot schedule a follow-up in the past. Please select a future date and time.');
+      toast.warning('Cannot schedule a follow-up in the past. Please select a future date and time.', 'Follow-up Time');
       return;
     }
 
@@ -314,9 +315,13 @@ export const PipelinePage: React.FC<PipelineViewProps> = ({
               <h1 className="text-base font-bold text-slate-900 tracking-tight">Lead stages</h1>
               <span className="text-xs text-slate-400 font-medium">|</span>
               <span className="text-xs text-slate-600 font-medium">Configure Your Sales Pipeline</span>
-              <a href="#how-to-use" className="text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center space-x-1">
+              <button 
+                type="button"
+                onClick={() => toast.info('Customize stage titles, reorder with up/down controls, set win/loss categories, and manage lost reasons.', 'Pipeline Guide')}
+                className="text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center space-x-1 cursor-pointer"
+              >
                 <span>How to use</span>
-              </a>
+              </button>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
               Customize initial, active, won and lost pipeline stages & configure standard reasons for lost leads.

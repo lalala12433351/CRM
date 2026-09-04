@@ -28,6 +28,8 @@ import {
 } from 'lucide-react';
 import { CallRecord, Agent, Lead } from '../types';
 import { CustomDropdown } from '../components/CustomDropdown';
+import { toast } from '../context/ToastContext';
+import { EmptyState } from '../components/EmptyState';
 
 interface MyCallsViewProps {
   callRecords: CallRecord[];
@@ -313,7 +315,7 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
   const handleSaveLoggedCall = (e: React.FormEvent) => {
     e.preventDefault();
     if (!logLeadName.trim() || !logLeadPhone.trim()) {
-      alert('Please provide both lead name and phone number.');
+      toast.error('Please provide both lead name and phone number.', 'Call Log Validation');
       return;
     }
 
@@ -790,8 +792,14 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
               <tbody className="divide-y divide-slate-100">
                 {currentPaginatedCalls.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-12 text-center text-slate-400 text-xs">
-                      No call records found matching your current filter conditions.
+                    <td colSpan={9} className="p-4">
+                      <EmptyState
+                        title="No Call Logs Found"
+                        description="No call recordings or logs match your current filter conditions."
+                        actionLabel="Log a Call"
+                        onAction={() => setShowLogCallModal(true)}
+                        compact
+                      />
                     </td>
                   </tr>
                 ) : (
