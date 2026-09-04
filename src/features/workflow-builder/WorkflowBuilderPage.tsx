@@ -15,6 +15,7 @@ import {
 import { SidebarAccordion } from './components/SidebarAccordion';
 import { WorkflowCanvas } from './components/WorkflowCanvas';
 import { NodeConfigDrawer } from './components/NodeConfigDrawer';
+import { WorkflowExecutionsTable, ExecutionRecord } from './components/WorkflowExecutionsTable';
 import { useWorkflowGraph } from './hooks/useWorkflowGraph';
 import { CatalogItem, WorkflowSerialized } from './types/workflow.types';
 
@@ -56,6 +57,8 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
     simulationLogs
   } = useWorkflowGraph(initialWorkflow);
 
+  const [activeTab, setActiveTab] = useState<'editor' | 'executions'>('editor');
+  const [executions, setExecutions] = useState<ExecutionRecord[]>([]);
   const [showJsonModal, setShowJsonModal] = useState(false);
   const [showSimulationModal, setShowSimulationModal] = useState(false);
   const [copiedJson, setCopiedJson] = useState(false);
@@ -78,6 +81,21 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
   const handleStartSimulation = () => {
     setShowSimulationModal(true);
     runSimulation();
+    const newExec: ExecutionRecord = {
+      id: `#EX-${Date.now().toString().slice(-4)}`,
+      triggerName: nodes.find((n) => n.type === 'trigger' || n.data?.kind === 'trigger')?.data.label || 'Inbound Lead Trigger',
+      leadName: 'Amit Sharma',
+      leadPhone: '+91 98123 45678',
+      status: 'success',
+      duration: `${(Math.random() * 1.2 + 0.4).toFixed(1)}s`,
+      timestamp: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      logs: [
+        { step: 1, title: 'Lead Ingest Fired', status: 'success', message: 'Payload received from webhook listener' },
+        { step: 2, title: 'Condition Evaluated', status: 'success', message: 'Phone valid & fresh lead stage verified' },
+        { step: 3, title: 'Action Dispatched', status: 'success', message: 'Dispatched with HTTP 200 OK' }
+      ]
+    };
+    setExecutions((prev) => [newExec, ...prev]);
   };
 
   return (
@@ -96,6 +114,32 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
               <ArrowLeft className="w-4 h-4" />
             </button>
           )}
+        </div>
+
+        {/* Center: Editor & Executions Tabs */}
+        <div className="flex items-center gap-6 h-full">
+          <button
+            type="button"
+            onClick={() => setActiveTab('editor')}
+            className={`h-full px-3 text-xs font-semibold transition-all border-b-2 cursor-pointer flex items-center ${
+              activeTab === 'editor'
+                ? 'border-[#3a2088] text-[#3a2088]'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            Editor
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('executions')}
+            className={`h-full px-3 text-xs font-semibold transition-all border-b-2 cursor-pointer flex items-center ${
+              activeTab === 'executions'
+                ? 'border-[#3a2088] text-[#3a2088]'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            Executions
+          </button>
         </div>
 
         {/* Right: Actions */}
@@ -163,39 +207,43 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
         </div>
       </header>
 
-      {/* ================= WORKSPACE ================= */}
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* Left Sidebar Catalog */}
-        <SidebarAccordion
-          hasTrigger={nodes.some((n) => n.type === 'trigger' || n.data?.kind === 'trigger')}
-          onItemClick={(item: CatalogItem) => addNodeFromCatalog(item)}
-        />
-
-        {/* Center Interactive Canvas */}
-        <main className="flex-1 h-full relative bg-[#f8fafc]">
-          <WorkflowCanvas
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onNodeClick={(node) => setSelectedNodeId(node.id)}
-            onPaneClick={() => setSelectedNodeId(null)}
-            onAddNode={(item, pos) => addNodeFromCatalog(item, pos)}
-            selectedNodeId={selectedNodeId}
+      {/* ================= WORKSPACE (Editor vs Executions) ================= */}
+      {activeTab === 'editor' ? (
+        <div className="flex-1 flex overflow-hidden relative">
+          {/* Left Sidebar Catalog */}
+          <SidebarAccordion
+            hasTrigger={nodes.some((n) => n.type === 'trigger' || n.data?.kind === 'trigger')}
+            onItemClick={(item: CatalogItem) => addNodeFromCatalog(item)}
           />
-        </main>
 
-        {/* Right Configuration Drawer */}
-        {selectedNode && (
-          <NodeConfigDrawer
-            selectedNode={selectedNode}
-            onClose={() => setSelectedNodeId(null)}
-            onUpdateNodeData={updateNodeData}
-            onDeleteNode={deleteNode}
-          />
-        )}
-      </div>
+          {/* Center Interactive Canvas */}
+          <main className="flex-1 h-full relative bg-[#f8fafc]">
+            <WorkflowCanvas
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onNodeClick={(node) => setSelectedNodeId(node.id)}
+              onPaneClick={() => setSelectedNodeId(null)}
+              onAddNode={(item, pos) => addNodeFromCatalog(item, pos)}
+              selectedNodeId={selectedNodeId}
+            />
+          </main>
+
+          {/* Right Configuration Drawer */}
+          {selectedNode && (
+            <NodeConfigDrawer
+              selectedNode={selectedNode}
+              onClose={() => setSelectedNodeId(null)}
+              onUpdateNodeData={updateNodeData}
+              onDeleteNode={deleteNode}
+            />
+          )}
+        </div>
+      ) : (
+        <WorkflowExecutionsTable executions={executions} />
+      )}
 
       {/* ================= SAVE TOAST ================= */}
       {saveToast && (
