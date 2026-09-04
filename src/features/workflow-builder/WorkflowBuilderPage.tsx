@@ -84,7 +84,7 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
     <div className="flex flex-col h-screen w-full overflow-hidden bg-slate-50 text-slate-900 font-sans select-none">
       {/* ================= HEADER / TOPBAR ================= */}
       <header className="h-14 bg-white border-b border-slate-200/90 px-4 flex items-center justify-between z-30 shrink-0 shadow-2xs">
-        {/* Left: Back Arrow & Breadcrumb/Title */}
+        {/* Left: Back Arrow */}
         <div className="flex items-center gap-2.5">
           {onBack && (
             <button
@@ -96,35 +96,6 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
               <ArrowLeft className="w-4 h-4" />
             </button>
           )}
-
-          <div className="flex flex-col">
-            <div className="flex items-center space-x-2">
-              <input
-                type="text"
-                value={workflowName}
-                onChange={(e) => setWorkflowName(e.target.value)}
-                className="text-xs sm:text-sm font-bold text-slate-900 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-[#3a2088] focus:outline-none px-1 py-0.5 max-w-xs sm:max-w-md transition-colors"
-              />
-
-              {/* Status Badge */}
-              <button
-                type="button"
-                onClick={() => setWorkflowStatus(workflowStatus === 'published' ? 'draft' : 'published')}
-                className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full cursor-pointer transition-colors border ${
-                  workflowStatus === 'published'
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : 'bg-[#EDE9FE] text-[#3a2088] border-[#DDD6FE]'
-                }`}
-                title="Click to toggle status"
-              >
-                {workflowStatus === 'published' ? 'Active' : 'Draft'}
-              </button>
-            </div>
-
-            <div className="text-[11px] text-slate-400 pl-1 font-medium">
-              Workflow Type: Lead Activity
-            </div>
-          </div>
         </div>
 
         {/* Right: Actions */}
@@ -196,6 +167,7 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
       <div className="flex-1 flex overflow-hidden relative">
         {/* Left Sidebar Catalog */}
         <SidebarAccordion
+          hasTrigger={nodes.some((n) => n.type === 'trigger' || n.data?.kind === 'trigger')}
           onItemClick={(item: CatalogItem) => addNodeFromCatalog(item)}
         />
 

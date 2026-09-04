@@ -109,7 +109,7 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
           animated: true,
           style: { stroke: '#3a2088', strokeWidth: 2 }
         }}
-        className="touch-none select-none font-sans"
+        className="w-full h-full font-sans"
       >
 
         {/* Background Grid */}

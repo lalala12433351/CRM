@@ -56,6 +56,9 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
   // Track connections between ports
   const onConnect = useCallback(
     (connection: Connection) => {
+      if (!connection.source || !connection.target) return;
+      if (connection.source === connection.target) return;
+
       setIsSaved(false);
       // Format edge style based on handle type (e.g. true=green, false=red, trigger=purple)
       const isTrueBranch = connection.sourceHandle === 'true';
@@ -65,9 +68,13 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
       if (isTrueBranch) strokeColor = '#10b981'; // emerald green
       if (isFalseBranch) strokeColor = '#DC2626'; // rose red
 
+      const edgeId = `edge-${connection.source}-${connection.sourceHandle || 'out'}-${connection.target}-${Date.now()}`;
       const newEdge: Edge = {
-        ...connection,
-        id: `edge-${connection.source}-${connection.sourceHandle || 'default'}-${connection.target}`,
+        id: edgeId,
+        source: connection.source,
+        target: connection.target,
+        sourceHandle: connection.sourceHandle || null,
+        targetHandle: connection.targetHandle || null,
         animated: true,
         type: 'smoothstep',
         style: {
@@ -77,8 +84,8 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
         markerEnd: {
           type: MarkerType.ArrowClosed,
           color: strokeColor,
-          width: 16,
-          height: 16
+          width: 14,
+          height: 14
         }
       };
 
@@ -87,9 +94,14 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
     [setEdges]
   );
 
-  // Add node from catalog item
+  // Add node from catalog item (Enforces single trigger rule)
   const addNodeFromCatalog = useCallback(
     (item: CatalogItem, dropPosition?: { x: number; y: number }) => {
+      // Prevent adding more than 1 trigger/event node
+      if (item.kind === 'trigger' && nodes.some((n) => n.type === 'trigger' || n.data?.kind === 'trigger')) {
+        return null;
+      }
+
       setIsSaved(false);
       const id = `node-${item.kind}-${Date.now().toString().slice(-5)}`;
       
@@ -118,7 +130,7 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
       setSelectedNodeId(id);
       return id;
     },
-    [nodes.length, setNodes]
+    [nodes, setNodes]
   );
 
   // Update specific node's data

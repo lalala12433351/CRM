@@ -14,11 +14,11 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         if (!config.apiTemplate && !config.endpointUrl) {
           return (
             <div className="space-y-1">
-              <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-rose-50 border border-rose-200 text-[#DC2626] text-[10px] font-semibold">
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-rose-50 border border-rose-200 text-[#DC2626] text-[10px] font-normal">
                 <AlertCircle className="w-3 h-3 shrink-0 text-[#DC2626]" />
                 <span>Please select template</span>
               </div>
-              <div className="text-[10px] text-slate-400 pl-0.5">
+              <div className="text-[10px] text-slate-400 pl-0.5 font-normal">
                 No API selected
               </div>
             </div>
@@ -26,15 +26,15 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         }
         return (
           <div className="space-y-1 text-[11px]">
-            <div className="flex items-center gap-1.5 text-slate-800 font-bold text-[11px] truncate">
+            <div className="flex items-center gap-1.5 text-slate-800 font-medium text-[11px] truncate">
               <span className="text-[#3a2088] truncate">{config.apiTemplate || 'Custom API'}</span>
             </div>
             {config.endpointUrl && (
               <div className="flex items-center gap-1.5">
-                <span className="font-bold text-[9px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200">
+                <span className="font-medium text-[9px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200">
                   {config.method || 'POST'}
                 </span>
-                <span className="font-mono text-[10px] text-slate-600 font-medium truncate max-w-[150px]">
+                <span className="font-mono text-[10px] text-slate-600 font-normal truncate max-w-[150px]">
                   {config.endpointUrl}
                 </span>
               </div>
@@ -44,30 +44,17 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
       case 'capi':
         return (
           <div className="flex items-center gap-1.5 text-[11px] text-slate-700">
-            <span className="font-bold text-[#3a2088]">Meta CAPI:</span>
-            <span className="font-mono bg-[#EDE9FE] text-[#3a2088] border border-[#DDD6FE] px-1.5 py-0.5 rounded text-[10px] font-bold">
+            <span className="font-medium text-[#3a2088]">Meta CAPI:</span>
+            <span className="font-mono bg-[#EDE9FE] text-[#3a2088] border border-[#DDD6FE] px-1.5 py-0.5 rounded text-[10px] font-normal">
               {config.capiEventName || 'Lead'}
             </span>
-          </div>
-        );
-      case 'call_api':
-        return (
-          <div className="space-y-1 text-[11px]">
-            <div className="flex items-center gap-1.5">
-              <span className="font-bold text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200">
-                {config.method || 'POST'}
-              </span>
-              <span className="font-mono text-[10px] text-slate-700 font-semibold truncate max-w-[150px]">
-                {config.endpointUrl || 'https://api.domain.com'}
-              </span>
-            </div>
           </div>
         );
       case 'send_template':
         return (
           <div className="flex items-center gap-1.5 text-[11px] text-slate-700">
-            <span className="text-emerald-700 font-bold">WA:</span>
-            <span className="font-mono bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded text-[10px] font-bold truncate max-w-[160px]">
+            <span className="text-emerald-700 font-medium">WA:</span>
+            <span className="font-mono bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded text-[10px] font-normal truncate max-w-[160px]">
               {config.templateName || 'welcome_msg'}
             </span>
           </div>
@@ -75,8 +62,8 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
       case 'update_lead_status':
         return (
           <div className="flex items-center gap-1.5 text-[11px] text-slate-700">
-            <span className="text-[#3a2088] font-bold">Stage:</span>
-            <span className="bg-[#EDE9FE] text-[#3a2088] border border-[#DDD6FE] px-2 py-0.5 rounded text-[10px] font-bold">
+            <span className="text-[#3a2088] font-medium">Stage:</span>
+            <span className="bg-[#EDE9FE] text-[#3a2088] border border-[#DDD6FE] px-2 py-0.5 rounded text-[10px] font-normal">
               {config.targetStage || 'Contacted'}
             </span>
           </div>
@@ -84,8 +71,8 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
       case 'update_lead_assignee':
         return (
           <div className="flex items-center gap-1.5 text-[11px] text-slate-700">
-            <span className="text-indigo-700 font-bold">Assign:</span>
-            <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded text-[10px] font-bold capitalize">
+            <span className="text-indigo-700 font-medium">Assign:</span>
+            <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded text-[10px] font-normal capitalize">
               {config.assigneeType === 'round_robin' ? 'Round Robin' : config.assigneeAgentName || 'Specific Agent'}
             </span>
           </div>
@@ -93,8 +80,8 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
       case 'time_delay':
         return (
           <div className="flex items-center gap-1.5 text-[11px] text-slate-700">
-            <span className="text-amber-700 font-bold">Wait:</span>
-            <span className="font-mono bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded text-[10px] font-bold">
+            <span className="text-amber-700 font-medium">Wait:</span>
+            <span className="font-mono bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded text-[10px] font-normal">
               {config.delayValue || 15} {config.delayUnit || 'minutes'}
             </span>
           </div>
@@ -108,7 +95,7 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
 
   return (
     <div
-      className={`relative min-w-[260px] max-w-[290px] rounded-lg bg-white border transition-all duration-200 shadow-xs ${
+      className={`relative min-w-[260px] max-w-[290px] rounded-lg bg-white border transition-all duration-150 shadow-xs ${
         selected
           ? 'border-slate-800 ring-2 ring-slate-400/20 shadow-md'
           : 'border-slate-200/90 hover:border-slate-400'
@@ -120,17 +107,22 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         position={Position.Left}
         id="input"
         isConnectable={true}
-        className="!w-4 !h-4 !bg-slate-700 !border-2 !border-white hover:!scale-125 !transition-transform !shadow-sm !-left-2 z-50 cursor-crosshair"
+        style={{
+          width: 14,
+          height: 14,
+          backgroundColor: '#475569',
+          border: '2px solid #ffffff',
+          borderRadius: '50%',
+          cursor: 'crosshair',
+          zIndex: 50
+        }}
       />
 
-      {/* Node Header (Solid Background, No Gradient, No Header Icon) */}
+      {/* Node Header (Solid Background, No Gradient, No Header Icon, No Badge) */}
       <div className="flex items-center justify-between px-3 py-2 bg-slate-800 text-white rounded-t-lg">
-        <div className="text-[11px] font-bold tracking-wider uppercase">
+        <div className="text-[11px] font-medium tracking-wider uppercase">
           <span>ACTION STEP</span>
         </div>
-        <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded font-mono text-slate-200">
-          Step
-        </span>
       </div>
 
       {/* Node Body */}
@@ -140,10 +132,10 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
             <DynamicIcon name={nodeData.iconName || 'PlayCircle'} className="w-4 h-4" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-bold text-slate-900 truncate">
+            <div className="text-xs font-normal text-slate-800 truncate">
               {nodeData.label || 'Action Step'}
             </div>
-            {preview && <div className="mt-1">{preview}</div>}
+            {preview && <div className="mt-1 font-normal">{preview}</div>}
           </div>
         </div>
       </div>
@@ -154,7 +146,15 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         position={Position.Right}
         id="output"
         isConnectable={true}
-        className="!w-4 !h-4 !bg-slate-700 !border-2 !border-white hover:!scale-125 !transition-transform !shadow-sm !-right-2 z-50 cursor-crosshair"
+        style={{
+          width: 14,
+          height: 14,
+          backgroundColor: '#475569',
+          border: '2px solid #ffffff',
+          borderRadius: '50%',
+          cursor: 'crosshair',
+          zIndex: 50
+        }}
       />
     </div>
   );
