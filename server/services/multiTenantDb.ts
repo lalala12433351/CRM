@@ -154,6 +154,25 @@ export interface TenantCall {
   updatedAt: string;
 }
 
+export interface TenantWorkflow {
+  id: string;
+  tenantId: string;
+  name: string;
+  hasDraft?: boolean;
+  event: string;
+  eventIcon?: string;
+  status: boolean;
+  statusMeta: string;
+  totalRuns: number;
+  last24hRuns: number;
+  last24hFailures: number;
+  isDraft: boolean;
+  nodes?: any[];
+  edges?: any[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface LocalStoreSchema {
   tenants: Record<string, ClientTenant>;
   agents: Record<string, TenantAgent[]>;
@@ -165,10 +184,65 @@ interface LocalStoreSchema {
   integrations: Record<string, TenantIntegration[]>;
   activities: Record<string, TenantActivity[]>;
   lostReasons: Record<string, string[]>;
+  workflows: Record<string, TenantWorkflow[]>;
 }
 
 const DATA_DIR = path.join(process.cwd(), '.data');
 const STORE_PATH = path.join(DATA_DIR, 'multi_tenant_store.json');
+
+const DEFAULT_WORKFLOWS: Omit<TenantWorkflow, 'tenantId'>[] = [
+  {
+    id: 'wf-1',
+    name: 'On Website lead',
+    hasDraft: false,
+    event: 'Lead Creation',
+    eventIcon: 'globe',
+    status: true,
+    statusMeta: '13d ago by Faisal C',
+    totalRuns: 853,
+    last24hRuns: 10,
+    last24hFailures: 0,
+    isDraft: false,
+    nodes: [],
+    edges: [],
+    createdAt: '2026-08-20T10:00:00.000Z',
+    updatedAt: '2026-08-20T10:00:00.000Z'
+  },
+  {
+    id: 'wf-2',
+    name: 'On Lead Status Change',
+    hasDraft: true,
+    event: 'Lead Status Change',
+    eventIcon: 'file',
+    status: true,
+    statusMeta: '2M ago by Faisal C',
+    totalRuns: 19233,
+    last24hRuns: 432,
+    last24hFailures: 0,
+    isDraft: false,
+    nodes: [],
+    edges: [],
+    createdAt: '2026-08-20T10:00:00.000Z',
+    updatedAt: '2026-08-20T10:00:00.000Z'
+  },
+  {
+    id: 'wf-3',
+    name: 'On call log lead',
+    hasDraft: false,
+    event: 'Call Log',
+    eventIcon: 'phone',
+    status: true,
+    statusMeta: '3M ago by Faisal C',
+    totalRuns: 862,
+    last24hRuns: 0,
+    last24hFailures: 0,
+    isDraft: false,
+    nodes: [],
+    edges: [],
+    createdAt: '2026-08-20T10:00:00.000Z',
+    updatedAt: '2026-08-20T10:00:00.000Z'
+  }
+];
 
 const DEFAULT_STAGES: Omit<TenantStage, 'tenantId'>[] = [
   { id: 'stage-1', name: 'Fresh', color: '#3B82F6', order: 1, category: 'initial', winProbability: 10, isActive: true },
@@ -210,7 +284,8 @@ export class MultiTenantDatabase {
     integrations: {},
     activities: {},
     lostReasons: {},
-    calls: {}
+    calls: {},
+    workflows: {}
   };
 
   constructor() {
@@ -236,7 +311,8 @@ export class MultiTenantDatabase {
           integrations: parsed.integrations || {},
           activities: parsed.activities || {},
           lostReasons: parsed.lostReasons || {},
-          calls: parsed.calls || {}
+          calls: parsed.calls || {},
+          workflows: parsed.workflows || {}
         };
       } else {
         this.saveStore();
@@ -932,10 +1008,90 @@ export class MultiTenantDatabase {
         }
       }
     }
-    if (deleted) {
+    return deleted;
+  }
+
+  // =========================================================================
+  // 10. WORKFLOWS (STRICTLY SCOPED TO tenantId & STORED IN multi_tenant_store.json)
+  // =========================================================================
+  public async getWorkflows(tenantId: string): Promise<TenantWorkflow[]> {
+    if (!this.store.workflows) {
+      this.store.workflows = {};
+    }
+    if (!this.store.workflows[tenantId] || this.store.workflows[tenantId].length === 0) {
+      this.store.workflows[tenantId] = DEFAULT_WORKFLOWS.map((w) => ({ ...w, tenantId }));
       this.saveStore();
     }
+    return this.store.workflows[tenantId];
+  }
+
+  public async saveWorkflow(tenantId: string, workflowData: Partial<TenantWorkflow>): Promise<TenantWorkflow> {
+    if (!this.store.workflows) {
+      this.store.workflows = {};
+    }
+    if (!this.store.workflows[tenantId]) {
+      this.store.workflows[tenantId] = [];
+    }
+
+    const index = this.store.workflows[tenantId].findIndex(
+      (w) => w.id === workflowData.id || (workflowData.name && w.name.trim().toLowerCase() === workflowData.name.trim().toLowerCase())
+    );
+
+    const now = new Date().toISOString();
+    let workflow: TenantWorkflow;
+
+    if (index >= 0) {
+      workflow = {
+        ...this.store.workflows[tenantId][index],
+        ...workflowData,
+        tenantId,
+        updatedAt: now
+      };
+      this.store.workflows[tenantId][index] = workflow;
+    } else {
+      workflow = {
+        id: workflowData.id || `wf-${Date.now()}`,
+        tenantId,
+        name: workflowData.name || 'Untitled Workflow',
+        hasDraft: workflowData.hasDraft || false,
+        event: workflowData.event || 'Lead Creation',
+        eventIcon: workflowData.eventIcon || 'globe',
+        status: workflowData.status !== undefined ? Boolean(workflowData.status) : true,
+        statusMeta: workflowData.statusMeta || 'Just now by Admin',
+        totalRuns: workflowData.totalRuns || 0,
+        last24hRuns: workflowData.last24hRuns || 0,
+        last24hFailures: workflowData.last24hFailures || 0,
+        isDraft: Boolean(workflowData.isDraft),
+        nodes: workflowData.nodes || [],
+        edges: workflowData.edges || [],
+        createdAt: workflowData.createdAt || now,
+        updatedAt: now
+      };
+      this.store.workflows[tenantId].unshift(workflow);
+    }
+
+    this.saveStore();
+    return workflow;
+  }
+
+  public async deleteWorkflow(tenantId: string, workflowId: string): Promise<boolean> {
+    if (!this.store.workflows || !this.store.workflows[tenantId]) return false;
+    const initialLen = this.store.workflows[tenantId].length;
+    this.store.workflows[tenantId] = this.store.workflows[tenantId].filter((w) => w.id !== workflowId);
+    const deleted = this.store.workflows[tenantId].length < initialLen;
+    if (deleted) this.saveStore();
     return deleted;
+  }
+
+  public async toggleWorkflowStatus(tenantId: string, workflowId: string): Promise<TenantWorkflow | null> {
+    if (!this.store.workflows || !this.store.workflows[tenantId]) return null;
+    const target = this.store.workflows[tenantId].find((w) => w.id === workflowId);
+    if (!target) return null;
+    target.status = !target.status;
+    target.statusMeta = 'Just now by Admin';
+    target.updatedAt = new Date().toISOString();
+    this.saveStore();
+    return target;
   }
 
   // =========================================================================

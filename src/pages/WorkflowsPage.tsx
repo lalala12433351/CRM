@@ -4,6 +4,7 @@ import { EmptyState } from '../components/EmptyState';
 import { WorkflowBuilderPage } from '../features/workflow-builder';
 import { 
   getWorkflowsFromDb, 
+  fetchWorkflowsFromApi,
   saveWorkflowToDb, 
   deleteWorkflowFromDb, 
   toggleWorkflowStatusInDb,
@@ -92,9 +93,14 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
   // Persistent workflows list from Database
   const [workflowsList, setWorkflowsList] = useState<WorkflowRecord[]>(() => getWorkflowsFromDb());
 
-  // Reload workflows when tab becomes active
+  // Reload workflows when tab becomes active or builder closes
   useEffect(() => {
     setWorkflowsList(getWorkflowsFromDb());
+    fetchWorkflowsFromApi().then((fresh) => {
+      if (Array.isArray(fresh) && fresh.length > 0) {
+        setWorkflowsList(fresh);
+      }
+    }).catch(() => {});
   }, [activeSubTab, isVisualBuilderOpen]);
 
   const handleOpenBuilder = (workflowItem?: any) => {
@@ -283,9 +289,15 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                 <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center space-x-2">
                   <span>Workflows</span>
                   <button 
-                    onClick={() => triggerToast('Refreshing workflows...')}
+                    onClick={() => {
+                      triggerToast('Refreshing workflows from database...');
+                      fetchWorkflowsFromApi().then((fresh) => {
+                        setWorkflowsList(fresh);
+                        triggerToast('Workflows up to date');
+                      });
+                    }}
                     className="text-slate-400 hover:text-[#3a2088] transition-colors p-0.5 cursor-pointer"
-                    title="Refresh"
+                    title="Refresh from DB"
                   >
                     <RotateCw className="w-4 h-4" />
                   </button>

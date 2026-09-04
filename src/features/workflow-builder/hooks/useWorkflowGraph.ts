@@ -29,8 +29,12 @@ export interface WorkflowSimulationStep {
 }
 
 export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
-  const initialNodes: CustomWorkflowNode[] = (initialWorkflow?.nodes as CustomWorkflowNode[]) || (SAMPLE_TEMPLATES[0].nodes as CustomWorkflowNode[]);
-  const initialEdges: Edge[] = (initialWorkflow?.edges as Edge[]) || (SAMPLE_TEMPLATES[0].edges as Edge[]);
+  const initialNodes: CustomWorkflowNode[] = (initialWorkflow?.nodes && initialWorkflow.nodes.length > 0
+    ? (initialWorkflow.nodes as CustomWorkflowNode[])
+    : (SAMPLE_TEMPLATES[0].nodes as CustomWorkflowNode[]));
+  const initialEdges: Edge[] = (initialWorkflow?.edges && initialWorkflow.edges.length > 0
+    ? (initialWorkflow.edges as Edge[])
+    : (initialWorkflow?.nodes && initialWorkflow.nodes.length > 0 ? [] : (SAMPLE_TEMPLATES[0].edges as Edge[])));
 
   const [nodes, setNodes] = useNodesState<CustomWorkflowNode>(initialNodes);
   const [edges, setEdges] = useEdgesState<Edge>(initialEdges);
@@ -196,11 +200,11 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
       const currentStatus = statusOverride || workflowStatus;
 
       return {
-        id: `wf-${Date.now()}`,
+        id: initialWorkflow?.id || `wf-${Date.now()}`,
         name: currentName,
         status: currentStatus,
         version: '1.0.0',
-        createdAt: new Date().toISOString(),
+        createdAt: initialWorkflow?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         nodes: nodes.map((n) => ({
           id: n.id,
