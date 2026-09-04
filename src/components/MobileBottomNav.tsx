@@ -23,7 +23,8 @@ import {
   Plus,
   PhoneCall,
   Smartphone,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Kanban
 } from 'lucide-react';
 import { TabType } from './Sidebar';
 import { ReportsSubTab, AutomationsSubTab } from '../pages';
@@ -70,6 +71,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       title: 'Core CRM & Leads',
       items: [
         { id: 'dashboard' as TabType, label: 'Dashboard', icon: LayoutDashboard, desc: 'Sales overview & KPIs' },
+        { id: 'pipeline' as TabType, label: 'Pipeline Deals', icon: Kanban, desc: 'Kanban stages & deal flow' },
         { id: 'leads' as TabType, label: 'Lead Database', icon: Users, desc: 'All incoming customer leads' },
         { id: 'add_lead' as TabType, label: 'Add Lead Page', icon: UserPlus, desc: 'Quick lead capture form' },
         { id: 'followups' as TabType, label: 'Follow-Ups Queue', icon: BellRing, desc: 'Due phone calls & alarms' },

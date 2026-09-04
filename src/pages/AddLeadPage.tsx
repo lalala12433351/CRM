@@ -484,8 +484,6 @@ export const AddLeadPage: React.FC<AddLeadViewProps> = ({
       if (onShowToast) {
         onShowToast(`Lead "${newLead.name}" saved successfully! Ready to add another lead.`);
       }
-    } else if (action === 'save') {
-      onCancel();
     }
   };
 

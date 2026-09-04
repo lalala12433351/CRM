@@ -92,6 +92,14 @@ export function App() {
   const [currentView, setCurrentView] = useState<string>(() => {
     return getInitialViewFromUrl('leads');
   });
+  const [previousView, setPreviousView] = useState<string>('leads');
+
+  const handleOpenAddLead = () => {
+    if (currentView !== 'add_lead') {
+      setPreviousView(currentView);
+    }
+    setCurrentView('add_lead');
+  };
   const [reportsSubTab, setReportsSubTab] = useState<ReportsSubTab>(() => {
     try {
       if (typeof window !== 'undefined') {
@@ -1063,8 +1071,8 @@ export function App() {
         agents={agents}
         companyName={companyName || 'ARCLE Real Estate & Sales'}
         onSelectAgent={handleSelectAgent}
-        onOpenLeadModal={() => setCurrentView('add_lead')}
-        onAddNewLead={() => setCurrentView('add_lead')}
+        onOpenLeadModal={handleOpenAddLead}
+        onAddNewLead={handleOpenAddLead}
         onPushTestLead={() => handlePushTestLead('IndiaMart')}
         onOpenVoiceBot={() => setVoiceBotLead(leads[0])}
         onOpenPowerDialer={() => setIsPowerDialerQueueOpen(true)}
@@ -1158,7 +1166,7 @@ export function App() {
                 }
 
                 if (!stayOnPage) {
-                  setCurrentView('leads');
+                  setCurrentView(previousView || 'leads');
                 }
               }}
               onSaveAndCall={(newLead) => {
@@ -1188,14 +1196,14 @@ export function App() {
                   setMessages((prev) => [...prev, autoMsg]);
                 }
                 showToast(`Saved Lead & Calling ${newLead.name}`);
-                setCurrentView('leads');
+                setCurrentView(previousView || 'leads');
                 window.location.href = `tel:${newLead.phone}`;
               }}
               onImportBulkLeads={(bulkLeads) => {
                 handleImportCsv(bulkLeads);
-                setCurrentView('leads');
+                setCurrentView(previousView || 'leads');
               }}
-              onCancel={() => setCurrentView('leads')}
+              onCancel={() => setCurrentView(previousView || 'leads')}
               onNavigateToTab={(tab) => setCurrentView(tab)}
             />
           )}
@@ -1254,7 +1262,7 @@ export function App() {
               lostReasons={lostReasons}
               onUpdateLostReasons={handleUpdateLostReasons}
               onOpenLeadDetail={(lead) => setDetailLead(lead)}
-              onAddNewLead={handleAddNewLead}
+              onAddNewLead={handleOpenAddLead}
               onImportCsv={handleImportCsv}
               onMergeLeads={handleMergeLeads}
               onAddCustomField={handleAddCustomField}
@@ -1262,6 +1270,7 @@ export function App() {
               onDeleteLead={handleDeleteLead}
               onClearAllLeads={handleClearAllLeads}
               onUpdateLead={handlePartialUpdateLead}
+              onNavigateToTab={(tab) => setCurrentView(tab)}
               onOpenGoogleSheets={() => setIsGoogleSheetsModalOpen(true)}
               globalSavedFilters={globalSavedFilters}
               activeFilterId={activeFilterId}
@@ -1599,7 +1608,7 @@ export function App() {
         companyName={rawCompanyName}
         onSelectLead={(lead) => setDetailLead(lead)}
         onNavigate={(view) => setCurrentView(view)}
-        onAddNewLead={() => setCurrentView('add_lead')}
+        onAddNewLead={handleOpenAddLead}
         onOpenPowerDialer={() => setIsPowerDialerQueueOpen(true)}
         onOpenAiCopilot={() => setIsAiCopilotOpen(true)}
         onOpenVoiceBot={() => setVoiceBotLead(leads[0])}
@@ -1649,7 +1658,7 @@ export function App() {
         agents={agents}
         companyName={rawCompanyName}
         onSelectAgent={(agentId) => setActiveAgentId(agentId)}
-        onOpenAddLeadModal={handleAddNewLead}
+        onOpenAddLeadModal={handleOpenAddLead}
         onOpenGoogleSheets={() => setIsGoogleSheetsModalOpen(true)}
         onOpenPowerDialer={() => setIsPowerDialerQueueOpen(true)}
         onOpenAiCopilot={() => setIsAiCopilotOpen(true)}

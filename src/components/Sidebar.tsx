@@ -21,7 +21,8 @@ import {
   ChevronDown,
   FileText,
   Code,
-  LayoutGrid
+  LayoutGrid,
+  Kanban
 } from 'lucide-react';
 import { ReportsSubTab, AutomationsSubTab } from '../pages';
 
@@ -92,6 +93,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'MAIN MENU',
       items: [
         { id: 'dashboard' as TabType, label: 'Dashboard', icon: LayoutDashboard },
+        { id: 'pipeline' as TabType, label: 'Pipeline & Deals', icon: Kanban },
+        { id: 'leads' as TabType, label: 'Leads Database', icon: Users },
         { 
           id: 'followups' as TabType, 
           label: 'Follow-Ups & Calls', 
@@ -99,7 +102,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           badge: missedCallsCount > 0 ? missedCallsCount : undefined,
           badgeColor: 'bg-rose-500 text-white'
         },
-        { id: 'leads' as TabType, label: 'Leads & Pipeline', icon: Users },
         { id: 'add_lead' as TabType, label: 'Add Lead', icon: UserPlus },
         { 
           id: 'inbox' as TabType, 

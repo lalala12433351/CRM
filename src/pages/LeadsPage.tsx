@@ -56,7 +56,8 @@ import {
   Building2,
   UserPlus,
   ArrowLeft,
-  Tag
+  Tag,
+  Kanban
 } from 'lucide-react';
 import { UserAvatar } from '../components/UserAvatar';
 import { EmptyState } from '../components/EmptyState';
@@ -174,6 +175,7 @@ interface LeadsViewProps {
   setActiveFilterId?: (id: string) => void;
   lostReasons?: string[];
   onUpdateLostReasons?: (reasons: string[]) => void;
+  onNavigateToTab?: (tab: string) => void;
 }
 
 type AnalyticsDimension = 
@@ -217,6 +219,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
     'Junk'
   ],
   onUpdateLostReasons,
+  onNavigateToTab,
 }) => {
   const stages = useContext(StagesContext);
 
@@ -1748,6 +1751,16 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
           >
             <List className="w-4 h-4" />
           </button>
+
+          {onNavigateToTab && (
+            <button 
+              onClick={() => onNavigateToTab('pipeline')}
+              className="p-2 rounded-lg flex items-center justify-center cursor-pointer transition-all text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              title="Pipeline & Deals Kanban"
+            >
+              <Kanban className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
