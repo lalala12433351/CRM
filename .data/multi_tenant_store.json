@@ -245,7 +245,7 @@
           "HighIntent"
         ],
         "createdAt": "2026-09-04T06:39:35.675Z",
-        "updatedAt": "2026-09-04T06:46:47.516Z",
+        "updatedAt": "2026-09-04T06:56:37.920Z",
         "pincode": "",
         "whatsappOptIn": true,
         "activities": [
@@ -260,7 +260,7 @@
             "agentName": "Kite Aviation Admin"
           }
         ],
-        "followUpAt": "2026-09-04T13:15:00",
+        "followUpAt": "2026-09-04T15:15:00",
         "assignedTo": "agent-1788331750812"
       },
       {
@@ -3232,6 +3232,17 @@
     "company_zenith_aviation": [],
     "company_wfwwfwf": [],
     "company_kite_aviation": [
+      {
+        "id": "act-1788504997591",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788503975675",
+        "agentId": "agent-1788331750812",
+        "agentName": "DSSFSD",
+        "type": "task",
+        "title": "Follow-Up Scheduled",
+        "description": "Follow-up set for 4 Sept 2026, 3:15 pm.",
+        "timestamp": "2026-09-04T06:56:37.591Z"
+      },
       {
         "id": "act-1788503091614",
         "tenantId": "company_kite_aviation",

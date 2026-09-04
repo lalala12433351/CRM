@@ -2,7 +2,6 @@ import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { DynamicIcon } from '../DynamicIcon';
 import { WorkflowNodeData } from '../../types/workflow.types';
-import { PlayCircle } from 'lucide-react';
 
 export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
   const nodeData = data as unknown as WorkflowNodeData;
@@ -69,13 +68,11 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
           </div>
         );
       default:
-        return (
-          <div className="text-[10px] text-slate-500 truncate">
-            {nodeData.description || 'Configured action step'}
-          </div>
-        );
+        return null;
     }
   };
+
+  const preview = renderActionPreview();
 
   return (
     <div
@@ -90,13 +87,13 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         type="target"
         position={Position.Left}
         id="input"
-        className="!w-3 !h-3 !bg-slate-700 !border-2 !border-white hover:!scale-125 !transition-transform !shadow-xs !-left-1.5 cursor-pointer"
+        isConnectable={true}
+        className="!w-4 !h-4 !bg-slate-700 !border-2 !border-white hover:!scale-125 !transition-transform !shadow-sm !-left-2 z-50 cursor-crosshair"
       />
 
-      {/* Node Header (Solid Background, No Gradient, Reduced Curve) */}
+      {/* Node Header (Solid Background, No Gradient, No Header Icon) */}
       <div className="flex items-center justify-between px-3 py-2 bg-slate-800 text-white rounded-t-lg">
-        <div className="flex items-center gap-1.5 text-[11px] font-bold tracking-wider uppercase">
-          <PlayCircle className="w-3.5 h-3.5 text-slate-300" />
+        <div className="text-[11px] font-bold tracking-wider uppercase">
           <span>ACTION STEP</span>
         </div>
         <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded font-mono text-slate-200">
@@ -106,7 +103,7 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
 
       {/* Node Body */}
       <div className="p-3">
-        <div className="flex items-start gap-2.5">
+        <div className="flex items-center gap-2.5">
           <div className="p-1.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
             <DynamicIcon name={nodeData.iconName || 'PlayCircle'} className="w-4 h-4" />
           </div>
@@ -114,9 +111,7 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
             <div className="text-xs font-bold text-slate-900 truncate">
               {nodeData.label || 'Action Step'}
             </div>
-            <div className="mt-1">
-              {renderActionPreview()}
-            </div>
+            {preview && <div className="mt-1">{preview}</div>}
           </div>
         </div>
       </div>
@@ -126,10 +121,12 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         type="source"
         position={Position.Right}
         id="output"
-        className="!w-3 !h-3 !bg-slate-700 !border-2 !border-white hover:!scale-125 !transition-transform !shadow-xs !-right-1.5 cursor-pointer"
+        isConnectable={true}
+        className="!w-4 !h-4 !bg-slate-700 !border-2 !border-white hover:!scale-125 !transition-transform !shadow-sm !-right-2 z-50 cursor-crosshair"
       />
     </div>
   );
 });
 
 ActionNode.displayName = 'ActionNode';
+

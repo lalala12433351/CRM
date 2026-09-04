@@ -8,7 +8,8 @@ import {
   NodeTypes,
   useReactFlow,
   ReactFlowProvider,
-  Panel
+  Panel,
+  ConnectionMode
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -62,6 +63,7 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
 
       const rawData = event.dataTransfer.getData('application/reactflow');
       if (!rawData) return;
@@ -95,6 +97,9 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
         onDragOver={onDragOver}
         onDrop={onDrop}
         nodeTypes={nodeTypes}
+        connectionMode={ConnectionMode.Loose}
+        connectionRadius={40}
+        connectOnClick={true}
         fitView
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.2}
@@ -106,6 +111,7 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
         }}
         className="touch-none select-none font-sans"
       >
+
         {/* Background Grid */}
         <Background
           variant={BackgroundVariant.Dots}

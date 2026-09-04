@@ -2,12 +2,11 @@ import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { DynamicIcon } from '../DynamicIcon';
 import { WorkflowNodeData } from '../../types/workflow.types';
-import { Check, X, GitBranch } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 
 export const ConditionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
   const nodeData = data as unknown as WorkflowNodeData;
   const rules = nodeData.config?.rules || [];
-  const logicOp = nodeData.config?.logicOperator || 'AND';
   const conditionType = nodeData.config?.conditionType || 'lead';
 
   return (
@@ -23,13 +22,13 @@ export const ConditionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         type="target"
         position={Position.Left}
         id="input"
-        className="!w-3 !h-3 !bg-[#3a2088] !border-2 !border-white hover:!scale-125 !transition-transform !shadow-xs !-left-1.5 cursor-pointer"
+        isConnectable={true}
+        className="!w-4 !h-4 !bg-[#3a2088] !border-2 !border-white hover:!scale-125 !transition-transform !shadow-sm !-left-2 z-50 cursor-crosshair"
       />
 
-      {/* Node Header (Solid Background, No Gradient, Reduced Curve) */}
+      {/* Node Header (Solid Background, No Gradient, No Header Icon) */}
       <div className="flex items-center justify-between px-3 py-2 bg-[#3a2088] text-white rounded-t-lg">
-        <div className="flex items-center gap-1.5 text-[11px] font-bold tracking-wider uppercase">
-          <GitBranch className="w-3.5 h-3.5 text-indigo-200" />
+        <div className="text-[11px] font-bold tracking-wider uppercase">
           <span>CONDITION (IF / ELSE)</span>
         </div>
         <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded font-bold capitalize">
@@ -39,22 +38,13 @@ export const ConditionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
 
       {/* Node Body */}
       <div className="p-3">
-        <div className="flex items-start gap-2.5">
+        <div className="flex items-center gap-2.5">
           <div className="p-1.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200 shrink-0">
             <DynamicIcon name={nodeData.iconName || 'Filter'} className="w-4 h-4" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-xs font-bold text-slate-900 truncate">
               {nodeData.label || 'Condition Check'}
-            </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">
-              {rules.length > 0 ? (
-                <span>
-                  Match {logicOp === 'AND' ? 'all' : 'any'} {rules.length} rule{rules.length > 1 ? 's' : ''}:
-                </span>
-              ) : (
-                <span>No rules configured yet</span>
-              )}
             </div>
           </div>
         </div>
@@ -102,8 +92,9 @@ export const ConditionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         type="source"
         position={Position.Right}
         id="true"
+        isConnectable={true}
         style={{ top: '35%' }}
-        className="!w-3 !h-3 !bg-emerald-500 !border-2 !border-white hover:!scale-125 !transition-transform !shadow-xs !-right-1.5 cursor-pointer"
+        className="!w-4 !h-4 !bg-emerald-500 !border-2 !border-white hover:!scale-125 !transition-transform !shadow-sm !-right-2 z-50 cursor-crosshair"
       />
 
       {/* False Handle (Red Dot on Lower Right) */}
@@ -111,11 +102,13 @@ export const ConditionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         type="source"
         position={Position.Right}
         id="false"
+        isConnectable={true}
         style={{ top: '75%' }}
-        className="!w-3 !h-3 !bg-[#DC2626] !border-2 !border-white hover:!scale-125 !transition-transform !shadow-xs !-right-1.5 cursor-pointer"
+        className="!w-4 !h-4 !bg-[#DC2626] !border-2 !border-white hover:!scale-125 !transition-transform !shadow-sm !-right-2 z-50 cursor-crosshair"
       />
     </div>
   );
 });
 
 ConditionNode.displayName = 'ConditionNode';
+
