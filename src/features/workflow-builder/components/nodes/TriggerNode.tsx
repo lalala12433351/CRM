@@ -9,27 +9,27 @@ export const TriggerNode: React.FC<NodeProps> = memo(({ data, selected }) => {
 
   return (
     <div
-      className={`relative min-w-[260px] max-w-[300px] rounded-2xl bg-white border transition-all duration-200 shadow-2xs ${
+      className={`relative min-w-[260px] max-w-[290px] rounded-lg bg-white border transition-all duration-200 shadow-xs ${
         selected
           ? 'border-[#3a2088] ring-2 ring-[#3a2088]/20 shadow-md'
           : 'border-purple-200/90 hover:border-[#3a2088]'
       }`}
     >
-      {/* Node Header */}
-      <div className="flex items-center justify-between px-3.5 py-2.5 bg-[#3a2088] text-white rounded-t-2xl">
+      {/* Node Header (Solid Background, No Gradient, Reduced Curve) */}
+      <div className="flex items-center justify-between px-3 py-2 bg-[#3a2088] text-white rounded-t-lg">
         <div className="flex items-center gap-1.5 text-[11px] font-bold tracking-wider uppercase">
           <Zap className="w-3.5 h-3.5 fill-purple-200 text-purple-200" />
           <span>EVENT (TRIGGER)</span>
         </div>
-        <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold">
+        <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded font-bold">
           Entry Point
         </span>
       </div>
 
       {/* Node Body */}
-      <div className="p-3.5">
-        <div className="flex items-start gap-3">
-          <div className="p-2 rounded-xl bg-purple-50 text-[#3a2088] border border-purple-200 shrink-0">
+      <div className="p-3">
+        <div className="flex items-start gap-2.5">
+          <div className="p-1.5 rounded-md bg-purple-50 text-[#3a2088] border border-purple-200 shrink-0">
             <DynamicIcon name={nodeData.iconName || 'Zap'} className="w-4 h-4" />
           </div>
           <div className="flex-1 min-w-0">
@@ -60,7 +60,7 @@ export const TriggerNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         type="source"
         position={Position.Right}
         id="output"
-        className="!w-3.5 !h-3.5 !bg-[#3a2088] !border-2 !border-white hover:!scale-125 !transition-transform !shadow-sm !-right-2 cursor-pointer"
+        className="!w-3 !h-3 !bg-[#3a2088] !border-2 !border-white hover:!scale-125 !transition-transform !shadow-xs !-right-1.5 cursor-pointer"
       />
     </div>
   );

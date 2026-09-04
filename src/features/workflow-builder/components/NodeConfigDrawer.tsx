@@ -5,10 +5,7 @@ import {
   Plus,
   Check,
   Code,
-  Layers,
-  Settings,
-  SlidersHorizontal,
-  ChevronDown
+  SlidersHorizontal
 } from 'lucide-react';
 import { CustomWorkflowNode, ConditionRule, HeaderKeyValue } from '../types/workflow.types';
 import { DynamicIcon } from './DynamicIcon';
@@ -170,7 +167,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
       // 1. Meta Conversions API (CAPI)
       case 'capi':
         return (
-          <div className="space-y-4">
+          <div className="space-y-3.5">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 Meta Event Name
@@ -178,7 +175,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
               <select
                 value={config.capiEventName || 'Lead'}
                 onChange={(e) => handleConfigChange('capiEventName', e.target.value)}
-                className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 focus:border-[#3a2088] focus:outline-none cursor-pointer shadow-2xs"
+                className="w-full text-xs font-medium px-3 py-2 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 focus:border-[#3a2088] focus:outline-none cursor-pointer shadow-2xs"
               >
                 <option value="Lead">Lead (Default)</option>
                 <option value="CompleteRegistration">Complete Registration</option>
@@ -198,7 +195,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
                 value={config.pixelId || ''}
                 onChange={(e) => handleConfigChange('pixelId', e.target.value)}
                 placeholder="e.g. 849204918239"
-                className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 focus:border-[#3a2088] focus:outline-none font-mono shadow-2xs"
+                className="w-full text-xs px-3 py-2 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 focus:border-[#3a2088] focus:outline-none font-mono shadow-2xs"
               />
             </div>
           </div>
@@ -207,7 +204,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
       // 2. Call API / Webhook
       case 'call_api':
         return (
-          <div className="space-y-4">
+          <div className="space-y-3.5">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 HTTP Method & Endpoint URL
@@ -216,7 +213,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
                 <select
                   value={config.method || 'POST'}
                   onChange={(e) => handleConfigChange('method', e.target.value)}
-                  className="w-24 text-xs font-bold px-3 py-2.5 rounded-xl border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 focus:border-[#3a2088] focus:outline-none cursor-pointer shadow-2xs"
+                  className="w-24 text-xs font-bold px-2.5 py-2 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 focus:border-[#3a2088] focus:outline-none cursor-pointer shadow-2xs"
                 >
                   <option value="POST">POST</option>
                   <option value="GET">GET</option>
@@ -229,14 +226,14 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
                   value={config.endpointUrl || ''}
                   onChange={(e) => handleConfigChange('endpointUrl', e.target.value)}
                   placeholder="https://api.domain.com/v1/webhook"
-                  className="flex-1 text-xs px-3.5 py-2.5 rounded-xl border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 focus:border-[#3a2088] focus:outline-none font-mono shadow-2xs"
+                  className="flex-1 text-xs px-3 py-2 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 focus:border-[#3a2088] focus:outline-none font-mono shadow-2xs"
                 />
               </div>
             </div>
 
             {/* HTTP Headers */}
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs font-bold text-slate-700">
                   Headers ({headers.length})
                 </label>
@@ -248,7 +245,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
                   <Plus className="w-3.5 h-3.5" /> Add Header
                 </button>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {headers.map((hdr, idx) => (
                   <div key={idx} className="flex gap-2 items-center">
                     <input
@@ -256,19 +253,19 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
                       value={hdr.key}
                       onChange={(e) => handleUpdateHeader(idx, e.target.value, hdr.value)}
                       placeholder="Header-Name"
-                      className="w-1/2 text-xs px-3 py-2 rounded-xl border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 font-mono shadow-2xs"
+                      className="w-1/2 text-xs px-2.5 py-1.5 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 font-mono shadow-2xs"
                     />
                     <input
                       type="text"
                       value={hdr.value}
                       onChange={(e) => handleUpdateHeader(idx, hdr.key, e.target.value)}
                       placeholder="Value"
-                      className="flex-1 text-xs px-3 py-2 rounded-xl border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 font-mono shadow-2xs"
+                      className="flex-1 text-xs px-2.5 py-1.5 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 font-mono shadow-2xs"
                     />
                     <button
                       type="button"
                       onClick={() => handleDeleteHeader(idx)}
-                      className="text-slate-400 hover:text-rose-500 p-1.5 rounded-lg hover:bg-rose-50 cursor-pointer"
+                      className="text-slate-400 hover:text-rose-500 p-1 rounded hover:bg-rose-50 cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -287,11 +284,11 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
                 <span className="text-[10px] text-slate-400 font-mono">&#123;&#123;lead.name&#125;&#125;</span>
               </div>
               <textarea
-                rows={6}
+                rows={5}
                 value={config.bodyPayload || ''}
                 onChange={(e) => handleBodyPayloadChange(e.target.value)}
                 placeholder={'{\n  "lead_id": "{{lead.id}}",\n  "phone": "{{lead.phone}}"\n}'}
-                className="w-full text-xs font-mono p-3 rounded-xl border border-slate-300/80 bg-slate-900 text-emerald-400 focus:outline-none focus:ring-2 focus:ring-[#3a2088]"
+                className="w-full text-xs font-mono p-2.5 rounded-md border border-slate-300/80 bg-slate-900 text-emerald-400 focus:outline-none focus:ring-1 focus:ring-[#3a2088]"
               />
               {jsonError && (
                 <p className="text-[11px] text-[#DC2626] font-semibold mt-1">{jsonError}</p>
@@ -303,7 +300,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
       // 3. WhatsApp Template
       case 'send_template':
         return (
-          <div className="space-y-4">
+          <div className="space-y-3.5">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 Approved Template Name
@@ -313,7 +310,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
                 value={config.templateName || ''}
                 onChange={(e) => handleConfigChange('templateName', e.target.value)}
                 placeholder="lead_welcome_brochure"
-                className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 font-mono shadow-2xs"
+                className="w-full text-xs font-medium px-3 py-2 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 font-mono shadow-2xs"
               />
             </div>
 
@@ -324,7 +321,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
               <select
                 value={config.templateLanguage || 'en_US'}
                 onChange={(e) => handleConfigChange('templateLanguage', e.target.value)}
-                className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 focus:border-[#3a2088] cursor-pointer shadow-2xs"
+                className="w-full text-xs font-medium px-3 py-2 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 focus:border-[#3a2088] cursor-pointer shadow-2xs"
               >
                 <option value="en_US">English (en_US)</option>
                 <option value="en_GB">English (UK)</option>
@@ -341,7 +338,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
                 type="text"
                 value={config.recipientPhoneVariable || '{{lead.phone}}'}
                 onChange={(e) => handleConfigChange('recipientPhoneVariable', e.target.value)}
-                className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 font-mono shadow-2xs"
+                className="w-full text-xs font-medium px-3 py-2 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 font-mono shadow-2xs"
               />
             </div>
           </div>
@@ -350,7 +347,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
       // 4. Update Lead Status
       case 'update_lead_status':
         return (
-          <div className="space-y-4">
+          <div className="space-y-3.5">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 Target Pipeline Stage
@@ -358,7 +355,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
               <select
                 value={config.targetStage || 'Contacted'}
                 onChange={(e) => handleConfigChange('targetStage', e.target.value)}
-                className="w-full text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 focus:border-[#3a2088] cursor-pointer shadow-2xs"
+                className="w-full text-xs font-bold px-3 py-2 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 focus:border-[#3a2088] cursor-pointer shadow-2xs"
               >
                 {CRM_STAGES.map((st) => (
                   <option key={st} value={st}>
@@ -373,7 +370,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
       // 5. Update Lead Assignee
       case 'update_lead_assignee':
         return (
-          <div className="space-y-4">
+          <div className="space-y-3.5">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 Assignment Strategy
@@ -381,7 +378,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
               <select
                 value={config.assigneeType || 'round_robin'}
                 onChange={(e) => handleConfigChange('assigneeType', e.target.value)}
-                className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 focus:border-[#3a2088] cursor-pointer shadow-2xs"
+                className="w-full text-xs font-medium px-3 py-2 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 focus:border-[#3a2088] cursor-pointer shadow-2xs"
               >
                 <option value="round_robin">Round Robin (Distribute Equally)</option>
                 <option value="specific">Specific Agent / Telecaller</option>
@@ -398,7 +395,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
                   value={config.assigneeAgentName || ''}
                   onChange={(e) => handleConfigChange('assigneeAgentName', e.target.value)}
                   placeholder="e.g. Rahul Sharma"
-                  className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 shadow-2xs"
+                  className="w-full text-xs font-medium px-3 py-2 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 shadow-2xs"
                 />
               </div>
             )}
@@ -408,8 +405,8 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
       // 6. Time Delay
       case 'time_delay':
         return (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-3.5">
+            <div className="grid grid-cols-2 gap-2.5">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Delay Amount
@@ -419,7 +416,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
                   min={1}
                   value={config.delayValue || 15}
                   onChange={(e) => handleConfigChange('delayValue', parseInt(e.target.value) || 1)}
-                  className="w-full text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 shadow-2xs"
+                  className="w-full text-xs font-bold px-3 py-2 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 shadow-2xs"
                 />
               </div>
               <div>
@@ -429,7 +426,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
                 <select
                   value={config.delayUnit || 'minutes'}
                   onChange={(e) => handleConfigChange('delayUnit', e.target.value)}
-                  className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 cursor-pointer shadow-2xs"
+                  className="w-full text-xs font-medium px-3 py-2 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 cursor-pointer shadow-2xs"
                 >
                   <option value="minutes">Minutes</option>
                   <option value="hours">Hours</option>
@@ -445,16 +442,16 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
       case 'event_condition':
         const fieldOptions = data.category === 'event_conditions' ? EVENT_FIELDS : LEAD_FIELDS;
         return (
-          <div className="space-y-4">
+          <div className="space-y-3.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-700">
                 Condition Logic
               </label>
-              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-md">
                 <button
                   type="button"
                   onClick={() => handleConfigChange('logicOperator', 'AND')}
-                  className={`text-[11px] font-bold px-3 py-1 rounded-lg cursor-pointer transition-all ${
+                  className={`text-[11px] font-bold px-2.5 py-1 rounded cursor-pointer transition-all ${
                     config.logicOperator !== 'OR'
                       ? 'bg-[#3a2088] text-white shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'
@@ -465,7 +462,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
                 <button
                   type="button"
                   onClick={() => handleConfigChange('logicOperator', 'OR')}
-                  className={`text-[11px] font-bold px-3 py-1 rounded-lg cursor-pointer transition-all ${
+                  className={`text-[11px] font-bold px-2.5 py-1 rounded cursor-pointer transition-all ${
                     config.logicOperator === 'OR'
                       ? 'bg-[#3a2088] text-white shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'
@@ -477,7 +474,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
             </div>
 
             {/* Condition Rules List */}
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-600">
                   Rules ({rules.length})
@@ -494,7 +491,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
               {rules.map((rule, idx) => (
                 <div
                   key={rule.id || idx}
-                  className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/90 space-y-2.5 relative shadow-2xs"
+                  className="p-3 bg-slate-50 rounded-md border border-slate-200/90 space-y-2 relative shadow-2xs"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -503,7 +500,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
                     <button
                       type="button"
                       onClick={() => handleDeleteRule(rule.id)}
-                      className="text-slate-400 hover:text-[#DC2626] p-1 cursor-pointer"
+                      className="text-slate-400 hover:text-[#DC2626] p-0.5 cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -514,7 +511,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
                     <select
                       value={rule.field}
                       onChange={(e) => handleUpdateRule(rule.id, { field: e.target.value })}
-                      className="w-full text-xs font-medium px-3 py-2 rounded-xl border border-slate-300/80 bg-white text-slate-900 cursor-pointer shadow-2xs"
+                      className="w-full text-xs font-medium px-2.5 py-1.5 rounded-md border border-slate-300/80 bg-white text-slate-900 cursor-pointer shadow-2xs"
                     >
                       {fieldOptions.map((fld) => (
                         <option key={fld.value} value={fld.value}>
@@ -529,7 +526,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
                     <select
                       value={rule.operator}
                       onChange={(e) => handleUpdateRule(rule.id, { operator: e.target.value as any })}
-                      className="text-xs px-2.5 py-2 rounded-xl border border-slate-300/80 bg-white text-slate-900 cursor-pointer shadow-2xs"
+                      className="text-xs px-2 py-1.5 rounded-md border border-slate-300/80 bg-white text-slate-900 cursor-pointer shadow-2xs"
                     >
                       {OPERATORS.map((op) => (
                         <option key={op.value} value={op.value}>
@@ -543,7 +540,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
                       value={rule.value}
                       onChange={(e) => handleUpdateRule(rule.id, { value: e.target.value })}
                       placeholder="Value..."
-                      className="text-xs px-3 py-2 rounded-xl border border-slate-300/80 bg-white text-slate-900 font-mono shadow-2xs"
+                      className="text-xs px-2.5 py-1.5 rounded-md border border-slate-300/80 bg-white text-slate-900 font-mono shadow-2xs"
                     />
                   </div>
                 </div>
@@ -555,7 +552,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
       // Default fallback for Triggers
       default:
         return (
-          <div className="space-y-4">
+          <div className="space-y-3.5">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 Trigger Event Identifier
@@ -564,7 +561,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
                 type="text"
                 value={config.triggerEvent || data.catalogId}
                 onChange={(e) => handleConfigChange('triggerEvent', e.target.value)}
-                className="w-full text-xs font-mono px-3.5 py-2.5 rounded-xl border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 shadow-2xs"
+                className="w-full text-xs font-mono px-3 py-2 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 shadow-2xs"
               />
             </div>
             <div>
@@ -576,7 +573,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
                 value={config.eventFilter || 'all'}
                 onChange={(e) => handleConfigChange('eventFilter', e.target.value)}
                 placeholder="all"
-                className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 shadow-2xs"
+                className="w-full text-xs font-medium px-3 py-2 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 shadow-2xs"
               />
             </div>
           </div>
@@ -587,13 +584,13 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
   return (
     <div className="w-96 flex flex-col bg-white border-l border-slate-200/90 shadow-2xl z-20 h-full animate-in slide-in-from-right duration-200 font-sans select-none">
       {/* Drawer Header */}
-      <div className="p-4 border-b border-slate-200/90 flex items-center justify-between bg-slate-50/70">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-xl bg-purple-50 border border-purple-200 text-[#3a2088]">
+      <div className="p-3.5 border-b border-slate-200/90 flex items-center justify-between bg-slate-50/70">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-md bg-purple-50 border border-purple-200 text-[#3a2088]">
             <DynamicIcon name={data.iconName || 'Settings'} className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-slate-900">
+            <h3 className="text-xs font-bold text-slate-900">
               Configure Node
             </h3>
             <span className="text-[10px] font-bold text-[#3a2088] uppercase tracking-wide">
@@ -605,16 +602,16 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
         <button
           type="button"
           onClick={onClose}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
+          className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
       {/* Drawer Body */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-5 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-3.5 space-y-4 custom-scrollbar">
         {/* Node Name & Description */}
-        <div className="space-y-3 pb-4 border-b border-slate-100">
+        <div className="space-y-2.5 pb-3 border-b border-slate-100">
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">
               Node Display Name
@@ -623,7 +620,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
               type="text"
               value={label}
               onChange={(e) => handleLabelChange(e.target.value)}
-              className="w-full text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 focus:border-[#3a2088] focus:outline-none shadow-2xs"
+              className="w-full text-xs font-bold px-3 py-2 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 focus:border-[#3a2088] focus:outline-none shadow-2xs"
             />
           </div>
 
@@ -636,13 +633,13 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
               value={description}
               onChange={(e) => handleDescriptionChange(e.target.value)}
               placeholder="Add optional notes for team"
-              className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 placeholder-slate-400 focus:border-[#3a2088] focus:outline-none shadow-2xs"
+              className="w-full text-xs font-medium px-3 py-2 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 placeholder-slate-400 focus:border-[#3a2088] focus:outline-none shadow-2xs"
             />
           </div>
         </div>
 
         {/* Dynamic Node Parameters Form */}
-        <div className="space-y-4">
+        <div className="space-y-3.5">
           <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 uppercase tracking-wider">
             <SlidersHorizontal className="w-3.5 h-3.5 text-[#3a2088]" />
             <span>Parameters & Config</span>
@@ -653,11 +650,11 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
       </div>
 
       {/* Drawer Footer Actions */}
-      <div className="p-4 border-t border-slate-200/90 bg-slate-50 flex items-center justify-between gap-3">
+      <div className="p-3 border-t border-slate-200/90 bg-slate-50 flex items-center justify-between gap-2.5">
         <button
           type="button"
           onClick={() => onDeleteNode(id)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-[#DC2626] hover:bg-rose-50 border border-rose-200 transition-colors cursor-pointer"
+          className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-bold text-[#DC2626] hover:bg-rose-50 border border-rose-200 transition-colors cursor-pointer"
         >
           <Trash2 className="w-3.5 h-3.5" />
           Delete
@@ -666,7 +663,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
         <button
           type="button"
           onClick={onClose}
-          className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#3a2088] hover:bg-[#2c186b] text-white shadow-xs transition-colors cursor-pointer"
+          className="flex-1 flex items-center justify-center gap-1 px-3.5 py-1.5 rounded-md text-xs font-bold bg-[#3a2088] hover:bg-[#2c186b] text-white shadow-xs transition-colors cursor-pointer"
         >
           <Check className="w-3.5 h-3.5" />
           Done

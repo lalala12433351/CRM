@@ -79,7 +79,7 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
 
   return (
     <div
-      className={`relative min-w-[260px] max-w-[300px] rounded-2xl bg-white border transition-all duration-200 shadow-2xs ${
+      className={`relative min-w-[260px] max-w-[290px] rounded-lg bg-white border transition-all duration-200 shadow-xs ${
         selected
           ? 'border-slate-800 ring-2 ring-slate-400/20 shadow-md'
           : 'border-slate-200/90 hover:border-slate-400'
@@ -90,24 +90,24 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         type="target"
         position={Position.Left}
         id="input"
-        className="!w-3.5 !h-3.5 !bg-slate-700 !border-2 !border-white hover:!scale-125 !transition-transform !shadow-sm !-left-2 cursor-pointer"
+        className="!w-3 !h-3 !bg-slate-700 !border-2 !border-white hover:!scale-125 !transition-transform !shadow-xs !-left-1.5 cursor-pointer"
       />
 
-      {/* Node Header */}
-      <div className="flex items-center justify-between px-3.5 py-2.5 bg-slate-800 text-white rounded-t-2xl">
+      {/* Node Header (Solid Background, No Gradient, Reduced Curve) */}
+      <div className="flex items-center justify-between px-3 py-2 bg-slate-800 text-white rounded-t-lg">
         <div className="flex items-center gap-1.5 text-[11px] font-bold tracking-wider uppercase">
           <PlayCircle className="w-3.5 h-3.5 text-slate-300" />
           <span>ACTION STEP</span>
         </div>
-        <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded-full font-mono text-slate-200">
+        <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded font-mono text-slate-200">
           Step
         </span>
       </div>
 
       {/* Node Body */}
-      <div className="p-3.5">
-        <div className="flex items-start gap-3">
-          <div className="p-2 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
+      <div className="p-3">
+        <div className="flex items-start gap-2.5">
+          <div className="p-1.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
             <DynamicIcon name={nodeData.iconName || 'PlayCircle'} className="w-4 h-4" />
           </div>
           <div className="flex-1 min-w-0">
@@ -126,7 +126,7 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         type="source"
         position={Position.Right}
         id="output"
-        className="!w-3.5 !h-3.5 !bg-slate-700 !border-2 !border-white hover:!scale-125 !transition-transform !shadow-sm !-right-2 cursor-pointer"
+        className="!w-3 !h-3 !bg-slate-700 !border-2 !border-white hover:!scale-125 !transition-transform !shadow-xs !-right-1.5 cursor-pointer"
       />
     </div>
   );

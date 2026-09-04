@@ -69,7 +69,6 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
       try {
         const item: CatalogItem = JSON.parse(rawData);
 
-        // Coordinate projection using React Flow
         const position = reactFlowInstance.screenToFlowPosition({
           x: event.clientX,
           y: event.clientY
@@ -116,13 +115,13 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
           color="#cbd5e1"
         />
 
-        {/* Controls Panel */}
+        {/* Controls Panel (Reduced Curves) */}
         <Controls
           showInteractive={false}
-          className="!bg-white !border !border-slate-200/90 !rounded-2xl !shadow-2xs !overflow-hidden"
+          className="!bg-white !border !border-slate-200/90 !rounded-lg !shadow-xs !overflow-hidden"
         />
 
-        {/* MiniMap */}
+        {/* MiniMap (Reduced Curves) */}
         <MiniMap
           nodeStrokeWidth={3}
           nodeColor={(node) => {
@@ -130,21 +129,21 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
             if (node.type === 'condition') return '#4f46e5';
             return '#475569';
           }}
-          className="!bg-white/95 !border !border-slate-200/90 !rounded-2xl !shadow-2xs"
+          className="!bg-white/95 !border !border-slate-200/90 !rounded-lg !shadow-xs"
           maskColor="rgba(100, 116, 139, 0.1)"
         />
 
         {/* Empty Canvas Hint */}
         {nodes.length === 0 && (
           <Panel position="top-center" className="mt-20">
-            <div className="bg-white border border-purple-200 p-6 rounded-2xl shadow-2xs max-w-md text-center space-y-3 font-sans">
-              <div className="w-12 h-12 rounded-2xl bg-purple-50 border border-purple-200 text-[#3a2088] flex items-center justify-center mx-auto">
-                <Sparkles className="w-6 h-6" />
+            <div className="bg-white border border-purple-200 p-5 rounded-lg shadow-xs max-w-md text-center space-y-2.5 font-sans">
+              <div className="w-10 h-10 rounded-md bg-purple-50 border border-purple-200 text-[#3a2088] flex items-center justify-center mx-auto">
+                <Sparkles className="w-5 h-5" />
               </div>
-              <h3 className="text-sm font-bold text-slate-900">
+              <h3 className="text-xs font-bold text-slate-900">
                 Design Your Workflow Pipeline
               </h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
+              <p className="text-[11px] text-slate-500 leading-relaxed">
                 Drag and drop a <strong>Trigger Event</strong> from the left sidebar to start, or load a preset template from the top bar.
               </p>
             </div>
