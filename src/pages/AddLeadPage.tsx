@@ -454,36 +454,35 @@ export const AddLeadPage: React.FC<AddLeadViewProps> = ({
       if (onSaveAndCall) {
         onSaveAndCall(newLead);
       } else {
-        onSaveLead(newLead, false);
+        onSaveLead(newLead, true);
       }
     } else if (action === 'save_and_add_another') {
       onSaveLead(newLead, true);
     } else {
-      onSaveLead(newLead, false);
+      // Primary "Save Lead" action: persist lead to database and keep user on page
+      onSaveLead(newLead, true);
     }
 
     handleClearDraft();
 
-    if (action === 'save_and_add_another') {
-      // Clear form inputs so the user can immediately add another lead on this same page
-      setFullName('');
-      setRawPhone('');
-      setEmail('');
-      setCompanyName('');
-      setDealValue('');
-      setRequirement('');
-      setNotes('');
-      setFollowUpNotes('');
-      setFollowUpDate('');
-      setAlternatePhone('');
-      setNewTagInput('');
-      setSelectedTags([]);
-      setCustomFieldValues({});
-      setDuplicateWarning(null);
-      setFormErrors({});
-      if (onShowToast) {
-        onShowToast(`Lead "${newLead.name}" saved successfully! Ready to add another lead.`);
-      }
+    // Reset form fields cleanly so the user can continue smoothly without unexpected page redirection
+    setFullName('');
+    setRawPhone('');
+    setEmail('');
+    setCompanyName('');
+    setDealValue('');
+    setRequirement('');
+    setNotes('');
+    setFollowUpNotes('');
+    setFollowUpDate('');
+    setAlternatePhone('');
+    setNewTagInput('');
+    setSelectedTags([]);
+    setCustomFieldValues({});
+    setDuplicateWarning(null);
+    setFormErrors({});
+    if (onShowToast) {
+      onShowToast(`Lead "${newLead.name}" saved to database successfully!`);
     }
   };
 
@@ -633,7 +632,7 @@ export const AddLeadPage: React.FC<AddLeadViewProps> = ({
       utmSource: integProvider.toLowerCase(),
     };
 
-    onSaveLead(newIntegLead);
+    onSaveLead(newIntegLead, true);
     setIntegSuccessMsg(`Lead "${integName}" ingested successfully from ${integProvider}!`);
     setTimeout(() => setIntegSuccessMsg(''), 4000);
   };

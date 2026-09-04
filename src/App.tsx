@@ -1123,7 +1123,7 @@ export function App() {
               agents={agents}
               customFields={customFields}
               activeAgent={activeAgent}
-              onSaveLead={(newLead, stayOnPage) => {
+              onSaveLead={(newLead, stayOnPage = true) => {
                 const leadWithDate: Lead = {
                   ...newLead,
                   createdAt: (newLead.createdAt && newLead.createdAt !== 'Just Now' && newLead.createdAt !== 'Just now')
@@ -1162,10 +1162,10 @@ export function App() {
                   setActivities((prev) => [autoAct, ...prev]);
                   showToast(`New Lead Saved & Automated WhatsApp Intro Message Dispatched to ${leadWithDate.name}!`);
                 } else {
-                  showToast(`New Lead Ingested: ${leadWithDate.name}`);
+                  showToast(`New Lead Saved to Database: ${leadWithDate.name}`);
                 }
 
-                if (!stayOnPage) {
+                if (stayOnPage === false) {
                   setCurrentView(previousView || 'leads');
                 }
               }}
@@ -1196,12 +1196,10 @@ export function App() {
                   setMessages((prev) => [...prev, autoMsg]);
                 }
                 showToast(`Saved Lead & Calling ${newLead.name}`);
-                setCurrentView(previousView || 'leads');
                 window.location.href = `tel:${newLead.phone}`;
               }}
               onImportBulkLeads={(bulkLeads) => {
                 handleImportCsv(bulkLeads);
-                setCurrentView(previousView || 'leads');
               }}
               onCancel={() => setCurrentView(previousView || 'leads')}
               onNavigateToTab={(tab) => setCurrentView(tab)}

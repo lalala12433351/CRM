@@ -222,15 +222,15 @@
     "company_wfwwfwf": [],
     "company_kite_aviation": [
       {
-        "id": "lead-1788436850751",
+        "id": "lead-1788503975675",
         "tenantId": "company_kite_aviation",
-        "name": "SDFSFS",
-        "phone": "+91 4535353545",
+        "name": "sfsfs",
+        "phone": "+91 4243234242",
         "email": "",
         "company": "",
         "city": "Not Specified",
         "state": "Not Specified",
-        "source": "JustDial",
+        "source": "Facebook Ads",
         "status": "Fresh",
         "pipelineStageId": "stage-1",
         "dealValue": 0,
@@ -244,8 +244,173 @@
         "tags": [
           "HighIntent"
         ],
+        "createdAt": "2026-09-04T06:39:35.675Z",
+        "updatedAt": "2026-09-04T06:39:35.989Z",
+        "pincode": "",
+        "whatsappOptIn": true,
+        "activities": [
+          {
+            "id": "act-1788503975675",
+            "leadId": "lead-1788503975675",
+            "type": "creation",
+            "title": "Lead Created",
+            "description": "Lead created from Facebook Ads",
+            "timestamp": "2026-09-04T06:39:35.675Z",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin"
+          }
+        ]
+      },
+      {
+        "id": "lead-1788503947437",
+        "tenantId": "company_kite_aviation",
+        "name": "kkjkjk",
+        "phone": "+91 7786876676",
+        "email": "",
+        "company": "",
+        "city": "Not Specified",
+        "state": "Not Specified",
+        "source": "Facebook Ads",
+        "status": "Fresh",
+        "pipelineStageId": "stage-1",
+        "dealValue": 0,
+        "ownerAgentId": "agent_kiteaviation_admin",
+        "ownerAgentName": "Kite Aviation Admin",
+        "aiScore": 80,
+        "aiRating": "Hot",
+        "aiReasoning": "Inbound lead entry",
+        "notes": "Added manually.",
+        "customFields": {},
+        "tags": [
+          "HighIntent"
+        ],
+        "createdAt": "2026-09-04T06:39:07.437Z",
+        "updatedAt": "2026-09-04T06:39:07.439Z",
+        "pincode": "",
+        "whatsappOptIn": true,
+        "activities": [
+          {
+            "id": "act-1788503947437",
+            "leadId": "lead-1788503947437",
+            "type": "creation",
+            "title": "Lead Created",
+            "description": "Lead created from Facebook Ads",
+            "timestamp": "2026-09-04T06:39:07.437Z",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin"
+          }
+        ]
+      },
+      {
+        "id": "lead-1788503908582",
+        "tenantId": "company_kite_aviation",
+        "name": "yyyy",
+        "phone": "+91 2223323233",
+        "email": "",
+        "company": "",
+        "city": "Visakhapatnam",
+        "state": "Andhra Pradesh",
+        "source": "Website Form",
+        "status": "Fresh",
+        "pipelineStageId": "stage-1",
+        "dealValue": 0,
+        "ownerAgentId": "agent_kiteaviation_admin",
+        "ownerAgentName": "Kite Aviation Admin",
+        "aiScore": 80,
+        "aiRating": "Hot",
+        "aiReasoning": "Inbound lead entry",
+        "notes": "Added manually.",
+        "customFields": {},
+        "tags": [
+          "HighIntent"
+        ],
+        "createdAt": "2026-09-04T06:38:28.582Z",
+        "updatedAt": "2026-09-04T06:38:28.888Z",
+        "pincode": "",
+        "whatsappOptIn": true,
+        "activities": [
+          {
+            "id": "act-1788503908582",
+            "leadId": "lead-1788503908582",
+            "type": "creation",
+            "title": "Lead Created",
+            "description": "Lead created from Website Form",
+            "timestamp": "2026-09-04T06:38:28.582Z",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin"
+          }
+        ]
+      },
+      {
+        "id": "lead-1788503790754",
+        "tenantId": "company_kite_aviation",
+        "name": "dadasdas",
+        "phone": "+91 2342342423",
+        "email": "",
+        "company": "",
+        "city": "Not Specified",
+        "state": "Not Specified",
+        "source": "Facebook Ads",
+        "status": "Contacted",
+        "pipelineStageId": "stage-2",
+        "dealValue": 0,
+        "ownerAgentId": "agent_kiteaviation_admin",
+        "ownerAgentName": "Kite Aviation Admin",
+        "aiScore": 80,
+        "aiRating": "Hot",
+        "aiReasoning": "Inbound lead entry",
+        "notes": "Added manually.",
+        "customFields": {},
+        "tags": [
+          "HighIntent"
+        ],
+        "createdAt": "2026-09-04T06:36:30.754Z",
+        "updatedAt": "2026-09-04T06:36:30.759Z",
+        "pincode": "",
+        "whatsappOptIn": true,
+        "activities": [
+          {
+            "id": "act-1788503790754",
+            "leadId": "lead-1788503790754",
+            "type": "creation",
+            "title": "Lead Created",
+            "description": "Lead created from Facebook Ads",
+            "timestamp": "2026-09-04T06:36:30.754Z",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin"
+          }
+        ]
+      },
+      {
+        "id": "lead-1788436850751",
+        "tenantId": "company_kite_aviation",
+        "name": "SDFSFS",
+        "phone": "+91 4535353545",
+        "email": "",
+        "company": "",
+        "city": "Not Specified",
+        "state": "Not Specified",
+        "source": "JustDial",
+        "status": "Fresh",
+        "pipelineStageId": "stage-1",
+        "dealValue": 233,
+        "ownerAgentId": "agent_kiteaviation_admin",
+        "ownerAgentName": "Kite Aviation Admin",
+        "aiScore": 80,
+        "aiRating": "Hot",
+        "aiReasoning": "Inbound lead entry",
+        "notes": "Added manually.",
+        "customFields": {
+          "deal_value": 233,
+          "dealValue": 233,
+          "f-deal-val": 233,
+          "Deal Value (₹)": 233
+        },
+        "tags": [
+          "HighIntent"
+        ],
         "createdAt": "2026-09-03T12:00:50.751Z",
-        "updatedAt": "2026-09-03T12:00:50.752Z",
+        "updatedAt": "2026-09-04T06:24:52.183Z",
         "pincode": "",
         "whatsappOptIn": true,
         "activities": [
@@ -259,7 +424,8 @@
             "agentId": "agent_kiteaviation_admin",
             "agentName": "Kite Aviation Admin"
           }
-        ]
+        ],
+        "deal_value": 233
       },
       {
         "id": "lead-1788413237307",
@@ -3052,36 +3218,7 @@
     ],
     "company_zenith_aviation": [],
     "company_wfwwfwf": [],
-    "company_kite_aviation": [
-      {
-        "id": "crm-task-1788333395085",
-        "tenantId": "company_kite_aviation",
-        "title": "dasd",
-        "description": "adad",
-        "assigneeAgentId": "agent_kiteaviation_admin",
-        "assigneeAgentName": "Kite Aviation Admin",
-        "priority": "Medium",
-        "status": "Pending",
-        "dueDate": "2026-09-02T09:00:00",
-        "taskValue": 231,
-        "createdAt": "2026-09-02T07:16:35.636Z",
-        "createdByAdminId": "agent_kiteaviation_admin"
-      },
-      {
-        "id": "crm-task-1788267604125",
-        "tenantId": "company_kite_aviation",
-        "title": "adasd",
-        "description": "adsa",
-        "assigneeAgentId": "agent-1788264287313",
-        "assigneeAgentName": "adad",
-        "priority": "Medium",
-        "status": "Completed",
-        "dueDate": "2026-10-02T09:00:00",
-        "taskValue": 23,
-        "createdAt": "2026-09-01T13:00:04.434Z",
-        "createdByAdminId": "agent_kiteaviation_admin"
-      }
-    ]
+    "company_kite_aviation": []
   },
   "integrations": {
     "company_apex_dynamics": [],
@@ -3093,6 +3230,17 @@
     "company_zenith_aviation": [],
     "company_wfwwfwf": [],
     "company_kite_aviation": [
+      {
+        "id": "act-1788503091614",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788436850751",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "edit",
+        "title": "Updated Deal Value (₹)",
+        "description": "Changed to \"233\"",
+        "timestamp": "2026-09-04T06:24:51.614Z"
+      },
       {
         "id": "act-1788414915837",
         "tenantId": "company_kite_aviation",
