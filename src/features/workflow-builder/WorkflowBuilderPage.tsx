@@ -3,18 +3,17 @@ import {
   ArrowLeft,
   Save,
   Play,
-  Share2,
-  CheckCircle,
   FileCode,
   RotateCcw,
   Sparkles,
   Layers,
-  HelpCircle,
   Check,
   Copy,
-  ChevronDown,
   Activity,
-  X
+  X,
+  CheckCircle2,
+  GitBranch,
+  Edit3
 } from 'lucide-react';
 import { SidebarAccordion } from './components/SidebarAccordion';
 import { WorkflowCanvas } from './components/WorkflowCanvas';
@@ -86,79 +85,88 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-100 dark:bg-slate-950 font-sans">
-      {/* ================= TOPBAR ================= */}
-      <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 flex items-center justify-between z-30 shrink-0">
-        {/* Left Section: Back & Workflow Title */}
+    <div className="flex flex-col h-screen w-full overflow-hidden bg-slate-50 text-slate-900 font-sans select-none">
+      {/* ================= HEADER / TOPBAR (CRM Styled) ================= */}
+      <header className="h-16 bg-white border-b border-slate-200/90 px-4 md:px-6 flex items-center justify-between z-30 shrink-0 shadow-2xs">
+        {/* Left: Back Arrow & Breadcrumb/Title */}
         <div className="flex items-center gap-3">
           {onBack && (
             <button
               type="button"
               onClick={onBack}
-              className="p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              title="Back to workflows"
+              className="p-2 rounded-xl text-slate-500 hover:text-[#3a2088] hover:bg-purple-50 transition-colors cursor-pointer border border-transparent hover:border-purple-200"
+              title="Back to Workflows"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
           )}
 
           <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={workflowName}
-                onChange={(e) => setWorkflowName(e.target.value)}
-                className="text-base font-bold text-slate-900 dark:text-slate-100 bg-transparent border-b border-transparent hover:border-slate-300 dark:hover:border-slate-700 focus:border-purple-500 focus:outline-none px-1 py-0.5 max-w-sm sm:max-w-md transition-colors"
-              />
-              <span
-                className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-semibold text-slate-400">Automations /</span>
+                <input
+                  type="text"
+                  value={workflowName}
+                  onChange={(e) => setWorkflowName(e.target.value)}
+                  className="text-sm md:text-base font-bold text-slate-900 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-[#3a2088] focus:outline-none px-1 py-0.5 max-w-xs sm:max-w-md transition-colors"
+                />
+              </div>
+
+              {/* Status Badge */}
+              <button
+                type="button"
+                onClick={() => setWorkflowStatus(workflowStatus === 'published' ? 'draft' : 'published')}
+                className={`text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full cursor-pointer transition-colors border ${
                   workflowStatus === 'published'
-                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800'
-                    : 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-300 dark:border-amber-800'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-[#EDE9FE] text-[#3a2088] border-[#DDD6FE]'
                 }`}
+                title="Click to toggle status"
               >
-                {workflowStatus}
-              </span>
+                {workflowStatus === 'published' ? 'Active' : 'Draft'}
+              </button>
             </div>
-            <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 pl-1">
+
+            <div className="flex items-center gap-2 text-[11px] text-slate-500 pl-1">
               <span>{nodes.length} Nodes</span>
               <span>•</span>
-              <span>{edges.length} Connections</span>
+              <span>{edges.length} Connectors</span>
               <span>•</span>
-              <span className={isSaved ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
-                {isSaved ? 'All changes saved' : 'Unsaved changes'}
+              <span className={isSaved ? 'text-emerald-600 font-semibold' : 'text-amber-600 font-semibold'}>
+                {isSaved ? 'Saved' : 'Unsaved changes'}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Right Section: Actions */}
-        <div className="flex items-center gap-2.5">
-          {/* Templates Dropdown */}
+        {/* Right: Actions */}
+        <div className="flex items-center gap-2">
+          {/* Templates Selector */}
           <button
             type="button"
             onClick={() => loadTemplate('tpl-instant-welcome')}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200/90 hover:bg-slate-50 text-slate-700 shadow-2xs transition-colors cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-            <span>Load Template</span>
+            <Sparkles className="w-3.5 h-3.5 text-[#3a2088]" />
+            <span>Preset Template</span>
           </button>
 
-          {/* Clear Canvas */}
+          {/* Reset / Clear */}
           <button
             type="button"
             onClick={clearCanvas}
-            className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-slate-200"
             title="Clear canvas"
           >
             <RotateCcw className="w-4 h-4" />
           </button>
 
-          {/* Export JSON Modal Button */}
+          {/* JSON Schema */}
           <button
             type="button"
             onClick={() => setShowJsonModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-2xs transition-colors"
+            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200/90 bg-white text-slate-700 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
           >
             <FileCode className="w-3.5 h-3.5 text-slate-500" />
             <span>JSON Output</span>
@@ -169,43 +177,43 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
             type="button"
             onClick={handleStartSimulation}
             disabled={isSimulating}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-xl bg-purple-50 text-[#3a2088] border border-purple-200 hover:bg-purple-100 transition-colors shadow-2xs cursor-pointer"
           >
-            <Play className={`w-3.5 h-3.5 ${isSimulating ? 'animate-spin' : ''}`} />
-            <span>{isSimulating ? 'Simulating...' : 'Test Run Flow'}</span>
+            <Play className={`w-3.5 h-3.5 text-[#3a2088] ${isSimulating ? 'animate-spin' : ''}`} />
+            <span>{isSimulating ? 'Testing...' : 'Test Run Flow'}</span>
           </button>
 
-          {/* Publish / Save Button */}
-          <div className="flex items-center rounded-lg shadow-sm">
-            <button
-              type="button"
-              onClick={() => handleSave('published')}
-              className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-l-lg bg-purple-600 hover:bg-purple-700 text-white transition-colors"
-            >
-              <Save className="w-3.5 h-3.5" />
-              <span>Publish Flow</span>
-            </button>
+          {/* Save & Publish Buttons */}
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => handleSave('draft')}
-              className="px-2.5 py-1.5 text-xs font-semibold rounded-r-lg bg-purple-700 hover:bg-purple-800 text-purple-100 border-l border-purple-500 transition-colors"
-              title="Save as Draft"
+              className="hidden lg:flex px-3.5 py-1.5 text-xs font-bold rounded-xl bg-white border border-slate-200/90 text-slate-700 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
             >
               Save Draft
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSave('published')}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#3a2088] hover:bg-[#2c186b] text-white text-xs font-bold cursor-pointer transition-all shadow-xs"
+            >
+              <Save className="w-3.5 h-3.5" />
+              <span>Save & Publish</span>
             </button>
           </div>
         </div>
       </header>
 
-      {/* ================= WORKSPACE AREA ================= */}
+      {/* ================= WORKSPACE ================= */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Left Sidebar Catalog Accordion */}
+        {/* Left Sidebar Catalog */}
         <SidebarAccordion
           onItemClick={(item: CatalogItem) => addNodeFromCatalog(item)}
         />
 
-        {/* Center Canvas */}
-        <main className="flex-1 h-full relative">
+        {/* Center Interactive Canvas */}
+        <main className="flex-1 h-full relative bg-[#f8fafc]">
           <WorkflowCanvas
             nodes={nodes}
             edges={edges}
@@ -232,27 +240,27 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
 
       {/* ================= SAVE TOAST ================= */}
       {saveToast && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 border border-slate-700 animate-in fade-in slide-in-from-bottom-2">
-          <CheckCircle className="w-4 h-4 text-emerald-400" />
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2 border border-slate-700 animate-in fade-in slide-in-from-bottom-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
           <span className="text-xs font-semibold">Workflow configuration saved successfully!</span>
         </div>
       )}
 
-      {/* ================= JSON MODAL ================= */}
+      {/* ================= JSON OUTPUT MODAL ================= */}
       {showJsonModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150">
-            <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 font-sans">
+          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-purple-50 border border-purple-200 text-[#3a2088]">
                   <FileCode className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                  <h3 className="text-sm font-bold text-slate-900">
                     Serialized Workflow JSON
                   </h3>
                   <p className="text-[11px] text-slate-500">
-                    TeleCRM standardized automation schema
+                    Clean execution payload formatted for backend workflow engine
                   </p>
                 </div>
               </div>
@@ -261,15 +269,15 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
                 <button
                   type="button"
                   onClick={handleCopyJson}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
                 >
-                  {copiedJson ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedJson ? 'Copied!' : 'Copy JSON'}</span>
+                  {copiedJson ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedJson ? 'Copied!' : 'Copy'}</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowJsonModal(false)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -282,12 +290,12 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
               </pre>
             </div>
 
-            <div className="px-5 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 flex items-center justify-between text-xs text-slate-500">
-              <span>Ready for execution backend engine</span>
+            <div className="px-5 py-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
+              <span>Ready for execution</span>
               <button
                 type="button"
                 onClick={() => setShowJsonModal(false)}
-                className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-purple-600 text-white hover:bg-purple-700"
+                className="px-4 py-2 text-xs font-bold rounded-xl bg-[#3a2088] text-white hover:bg-[#2c186b] cursor-pointer shadow-xs"
               >
                 Close
               </button>
@@ -298,19 +306,19 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
 
       {/* ================= SIMULATION MODAL ================= */}
       {showSimulationModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[80vh] animate-in zoom-in-95 duration-150">
-            <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-indigo-50/50 dark:bg-indigo-950/30">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-indigo-600 text-white">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 font-sans">
+          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[80vh] animate-in zoom-in-95 duration-150">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-purple-50/50">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-[#3a2088] text-white">
                   <Activity className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                  <h3 className="text-sm font-bold text-slate-900">
                     Live Flow Execution Simulation
                   </h3>
                   <p className="text-[11px] text-slate-500">
-                    Testing pipeline triggers and condition evaluations
+                    Simulating trigger payload and evaluating condition branches
                   </p>
                 </div>
               </div>
@@ -321,37 +329,37 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
                   stopSimulation();
                   setShowSimulationModal(false);
                 }}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50 dark:bg-slate-950">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
               {simulationLogs.length === 0 ? (
                 <div className="py-12 text-center space-y-3">
-                  <div className="w-8 h-8 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin mx-auto" />
-                  <p className="text-xs text-slate-500">Initializing simulation test run...</p>
+                  <div className="w-8 h-8 rounded-full border-2 border-[#3a2088] border-t-transparent animate-spin mx-auto" />
+                  <p className="text-xs text-slate-500">Evaluating workflow steps...</p>
                 </div>
               ) : (
                 simulationLogs.map((step) => (
                   <div
                     key={step.step}
-                    className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs flex items-start gap-3 animate-in fade-in duration-200"
+                    className="p-3.5 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex items-start gap-3 animate-in fade-in duration-200"
                   >
-                    <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                    <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 border border-emerald-200">
                       ✓
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                        <span className="text-xs font-bold text-slate-900">
                           Step {step.step}: {step.nodeName}
                         </span>
                         <span className="text-[10px] text-slate-400 font-mono">
                           {step.timestamp}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+                      <p className="text-xs text-slate-600 mt-1 leading-relaxed">
                         {step.log}
                       </p>
                     </div>
@@ -360,23 +368,23 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
               )}
             </div>
 
-            <div className="px-5 py-3 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between">
+            <div className="px-5 py-3 border-t border-slate-100 bg-white flex items-center justify-between">
               <span className="text-xs text-slate-500">
-                {isSimulating ? 'Running workflow step by step...' : 'Simulation complete! All checks passed.'}
+                {isSimulating ? 'Executing step-by-step...' : 'Simulation complete! All checks passed.'}
               </span>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={runSimulation}
                   disabled={isSimulating}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                  className="px-3.5 py-2 text-xs font-semibold rounded-xl bg-purple-50 text-[#3a2088] border border-purple-200 hover:bg-purple-100 cursor-pointer"
                 >
-                  Re-run Test
+                  Re-test
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowSimulationModal(false)}
-                  className="px-4 py-1.5 text-xs font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+                  className="px-4 py-2 text-xs font-bold rounded-xl bg-[#3a2088] text-white hover:bg-[#2c186b] cursor-pointer shadow-xs"
                 >
                   Done
                 </button>

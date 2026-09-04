@@ -61,9 +61,9 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
       const isTrueBranch = connection.sourceHandle === 'true';
       const isFalseBranch = connection.sourceHandle === 'false';
 
-      let strokeColor = '#8b5cf6'; // default purple
+      let strokeColor = '#3a2088'; // primary CRM royal violet
       if (isTrueBranch) strokeColor = '#10b981'; // emerald green
-      if (isFalseBranch) strokeColor = '#ef4444'; // rose red
+      if (isFalseBranch) strokeColor = '#DC2626'; // rose red
 
       const newEdge: Edge = {
         ...connection,

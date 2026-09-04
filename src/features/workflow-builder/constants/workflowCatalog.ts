@@ -372,10 +372,10 @@ export const SAMPLE_TEMPLATES = [
       }
     ],
     edges: [
-      { id: 'e1', source: 'node-trigger-1', target: 'node-condition-1', animated: true, style: { stroke: '#8b5cf6', strokeWidth: 2 } },
+      { id: 'e1', source: 'node-trigger-1', target: 'node-condition-1', animated: true, style: { stroke: '#3a2088', strokeWidth: 2 } },
       { id: 'e2', source: 'node-condition-1', sourceHandle: 'true', target: 'node-action-1', animated: true, style: { stroke: '#10b981', strokeWidth: 2 } },
-      { id: 'e3', source: 'node-action-1', target: 'node-action-2', animated: true, style: { stroke: '#64748b', strokeWidth: 2 } },
-      { id: 'e4', source: 'node-condition-1', sourceHandle: 'false', target: 'node-action-3', animated: true, style: { stroke: '#ef4444', strokeWidth: 2 } }
+      { id: 'e3', source: 'node-action-1', target: 'node-action-2', animated: true, style: { stroke: '#475569', strokeWidth: 2 } },
+      { id: 'e4', source: 'node-condition-1', sourceHandle: 'false', target: 'node-action-3', animated: true, style: { stroke: '#DC2626', strokeWidth: 2 } }
     ]
   }
 ];

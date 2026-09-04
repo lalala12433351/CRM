@@ -17,7 +17,7 @@ import { ConditionNode } from './nodes/ConditionNode';
 import { ActionNode } from './nodes/ActionNode';
 import { CustomWorkflowNode, CatalogItem } from '../types/workflow.types';
 import { Edge, Connection } from '@xyflow/react';
-import { Sparkles, MousePointerClick, PlusCircle } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 interface WorkflowCanvasProps {
   nodes: CustomWorkflowNode[];
@@ -69,7 +69,7 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
       try {
         const item: CatalogItem = JSON.parse(rawData);
 
-        // Calculate flow position using React Flow coordinate projection
+        // Coordinate projection using React Flow
         const position = reactFlowInstance.screenToFlowPosition({
           x: event.clientX,
           y: event.clientY
@@ -84,7 +84,7 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
   );
 
   return (
-    <div ref={reactFlowWrapper} className="w-full h-full relative bg-slate-50 dark:bg-slate-950 overflow-hidden">
+    <div ref={reactFlowWrapper} className="w-full h-full relative bg-[#f8fafc] overflow-hidden">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -103,49 +103,49 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
         defaultEdgeOptions={{
           type: 'smoothstep',
           animated: true,
-          style: { stroke: '#8b5cf6', strokeWidth: 2 }
+          style: { stroke: '#3a2088', strokeWidth: 2 }
         }}
-        className="touch-none select-none"
+        className="touch-none select-none font-sans"
       >
         {/* Background Grid */}
         <Background
           variant={BackgroundVariant.Dots}
           gap={20}
           size={1.5}
-          className="opacity-60 dark:opacity-30"
-          color="#94a3b8"
+          className="opacity-70"
+          color="#cbd5e1"
         />
 
         {/* Controls Panel */}
         <Controls
           showInteractive={false}
-          className="!bg-white dark:!bg-slate-800 !border !border-slate-200 dark:!border-slate-700 !rounded-xl !shadow-lg !overflow-hidden"
+          className="!bg-white !border !border-slate-200/90 !rounded-2xl !shadow-2xs !overflow-hidden"
         />
 
         {/* MiniMap */}
         <MiniMap
           nodeStrokeWidth={3}
           nodeColor={(node) => {
-            if (node.type === 'trigger') return '#9333ea';
+            if (node.type === 'trigger') return '#3a2088';
             if (node.type === 'condition') return '#4f46e5';
             return '#475569';
           }}
-          className="!bg-white/90 dark:!bg-slate-900/90 !border !border-slate-200 dark:!border-slate-800 !rounded-xl !shadow-md"
-          maskColor="rgba(100, 116, 139, 0.15)"
+          className="!bg-white/95 !border !border-slate-200/90 !rounded-2xl !shadow-2xs"
+          maskColor="rgba(100, 116, 139, 0.1)"
         />
 
-        {/* Top Hint Helper */}
+        {/* Empty Canvas Hint */}
         {nodes.length === 0 && (
           <Panel position="top-center" className="mt-20">
-            <div className="bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-800 p-6 rounded-2xl shadow-xl max-w-md text-center space-y-3">
-              <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center mx-auto">
+            <div className="bg-white border border-purple-200 p-6 rounded-2xl shadow-2xs max-w-md text-center space-y-3 font-sans">
+              <div className="w-12 h-12 rounded-2xl bg-purple-50 border border-purple-200 text-[#3a2088] flex items-center justify-center mx-auto">
                 <Sparkles className="w-6 h-6" />
               </div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                Start Building Your Workflow
+              <h3 className="text-sm font-bold text-slate-900">
+                Design Your Workflow Pipeline
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Drag and drop a <strong>Trigger Event</strong> from the left sidebar to begin, or choose one of our pre-built automation templates.
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Drag and drop a <strong>Trigger Event</strong> from the left sidebar to start, or load a preset template from the top bar.
               </p>
             </div>
           </Panel>

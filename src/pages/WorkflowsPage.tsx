@@ -44,6 +44,7 @@ interface WorkflowsViewProps {
   onToggleWorkflow?: (id: string) => void;
   onAddWorkflow?: (rule: WorkflowRule) => void;
   initialSubTab?: AutomationsSubTab;
+  onOpenWorkflowBuilder?: (workflow?: any) => void;
   onShowToast?: (message: string) => void;
 }
 
@@ -52,6 +53,7 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
   onToggleWorkflow,
   onAddWorkflow,
   initialSubTab = 'workflows',
+  onOpenWorkflowBuilder,
   onShowToast
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<AutomationsSubTab>(initialSubTab);
@@ -78,6 +80,16 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
 
   // Visual Workflow Builder state
   const [isVisualBuilderOpen, setIsVisualBuilderOpen] = useState(false);
+  const [selectedWorkflowForBuilder, setSelectedWorkflowForBuilder] = useState<any>(null);
+
+  const handleOpenBuilder = (workflowItem?: any) => {
+    if (onOpenWorkflowBuilder) {
+      onOpenWorkflowBuilder(workflowItem);
+    } else {
+      setSelectedWorkflowForBuilder(workflowItem || null);
+      setIsVisualBuilderOpen(true);
+    }
+  };
 
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -251,7 +263,11 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
   if (isVisualBuilderOpen) {
     return (
       <WorkflowBuilderPage
-        onBack={() => setIsVisualBuilderOpen(false)}
+        initialWorkflow={selectedWorkflowForBuilder}
+        onBack={() => {
+          setSelectedWorkflowForBuilder(null);
+          setIsVisualBuilderOpen(false);
+        }}
         onSave={(savedWorkflow) => {
           triggerToast(`Workflow "${savedWorkflow.name}" saved!`);
           setWorkflowsList((prev) => {
@@ -316,17 +332,10 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
 
             <div className="flex items-center gap-2 self-start sm:self-auto">
               <button
-                onClick={() => setIsVisualBuilderOpen(true)}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-bold cursor-pointer transition-all shadow-xs flex items-center space-x-1.5"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-purple-200" />
-                <span>Visual Flow Builder</span>
-              </button>
-
-              <button
-                onClick={() => setShowCreateModal(true)}
+                onClick={() => handleOpenBuilder()}
                 className="px-4 py-2 rounded-xl bg-[#3a2088] hover:bg-[#2c186b] text-white text-xs font-bold cursor-pointer transition-all shadow-xs flex items-center space-x-1.5"
               >
+                <Sparkles className="w-3.5 h-3.5 text-purple-200" />
                 <span>Create Workflow +</span>
               </button>
             </div>
@@ -493,7 +502,7 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                             title={workflowsTab === 'Draft' ? "No Draft Workflows" : "No Active Workflows"}
                             description="Create custom automation rules to automatically assign leads, send WhatsApp messages, and schedule tasks."
                             actionLabel="Create Workflow"
-                            onAction={() => setShowCreateModal(true)}
+                            onAction={() => handleOpenBuilder()}
                             compact
                           />
                         </td>
@@ -506,7 +515,7 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                             <td className="py-3.5 px-4">
                               <button
                                 type="button"
-                                onClick={() => setIsVisualBuilderOpen(true)}
+                                onClick={() => handleOpenBuilder(wf)}
                                 className="font-bold text-slate-900 hover:text-purple-600 text-xs text-left cursor-pointer transition-colors"
                               >
                                 {wf.name}
@@ -514,7 +523,7 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                               {wf.hasDraft && (
                                 <div>
                                   <button
-                                    onClick={() => setIsVisualBuilderOpen(true)}
+                                    onClick={() => handleOpenBuilder(wf)}
                                     className="text-[11px] text-[#3a2088] underline hover:text-[#2c186b] font-medium cursor-pointer"
                                   >
                                     (Draft in progress)
@@ -610,7 +619,7 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
             </div>
 
             <button
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => handleOpenBuilder()}
               className="px-4 py-2 rounded-xl bg-[#3a2088] hover:bg-[#2c186b] text-white text-xs font-bold cursor-pointer transition-all shadow-xs flex items-center space-x-1.5 self-start sm:self-auto"
             >
               <span>Create New Schedule +</span>
@@ -790,7 +799,7 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
 
             <div className="pt-2 space-y-3">
               <button
-                onClick={() => setShowCreateModal(true)}
+                onClick={() => handleOpenBuilder()}
                 className="px-5 py-2.5 rounded-xl bg-[#3a2088] hover:bg-[#2c186b] text-white text-xs font-bold cursor-pointer transition-all shadow-xs inline-flex items-center space-x-1.5"
               >
                 <Plus className="w-4 h-4" />
@@ -884,7 +893,7 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
             </div>
 
             <button
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => handleOpenBuilder()}
               className="px-4 py-2 rounded-xl bg-[#3a2088] hover:bg-[#2c186b] text-white text-xs font-bold cursor-pointer transition-all shadow-xs flex items-center space-x-1.5 self-start sm:self-auto"
             >
               <span>Create Salesform +</span>
@@ -1030,7 +1039,7 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
             </div>
 
             <button
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => handleOpenBuilder()}
               className="px-4 py-2 rounded-xl bg-[#3a2088] hover:bg-[#2c186b] text-white text-xs font-bold cursor-pointer transition-all shadow-xs flex items-center space-x-1.5 self-start sm:self-auto"
             >
               <span>Create New +</span>
@@ -1127,7 +1136,7 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
             </div>
 
             <button
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => handleOpenBuilder()}
               className="px-4 py-2 rounded-xl bg-[#3a2088] hover:bg-[#2c186b] text-white text-xs font-bold cursor-pointer transition-all shadow-xs flex items-center space-x-1.5 self-start sm:self-auto"
             >
               <span>Connect New App +</span>

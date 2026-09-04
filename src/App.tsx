@@ -43,6 +43,7 @@ import {
   CallFeedbackSettingsPage as CallFeedbackSettingsView,
   NotFoundPage as NotFoundView,
 } from './pages';
+import { WorkflowBuilderPage } from './features/workflow-builder';
 import { PhoneCall, X, Users } from 'lucide-react';
 import { verifyCurrentSession, logoutWithApi, fetchWithTenantAuth } from './lib/auth';
 import { formatArcleName } from './utils/brandUtils';
@@ -100,6 +101,8 @@ export function App() {
     }
     setCurrentView('add_lead');
   };
+
+  const [activeWorkflowForBuilder, setActiveWorkflowForBuilder] = useState<any>(null);
   const [reportsSubTab, setReportsSubTab] = useState<ReportsSubTab>(() => {
     try {
       if (typeof window !== 'undefined') {
@@ -1336,7 +1339,49 @@ export function App() {
                 initialSubTab={automationsSubTab}
                 onToggleWorkflow={(id) => setWorkflows((prev) => prev.map((w) => w.id === id ? { ...w, isActive: !w.isActive } : w))}
                 onAddWorkflow={(wf) => setWorkflows((prev) => [wf, ...prev])}
+                onOpenWorkflowBuilder={(wf) => {
+                  setActiveWorkflowForBuilder(wf || null);
+                  setCurrentView('workflow_builder');
+                }}
                 onShowToast={(msg) => showToast(msg)}
+              />
+            ) : renderAccessRestricted('AI Automations & Workflows')
+          )}
+
+          {currentView === 'workflow_builder' && (
+            activeAgentRights.automations ? (
+              <WorkflowBuilderPage
+                initialWorkflow={activeWorkflowForBuilder}
+                onBack={() => {
+                  setActiveWorkflowForBuilder(null);
+                  setCurrentView('workflows');
+                }}
+                onSave={(savedWorkflow) => {
+                  showToast(`Workflow "${savedWorkflow.name}" saved!`);
+                  setWorkflows((prev) => {
+                    const exists = prev.some((w) => w.id === savedWorkflow.id || w.name === savedWorkflow.name);
+                    if (exists) {
+                      return prev.map((w) =>
+                        w.id === savedWorkflow.id || w.name === savedWorkflow.name
+                          ? { ...w, name: savedWorkflow.name, isActive: savedWorkflow.status === 'published' }
+                          : w
+                      );
+                    }
+                    return [
+                      {
+                        id: savedWorkflow.id,
+                        name: savedWorkflow.name,
+                        description: savedWorkflow.description || 'Visual workflow automation',
+                        triggerEvent: savedWorkflow.nodes[0]?.data?.label || 'Lead Event',
+                        condition: 'Custom Conditions',
+                        actions: savedWorkflow.nodes.filter((n: any) => n.data?.kind === 'action').map((n: any) => n.data?.label),
+                        isActive: savedWorkflow.status === 'published',
+                        executedCount: 0
+                      },
+                      ...prev
+                    ];
+                  });
+                }}
               />
             ) : renderAccessRestricted('AI Automations & Workflows')
           )}
@@ -1517,7 +1562,7 @@ export function App() {
 
           {![
             'add_lead', 'dashboard', 'pipeline', 'leads', 'followups', 'tasks',
-            'inbox', 'whatsapp', 'workflows', 'calls', 'calling_logs', 'reports',
+            'inbox', 'whatsapp', 'workflows', 'workflow_builder', 'calls', 'calling_logs', 'reports',
             'analytics', 'team', 'marketing', 'campaigns', 'integrations',
             'docs_sign', 'fields', 'call_feedback', 'settings'
           ].includes(currentView) && (
