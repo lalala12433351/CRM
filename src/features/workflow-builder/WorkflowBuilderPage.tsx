@@ -117,11 +117,11 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
         </div>
 
         {/* Center: Editor & Executions Tabs */}
-        <div className="flex items-center gap-6 h-full">
+        <div className="flex items-center gap-8 h-full">
           <button
             type="button"
             onClick={() => setActiveTab('editor')}
-            className={`h-full px-3 text-xs font-semibold transition-all border-b-2 cursor-pointer flex items-center ${
+            className={`h-full px-4 text-sm sm:text-base font-semibold transition-all border-b-2 cursor-pointer flex items-center ${
               activeTab === 'editor'
                 ? 'border-[#3a2088] text-[#3a2088]'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -132,7 +132,7 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('executions')}
-            className={`h-full px-3 text-xs font-semibold transition-all border-b-2 cursor-pointer flex items-center ${
+            className={`h-full px-4 text-sm sm:text-base font-semibold transition-all border-b-2 cursor-pointer flex items-center ${
               activeTab === 'executions'
                 ? 'border-[#3a2088] text-[#3a2088]'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
