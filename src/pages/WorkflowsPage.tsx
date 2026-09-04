@@ -10,6 +10,7 @@ import {
   toggleWorkflowStatusInDb,
   WorkflowRecord 
 } from '../utils/workflowStorage';
+import { formatProperName } from '../utils/formatUtils';
 import { 
   GitBranch, 
   RotateCw, 
@@ -464,7 +465,7 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold text-[11px]">
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-medium text-[11px]">
                     <th className="py-3 px-4">Name</th>
                     <th className="py-3 px-4 text-center">Events</th>
                     <th className="py-3 px-4 text-center">
@@ -515,9 +516,9 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleOpenBuilder(wf)}
-                                className="font-bold text-slate-900 hover:text-purple-600 text-xs text-left cursor-pointer transition-colors"
+                                className="font-medium text-slate-900 hover:text-purple-600 text-xs text-left cursor-pointer transition-colors"
                               >
-                                {wf.name}
+                                {formatProperName(wf.name)}
                               </button>
                               {wf.hasDraft && (
                                 <div>
@@ -728,7 +729,7 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold text-[11px]">
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-medium text-[11px]">
                     <th className="py-3 px-4">Name</th>
                     <th className="py-3 px-4 text-center">Events</th>
                     <th className="py-3 px-4 text-center">
@@ -752,7 +753,7 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                   ) : (
                     schedules.map((sch) => (
                       <tr key={sch.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-3.5 px-4 font-bold text-slate-900">{sch.name}</td>
+                        <td className="py-3.5 px-4 font-medium text-slate-900">{sch.name}</td>
                         <td className="py-3.5 px-4 text-center">{sch.events}</td>
                         <td className="py-3.5 px-4 text-center">ON</td>
                         <td className="py-3.5 px-4 text-center">{sch.lastRun}</td>
@@ -949,7 +950,7 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold text-[11px]">
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-medium text-[11px]">
                     <th className="py-3 px-4">Name</th>
                     <th className="py-3 px-4 text-center">Events</th>
                     <th className="py-3 px-4 text-center">Status</th>
@@ -966,7 +967,7 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                 <tbody className="divide-y divide-slate-100 font-medium">
                   {salesforms.map((sf) => (
                     <tr key={sf.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3.5 px-4 font-bold text-[#3a2088] hover:underline cursor-pointer">
+                      <td className="py-3.5 px-4 font-medium text-[#3a2088] hover:underline cursor-pointer">
                         {sf.name}
                       </td>
                       <td className="py-3.5 px-4 text-center">
@@ -1051,7 +1052,7 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold text-[11px]">
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-medium text-[11px]">
                     <th className="py-3 px-4">Template Name</th>
                     <th className="py-3 px-4">Endpoint URL</th>
                     <th className="py-3 px-4 text-center">Variables Used</th>
@@ -1069,7 +1070,7 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                 <tbody className="divide-y divide-slate-100 font-medium">
                   {apiTemplates.map((tpl) => (
                     <tr key={tpl.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3.5 px-4 font-bold text-slate-900">{tpl.name}</td>
+                      <td className="py-3.5 px-4 font-medium text-slate-900">{tpl.name}</td>
                       <td className="py-3.5 px-4 font-mono text-slate-600 truncate max-w-xs">{tpl.endpoint}</td>
                       <td className="py-3.5 px-4 text-center">
                         <span className="px-2.5 py-1 rounded-full bg-purple-50 border border-purple-200 text-purple-700 text-[11px] font-bold">

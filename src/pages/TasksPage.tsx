@@ -23,6 +23,7 @@ import {
 import { Agent, CrmTask, formatDealValue } from '../types';
 import { isAgentAdmin } from '../types';
 import { EmptyState } from '../components/EmptyState';
+import { formatProperName } from '../utils/formatUtils';
 
 interface TasksViewProps {
   agents: Agent[];
@@ -368,15 +369,15 @@ export const TasksPage: React.FC<TasksViewProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm border-collapse min-w-[950px]">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-medium">
-                  <th className="p-3 font-semibold text-xs uppercase tracking-wider">TASK NAME</th>
-                  <th className="p-3 font-semibold text-xs uppercase tracking-wider w-1/4">DESCRIPTION</th>
-                  <th className="p-3 font-semibold text-xs uppercase tracking-wider text-right font-mono">TASK VALUE</th>
-                  <th className="p-3 font-semibold text-xs uppercase tracking-wider text-center">ASSIGNEE</th>
-                  <th className="p-3 font-semibold text-xs uppercase tracking-wider text-center">STATUS</th>
-                  <th className="p-3 font-semibold text-xs uppercase tracking-wider">DUE DATE</th>
-                  <th className="p-3 font-semibold text-xs uppercase tracking-wider text-center">PRIORITY</th>
-                  <th className="p-3 font-semibold text-xs uppercase tracking-wider text-center">ACTIONS</th>
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-medium">
+                  <th className="p-3 font-medium text-xs">Task Name</th>
+                  <th className="p-3 font-medium text-xs w-1/4">Description</th>
+                  <th className="p-3 font-medium text-xs text-right font-mono">Task Value</th>
+                  <th className="p-3 font-medium text-xs text-center">Assignee</th>
+                  <th className="p-3 font-medium text-xs text-center">Status</th>
+                  <th className="p-3 font-medium text-xs">Due Date</th>
+                  <th className="p-3 font-medium text-xs text-center">Priority</th>
+                  <th className="p-3 font-medium text-xs text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -398,7 +399,7 @@ export const TasksPage: React.FC<TasksViewProps> = ({
 
                   return (
                     <tr key={task.id} className="hover:bg-slate-50/80 transition-colors group">
-                      <td className="p-3 font-medium text-slate-900">{task.title}</td>
+                      <td className="p-3 font-medium text-slate-900">{formatProperName(task.title)}</td>
                       <td className="p-3 text-slate-500 text-xs max-w-xs truncate">
                         {task.description || <span className="italic text-slate-300">No description</span>}
                       </td>
@@ -408,7 +409,7 @@ export const TasksPage: React.FC<TasksViewProps> = ({
                       <td className="p-3 text-center">
                         <div className="flex flex-col items-center space-y-0.5">
                           <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-bold border border-indigo-200">{initials}</div>
-                          <span className="text-[10px] text-slate-500 max-w-[80px] truncate">{task.assigneeAgentName.split(' ')[0]}</span>
+                          <span className="text-[10px] text-slate-500 max-w-[100px] truncate">{formatProperName(task.assigneeAgentName)}</span>
                         </div>
                       </td>
                       <td className="p-3 text-center">
@@ -419,7 +420,7 @@ export const TasksPage: React.FC<TasksViewProps> = ({
                       <td className="p-3">
                         <span className={`text-xs font-medium ${isOverdue ? 'text-rose-600 font-bold' : 'text-slate-600'}`}>
                           {dueDate ? dueDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
-                          {isOverdue && <span className="ml-1 text-[10px] text-rose-600 uppercase font-bold">(Overdue)</span>}
+                          {isOverdue && <span className="ml-1 text-[10px] text-rose-600 font-bold">(Overdue)</span>}
                         </span>
                       </td>
                       <td className="p-3 text-center">

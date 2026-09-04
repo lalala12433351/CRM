@@ -824,7 +824,7 @@ export const AnalyticsPage: React.FC<AnalyticsViewProps> = ({ leads, hourlyMetri
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-700">
-            <thead className="bg-slate-100 text-slate-700 uppercase text-[10px] tracking-wider font-bold border-b border-slate-200">
+            <thead className="bg-slate-100 text-slate-600 text-xs font-medium border-b border-slate-200">
               <tr>
                 <th className="px-3 py-2.5">Marketing Source</th>
                 <th className="px-3 py-2.5">Ad Budget Spend</th>
@@ -840,7 +840,7 @@ export const AnalyticsPage: React.FC<AnalyticsViewProps> = ({ leads, hourlyMetri
             <tbody className="divide-y divide-slate-100">
               {sortedChannels.map((st) => (
                 <tr key={st.source} className="hover:bg-slate-50/70 transition-colors">
-                  <td className="px-3 py-2.5 font-bold text-slate-900 flex items-center space-x-2">
+                  <td className="px-3 py-2.5 font-medium text-slate-900 flex items-center space-x-2">
                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: st.color }} />
                     <span>{st.source}</span>
                   </td>

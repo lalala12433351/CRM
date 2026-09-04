@@ -30,6 +30,7 @@ import { CallRecord, Agent, Lead } from '../types';
 import { CustomDropdown } from '../components/CustomDropdown';
 import { toast } from '../context/ToastContext';
 import { EmptyState } from '../components/EmptyState';
+import { formatProperName } from '../utils/formatUtils';
 
 interface MyCallsViewProps {
   callRecords: CallRecord[];
@@ -727,7 +728,7 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
             <table className="w-full text-left text-xs font-sans">
               
               {/* Table Header */}
-              <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+              <thead className="bg-slate-100 text-slate-600 font-medium border-b border-slate-200">
                 <tr>
                   {/* Select All Checkbox */}
                   <th className="px-3.5 py-3 w-10 text-center">
@@ -738,7 +739,7 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
                     >
                       {isAllCurrentPageSelected ? (
                         <div className="w-4 h-4 rounded-[4px] bg-[#5034a8] flex items-center justify-center border border-[#5034a8]">
-                          <Check className="w-3 h-3 text-white stroke-[3]" />
+                          <Check className="w-3.5 h-3.5 text-white stroke-[3]" />
                         </div>
                       ) : (
                         <div className="w-4 h-4 rounded-[4px] border border-slate-300 bg-white hover:border-[#5034a8] transition-colors"></div>
@@ -747,42 +748,42 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
                   </th>
 
                   {/* 1. Name */}
-                  <th className="px-3.5 py-3 font-semibold text-slate-700 whitespace-nowrap">
+                  <th className="px-3.5 py-3 font-medium text-slate-600 whitespace-nowrap">
                     Name
                   </th>
 
                   {/* 2. Number */}
-                  <th className="px-3.5 py-3 font-semibold text-slate-700 whitespace-nowrap">
+                  <th className="px-3.5 py-3 font-medium text-slate-600 whitespace-nowrap">
                     Number
                   </th>
 
                   {/* 3. Call Start */}
-                  <th className="px-3.5 py-3 font-semibold text-slate-700 whitespace-nowrap">
+                  <th className="px-3.5 py-3 font-medium text-slate-600 whitespace-nowrap">
                     Call Start
                   </th>
 
                   {/* 4. Call End */}
-                  <th className="px-3.5 py-3 font-semibold text-slate-700 whitespace-nowrap">
+                  <th className="px-3.5 py-3 font-medium text-slate-600 whitespace-nowrap">
                     Call End
                   </th>
 
                   {/* 5. Call Duration */}
-                  <th className="px-3.5 py-3 font-semibold text-slate-700 whitespace-nowrap">
+                  <th className="px-3.5 py-3 font-medium text-slate-600 whitespace-nowrap">
                     Call Duration
                   </th>
 
                   {/* 6. Assignee Name */}
-                  <th className="px-3.5 py-3 font-semibold text-slate-700 whitespace-nowrap">
+                  <th className="px-3.5 py-3 font-medium text-slate-600 whitespace-nowrap">
                     Assignee Name
                   </th>
 
                   {/* 7. Disposition */}
-                  <th className="px-3.5 py-3 font-semibold text-slate-700 whitespace-nowrap">
+                  <th className="px-3.5 py-3 font-medium text-slate-600 whitespace-nowrap">
                     Disposition
                   </th>
 
                   {/* 8. Remarks & Recording */}
-                  <th className="px-3.5 py-3 font-semibold text-slate-700 whitespace-nowrap text-right">
+                  <th className="px-3.5 py-3 font-medium text-slate-600 whitespace-nowrap text-right">
                     Remarks / Audio
                   </th>
                 </tr>
@@ -827,7 +828,7 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
                           >
                             {isSelected ? (
                               <div className="w-4 h-4 rounded-[4px] bg-[#5034a8] flex items-center justify-center border border-[#5034a8]">
-                                <Check className="w-3 h-3 text-white stroke-[3]" />
+                                <Check className="w-3.5 h-3.5 text-white stroke-[3]" />
                               </div>
                             ) : (
                               <div className="w-4 h-4 rounded-[4px] border border-slate-300 bg-white hover:border-[#5034a8] transition-colors"></div>
@@ -836,15 +837,15 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
                         </td>
 
                         {/* 1. Name */}
-                        <td className="px-3.5 py-2.5 font-semibold text-slate-800 whitespace-nowrap">
+                        <td className="px-3.5 py-2.5 font-medium text-slate-800 whitespace-nowrap">
                           <div className="flex items-center space-x-2">
                             <span
                               onClick={() => matchedLead && onOpenLeadDetail && onOpenLeadDetail(matchedLead)}
-                              className={`truncate max-w-[180px] font-bold ${
+                              className={`truncate max-w-[180px] font-medium ${
                                 matchedLead ? 'text-slate-900 hover:text-indigo-600 hover:underline cursor-pointer' : 'text-slate-800'
                               }`}
                             >
-                              {call.leadName || 'Contact'}
+                              {formatProperName(call.leadName || 'Contact')}
                             </span>
                             {matchedLead && (
                               <ExternalLink
@@ -910,7 +911,7 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
                               {avatar.initials}
                             </span>
                             <span className="text-slate-700 text-xs font-medium truncate max-w-[160px]">
-                              {assigneeName}
+                              {formatProperName(assigneeName)}
                             </span>
                           </div>
                         </td>

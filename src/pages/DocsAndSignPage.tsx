@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FileText, CheckCircle2, Download, Send, Plus, Sparkles, PenTool, ShieldCheck, Database, Server, Code2, Globe, Layers, CheckSquare, Copy, Check } from 'lucide-react';
 import { Lead } from '../types';
 import { toast } from '../context/ToastContext';
+import { formatProperName } from '../utils/formatUtils';
 
 interface DocsAndSignViewProps {
   leads: Lead[];
@@ -277,7 +278,7 @@ The goal of this project is to build a high-performance, full-stack TeleCRM & Sa
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-800">
-                <thead className="bg-slate-50 text-slate-600 uppercase text-[10px] tracking-wider font-bold border-b border-slate-200">
+                <thead className="bg-slate-50 text-slate-600 text-xs font-medium border-b border-slate-200">
                   <tr>
                     <th className="px-4 py-3">Document Title</th>
                     <th className="px-4 py-3">Recipient Lead</th>
@@ -289,11 +290,11 @@ The goal of this project is to build a high-performance, full-stack TeleCRM & Sa
                 <tbody className="divide-y divide-slate-100">
                   {docs.map((d) => (
                     <tr key={d.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-bold text-slate-900 flex items-center space-x-2">
+                      <td className="px-4 py-3 font-medium text-slate-900 flex items-center space-x-2">
                         <FileText className="w-4 h-4 text-indigo-600" />
                         <span>{d.title}</span>
                       </td>
-                      <td className="px-4 py-3 font-medium">{d.leadName}</td>
+                      <td className="px-4 py-3 font-medium">{formatProperName(d.leadName)}</td>
                       <td className="px-4 py-3 font-bold text-emerald-700 font-mono">₹{d.amount.toLocaleString()}</td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
@@ -306,7 +307,7 @@ The goal of this project is to build a high-performance, full-stack TeleCRM & Sa
                       </td>
                       <td className="px-4 py-3 text-right space-x-2">
                         <button 
-                          onClick={() => toast.info(`Downloading proposal PDF for ${d.leadName}...`, 'PDF Download')}
+                          onClick={() => toast.info(`Downloading proposal PDF for ${formatProperName(d.leadName)}...`, 'PDF Download')}
                           className="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold cursor-pointer"
                         >
                           Download PDF
@@ -351,7 +352,7 @@ The goal of this project is to build a high-performance, full-stack TeleCRM & Sa
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   {leads.map((l) => (
-                    <option key={l.id} value={l.name}>{l.name} ({l.company})</option>
+                    <option key={l.id} value={l.name}>{formatProperName(l.name)} ({formatProperName(l.company)})</option>
                   ))}
                 </select>
               </div>

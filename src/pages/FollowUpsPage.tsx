@@ -25,6 +25,7 @@ import {
 import { Lead, Agent, CallRecord, CustomFieldDef, isAgentAdmin, formatDealValue } from '../types';
 import { toast } from '../context/ToastContext';
 import { EmptyState } from '../components/EmptyState';
+import { formatProperName } from '../utils/formatUtils';
 
 import { CallRecordingPlayer } from '../components/CallRecordingPlayer';
 import { StatusBadge } from '../components/StatusBadge';
@@ -194,8 +195,8 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
     // Customer Name
     if (key === 'name' || idKey === 'f-name' || labelLower === 'name' || labelLower === 'customer name') {
       return (
-        <td key={field.id || field.name} className="py-3.5 px-4 font-bold text-slate-900 whitespace-nowrap">
-          <span className="font-bold font-sans text-slate-900 text-sm">{lead.name}</span>
+        <td key={field.id || field.name} className="py-3.5 px-4 font-medium text-slate-900 whitespace-nowrap">
+          <span className="font-medium font-sans text-slate-900 text-sm">{formatProperName(lead.name)}</span>
         </td>
       );
     }
@@ -258,7 +259,7 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
     if (key === 'company' || idKey === 'f-company' || labelLower.includes('company')) {
       return (
         <td key={field.id || field.name} className="py-3.5 px-4 text-slate-600 font-medium whitespace-nowrap">
-          {lead.company && lead.company !== 'Individual' && lead.company !== 'Not Specified' ? lead.company : '-'}
+          {lead.company && lead.company !== 'Individual' && lead.company !== 'Not Specified' ? formatProperName(lead.company) : '-'}
         </td>
       );
     }
@@ -281,7 +282,7 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
               {(lead.ownerAgentName || 'U')[0].toUpperCase()}
             </div>
             <span className="font-semibold text-slate-800 text-xs truncate max-w-[120px]">
-              {lead.ownerAgentName || 'Unassigned'}
+              {formatProperName(lead.ownerAgentName || 'Unassigned')}
             </span>
           </div>
         </td>
@@ -676,10 +677,10 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
                     <div className="flex items-start justify-between gap-2" onClick={() => onOpenLeadDetail(lead)}>
                       <div>
                         <h4 className="font-bold text-slate-900 text-sm tracking-tight hover:text-indigo-600 cursor-pointer">
-                          {lead.name}
+                          {formatProperName(lead.name)}
                         </h4>
                         <p className="text-xs text-slate-500 truncate">
-                          {lead.company && lead.company !== 'Individual' ? lead.company : lead.source || 'Direct Lead'}
+                          {lead.company && lead.company !== 'Individual' ? formatProperName(lead.company) : (lead.source || 'Direct Lead')}
                         </p>
                       </div>
 
@@ -702,7 +703,7 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
                             {(lead.ownerAgentName || 'U')[0].toUpperCase()}
                           </span>
                           <span className="text-[11px] text-slate-700 truncate max-w-[110px]">
-                            {lead.ownerAgentName || 'Unassigned'}
+                            {formatProperName(lead.ownerAgentName || 'Unassigned')}
                           </span>
                         </div>
                       </div>
@@ -756,16 +757,16 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs font-sans border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-100 text-slate-700 font-bold text-[11px] uppercase tracking-wider">
+                  <tr className="border-b border-slate-200 bg-slate-100 text-slate-600 font-medium text-[11px]">
                     {visibleFields.map((f) => (
                       <th 
                         key={f.id || f.name} 
-                        className={`py-3.5 px-4 font-bold whitespace-nowrap ${f.type === 'phone' ? 'min-w-[140px]' : ''}`}
+                        className={`py-3.5 px-4 font-medium whitespace-nowrap ${f.type === 'phone' ? 'min-w-[140px]' : ''}`}
                       >
                         {f.label}
                       </th>
                     ))}
-                    <th className="py-3.5 px-4 font-bold text-right whitespace-nowrap">Actions</th>
+                    <th className="py-3.5 px-4 font-medium text-right whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-normal">

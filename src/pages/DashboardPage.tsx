@@ -25,6 +25,7 @@ import { Lead, Agent, PipelineStage, HourlyMetric, isAgentAdmin, CustomFieldDef,
 import { CustomDropdown, DropdownOption } from '../components/CustomDropdown';
 import { UserAvatar } from '../components/UserAvatar';
 import { toast } from '../context/ToastContext';
+import { formatProperName } from '../utils/formatUtils';
 
 function parseLeadCreatedMs(createdAt?: string): number {
   if (!createdAt || createdAt === 'Just Now' || createdAt === 'Just now') return Date.now();
@@ -463,7 +464,7 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
         {activeAgent ? (
           <div className="bg-white border border-slate-200/90 rounded-xl px-3.5 py-1.5 shadow-2xs inline-flex items-center">
             <span className="text-sm sm:text-base font-bold text-slate-900 font-open-sans tracking-tight" style={{ fontFamily: "'Open Sans', sans-serif" }}>
-              {activeAgent.name.replace(/\s*\((Admin|Employee)\)/gi, '')}
+              {formatProperName(activeAgent.name.replace(/\s*\((Admin|Employee)\)/gi, ''))}
             </span>
           </div>
         ) : (
@@ -520,13 +521,13 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
       <div className="w-full sm:w-[60%]">
         <div className="glass-card p-3.5 sm:p-4 rounded-xl space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-[11px] font-bold text-slate-900 uppercase tracking-wider">
+            <h2 className="text-xs font-bold text-slate-900">
               Due Follow-Up Queue
             </h2>
           </div>
 
           {/* Column Headers for Lead, Assignee, Contact (Left-Aligned) */}
-          <div className="grid grid-cols-12 gap-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-2 pb-1 border-b border-slate-100">
+          <div className="grid grid-cols-12 gap-2 text-[11px] font-medium text-slate-500 px-2 pb-1.5 border-b border-slate-100">
             <div className="col-span-4">Lead</div>
             <div className="col-span-4">Assignee</div>
             <div className="col-span-4 text-left">Contact</div>
@@ -540,18 +541,18 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
                 <div key={lead.id} className="grid grid-cols-12 gap-2 items-center p-2 rounded-lg bg-transparent hover:bg-slate-100/50 transition-all text-xs border-b border-slate-100/60 last:border-0">
                   {/* Lead Column */}
                   <div className="col-span-4 min-w-0">
-                    <p onClick={() => onOpenLeadDetail(lead)} className="font-bold text-slate-900 truncate cursor-pointer hover:text-indigo-600 hover:underline capitalize">{lead.name}</p>
+                    <p onClick={() => onOpenLeadDetail(lead)} className="font-medium text-slate-900 truncate cursor-pointer hover:text-indigo-600 hover:underline">{formatProperName(lead.name)}</p>
                   </div>
 
                   {/* Assignee Column */}
                   <div className="col-span-4 flex items-center space-x-2 min-w-0">
                     <UserAvatar
-                      name={lead.ownerAgentName || 'Unassigned'}
+                      name={formatProperName(lead.ownerAgentName || 'Unassigned')}
                       avatarUrl={agents.find((a) => a.name === lead.ownerAgentName || a.id === lead.ownerAgentId)?.avatar || (activeAgent?.name === lead.ownerAgentName ? activeAgent.avatar : undefined)}
                       size="xs"
                       rounded="full"
                     />
-                    <p className="text-slate-700 font-medium truncate text-[11px]">{lead.ownerAgentName || 'Unassigned'}</p>
+                    <p className="text-slate-700 font-medium truncate text-[11px]">{formatProperName(lead.ownerAgentName || 'Unassigned')}</p>
                   </div>
 
                   {/* Contact Column (Left-Aligned with generous gap between phone number and action buttons) */}
@@ -679,7 +680,7 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="border-b border-slate-100 text-slate-600 font-semibold text-[11px]">
+              <tr className="border-b border-slate-100 text-slate-500 font-medium text-[11px]">
                 <th
                   onClick={() => {
                     setStagesSortCol('name');
@@ -760,9 +761,9 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
                     {/* Assignee Name + Avatar */}
                     <td className="py-3 px-3">
                       <div className="flex items-center space-x-2.5">
-                        <UserAvatar name={row.name} avatarUrl={row.agent.avatar} size="sm" rounded="full" />
-                        <span className="font-semibold text-slate-900 truncate max-w-[160px] sm:max-w-xs">
-                          {row.name}
+                        <UserAvatar name={formatProperName(row.name)} avatarUrl={row.agent.avatar} size="sm" rounded="full" />
+                        <span className="font-medium text-slate-900 truncate max-w-[160px] sm:max-w-xs">
+                          {formatProperName(row.name)}
                         </span>
                       </div>
                     </td>
@@ -823,7 +824,7 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
             <div>
               <div className="flex items-center space-x-2">
                 <Users className="w-4 h-4 text-indigo-600" />
-                <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">
+                <h2 className="text-xs font-bold text-slate-900">
                   Lead Directory
                 </h2>
               </div>
@@ -850,10 +851,10 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
                   if (!selectedAgent) return null;
                   return (
                     <>
-                      <UserAvatar name={selectedAgent.name} avatarUrl={selectedAgent.avatar} size="lg" rounded="full" />
+                      <UserAvatar name={formatProperName(selectedAgent.name)} avatarUrl={selectedAgent.avatar} size="lg" rounded="full" />
                       <div>
                         <div className="flex items-center space-x-2">
-                          <h3 className="text-sm font-bold text-slate-900">{selectedAgent.name}'s Assigned Leads</h3>
+                          <h3 className="text-sm font-bold text-slate-900">{formatProperName(selectedAgent.name)}'s Assigned Leads</h3>
                         </div>
                         <p className="text-xs text-slate-500 mt-0.5">{selectedAgent.role || 'Telecaller'} • {selectedAgent.email} • {selectedAgent.phone}</p>
                       </div>
@@ -946,8 +947,8 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
                 >
                   <div className="flex items-start justify-between gap-2" onClick={() => onOpenLeadDetail(lead)}>
                     <div className="bg-slate-50/80 border border-slate-200/60 hover:border-slate-400 active:border-slate-400 px-3 py-1 rounded-xl transition-colors">
-                      <h4 className="font-extrabold text-slate-900 text-sm sm:text-base truncate font-['Poppins',sans-serif] tracking-tight">{lead.name}</h4>
-                      {lead.company && <p className="text-[11px] text-slate-500 truncate font-['Poppins',sans-serif]">{lead.company}</p>}
+                      <h4 className="font-extrabold text-slate-900 text-sm sm:text-base truncate font-['Poppins',sans-serif] tracking-tight">{formatProperName(lead.name)}</h4>
+                      {lead.company && <p className="text-[11px] text-slate-500 truncate font-['Poppins',sans-serif]">{formatProperName(lead.company)}</p>}
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-xs font-bold text-slate-900">{formatDealValue(lead.dealValue || 0, currency)}</p>
@@ -985,7 +986,7 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
           {/* DESKTOP MASTER TABLE (Medium+ Screens) */}
           <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200/80 max-h-[500px]">
             <table className="w-full text-left text-xs text-slate-600 font-normal">
-              <thead className="bg-slate-100 text-slate-700 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200 sticky top-0 z-10">
+              <thead className="bg-slate-100 text-slate-600 text-[11px] font-medium border-b border-slate-200 sticky top-0 z-10">
                 <tr>
                   {visibleFields.map((field) => (
                     <th key={field.id} className="px-3.5 py-2.5 font-medium whitespace-nowrap">
@@ -1014,15 +1015,15 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
                           if (field.primarySlot === 'H1' || k === 'name') {
                             return (
                               <td key={field.id} className="px-3.5 py-2.5 cursor-pointer" onClick={() => onOpenLeadDetail(lead)}>
-                                <div className="font-bold text-slate-900 flex items-center space-x-1.5 text-sm font-['Poppins',sans-serif]">
-                                  <span className="truncate max-w-[200px] hover:text-[#3a2088] hover:underline capitalize">{lead.name}</span>
+                                <div className="font-medium text-slate-900 flex items-center space-x-1.5 text-sm font-['Poppins',sans-serif]">
+                                  <span className="truncate max-w-[200px] hover:text-[#3a2088] hover:underline">{formatProperName(lead.name)}</span>
                                   {lead.tags?.includes('High Value') && (
                                     <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                                       VIP
                                     </span>
                                   )}
                                 </div>
-                                {lead.company && <p className="text-[11px] text-slate-400 truncate max-w-[170px] mt-0.5">{lead.company}</p>}
+                                {lead.company && <p className="text-[11px] text-slate-400 truncate max-w-[170px] mt-0.5">{formatProperName(lead.company)}</p>}
                               </td>
                             );
                           }
@@ -1034,7 +1035,7 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
                               <td key={field.id} className="px-3.5 py-2.5 whitespace-nowrap">
                                 <span
                                   style={{ backgroundColor: `${color}15`, color: color, borderColor: `${color}40` }}
-                                  className="border px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide"
+                                  className="border px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide"
                                 >
                                   {lead.status || 'Fresh'}
                                 </span>
@@ -1066,7 +1067,7 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
                             return (
                               <td key={field.id} className="px-3.5 py-2.5 whitespace-nowrap">
                                 <span className="text-slate-700 text-xs font-normal">
-                                  {lead.ownerAgentName || 'Unassigned'}
+                                  {formatProperName(lead.ownerAgentName || 'Unassigned')}
                                 </span>
                               </td>
                             );
@@ -1078,7 +1079,7 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
 
                           return (
                             <td key={field.id} className="px-3.5 py-2.5 text-slate-700 text-xs font-normal whitespace-nowrap truncate max-w-[170px]">
-                              {displayVal}
+                              {k === 'company' || k === 'agent' || k === 'assignee_name' ? formatProperName(displayVal) : displayVal}
                             </td>
                           );
                         })}

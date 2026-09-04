@@ -61,6 +61,7 @@ import {
 } from 'lucide-react';
 import { UserAvatar } from '../components/UserAvatar';
 import { EmptyState } from '../components/EmptyState';
+import { formatProperName } from '../utils/formatUtils';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FRESH LEAD RESPONSE TIMER BADGE
@@ -653,19 +654,19 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
     const labelKey = field.label ? field.label.toLowerCase().replace(/\s+/g, '_') : '';
     const labelLower = (field.label || '').toLowerCase();
 
-    if (key === 'name' || idKey === 'f-name' || labelLower === 'name') return lead.name || '—';
+    if (key === 'name' || idKey === 'f-name' || labelLower === 'name') return formatProperName(lead.name) || '—';
     if (key === 'phone' || idKey === 'f-phone' || field.type === 'phone' || labelLower.includes('phone') || labelLower.includes('number')) return lead.phone || '—';
     if (key === 'email' || idKey === 'f-email' || field.type === 'email' || labelLower.includes('email')) return lead.email || '—';
-    if (key === 'company' || idKey === 'f-company' || labelLower.includes('company')) return lead.company || '—';
-    if (key === 'city' || idKey === 'f-city' || labelLower.includes('city')) return lead.city || '—';
-    if (key === 'state' || idKey === 'f-state' || labelLower.includes('state')) return lead.state || '—';
+    if (key === 'company' || idKey === 'f-company' || labelLower.includes('company')) return formatProperName(lead.company) || '—';
+    if (key === 'city' || idKey === 'f-city' || labelLower.includes('city')) return formatProperName(lead.city) || '—';
+    if (key === 'state' || idKey === 'f-state' || labelLower.includes('state')) return formatProperName(lead.state) || '—';
     if (key === 'pincode' || idKey === 'f-pincode' || labelLower.includes('pincode') || labelLower.includes('zip')) return lead.pincode || '—';
     if (key === 'address' || idKey === 'f-addr' || labelLower.includes('address')) return lead.address || '—';
     if (key === 'source' || idKey === 'f-source' || labelLower.includes('source')) return lead.source || '—';
     if (key === 'status' || idKey === 'f-status' || labelLower.includes('status')) return lead.status || '—';
     if (key === 'rating' || idKey === 'f-rating' || labelLower.includes('rating')) return String(leadRatings[lead.id] ?? lead.rating ?? 0);
     if (key === 'assignee' || key === 'owner' || idKey === 'f-assignee' || labelLower.includes('assignee') || labelLower.includes('owner')) {
-      return lead.ownerAgentName || activeAgent?.name || 'System Administrator';
+      return formatProperName(lead.ownerAgentName || activeAgent?.name || 'System Administrator');
     }
     if (key === 'createdOn' || key === 'createdAt' || key === 'created_on' || idKey === 'f-created-on' || labelLower.includes('created')) {
       return formatCreatedDate(lead.createdAt);
@@ -3043,7 +3044,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                           className="cursor-pointer min-w-0"
                         >
                           <h4 className="font-bold text-slate-900 text-sm truncate tracking-tight hover:text-indigo-600 flex items-center flex-wrap gap-1">
-                            <span className="truncate">{lead.name || 'Unnamed Lead'}</span>
+                            <span className="truncate">{formatProperName(lead.name || 'Unnamed Lead')}</span>
                             {(() => {
                               const timerRecord = customFields.find(f => f.id === TIMER_SENTINEL_ID);
                               const freshTimerMins = timerRecord?.freshLeadTimerMinutes ?? 0;
@@ -3053,7 +3054,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                             })()}
                           </h4>
                           <p className="text-[11px] text-slate-500 truncate">
-                            {lead.company || lead.source || 'Direct Lead'}
+                            {lead.company ? formatProperName(lead.company) : (lead.source || 'Direct Lead')}
                           </p>
                         </div>
                       </div>
@@ -3081,13 +3082,13 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                       
                       <div className="flex items-center space-x-1.5">
                         <UserAvatar
-                          name={lead.ownerAgentName || 'Unassigned'}
+                          name={formatProperName(lead.ownerAgentName || 'Unassigned')}
                           avatarUrl={agents.find((a) => a.name === lead.ownerAgentName || a.id === lead.ownerAgentId)?.avatar || (activeAgent?.name === lead.ownerAgentName ? activeAgent.avatar : undefined)}
                           size="xs"
                           rounded="full"
                         />
                         <span className="text-[11px] text-slate-600 truncate max-w-[100px]">
-                          {lead.ownerAgentName || 'Unassigned'}
+                          {formatProperName(lead.ownerAgentName || 'Unassigned')}
                         </span>
                       </div>
                     </div>
@@ -3136,7 +3137,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                 <table className="w-full text-left text-xs text-slate-700">
                   
                   {/* Table Header */}
-                  <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                  <thead className="bg-slate-100 text-slate-600 font-medium border-b border-slate-200">
                     <tr>
                       {/* Checkbox */}
                       <th className="px-3.5 py-3 w-10 text-center">
@@ -3159,7 +3160,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                       {visibleFields.map((field) => (
                         <th 
                           key={field.id}
-                          className="px-3.5 py-3 font-semibold text-slate-700 whitespace-nowrap cursor-pointer hover:text-indigo-600"
+                          className="px-3.5 py-3 font-medium text-slate-600 whitespace-nowrap cursor-pointer hover:text-indigo-600"
                           onClick={() => {
                             if (field.name === 'name') {
                               setSortField('name');
@@ -3180,7 +3181,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                       ))}
 
                       {/* Actions */}
-                      <th className="px-3.5 py-3 font-semibold text-slate-700 text-center">
+                      <th className="px-3.5 py-3 font-medium text-slate-600 text-center">
                         Actions
                       </th>
                     </tr>
@@ -3241,10 +3242,10 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                                 return (
                                   <td 
                                     key={field.id}
-                                    className="px-3.5 py-2.5 font-semibold text-slate-700 hover:text-slate-900 hover:underline cursor-pointer whitespace-nowrap"
+                                    className="px-3.5 py-2.5 font-medium text-slate-700 hover:text-slate-900 hover:underline cursor-pointer whitespace-nowrap"
                                   >
                                     <span className="flex items-center">
-                                      <span className="truncate max-w-[200px] inline-block capitalize">{val || '—'}</span>
+                                      <span className="truncate max-w-[200px] inline-block">{formatProperName(val) || '—'}</span>
                                       {freshTimerMins > 0 && (
                                         <FreshLeadTimerBadge lead={lead} timerMinutes={freshTimerMins} />
                                       )}
@@ -3295,13 +3296,13 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                                   <td key={field.id} className="px-3.5 py-2.5 whitespace-nowrap">
                                     <div className="flex items-center space-x-2">
                                       <UserAvatar
-                                        name={lead.ownerAgentName || activeAgent?.name || 'Unassigned'}
+                                        name={formatProperName(lead.ownerAgentName || activeAgent?.name || 'Unassigned')}
                                         avatarUrl={agents.find((a) => a.name === lead.ownerAgentName || a.id === lead.ownerAgentId)?.avatar || (activeAgent?.name === lead.ownerAgentName ? activeAgent.avatar : undefined)}
                                         size="xs"
                                         rounded="full"
                                       />
                                       <span className="text-slate-700 text-xs font-normal truncate max-w-[180px]">
-                                        {lead.ownerAgentName || activeAgent?.name || 'Unassigned'}
+                                        {formatProperName(lead.ownerAgentName || activeAgent?.name || 'Unassigned')}
                                       </span>
                                     </div>
                                   </td>

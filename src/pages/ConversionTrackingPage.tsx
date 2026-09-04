@@ -40,6 +40,7 @@ import {
   ConversionStageMapping, 
   Lead 
 } from '../types';
+import { formatProperName } from '../utils/formatUtils';
 import { 
   DEFAULT_CONVERSION_SETTINGS, 
   INITIAL_CAMPAIGN_QUALITY_METRICS, 
@@ -492,7 +493,7 @@ export const ConversionTrackingPage: React.FC<ConversionTrackingViewProps> = ({
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[10px]">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-medium text-xs">
                     <tr>
                       <th className="py-3 px-4">Campaign & Ad Group</th>
                       <th className="py-3 px-3">Platform</th>
@@ -514,7 +515,7 @@ export const ConversionTrackingPage: React.FC<ConversionTrackingViewProps> = ({
                       return (
                         <tr key={m.id} className="hover:bg-slate-50/80 transition-colors">
                           <td className="py-3.5 px-4">
-                            <div className="font-semibold text-slate-900">{m.campaignName}</div>
+                            <div className="font-medium text-slate-900">{m.campaignName}</div>
                             <div className="text-[11px] text-slate-500 font-mono mt-0.5">{m.adGroupOrSet}</div>
                           </td>
                           <td className="py-3.5 px-3">
@@ -585,7 +586,7 @@ export const ConversionTrackingPage: React.FC<ConversionTrackingViewProps> = ({
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 border-y border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[10px]">
+                  <thead className="bg-slate-50 border-y border-slate-200 text-slate-600 font-medium text-xs">
                     <tr>
                       <th className="py-3 px-4">CRM Stage</th>
                       <th className="py-3 px-4">Google Ads Conversion Action</th>
@@ -599,7 +600,7 @@ export const ConversionTrackingPage: React.FC<ConversionTrackingViewProps> = ({
                   <tbody className="divide-y divide-slate-100">
                     {settings.stageMappings.map((mapping, idx) => (
                       <tr key={mapping.id} className="hover:bg-slate-50/70 transition-colors">
-                        <td className="py-3.5 px-4 font-bold text-slate-900 flex items-center space-x-2">
+                        <td className="py-3.5 px-4 font-medium text-slate-900 flex items-center space-x-2">
                           <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
                           <span>{mapping.crmStage}</span>
                         </td>
@@ -772,7 +773,7 @@ export const ConversionTrackingPage: React.FC<ConversionTrackingViewProps> = ({
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[10px]">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-medium text-xs">
                     <tr>
                       <th className="py-3 px-4">Event ID / Time</th>
                       <th className="py-3 px-3">Lead Contact</th>
@@ -792,7 +793,7 @@ export const ConversionTrackingPage: React.FC<ConversionTrackingViewProps> = ({
                           <div className="text-[10px] text-slate-400 mt-0.5">{new Date(event.timestamp).toLocaleTimeString()}</div>
                         </td>
                         <td className="py-3.5 px-3">
-                          <div className="font-semibold text-slate-900">{event.leadName}</div>
+                          <div className="font-medium text-slate-900">{formatProperName(event.leadName)}</div>
                           <div className="text-[11px] text-slate-500 font-mono">{event.leadPhone}</div>
                         </td>
                         <td className="py-3.5 px-3">

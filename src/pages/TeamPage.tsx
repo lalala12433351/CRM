@@ -24,6 +24,7 @@ import { Agent, isAgentAdmin } from '../types';
 import { UserAvatar } from '../components/UserAvatar';
 import { toast } from '../context/ToastContext';
 import { EmptyState } from '../components/EmptyState';
+import { formatProperName } from '../utils/formatUtils';
 
 interface TeamViewProps {
   agents: Agent[];
@@ -352,15 +353,15 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                     className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                   />
                 </th>
-                <th className="py-3.5 px-4 font-semibold text-slate-700">Name</th>
+                <th className="py-3.5 px-4 font-medium text-slate-600">Name</th>
 
                 {/* ROLE COLUMN WITH FILTER DROPDOWN MATCHING SCREENSHOT */}
-                <th className="py-3.5 px-4 font-semibold text-slate-700 relative">
+                <th className="py-3.5 px-4 font-medium text-slate-600 relative">
                   <div className="relative inline-block text-left">
                     <button
                       type="button"
                       onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-                      className="flex items-center space-x-1.5 text-slate-700 hover:text-indigo-600 font-semibold cursor-pointer select-none"
+                      className="flex items-center space-x-1.5 text-slate-600 hover:text-indigo-600 font-medium cursor-pointer select-none"
                     >
                       <div className="w-px h-3.5 bg-slate-200 mr-1" />
                       <Users className="w-3.5 h-3.5 text-indigo-600" />
@@ -423,11 +424,11 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                   </div>
                 </th>
 
-                <th className="py-3.5 px-4 font-semibold text-slate-700">Permission Template</th>
-                <th className="py-3.5 px-4 font-semibold text-slate-700">2FA</th>
-                <th className="py-3.5 px-4 font-semibold text-slate-700">License Expiry</th>
-                <th className="py-3.5 px-4 font-semibold text-slate-700">License Type</th>
-                <th className="py-3.5 px-4 font-semibold text-slate-700 text-right">Actions</th>
+                <th className="py-3.5 px-4 font-medium text-slate-600">Permission Template</th>
+                <th className="py-3.5 px-4 font-medium text-slate-600">2FA</th>
+                <th className="py-3.5 px-4 font-medium text-slate-600">License Expiry</th>
+                <th className="py-3.5 px-4 font-medium text-slate-600">License Type</th>
+                <th className="py-3.5 px-4 font-medium text-slate-600 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -486,9 +487,9 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                       {/* Name & Avatar */}
                       <td className="py-3.5 px-4">
                         <div className="flex items-center space-x-3">
-                          <UserAvatar name={ag.name} avatarUrl={ag.avatar} size="md" rounded="full" />
+                          <UserAvatar name={formatProperName(ag.name)} avatarUrl={ag.avatar} size="md" rounded="full" />
                           <div>
-                            <p className="font-semibold text-slate-900 text-xs sm:text-sm">{ag.name}</p>
+                            <p className="font-medium text-slate-900 text-xs sm:text-sm">{formatProperName(ag.name)}</p>
                             <a 
                               href={`mailto:${ag.email}`}
                               onClick={(e) => e.stopPropagation()}

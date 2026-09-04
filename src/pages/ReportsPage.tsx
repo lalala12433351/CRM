@@ -24,6 +24,7 @@ import { CallRecord, Agent, Lead, ActivityLog } from '../types';
 import { CallRecordingPlayer } from '../components/CallRecordingPlayer';
 import { UserAvatar } from '../components/UserAvatar';
 import { CustomDropdown, DropdownOption } from '../components/CustomDropdown';
+import { formatProperName } from '../utils/formatUtils';
 
 export type ReportsSubTab = 'call_logs' | 'leaderboard' | 'user_report';
 
@@ -638,7 +639,7 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
                     onChange={(val) => setAgentFilter(val)}
                     options={[
                       { value: 'ALL', label: 'All Agents' },
-                      ...agents.map(ag => ({ value: ag.id, label: ag.name }))
+                      ...agents.map(ag => ({ value: ag.id, label: formatProperName(ag.name) }))
                     ]}
                     align="left"
                   />
@@ -690,9 +691,9 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
                           <div className="space-y-0.5">
                             <button
                               onClick={() => foundLead && onOpenLeadDetail && onOpenLeadDetail(foundLead)}
-                              className="font-bold text-sm text-slate-900 hover:text-indigo-600 text-left cursor-pointer"
+                              className="font-medium text-sm text-slate-900 hover:text-indigo-600 text-left cursor-pointer"
                             >
-                              {call.leadName}
+                              {formatProperName(call.leadName)}
                             </button>
                             <p className="text-xs text-slate-500 font-mono">{call.leadPhone}</p>
                           </div>
@@ -717,7 +718,7 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
                               {call.type === 'missed' && <PhoneMissed className="w-3 h-3 text-rose-600" />}
                               <span className="capitalize">{call.type} ({formatSecs(call.durationSeconds)})</span>
                             </span>
-                            <span>• {call.agentName}</span>
+                            <span>• {formatProperName(call.agentName)}</span>
                           </div>
 
                           <span className="text-[10px] text-slate-500 flex items-center space-x-1 font-medium">
@@ -810,19 +811,19 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
           {/* Summary Row */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 text-xs font-mono">
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-              <span className="text-[10px] text-slate-500 font-bold uppercase">Active Telecallers</span>
+              <span className="text-[10px] text-slate-500 font-bold">Active Telecallers</span>
               <p className="text-sm font-bold text-slate-900 mt-0.5">{rankedAgents.length}</p>
             </div>
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-              <span className="text-[10px] text-slate-500 font-bold uppercase">Period Calls Made</span>
+              <span className="text-[10px] text-slate-500 font-bold">Period Calls Made</span>
               <p className="text-sm font-bold text-slate-900 mt-0.5">{totalCalls}</p>
             </div>
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-              <span className="text-[10px] text-slate-500 font-bold uppercase">Period Talk Time</span>
+              <span className="text-[10px] text-slate-500 font-bold">Period Talk Time</span>
               <p className="text-sm font-bold text-slate-900 mt-0.5">{formatSecs(totalTalkTimeSecs)}</p>
             </div>
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-              <span className="text-[10px] text-slate-500 font-bold uppercase">Period Deals Won</span>
+              <span className="text-[10px] text-slate-500 font-bold">Period Deals Won</span>
               <p className="text-sm font-bold text-purple-700 mt-0.5">
                 {rankedAgents.reduce((sum, a) => sum + a.calculatedConverted, 0)}
               </p>
@@ -833,7 +834,7 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
           <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
             <div className="overflow-x-auto ios-scroll">
               <table className="w-full text-left text-xs font-mono text-slate-800 min-w-[600px]">
-                <thead className="bg-slate-50 text-slate-600 uppercase text-[10px] border-b border-slate-200 font-bold select-none">
+                <thead className="bg-slate-50 text-slate-600 text-xs border-b border-slate-200 font-medium select-none">
                   <tr>
                     <th className="px-4 py-3">Rank</th>
                     <th 
@@ -915,9 +916,9 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
 
                       <td className="px-4 py-3">
                         <div className="flex items-center space-x-2.5">
-                          <UserAvatar name={ag.name} avatarUrl={ag.avatar} size="sm" rounded="full" />
+                          <UserAvatar name={formatProperName(ag.name)} avatarUrl={ag.avatar} size="sm" rounded="full" />
                           <div>
-                            <p className="font-bold text-slate-900">{ag.name}</p>
+                            <p className="font-medium text-slate-900">{formatProperName(ag.name)}</p>
                             <p className="text-[10px] text-slate-500">{ag.role}</p>
                           </div>
                         </div>
@@ -965,9 +966,9 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
           {/* Telecaller Selector Bar */}
           <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
             <div className="flex items-center space-x-3">
-              <UserAvatar name={currentAgentReport.name} size="lg" rounded="full" />
+              <UserAvatar name={formatProperName(currentAgentReport.name)} size="lg" rounded="full" />
               <div>
-                <h3 className="font-bold text-sm text-slate-900">{currentAgentReport.name}</h3>
+                <h3 className="font-bold text-sm text-slate-900">{formatProperName(currentAgentReport.name)}</h3>
                 <p className="text-[10px] text-slate-500">{currentAgentReport.role} • {currentAgentReport.phone}</p>
               </div>
             </div>
@@ -977,7 +978,7 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
               <CustomDropdown<string>
                 value={selectedAgentId}
                 onChange={(val) => setSelectedAgentId(val)}
-                options={rankedAgents.map(ag => ({ value: ag.id, label: ag.name }))}
+                options={rankedAgents.map(ag => ({ value: ag.id, label: formatProperName(ag.name) }))}
                 align="right"
               />
             </div>
@@ -986,22 +987,22 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
           {/* Key Metrics */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-              <span className="text-[10px] text-slate-500 font-bold uppercase block">Calls Logged</span>
+              <span className="text-[10px] text-slate-500 font-bold block">Calls Logged</span>
               <p className="text-sm font-bold text-slate-900 mt-1">{currentAgentReport.calculatedCalls}</p>
             </div>
 
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-              <span className="text-[10px] text-slate-500 font-bold uppercase block">Talk Time</span>
+              <span className="text-[10px] text-slate-500 font-bold block">Talk Time</span>
               <p className="text-sm font-bold text-slate-900 mt-1">{formatSecs(currentAgentReport.calculatedTalkTimeSecs)}</p>
             </div>
 
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-              <span className="text-[10px] text-slate-500 font-bold uppercase block">Deals Converted</span>
+              <span className="text-[10px] text-slate-500 font-bold block">Deals Converted</span>
               <p className="text-sm font-bold text-purple-700 mt-1">{currentAgentReport.calculatedConverted}</p>
             </div>
 
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-              <span className="text-[10px] text-slate-500 font-bold uppercase block">Revenue Generated</span>
+              <span className="text-[10px] text-slate-500 font-bold block">Revenue Generated</span>
               <p className="text-sm font-bold text-slate-900 mt-1">₹{currentAgentReport.calculatedRevenue.toLocaleString()}</p>
             </div>
           </div>
@@ -1009,9 +1010,9 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
           {/* Agent Call History & Time Sort */}
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3 font-mono">
-              <h4 className="text-xs font-bold uppercase text-slate-800 tracking-wider flex items-center space-x-2">
+              <h4 className="text-xs font-bold text-slate-800 flex items-center space-x-2">
                 <PhoneCall className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Call Logs for {currentAgentReport.name} ({selectedAgentCalls.length})</span>
+                <span>Call Logs for {formatProperName(currentAgentReport.name)} ({selectedAgentCalls.length})</span>
               </h4>
 
               {/* Time Sort Selector for Individual Telecaller Calls */}
@@ -1041,7 +1042,7 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
                 selectedAgentCalls.map(c => (
                   <div key={c.id} className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex items-center justify-between hover:border-slate-300 transition-colors">
                     <div className="space-y-0.5">
-                      <p className="font-bold text-slate-900">{c.leadName}</p>
+                      <p className="font-medium text-slate-900">{formatProperName(c.leadName)}</p>
                       <p className="text-[10px] text-slate-500">
                         {c.leadPhone} • {formatSecs(c.durationSeconds)} • <span className="text-slate-500">{new Date(c.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span>
                       </p>

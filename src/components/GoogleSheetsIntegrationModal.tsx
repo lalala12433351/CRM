@@ -20,6 +20,7 @@ import {
   Code
 } from 'lucide-react';
 import { Lead, LeadSource, LeadStatus } from '../types';
+import { formatProperName } from '../utils/formatUtils';
 
 interface GoogleSheetsIntegrationModalProps {
   leads: Lead[];
@@ -416,7 +417,7 @@ function onFormOrSheetSubmit(e) {
 
                 <div className="border border-slate-200 rounded-xl overflow-x-auto bg-white shadow-2xs">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-100 border-b border-slate-200 text-slate-700 font-bold text-[11px]">
+                    <thead className="bg-slate-100 border-b border-slate-200 text-slate-600 font-medium text-[11px]">
                       <tr>
                         <th className="py-2.5 px-3">Lead Name</th>
                         <th className="py-2.5 px-3">Phone</th>
@@ -437,11 +438,11 @@ function onFormOrSheetSubmit(e) {
                       ) : (
                         sampleRows.map((r, i) => (
                           <tr key={i} className="hover:bg-slate-50/80">
-                            <td className="py-2 px-3 font-semibold text-slate-900">{r['Full Name']}</td>
+                            <td className="py-2 px-3 font-medium text-slate-900">{formatProperName(r['Full Name'])}</td>
                             <td className="py-2 px-3 font-mono text-[11px] text-slate-600">{r['Phone Number']}</td>
                             <td className="py-2 px-3 text-slate-600">{r['Email Address']}</td>
-                            <td className="py-2 px-3">{r['Company / Organization']}</td>
-                            <td className="py-2 px-3">{r['City / Location']}</td>
+                            <td className="py-2 px-3">{r['Company / Organization'] ? formatProperName(r['Company / Organization']) : '-'}</td>
+                            <td className="py-2 px-3">{r['City / Location'] ? formatProperName(r['City / Location']) : '-'}</td>
                             <td className="py-2 px-3 font-bold text-slate-900 font-mono">₹{Number(r['Budget / Deal Value']).toLocaleString('en-IN')}</td>
                             <td className="py-2 px-3">
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800">

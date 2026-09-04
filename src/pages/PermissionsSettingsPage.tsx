@@ -28,6 +28,7 @@ import {
   UserPlus
 } from 'lucide-react';
 import { PermissionTemplate, PermissionRights, Agent } from '../types';
+import { formatProperName } from '../utils/formatUtils';
 
 interface PermissionsSettingsViewProps {
   permissionTemplates: PermissionTemplate[];
@@ -237,7 +238,7 @@ export const PermissionsSettingsPage: React.FC<PermissionsSettingsViewProps> = (
         {/* Table View (Matching Screenshot 1) */}
         <div className="overflow-x-auto rounded-xl border border-slate-200/80">
           <table className="w-full text-left text-xs text-slate-700">
-            <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
+            <thead className="bg-slate-100 text-slate-700 font-medium border-b border-slate-200 text-[11px]">
               <tr>
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium text-center">Assigned to</th>
@@ -259,7 +260,7 @@ export const PermissionsSettingsPage: React.FC<PermissionsSettingsViewProps> = (
                     <td className="px-4 py-3">
                       <div className="flex items-center space-x-2.5">
                         <ShieldCheck className="w-4 h-4 text-slate-600 shrink-0" />
-                        <span className="font-semibold text-slate-900">{template.name}</span>
+                        <span className="font-medium text-slate-900">{template.name}</span>
                         {template.isDefault && (
                           <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md border border-slate-200 font-medium">
                             System
@@ -505,7 +506,7 @@ export const PermissionsSettingsPage: React.FC<PermissionsSettingsViewProps> = (
                     {/* Table of Assigned Users (Screenshot 2) */}
                     <div className="overflow-x-auto rounded-xl border border-slate-200">
                       <table className="w-full text-left text-xs">
-                        <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                        <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
                           <tr>
                             <th className="px-4 py-2.5">Attach</th>
                             <th className="px-4 py-2.5">Name</th>
@@ -526,9 +527,9 @@ export const PermissionsSettingsPage: React.FC<PermissionsSettingsViewProps> = (
                                     className="w-4 h-4 rounded text-indigo-600 cursor-pointer"
                                   />
                                 </td>
-                                <td className="px-4 py-2.5 font-medium text-slate-900">{agent.name}</td>
+                                <td className="px-4 py-2.5 font-medium text-slate-900">{formatProperName(agent.name)}</td>
                                 <td className="px-4 py-2.5 text-slate-500">{agent.email}</td>
-                                <td className="px-4 py-2.5 text-slate-700 font-semibold">{agent.role || 'Caller'}</td>
+                                <td className="px-4 py-2.5 text-slate-700 font-medium">{agent.role || 'Caller'}</td>
                               </tr>
                             );
                           })}

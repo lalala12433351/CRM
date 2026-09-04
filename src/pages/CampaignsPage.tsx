@@ -49,6 +49,7 @@ import { getStatusStyle, getStatusBadgeClasses } from '../utils/statusStyles';
 import { StagesContext } from '../App';
 import { LeadDetailModal } from '../components/LeadDetailModal';
 import { toast } from '../context/ToastContext';
+import { formatProperName } from '../utils/formatUtils';
 
 interface CampaignsViewProps {
   leads: Lead[];
@@ -761,7 +762,7 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
                               style={{ backgroundColor: item.color }} 
                             />
                             <div className="text-slate-800">
-                              <span>{item.name}</span>{' '}
+                              <span>{formatProperName(item.name)}</span>{' '}
                               <span className="text-slate-600 font-medium">({item.percentage}%)</span>
                             </div>
                           </div>
@@ -1020,7 +1021,7 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
                         className="text-xs font-bold text-slate-900 leading-tight truncate"
                         title={lead.name}
                       >
-                        {lead.name}
+                        {formatProperName(lead.name)}
                       </h4>
                       <p className="text-[11px] font-mono text-slate-600 mt-0.5">
                         {lead.phone}

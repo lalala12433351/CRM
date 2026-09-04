@@ -17,6 +17,7 @@ import {
 import { CallRecord } from '../types';
 import { CallRecordingPlayer } from '../components/CallRecordingPlayer';
 import { StatusBadge } from '../components/StatusBadge';
+import { formatProperName } from '../utils/formatUtils';
 
 interface CallingLogsViewProps {
   callRecords: CallRecord[];
@@ -119,7 +120,7 @@ export const CallingLogsPage: React.FC<CallingLogsViewProps> = ({ callRecords, o
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-800">
-            <thead className="bg-slate-50 text-slate-600 uppercase font-mono text-[10px] tracking-wider border-b border-slate-200">
+            <thead className="bg-slate-50 text-slate-600 font-medium text-[11px] border-b border-slate-200">
               <tr>
                 <th className="px-3.5 py-2.5">Lead Contact</th>
                 <th className="px-3.5 py-2.5">Assignee Agent</th>
@@ -134,7 +135,7 @@ export const CallingLogsPage: React.FC<CallingLogsViewProps> = ({ callRecords, o
                 <tr key={call.id} className="hover:bg-slate-50 transition-all">
                   {/* Lead Details */}
                   <td className="px-3.5 py-3">
-                    <p className="font-bold text-slate-900">{call.leadName}</p>
+                    <p className="font-medium text-slate-900">{formatProperName(call.leadName)}</p>
                     <p className="text-[10px] font-mono text-slate-500">{call.leadPhone}</p>
                     <div className="mt-1">
                       <StatusBadge status={call.disposition} size="xs" />
@@ -145,7 +146,7 @@ export const CallingLogsPage: React.FC<CallingLogsViewProps> = ({ callRecords, o
                   <td className="px-3.5 py-3">
                     <div className="flex items-center space-x-1.5 text-slate-900">
                       <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
-                      <span className="font-bold text-xs">{call.agentName}</span>
+                      <span className="font-medium text-xs">{formatProperName(call.agentName)}</span>
                     </div>
                     <span className="text-[10px] text-slate-500 capitalize">{call.type} Call</span>
                   </td>

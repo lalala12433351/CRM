@@ -613,7 +613,7 @@ export const FieldsSettingsPage: React.FC<FieldsSettingsViewProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-medium uppercase tracking-wider text-[11px]">
+                <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-semibold text-[11px]">
                   <th 
                     onClick={() => toggleSort('label')}
                     className="py-3 px-4 cursor-pointer hover:text-slate-900 transition-colors select-none font-medium"

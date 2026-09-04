@@ -28,6 +28,7 @@ import {
 import { Lead, PipelineStage, LeadStatus, CustomFieldDef, Agent, formatDealValue, formatDealValueCompact } from '../types';
 import { LeadSummaryModal } from '../components/LeadSummaryModal';
 import { toast } from '../context/ToastContext';
+import { formatProperName } from '../utils/formatUtils';
 
 interface PipelineViewProps {
   leads: Lead[];
@@ -879,7 +880,6 @@ export const PipelinePage: React.FC<PipelineViewProps> = ({
                   </div>
                 </div>
               </div>
-
             </div>
           </div>
         </div>
@@ -922,135 +922,135 @@ export const PipelinePage: React.FC<PipelineViewProps> = ({
                   key={stage.id} 
                   className="w-[84vw] sm:w-68 shrink-0 snap-center bg-white border border-slate-200 rounded-xl p-3 flex flex-col max-h-[78vh] shadow-sm"
                 >
-                <div className="p-1.5 border-b border-slate-200 space-y-1 mb-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-1.5">
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: stage.color }} />
-                      <h3 className="text-xs font-bold text-slate-900 uppercase tracking-tight">{stage.name}</h3>
-                    </div>
-                    <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                      {stageLeads.length}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-[10px] text-slate-500">
-                    <span className="capitalize font-semibold px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700">
-                      {stage.category || (stage.name === 'New Lead' || stage.name === 'Fresh' ? 'initial' : stage.name === 'Converted' || stage.name === 'Lost' ? 'closed' : 'active')}
-                    </span>
-                    <span className="font-bold text-slate-700 font-mono">{formatDealValueCompact(stageValue, currency)}</span>
-                  </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto space-y-2 pr-0.5 bg-slate-50 p-2 rounded-lg border border-slate-200">
-                  {stageLeads.length === 0 ? (
-                    <div className="p-4 text-center text-slate-400 text-[10px] font-mono border border-dashed border-slate-300 rounded">
-                      Empty Stage
-                    </div>
-                  ) : (
-                    stageLeads.map((lead) => (
-                      <div
-                        key={lead.id}
-                        onClick={() => onOpenLeadDetail(lead)}
-                        className={`p-2.5 rounded-lg bg-white border-l-3 ${
-                          lead.aiRating === 'Hot' ? 'border-l-indigo-600' : 'border-l-slate-400'
-                        } border-r border-t border-b border-slate-200 shadow-xs space-y-2 group cursor-pointer hover:shadow-md transition-all`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="text-xs font-semibold text-slate-700 leading-tight hover:text-slate-900 hover:underline capitalize">
-                              {(() => {
-                                const h1 = customFields.find((f) => f.primarySlot === 'H1');
-                                if (h1 && h1.name !== 'name' && (lead as any)[h1.name]) {
-                                  return (lead as any)[h1.name];
-                                }
-                                return lead.name;
-                              })()}
-                            </p>
-                            <p className="text-[10px] text-slate-500">
-                              {(() => {
-                                const h2 = customFields.find((f) => f.primarySlot === 'H2');
-                                if (h2 && (lead as any)[h2.name]) {
-                                  return (lead as any)[h2.name];
-                                }
-                                return lead.company || lead.phone;
-                              })()}
-                            </p>
-                          </div>
-                          {lead.aiRating === 'Hot' && (
-                            <span title="AI Hot Lead" className="text-amber-500 text-xs">🔥</span>
-                          )}
-                        </div>
-
-                        <div className="flex items-center justify-between text-[10px] font-mono">
-                          <span className="font-bold text-emerald-600">{formatDealValue(lead.dealValue || 0, currency)}</span>
-                          <div className="flex items-center space-x-1">
-                            {lead.status === 'Lost' && lead.lostReason && (
-                              <span className="text-[9px] text-rose-700 font-bold px-1.5 py-0.2 rounded bg-rose-50 border border-rose-200 truncate max-w-[100px]" title={`Lost Reason: ${lead.lostReason}`}>
-                                {lead.lostReason}
-                              </span>
-                            )}
-                            <span className="text-[9px] text-slate-600 px-1 py-0.2 rounded bg-slate-100 border border-slate-200">{lead.source}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between pt-1.5 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
-                          <select
-                            value={lead.status}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              if (e.target.value === 'Follow Up') {
-                                openFollowUpModal(lead);
-                              } else {
-                                onUpdateLeadStage(lead.id, e.target.value as LeadStatus);
-                              }
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="bg-slate-50 text-[9px] font-mono text-slate-700 rounded px-1 py-0.5 focus:outline-none border border-slate-200 cursor-pointer"
-                          >
-                            {stages.map((stage) => (
-                              <option key={stage.id || stage.name} value={stage.name}>
-                                Move: {stage.name}
-                              </option>
-                            ))}
-                          </select>
-
-                          <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setSummaryLead(lead); }}
-                              title="Quick Lead Call Brief"
-                              className="px-2 py-0.5 rounded bg-transparent border border-indigo-200 text-indigo-700 hover:bg-indigo-50/50 transition-colors cursor-pointer text-[10px] font-semibold"
-                            >
-                              Brief
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); openFollowUpModal(lead); }}
-                              title="Schedule Follow-Up"
-                              className="px-2 py-0.5 rounded bg-transparent border border-purple-200 text-[#5034a8] hover:bg-purple-50/50 transition-colors cursor-pointer text-[10px] font-semibold"
-                            >
-                              Follow Up
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                window.location.href = `tel:${lead.phone}`;
-                                if (onOpenPowerDialerForLead) onOpenPowerDialerForLead(lead);
-                              }}
-                              title="Direct Call"
-                              className="p-1 rounded bg-emerald-100 hover:bg-emerald-600 text-emerald-700 hover:text-white cursor-pointer"
-                            >
-                              <PhoneCall className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
+                  <div className="p-1.5 border-b border-slate-200 space-y-1 mb-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1.5">
+                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: stage.color }} />
+                        <h3 className="text-xs font-bold text-slate-900 uppercase tracking-tight">{stage.name}</h3>
                       </div>
-                    ))
-                  )}
+                      <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                        {stageLeads.length}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[10px] text-slate-500">
+                      <span className="capitalize font-semibold px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700">
+                        {stage.category || (stage.name === 'New Lead' || stage.name === 'Fresh' ? 'initial' : stage.name === 'Converted' || stage.name === 'Lost' ? 'closed' : 'active')}
+                      </span>
+                      <span className="font-bold text-slate-700 font-mono">{formatDealValueCompact(stageValue, currency)}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto space-y-2 pr-0.5 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                    {stageLeads.length === 0 ? (
+                      <div className="p-4 text-center text-slate-400 text-[10px] font-mono border border-dashed border-slate-300 rounded">
+                        Empty Stage
+                      </div>
+                    ) : (
+                      stageLeads.map((lead) => (
+                        <div
+                          key={lead.id}
+                          onClick={() => onOpenLeadDetail(lead)}
+                          className={`p-2.5 rounded-lg bg-white border-l-3 ${
+                            lead.aiRating === 'Hot' ? 'border-l-indigo-600' : 'border-l-slate-400'
+                          } border-r border-t border-b border-slate-200 shadow-xs space-y-2 group cursor-pointer hover:shadow-md transition-all`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className="text-xs font-semibold text-slate-700 leading-tight hover:text-slate-900 hover:underline">
+                                {(() => {
+                                  const h1 = customFields.find((f) => f.primarySlot === 'H1');
+                                  if (h1 && h1.name !== 'name' && (lead as any)[h1.name]) {
+                                    return formatProperName((lead as any)[h1.name]);
+                                  }
+                                  return formatProperName(lead.name);
+                                })()}
+                              </p>
+                              <p className="text-[10px] text-slate-500">
+                                {(() => {
+                                  const h2 = customFields.find((f) => f.primarySlot === 'H2');
+                                  if (h2 && (lead as any)[h2.name]) {
+                                    return formatProperName((lead as any)[h2.name]);
+                                  }
+                                  return lead.company ? formatProperName(lead.company) : lead.phone;
+                                })()}
+                              </p>
+                            </div>
+                            {lead.aiRating === 'Hot' && (
+                              <span title="AI Hot Lead" className="text-amber-500 text-xs">🔥</span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between text-[10px] font-mono">
+                            <span className="font-bold text-emerald-600">{formatDealValue(lead.dealValue || 0, currency)}</span>
+                            <div className="flex items-center space-x-1">
+                              {lead.status === 'Lost' && lead.lostReason && (
+                                <span className="text-[9px] text-rose-700 font-bold px-1.5 py-0.2 rounded bg-rose-50 border border-rose-200 truncate max-w-[100px]" title={`Lost Reason: ${lead.lostReason}`}>
+                                  {lead.lostReason}
+                                </span>
+                              )}
+                              <span className="text-[9px] text-slate-600 px-1 py-0.2 rounded bg-slate-100 border border-slate-200">{lead.source}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1.5 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
+                            <select
+                              value={lead.status}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                if (e.target.value === 'Follow Up') {
+                                  openFollowUpModal(lead);
+                                } else {
+                                  onUpdateLeadStage(lead.id, e.target.value as LeadStatus);
+                                }
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              className="bg-slate-50 text-[9px] font-mono text-slate-700 rounded px-1 py-0.5 focus:outline-none border border-slate-200 cursor-pointer"
+                            >
+                              {stages.map((stage) => (
+                                <option key={stage.id || stage.name} value={stage.name}>
+                                  Move: {stage.name}
+                                </option>
+                              ))}
+                            </select>
+
+                            <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setSummaryLead(lead); }}
+                                title="Quick Lead Call Brief"
+                                className="px-2 py-0.5 rounded bg-transparent border border-indigo-200 text-indigo-700 hover:bg-indigo-50/50 transition-colors cursor-pointer text-[10px] font-semibold"
+                              >
+                                Brief
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); openFollowUpModal(lead); }}
+                                title="Schedule Follow-Up"
+                                className="px-2 py-0.5 rounded bg-transparent border border-purple-200 text-[#5034a8] hover:bg-purple-50/50 transition-colors cursor-pointer text-[10px] font-semibold"
+                              >
+                                Follow Up
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.location.href = `tel:${lead.phone}`;
+                                  if (onOpenPowerDialerForLead) onOpenPowerDialerForLead(lead);
+                                }}
+                                title="Direct Call"
+                                className="p-1 rounded bg-emerald-100 hover:bg-emerald-600 text-emerald-700 hover:text-white cursor-pointer"
+                              >
+                                <PhoneCall className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
       )}
 
       {/* Modal: Add New Active Stage */}

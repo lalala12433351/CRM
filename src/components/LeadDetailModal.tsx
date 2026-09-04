@@ -63,6 +63,7 @@ import {
 } from 'lucide-react';
 import { Lead, Agent, ActivityLog, LeadStatus, LeadSource, WhatsAppMessage, CallRecord, PipelineStage, CustomFieldDef, LeadTask } from '../types';
 import { CustomDropdown, DropdownOption } from './CustomDropdown';
+import { formatProperName } from '../utils/formatUtils';
 import { calculateLeadQualityScore } from '../utils/conversionEngine';
 import { CallRecordingPlayer } from './CallRecordingPlayer';
 import { StatusBadge } from './StatusBadge';
@@ -148,9 +149,10 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
     if (key === 'phone' || idKey === 'f-phone' || field.type === 'phone') return lead.phone || '';
     if (key === 'email' || idKey === 'f-email' || field.type === 'email') return lead.email || '';
     if (key === 'alternate_phone' || key === 'alternatePhone' || idKey === 'f-alt-phone') return lead.alternatePhone || lead.altPhone || '';
-    if (key === 'company' || idKey === 'f-company') return lead.company || '';
-    if (key === 'city' || idKey === 'f-city') return lead.city || '';
-    if (key === 'state' || idKey === 'f-state') return lead.state || '';
+    if (key === 'name' || idKey === 'f-name') return lead.name ? formatProperName(lead.name) : '';
+    if (key === 'company' || idKey === 'f-company') return lead.company ? formatProperName(lead.company) : '';
+    if (key === 'city' || idKey === 'f-city') return lead.city ? formatProperName(lead.city) : '';
+    if (key === 'state' || idKey === 'f-state') return lead.state ? formatProperName(lead.state) : '';
     if (key === 'pincode' || idKey === 'f-pincode') return lead.pincode || '';
     if (key === 'address' || idKey === 'f-addr') return lead.address || '';
     if (key === 'source' || idKey === 'f-source' || labelLower.includes('source')) return lead.source || '';
@@ -1207,7 +1209,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
               {campaignHandle}
             </span>
           ) : (
-            <span className="text-xs font-bold text-slate-800 truncate max-w-[160px]">{lead.name}</span>
+            <span className="text-xs font-bold text-slate-800 truncate max-w-[160px]">{formatProperName(lead.name)}</span>
           )}
 
           <div className="flex items-center space-x-1.5 text-xs font-semibold text-slate-600">
@@ -1244,7 +1246,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
               <X className="w-4 h-4" />
               <span>Close</span>
             </button>
-            <span className="text-xs font-bold text-slate-800 truncate max-w-[140px]">{lead.name}</span>
+            <span className="text-xs font-bold text-slate-800 truncate max-w-[140px]">{formatProperName(lead.name)}</span>
             <div className="flex items-center space-x-1 text-xs font-semibold text-slate-600">
               <button onClick={handlePrevLead} className="p-1 hover:text-slate-900 rounded-md bg-slate-50 border border-slate-200 cursor-pointer">
                 <ChevronLeft className="w-3.5 h-3.5" />
@@ -1278,7 +1280,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                {/* Top Title Row */}
                <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center p-3.5 sm:p-5 gap-3 border-b border-slate-100">
                  <div className="w-full sm:w-auto">
-                   <h1 className="text-lg sm:text-[22px] font-bold text-slate-800 tracking-tight font-serif break-words">{lead.name}</h1>
+                   <h1 className="text-lg sm:text-[22px] font-bold text-slate-800 tracking-tight font-serif break-words">{formatProperName(lead.name)}</h1>
                    
                    <div className="flex flex-wrap items-center gap-2 mt-2">
                      {/* Status Dropdown */}
@@ -1518,8 +1520,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                        onClick={(e) => { e.stopPropagation(); setShowAssigneeMenu(!showAssigneeMenu); setShowCampaignMenu(false); setShowTagMenu(false); setShowMoreOptions(false); }}
                        className="flex items-center space-x-2 hover:bg-slate-50 p-1 -m-1 rounded-lg transition-colors cursor-pointer"
                        title="Transfer Lead"
-                     >
-                       <span className="text-[13px] text-slate-700 font-medium hover:text-indigo-600 transition-colors border-b border-dashed border-slate-300">{lead.ownerAgentName || 'Radhika M R'}</span>
+                     >                       <span className="text-[13px] text-slate-700 font-medium hover:text-indigo-600 transition-colors border-b border-dashed border-slate-300">{lead.ownerAgentName ? formatProperName(lead.ownerAgentName) : 'Radhika M R'}</span>
                        <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-700">
                          {getAgentInitials(lead.ownerAgentName || 'Radhika M R')}
                        </div>
@@ -1527,7 +1528,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
 
                      {showAssigneeMenu && (
                        <div onClick={(e) => e.stopPropagation()} className="absolute right-0 top-full mt-2 w-56 bg-white border border-slate-200 shadow-xl rounded-xl p-2 z-30">
-                         <p className="text-[10px] text-slate-500 font-semibold mb-2 px-2 uppercase tracking-wide">Transfer Lead To</p>
+                         <p className="text-[10px] text-slate-500 font-semibold mb-2 px-2 tracking-wide font-medium text-slate-600">Transfer Lead To</p>
                          <div className="max-h-48 overflow-y-auto space-y-0.5">
                            {agents.map(agent => (
                              <button
@@ -1540,15 +1541,15 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                              >
                                <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[9px] font-bold text-slate-600 shrink-0">
                                  {getAgentInitials(agent.name)}
-                               </div>
-                               <span className="truncate">{agent.name}</span>
+                                </div>
+                               <span className="truncate">{formatProperName(agent.name)}</span>
                                {lead.ownerAgentId === agent.id && <Check className="w-3.5 h-3.5 ml-auto text-indigo-600" />}
                              </button>
                            ))}
-                         </div>
-                       </div>
-                     )}
-                   </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                  </div>
                </div>
 
@@ -1884,7 +1885,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                   <h4 className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
                     <Mail className="w-4 h-4 text-[#5034a8]" />
-                    <span>Email Lead: {lead.name}</span>
+                    <span>Email Lead: {formatProperName(lead.name)}</span>
                   </h4>
                   <button onClick={() => setActiveActionType(null)} className="text-slate-400 hover:text-slate-600">
                     <X className="w-4 h-4" />
@@ -2103,7 +2104,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                   <h4 className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
                     <CheckSquare className="w-4 h-4 text-[#5034a8]" />
-                    <span>Create Task / Reminder for {lead.name}</span>
+                    <span>Create Task / Reminder for {formatProperName(lead.name)}</span>
                   </h4>
                   <button onClick={() => setActiveActionType(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
                     <X className="w-4 h-4" />
@@ -2231,7 +2232,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                     </select>
                   </div>
                   <p className="text-[10px] text-slate-400 mt-1">
-                    Directly assigned to this lead's owner ({lead.ownerAgentName || 'Unassigned'}).
+                    Directly assigned to this lead's owner ({lead.ownerAgentName ? formatProperName(lead.ownerAgentName) : 'Unassigned'}).
                   </p>
                 </div>
                 <div>

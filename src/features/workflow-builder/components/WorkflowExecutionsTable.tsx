@@ -11,6 +11,7 @@ import {
   Hourglass,
   X
 } from 'lucide-react';
+import { formatProperName } from '../../../utils/formatUtils';
 
 export type ExecutionStatus = 'success' | 'failed' | 'sleeping' | 'waiting' | 'pending';
 export type TimeFilterOption = 'all' | '1hour' | '24hours' | '7days' | '30days';
@@ -326,7 +327,7 @@ export const WorkflowExecutionsTable: React.FC<WorkflowExecutionsTableProps> = (
                       </div>
                     </td>
                     <td className="py-4 px-8 text-left">
-                      <div className="text-slate-800 font-normal">{exec.leadName}</div>
+                      <div className="text-slate-800 font-normal">{formatProperName(exec.leadName)}</div>
                       <div className="text-[11px] text-slate-400 mt-0.5 font-mono">
                         {exec.leadPhone}
                       </div>
@@ -355,7 +356,7 @@ export const WorkflowExecutionsTable: React.FC<WorkflowExecutionsTableProps> = (
                   Execution Run: {selectedExecution.id}
                 </h3>
                 <p className="text-[10px] text-slate-500 font-normal">
-                  {selectedExecution.timestamp} • Lead: {selectedExecution.leadName}
+                  {selectedExecution.timestamp} • Lead: {formatProperName(selectedExecution.leadName)}
                 </p>
               </div>
               <button

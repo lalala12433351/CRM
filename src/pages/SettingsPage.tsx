@@ -2664,7 +2664,7 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-[10px] font-noto">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[8px] tracking-wider">
+                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-medium text-[9px]">
                         <th className="py-2 px-2.5">Transaction ID</th>
                         <th className="py-2 px-2.5">Date</th>
                         <th className="py-2 px-2.5">Service / License</th>
@@ -2677,9 +2677,9 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
                     <tbody className="divide-y divide-slate-100 font-medium">
                       {transactions.map((txn) => (
                         <tr key={txn.id} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="py-2 px-2.5 font-bold text-slate-900">{txn.id}</td>
+                          <td className="py-2 px-2.5 font-medium text-slate-900">{txn.id}</td>
                           <td className="py-2 px-2.5 text-slate-600">{txn.date}</td>
-                          <td className="py-2 px-2.5 font-bold text-purple-900">{txn.item}</td>
+                          <td className="py-2 px-2.5 font-medium text-purple-900">{txn.item}</td>
                           <td className="py-2 px-2.5 font-extrabold text-slate-900">
                             ₹{txn.amount.toLocaleString('en-IN')}
                           </td>
