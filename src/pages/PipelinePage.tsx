@@ -90,11 +90,12 @@ export const PipelinePage: React.FC<PipelineViewProps> = ({
     const defaultDate = new Date(Date.now() + 3600000);
     setFollowUpDate(defaultDate.toISOString().slice(0, 10));
     let h = defaultDate.getHours();
-    const period = h >= 12 ? 'PM' : 'AM';
+    const isPm = h >= 12;
+    const period = isPm ? 'PM' : 'AM';
     h = h % 12;
     if (h === 0) h = 12;
     setFollowUpHour(String(h).padStart(2, '0'));
-    setFollowUpMinute(String(Math.round(defaultDate.getMinutes() / 5) * 5 % 60).padStart(2, '0'));
+    setFollowUpMinute(String(defaultDate.getMinutes()).padStart(2, '0'));
     setFollowUpAmPm(period);
     setFollowUpRemarks('');
     setFollowUpLead(lead);
@@ -1058,7 +1059,7 @@ export const PipelinePage: React.FC<PipelineViewProps> = ({
           <div className="bg-white border border-slate-200 rounded-xl w-full max-w-sm shadow-xl p-4 space-y-4 font-sans text-xs">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <h3 className="font-bold text-slate-900 text-sm">Add New Active Pipeline Stage</h3>
-              <button onClick={() => setShowAddStageModal(false)} className="text-slate-400 hover:text-slate-700">✕</button>
+              <button onClick={() => setShowAddStageModal(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">✕</button>
             </div>
 
             <div>
@@ -1091,8 +1092,8 @@ export const PipelinePage: React.FC<PipelineViewProps> = ({
             </div>
 
             <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">
-              <button onClick={() => setShowAddStageModal(false)} className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">Cancel</button>
-              <button onClick={handleAddStage} disabled={!newStageName.trim()} className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold disabled:opacity-50">Add Stage</button>
+              <button onClick={() => setShowAddStageModal(false)} className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer">Cancel</button>
+              <button onClick={handleAddStage} disabled={!newStageName.trim()} className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold disabled:opacity-50 cursor-pointer">Add Stage</button>
             </div>
           </div>
         </div>
@@ -1190,7 +1191,7 @@ export const PipelinePage: React.FC<PipelineViewProps> = ({
                         onChange={(e) => setFollowUpMinute(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#5034a8] cursor-pointer"
                       >
-                        {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map((m) => (
+                        {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map((m) => (
                           <option key={m} value={m}>{m}</option>
                         ))}
                       </select>
@@ -1271,7 +1272,7 @@ export const PipelinePage: React.FC<PipelineViewProps> = ({
           <div className="bg-white border border-slate-200 rounded-xl w-full max-w-sm shadow-xl p-4 space-y-4 font-sans text-xs">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <h3 className="font-bold text-slate-900 text-sm">Add Reason for Lost Leads</h3>
-              <button onClick={() => setShowAddReasonModal(false)} className="text-slate-400 hover:text-slate-700">✕</button>
+              <button onClick={() => setShowAddReasonModal(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">✕</button>
             </div>
 
             <div>
@@ -1288,14 +1289,14 @@ export const PipelinePage: React.FC<PipelineViewProps> = ({
             <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">
               <button
                 onClick={() => setShowAddReasonModal(false)}
-                className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200"
+                className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddLostReason}
                 disabled={!newReasonText.trim()}
-                className="px-4 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold disabled:opacity-50"
+                className="px-4 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold disabled:opacity-50 cursor-pointer"
               >
                 Add Reason
               </button>
@@ -1306,7 +1307,6 @@ export const PipelinePage: React.FC<PipelineViewProps> = ({
     </div>
   );
 };
-
 
 export const PipelineView = PipelinePage;
 export default PipelinePage;

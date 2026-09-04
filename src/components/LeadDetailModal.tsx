@@ -2278,7 +2278,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                           onChange={(e) => setFollowupMinute(e.target.value)}
                           className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-400 cursor-pointer"
                         >
-                          {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map(m => (
+                          {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => (
                             <option key={m} value={m}>{m}</option>
                           ))}
                         </select>
@@ -2843,10 +2843,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                   <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-200">
                     <Calendar className="w-4 h-4" />
                   </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900">Schedule Follow-Up</h3>
-                    <p className="text-[11px] text-slate-500">Pick date and time for following up with {lead.name}</p>
-                  </div>
+                  <h3 className="text-sm font-bold text-slate-900">Schedule Follow-Up</h3>
                 </div>
                 <button 
                   type="button" 
@@ -2888,7 +2885,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                       onChange={(e) => setSchedulerMinute(e.target.value)}
                       className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-indigo-600 cursor-pointer"
                     >
-                      {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map((m) => (
+                      {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map((m) => (
                         <option key={m} value={m}>{m}</option>
                       ))}
                     </select>

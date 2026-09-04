@@ -528,7 +528,7 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
               h = h % 12;
               if (h === 0) h = 12;
               setModalHour(String(h).padStart(2, '0'));
-              setModalMinute(String(Math.round(defaultDate.getMinutes() / 5) * 5 % 60).padStart(2, '0'));
+              setModalMinute(String(defaultDate.getMinutes()).padStart(2, '0'));
               setModalAmPm(period);
               setModalDateTime(defaultDate.toISOString().slice(0, 16));
               setShowScheduleModal(true);
@@ -1003,7 +1003,7 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
                         onChange={(e) => setModalMinute(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#3a2088] cursor-pointer"
                       >
-                        {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map(m => (
+                        {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => (
                           <option key={m} value={m}>{m}</option>
                         ))}
                       </select>

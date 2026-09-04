@@ -121,7 +121,7 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
     h = h % 12;
     if (h === 0) h = 12;
     setFollowUpHour(String(h).padStart(2, '0'));
-    setFollowUpMinute(String(Math.round(defaultDate.getMinutes() / 5) * 5 % 60).padStart(2, '0'));
+    setFollowUpMinute(String(defaultDate.getMinutes()).padStart(2, '0'));
     setFollowUpAmPm(period);
     setFollowUpRemarks('');
     setFollowUpLead(lead);
@@ -1127,7 +1127,6 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900">Schedule Follow-Up</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Set a reminder for {followUpLead.name}</p>
               </div>
               <button
                 onClick={() => setFollowUpLead(null)}
@@ -1186,9 +1185,9 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
                   <select
                     value={followUpMinute}
                     onChange={(e) => setFollowUpMinute(e.target.value)}
-                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-slate-900 font-medium focus:outline-none focus:border-indigo-600"
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-slate-900 font-medium focus:outline-none focus:border-indigo-600 cursor-pointer"
                   >
-                    {['00','05','10','15','20','25','30','35','40','45','50','55'].map(m => (
+                    {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => (
                       <option key={m} value={m}>{m}</option>
                     ))}
                   </select>

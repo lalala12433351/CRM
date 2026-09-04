@@ -176,7 +176,7 @@ export const TasksPage: React.FC<TasksViewProps> = ({
         h = h % 12;
         if (h === 0) h = 12;
         setEditHour(String(h).padStart(2, '0'));
-        setEditMinute(String(Math.round(d.getMinutes() / 5) * 5 % 60).padStart(2, '0'));
+        setEditMinute(String(d.getMinutes()).padStart(2, '0'));
         setEditAmPm(period);
       } catch {
         setEditDueDay(new Date().toISOString().slice(0, 10));

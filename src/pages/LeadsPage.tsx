@@ -751,7 +751,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
     h = h % 12;
     if (h === 0) h = 12;
     setFollowUpHour(String(h).padStart(2, '0'));
-    setFollowUpMinute(String(Math.round(defaultDate.getMinutes() / 5) * 5 % 60).padStart(2, '0'));
+    setFollowUpMinute(String(defaultDate.getMinutes()).padStart(2, '0'));
     setFollowUpAmPm(period);
     setFollowUpRemarks('');
     setFollowUpLead(lead);
@@ -3564,7 +3564,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                         onChange={(e) => setFollowUpMinute(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#5034a8] cursor-pointer"
                       >
-                        {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map((m) => (
+                        {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map((m) => (
                           <option key={m} value={m}>{m}</option>
                         ))}
                       </select>
