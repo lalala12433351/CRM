@@ -46,6 +46,7 @@ export interface WorkflowNodeData extends Record<string, unknown> {
     rules?: ConditionRule[];
 
     // Action: Call API / Webhook
+    apiTemplate?: string;
     method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
     endpointUrl?: string;
     headers?: HeaderKeyValue[];

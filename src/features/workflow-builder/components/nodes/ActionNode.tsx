@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { DynamicIcon } from '../DynamicIcon';
 import { WorkflowNodeData } from '../../types/workflow.types';
+import { AlertCircle } from 'lucide-react';
 
 export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
   const nodeData = data as unknown as WorkflowNodeData;
@@ -9,6 +10,37 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
 
   const renderActionPreview = () => {
     switch (nodeData.catalogId) {
+      case 'call_api':
+        if (!config.apiTemplate && !config.endpointUrl) {
+          return (
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-rose-50 border border-rose-200 text-[#DC2626] text-[10px] font-semibold">
+                <AlertCircle className="w-3 h-3 shrink-0 text-[#DC2626]" />
+                <span>Please select template</span>
+              </div>
+              <div className="text-[10px] text-slate-400 pl-0.5">
+                No API selected
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div className="space-y-1 text-[11px]">
+            <div className="flex items-center gap-1.5 text-slate-800 font-bold text-[11px] truncate">
+              <span className="text-[#3a2088] truncate">{config.apiTemplate || 'Custom API'}</span>
+            </div>
+            {config.endpointUrl && (
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-[9px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200">
+                  {config.method || 'POST'}
+                </span>
+                <span className="font-mono text-[10px] text-slate-600 font-medium truncate max-w-[150px]">
+                  {config.endpointUrl}
+                </span>
+              </div>
+            )}
+          </div>
+        );
       case 'capi':
         return (
           <div className="flex items-center gap-1.5 text-[11px] text-slate-700">

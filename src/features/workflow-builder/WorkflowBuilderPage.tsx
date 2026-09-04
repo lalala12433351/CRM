@@ -99,15 +99,12 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
 
           <div className="flex flex-col">
             <div className="flex items-center space-x-2">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-semibold text-slate-400">Automations /</span>
-                <input
-                  type="text"
-                  value={workflowName}
-                  onChange={(e) => setWorkflowName(e.target.value)}
-                  className="text-xs sm:text-sm font-bold text-slate-900 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-[#3a2088] focus:outline-none px-1 py-0.5 max-w-xs sm:max-w-md transition-colors"
-                />
-              </div>
+              <input
+                type="text"
+                value={workflowName}
+                onChange={(e) => setWorkflowName(e.target.value)}
+                className="text-xs sm:text-sm font-bold text-slate-900 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-[#3a2088] focus:outline-none px-1 py-0.5 max-w-xs sm:max-w-md transition-colors"
+              />
 
               {/* Status Badge */}
               <button
@@ -124,14 +121,8 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
               </button>
             </div>
 
-            <div className="flex items-center gap-2 text-[10px] text-slate-500 pl-1">
-              <span>{nodes.length} Nodes</span>
-              <span>•</span>
-              <span>{edges.length} Connectors</span>
-              <span>•</span>
-              <span className={isSaved ? 'text-emerald-600 font-semibold' : 'text-amber-600 font-semibold'}>
-                {isSaved ? 'Saved' : 'Unsaved changes'}
-              </span>
+            <div className="text-[11px] text-slate-400 pl-1 font-medium">
+              Workflow Type: Lead Activity
             </div>
           </div>
         </div>

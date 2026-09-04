@@ -30,6 +30,119 @@ export const WORKFLOW_CATEGORIES: CategoryMeta[] = [
   }
 ];
 
+export interface ApiTemplateOption {
+  id: string;
+  name: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  endpointUrl: string;
+  headers: { key: string; value: string }[];
+  bodyPayload: string;
+}
+
+export const API_TEMPLATES: ApiTemplateOption[] = [
+  {
+    id: 'meta_capi',
+    name: 'Meta Conversions API (CAPI)',
+    method: 'POST',
+    endpointUrl: 'https://graph.facebook.com/v18.0/{{pixel_id}}/events',
+    headers: [
+      { key: 'Content-Type', value: 'application/json' },
+      { key: 'Authorization', value: 'Bearer {{meta_access_token}}' }
+    ],
+    bodyPayload: JSON.stringify({
+      data: [{
+        event_name: 'Lead',
+        event_time: '{{timestamp}}',
+        user_data: {
+          ph: '{{lead.phone_hash}}',
+          em: '{{lead.email_hash}}'
+        },
+        custom_data: {
+          lead_id: '{{lead.id}}',
+          source: '{{lead.source}}'
+        }
+      }]
+    }, null, 2)
+  },
+  {
+    id: 'zapier_webhook',
+    name: 'Zapier / Make Ingestion Webhook',
+    method: 'POST',
+    endpointUrl: 'https://hooks.zapier.com/hooks/catch/{{account_id}}/{{hook_id}}/',
+    headers: [
+      { key: 'Content-Type', value: 'application/json' }
+    ],
+    bodyPayload: JSON.stringify({
+      lead_id: '{{lead.id}}',
+      name: '{{lead.name}}',
+      phone: '{{lead.phone}}',
+      email: '{{lead.email}}',
+      stage: '{{lead.status}}',
+      source: '{{lead.source}}'
+    }, null, 2)
+  },
+  {
+    id: 'slack_notification',
+    name: 'Slack Team Alert Webhook',
+    method: 'POST',
+    endpointUrl: 'https://hooks.slack.com/services/T000/B000/XXXX',
+    headers: [
+      { key: 'Content-Type', value: 'application/json' }
+    ],
+    bodyPayload: JSON.stringify({
+      text: '🔥 *New High-Value Lead Captured!*\n*Name:* {{lead.name}}\n*Phone:* {{lead.phone}}\n*Status:* {{lead.status}}'
+    }, null, 2)
+  },
+  {
+    id: 'sms_gateway',
+    name: 'SMS Gateway Trigger (Twilio / MSG91)',
+    method: 'POST',
+    endpointUrl: 'https://api.msg91.com/api/v5/flow/',
+    headers: [
+      { key: 'Content-Type', value: 'application/json' },
+      { key: 'authkey', value: '{{sms_auth_key}}' }
+    ],
+    bodyPayload: JSON.stringify({
+      flow_id: '{{flow_id}}',
+      recipients: [{
+        mobiles: '{{lead.phone}}',
+        name: '{{lead.name}}'
+      }]
+    }, null, 2)
+  },
+  {
+    id: 'external_crm_sync',
+    name: 'Sync Lead to External ERP / CRM',
+    method: 'POST',
+    endpointUrl: 'https://api.external-crm.com/v2/contacts',
+    headers: [
+      { key: 'Content-Type', value: 'application/json' },
+      { key: 'Authorization', value: 'Bearer {{external_api_token}}' }
+    ],
+    bodyPayload: JSON.stringify({
+      contact_id: '{{lead.id}}',
+      first_name: '{{lead.name}}',
+      phone: '{{lead.phone}}',
+      company: '{{lead.company}}',
+      tags: '{{lead.tags}}'
+    }, null, 2)
+  },
+  {
+    id: 'custom_endpoint',
+    name: 'Custom Webhook Endpoint',
+    method: 'POST',
+    endpointUrl: 'https://api.yourdomain.com/v1/webhook',
+    headers: [
+      { key: 'Content-Type', value: 'application/json' }
+    ],
+    bodyPayload: JSON.stringify({
+      lead_id: '{{lead.id}}',
+      phone: '{{lead.phone}}',
+      status: '{{lead.status}}'
+    }, null, 2)
+  }
+];
+
 export const WORKFLOW_CATALOG: CatalogItem[] = [
   // =================== EVENTS (TRIGGERS) ===================
   {
@@ -130,6 +243,22 @@ export const WORKFLOW_CATALOG: CatalogItem[] = [
 
   // =================== ACTIONS ===================
   {
+    id: 'call_api',
+    kind: 'action',
+    category: 'actions',
+    name: 'Call API',
+    description: 'Send custom HTTP requests with template, URL, headers, and body fields',
+    iconName: 'Globe',
+    defaultConfig: {
+      apiTemplate: '',
+      method: 'POST',
+      endpointUrl: '',
+      headers: [],
+      bodyPayload: '',
+      notes: 'Custom API invocation'
+    }
+  },
+  {
     id: 'capi',
     kind: 'action',
     category: 'actions',
@@ -138,34 +267,11 @@ export const WORKFLOW_CATALOG: CatalogItem[] = [
     iconName: 'Share2',
     badge: 'Marketing',
     defaultConfig: {
+      apiTemplate: 'Meta Conversions API (CAPI)',
       capiEventName: 'Lead',
       pixelId: '849204918239',
       customEventCode: 'LEAD_OFFLINE_CONVERSION',
       notes: 'Syncs lead status to Facebook Pixel'
-    }
-  },
-  {
-    id: 'call_api',
-    kind: 'action',
-    category: 'actions',
-    name: 'Call API / Custom Webhook',
-    description: 'Send custom HTTP requests with method, URL, headers, and body fields',
-    iconName: 'Globe',
-    defaultConfig: {
-      method: 'POST',
-      endpointUrl: 'https://api.yourdomain.com/v1/sync-lead',
-      headers: [
-        { key: 'Content-Type', value: 'application/json' },
-        { key: 'Authorization', value: 'Bearer {{api_key}}' }
-      ],
-      bodyPayload: JSON.stringify({
-        lead_id: '{{lead.id}}',
-        lead_name: '{{lead.name}}',
-        lead_phone: '{{lead.phone}}',
-        source: '{{lead.source}}',
-        status: '{{lead.status}}'
-      }, null, 2),
-      notes: 'Dispatches outbound JSON payload'
     }
   },
   {

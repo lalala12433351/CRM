@@ -3,11 +3,13 @@ import {
   X,
   Trash2,
   Plus,
-  Check,
   Code,
-  SlidersHorizontal
+  SlidersHorizontal,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { CustomWorkflowNode, ConditionRule, HeaderKeyValue } from '../types/workflow.types';
+import { API_TEMPLATES } from '../constants/workflowCatalog';
 import { DynamicIcon } from './DynamicIcon';
 
 interface NodeConfigDrawerProps {
@@ -71,6 +73,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
   const [description, setDescription] = useState(data.description || '');
   const [config, setConfig] = useState<Record<string, any>>(data.config || {});
   const [jsonError, setJsonError] = useState<string | null>(null);
+  const [showAdvancedApi, setShowAdvancedApi] = useState(false);
 
   // Sync state whenever selectedNode changes
   useEffect(() => {
@@ -89,6 +92,32 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
       description,
       config: updated
     });
+  };
+
+  const handleTemplateSelect = (templateName: string) => {
+    if (!templateName) {
+      handleConfigChange('apiTemplate', '');
+      return;
+    }
+    const selectedTpl = API_TEMPLATES.find((t) => t.name === templateName);
+    if (selectedTpl) {
+      const updated = {
+        ...config,
+        apiTemplate: selectedTpl.name,
+        method: selectedTpl.method,
+        endpointUrl: selectedTpl.endpointUrl,
+        headers: [...selectedTpl.headers],
+        bodyPayload: selectedTpl.bodyPayload
+      };
+      setConfig(updated);
+      onUpdateNodeData(id, {
+        ...data,
+        label: selectedTpl.name,
+        config: updated
+      });
+    } else {
+      handleConfigChange('apiTemplate', templateName);
+    }
   };
 
   const handleLabelChange = (newLabel: string) => {
@@ -201,99 +230,135 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
           </div>
         );
 
-      // 2. Call API / Webhook
+      // 2. Call API / Custom API (TeleCRM Details from Image 2)
       case 'call_api':
         return (
-          <div className="space-y-3.5">
+          <div className="space-y-4">
+            {/* Select Template Dropdown */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                HTTP Method & Endpoint URL
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Select template
               </label>
-              <div className="flex gap-2">
-                <select
-                  value={config.method || 'POST'}
-                  onChange={(e) => handleConfigChange('method', e.target.value)}
-                  className="w-24 text-xs font-bold px-2.5 py-2 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 focus:border-[#3a2088] focus:outline-none cursor-pointer shadow-2xs"
-                >
-                  <option value="POST">POST</option>
-                  <option value="GET">GET</option>
-                  <option value="PUT">PUT</option>
-                  <option value="PATCH">PATCH</option>
-                  <option value="DELETE">DELETE</option>
-                </select>
-                <input
-                  type="text"
-                  value={config.endpointUrl || ''}
-                  onChange={(e) => handleConfigChange('endpointUrl', e.target.value)}
-                  placeholder="https://api.domain.com/v1/webhook"
-                  className="flex-1 text-xs px-3 py-2 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 focus:border-[#3a2088] focus:outline-none font-mono shadow-2xs"
-                />
-              </div>
+              <select
+                value={config.apiTemplate || ''}
+                onChange={(e) => handleTemplateSelect(e.target.value)}
+                className="w-full text-xs font-medium px-3 py-2.5 rounded-md border border-slate-300 bg-white text-slate-900 focus:border-[#3a2088] focus:outline-none cursor-pointer shadow-2xs"
+              >
+                <option value="">Select template</option>
+                {API_TEMPLATES.map((tpl) => (
+                  <option key={tpl.id} value={tpl.name}>
+                    {tpl.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* HTTP Headers */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-bold text-slate-700">
-                  Headers ({headers.length})
-                </label>
+            {/* Advanced / Template Parameters */}
+            {config.apiTemplate && (
+              <div className="pt-2 border-t border-slate-100 space-y-3.5">
                 <button
                   type="button"
-                  onClick={handleAddHeader}
-                  className="text-xs text-[#3a2088] font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                  onClick={() => setShowAdvancedApi(!showAdvancedApi)}
+                  className="flex items-center justify-between w-full text-xs font-bold text-slate-700 hover:text-[#3a2088] py-1 cursor-pointer"
                 >
-                  <Plus className="w-3.5 h-3.5" /> Add Header
+                  <span>Template Endpoint & Payload Details</span>
+                  {showAdvancedApi ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                 </button>
-              </div>
-              <div className="space-y-1.5">
-                {headers.map((hdr, idx) => (
-                  <div key={idx} className="flex gap-2 items-center">
-                    <input
-                      type="text"
-                      value={hdr.key}
-                      onChange={(e) => handleUpdateHeader(idx, e.target.value, hdr.value)}
-                      placeholder="Header-Name"
-                      className="w-1/2 text-xs px-2.5 py-1.5 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 font-mono shadow-2xs"
-                    />
-                    <input
-                      type="text"
-                      value={hdr.value}
-                      onChange={(e) => handleUpdateHeader(idx, hdr.key, e.target.value)}
-                      placeholder="Value"
-                      className="flex-1 text-xs px-2.5 py-1.5 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 font-mono shadow-2xs"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteHeader(idx)}
-                      className="text-slate-400 hover:text-rose-500 p-1 rounded hover:bg-rose-50 cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
 
-            {/* JSON Body */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                  <Code className="w-3.5 h-3.5 text-[#3a2088]" />
-                  JSON Request Body
-                </label>
-                <span className="text-[10px] text-slate-400 font-mono">&#123;&#123;lead.name&#125;&#125;</span>
+                {showAdvancedApi && (
+                  <div className="space-y-3.5 animate-in fade-in duration-150">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        HTTP Method & Endpoint URL
+                      </label>
+                      <div className="flex gap-2">
+                        <select
+                          value={config.method || 'POST'}
+                          onChange={(e) => handleConfigChange('method', e.target.value)}
+                          className="w-24 text-xs font-bold px-2 py-1.5 rounded-md border border-slate-300 bg-slate-50 text-slate-900 focus:border-[#3a2088]"
+                        >
+                          <option value="POST">POST</option>
+                          <option value="GET">GET</option>
+                          <option value="PUT">PUT</option>
+                          <option value="PATCH">PATCH</option>
+                          <option value="DELETE">DELETE</option>
+                        </select>
+                        <input
+                          type="text"
+                          value={config.endpointUrl || ''}
+                          onChange={(e) => handleConfigChange('endpointUrl', e.target.value)}
+                          placeholder="https://api.domain.com/v1/webhook"
+                          className="flex-1 text-xs px-2.5 py-1.5 rounded-md border border-slate-300 bg-white text-slate-900 focus:border-[#3a2088] font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    {/* HTTP Headers */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] font-bold text-slate-600">
+                          Headers ({headers.length})
+                        </label>
+                        <button
+                          type="button"
+                          onClick={handleAddHeader}
+                          className="text-[11px] text-[#3a2088] font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3" /> Add Header
+                        </button>
+                      </div>
+                      <div className="space-y-1.5">
+                        {headers.map((hdr, idx) => (
+                          <div key={idx} className="flex gap-2 items-center">
+                            <input
+                              type="text"
+                              value={hdr.key}
+                              onChange={(e) => handleUpdateHeader(idx, e.target.value, hdr.value)}
+                              placeholder="Header-Name"
+                              className="w-1/2 text-xs px-2 py-1 rounded border border-slate-300 bg-white text-slate-900 font-mono"
+                            />
+                            <input
+                              type="text"
+                              value={hdr.value}
+                              onChange={(e) => handleUpdateHeader(idx, hdr.key, e.target.value)}
+                              placeholder="Value"
+                              className="flex-1 text-xs px-2 py-1 rounded border border-slate-300 bg-white text-slate-900 font-mono"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteHeader(idx)}
+                              className="text-slate-400 hover:text-rose-500 p-1 rounded cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* JSON Body */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1.5">
+                          <Code className="w-3.5 h-3.5 text-[#3a2088]" />
+                          JSON Request Body
+                        </label>
+                      </div>
+                      <textarea
+                        rows={5}
+                        value={config.bodyPayload || ''}
+                        onChange={(e) => handleBodyPayloadChange(e.target.value)}
+                        placeholder={'{\n  "lead_id": "{{lead.id}}"\n}'}
+                        className="w-full text-xs font-mono p-2.5 rounded-md border border-slate-300 bg-slate-900 text-emerald-400 focus:outline-none focus:ring-1 focus:ring-[#3a2088]"
+                      />
+                      {jsonError && (
+                        <p className="text-[11px] text-[#DC2626] font-semibold mt-1">{jsonError}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-              <textarea
-                rows={5}
-                value={config.bodyPayload || ''}
-                onChange={(e) => handleBodyPayloadChange(e.target.value)}
-                placeholder={'{\n  "lead_id": "{{lead.id}}",\n  "phone": "{{lead.phone}}"\n}'}
-                className="w-full text-xs font-mono p-2.5 rounded-md border border-slate-300/80 bg-slate-900 text-emerald-400 focus:outline-none focus:ring-1 focus:ring-[#3a2088]"
-              />
-              {jsonError && (
-                <p className="text-[11px] text-[#DC2626] font-semibold mt-1">{jsonError}</p>
-              )}
-            </div>
+            )}
           </div>
         );
 
@@ -581,6 +646,9 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
     }
   };
 
+  const isCustomApi = data.catalogId === 'call_api';
+  const drawerTitle = isCustomApi ? 'Custom API' : (data.label || 'Configure Node');
+
   return (
     <div className="w-96 flex flex-col bg-white border-l border-slate-200/90 shadow-2xl z-20 h-full animate-in slide-in-from-right duration-200 font-sans select-none">
       {/* Drawer Header */}
@@ -590,8 +658,8 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
             <DynamicIcon name={data.iconName || 'Settings'} className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-xs font-bold text-slate-900">
-              Configure Node
+            <h3 className="text-sm font-bold text-slate-900">
+              {drawerTitle}
             </h3>
             <span className="text-[10px] font-bold text-[#3a2088] uppercase tracking-wide">
               {data.kind} • {data.catalogId}
@@ -602,72 +670,85 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
         <button
           type="button"
           onClick={onClose}
-          className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
+          className="w-7 h-7 rounded-full border border-slate-300 flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+          title="Close"
         >
-          <X className="w-4 h-4" />
+          <X className="w-3.5 h-3.5" />
         </button>
       </div>
 
       {/* Drawer Body */}
       <div className="flex-1 overflow-y-auto p-3.5 space-y-4 custom-scrollbar">
-        {/* Node Name & Description */}
-        <div className="space-y-2.5 pb-3 border-b border-slate-100">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Node Display Name
-            </label>
-            <input
-              type="text"
-              value={label}
-              onChange={(e) => handleLabelChange(e.target.value)}
-              className="w-full text-xs font-bold px-3 py-2 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 focus:border-[#3a2088] focus:outline-none shadow-2xs"
-            />
-          </div>
+        {/* Node Name & Description (Hidden for clean template selection in Custom API or customizable) */}
+        {!isCustomApi && (
+          <div className="space-y-2.5 pb-3 border-b border-slate-100">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Node Display Name
+              </label>
+              <input
+                type="text"
+                value={label}
+                onChange={(e) => handleLabelChange(e.target.value)}
+                className="w-full text-xs font-bold px-3 py-2 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 focus:border-[#3a2088] focus:outline-none shadow-2xs"
+              />
+            </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Notes / Subtitle
-            </label>
-            <input
-              type="text"
-              value={description}
-              onChange={(e) => handleDescriptionChange(e.target.value)}
-              placeholder="Add optional notes for team"
-              className="w-full text-xs font-medium px-3 py-2 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 placeholder-slate-400 focus:border-[#3a2088] focus:outline-none shadow-2xs"
-            />
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Notes / Subtitle
+              </label>
+              <input
+                type="text"
+                value={description}
+                onChange={(e) => handleDescriptionChange(e.target.value)}
+                placeholder="Add optional notes for team"
+                className="w-full text-xs font-medium px-3 py-2 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 placeholder-slate-400 focus:border-[#3a2088] focus:outline-none shadow-2xs"
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Dynamic Node Parameters Form */}
         <div className="space-y-3.5">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 uppercase tracking-wider">
-            <SlidersHorizontal className="w-3.5 h-3.5 text-[#3a2088]" />
-            <span>Parameters & Config</span>
-          </div>
+          {!isCustomApi && (
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 uppercase tracking-wider">
+              <SlidersHorizontal className="w-3.5 h-3.5 text-[#3a2088]" />
+              <span>Parameters & Config</span>
+            </div>
+          )}
 
           {renderConfigForm()}
         </div>
       </div>
 
-      {/* Drawer Footer Actions */}
-      <div className="p-3 border-t border-slate-200/90 bg-slate-50 flex items-center justify-between gap-2.5">
+      {/* Drawer Footer Actions (TeleCRM Style: Cancel & Save) */}
+      <div className="p-3 border-t border-slate-200/90 bg-white flex items-center justify-between gap-2.5">
         <button
           type="button"
           onClick={() => onDeleteNode(id)}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-bold text-[#DC2626] hover:bg-rose-50 border border-rose-200 transition-colors cursor-pointer"
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-bold text-[#DC2626] hover:bg-rose-50 border border-rose-200 transition-colors cursor-pointer"
         >
           <Trash2 className="w-3.5 h-3.5" />
-          Delete
+          <span>Delete</span>
         </button>
 
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex-1 flex items-center justify-center gap-1 px-3.5 py-1.5 rounded-md text-xs font-bold bg-[#3a2088] hover:bg-[#2c186b] text-white shadow-xs transition-colors cursor-pointer"
-        >
-          <Check className="w-3.5 h-3.5" />
-          Done
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-[#DC2626] hover:underline font-semibold text-xs px-2.5 py-1.5 cursor-pointer transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-5 py-2 rounded-md text-xs font-bold bg-[#3a2088] hover:bg-[#2c186b] text-white shadow-xs transition-colors cursor-pointer"
+          >
+            Save
+          </button>
+        </div>
       </div>
     </div>
   );
