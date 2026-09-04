@@ -31,14 +31,52 @@ interface WorkflowExecutionsTableProps {
   executions?: ExecutionRecord[];
 }
 
-const statusOptions: { value: 'all' | ExecutionStatus; label: string }[] = [
-  { value: 'all', label: 'All Statuses' },
-  { value: 'success', label: 'Success' },
-  { value: 'failed', label: 'Failed' },
-  { value: 'sleeping', label: 'Sleeping' },
-  { value: 'waiting', label: 'Waiting' },
-  { value: 'pending', label: 'Pending' }
-];
+const statusBadgeConfig: Record<
+  ExecutionStatus,
+  {
+    label: string;
+    bg: string;
+    border: string;
+    text: string;
+    icon: React.ReactNode;
+  }
+> = {
+  success: {
+    label: 'Success',
+    bg: 'bg-[#ecfdf5]',
+    border: 'border-[#6ee7b7]',
+    text: 'text-[#059669]',
+    icon: <CheckCircle2 className="w-3.5 h-3.5 text-[#059669]" />
+  },
+  sleeping: {
+    label: 'Sleeping',
+    bg: 'bg-[#eff2fe]',
+    border: 'border-[#c4b5fd]',
+    text: 'text-[#4f46e5]',
+    icon: <Moon className="w-3.5 h-3.5 text-[#4f46e5]" />
+  },
+  waiting: {
+    label: 'Waiting',
+    bg: 'bg-[#fffbeb]',
+    border: 'border-[#fde68a]',
+    text: 'text-[#d97706]',
+    icon: <Clock className="w-3.5 h-3.5 text-[#d97706]" />
+  },
+  pending: {
+    label: 'Pending',
+    bg: 'bg-[#f1f5f9]',
+    border: 'border-[#cbd5e1]',
+    text: 'text-[#334155]',
+    icon: <Hourglass className="w-3.5 h-3.5 text-[#475569]" />
+  },
+  failed: {
+    label: 'Failed',
+    bg: 'bg-[#fff1f2]',
+    border: 'border-[#fecdd3]',
+    text: 'text-[#e11d48]',
+    icon: <XCircle className="w-3.5 h-3.5 text-[#e11d48]" />
+  }
+};
 
 const timeOptions: { value: TimeFilterOption; label: string }[] = [
   { value: 'all', label: 'All Time' },
@@ -48,86 +86,33 @@ const timeOptions: { value: TimeFilterOption; label: string }[] = [
   { value: '30days', label: 'Last 30 Days' }
 ];
 
-interface CustomDropdownProps<T extends string> {
-  value: T;
-  options: { value: T; label: string }[];
-  onChange: (val: T) => void;
-  icon: React.ReactNode;
-}
-
-function CustomDropdown<T extends string>({
-  value,
-  options,
-  onChange,
-  icon
-}: CustomDropdownProps<T>) {
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen]);
-
-  const selectedOption = options.find((opt) => opt.value === value) || options[0];
-
-  return (
-    <div className="relative inline-block text-left" ref={containerRef}>
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="inline-flex items-center gap-2 text-xs font-normal text-slate-700 bg-white border border-slate-200 hover:border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#3a2088] cursor-pointer shadow-2xs transition-colors"
-      >
-        {icon}
-        <span>{selectedOption.label}</span>
-        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
-
-      {isOpen && (
-        <div className="absolute right-0 top-full mt-1.5 bg-white border border-slate-200/90 rounded-xl shadow-xl p-1.5 min-w-[155px] z-50 animate-in fade-in zoom-in-95 duration-100">
-          <div className="space-y-0.5">
-            {options.map((opt) => {
-              const isSelected = opt.value === value;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => {
-                    onChange(opt.value);
-                    setIsOpen(false);
-                  }}
-                  className={`w-full text-left px-3.5 py-2 text-sm rounded-lg transition-colors cursor-pointer block ${
-                    isSelected
-                      ? 'bg-[#EDE9FE] text-[#3a2088] font-medium'
-                      : 'text-[#0f3b6c] hover:bg-slate-50 font-normal'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export const WorkflowExecutionsTable: React.FC<WorkflowExecutionsTableProps> = ({
   executions = []
 }) => {
   const [statusFilter, setStatusFilter] = useState<'all' | ExecutionStatus>('all');
   const [timeFilter, setTimeFilter] = useState<TimeFilterOption>('all');
   const [selectedExecution, setSelectedExecution] = useState<ExecutionRecord | null>(null);
+
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const [isTimeDropdownOpen, setIsTimeDropdownOpen] = useState(false);
+
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
+  const timeDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(e.target as Node)) {
+        setIsStatusDropdownOpen(false);
+      }
+      if (timeDropdownRef.current && !timeDropdownRef.current.contains(e.target as Node)) {
+        setIsTimeDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Filtered list
   const filteredExecutions = useMemo(() => {
@@ -151,46 +136,23 @@ export const WorkflowExecutionsTable: React.FC<WorkflowExecutionsTableProps> = (
   const pageRangeText = totalCount === 0 ? '0-0 of 0' : `1-${totalCount} of ${totalCount}`;
 
   const renderStatusBadge = (status: ExecutionStatus) => {
-    switch (status) {
-      case 'success':
-        return (
-          <span className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-normal">
-            <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Success
-          </span>
-        );
-      case 'failed':
-        return (
-          <span className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-0.5 rounded-full bg-rose-50 text-[#DC2626] border border-rose-200 font-normal">
-            <XCircle className="w-3 h-3 text-[#DC2626]" /> Failed
-          </span>
-        );
-      case 'sleeping':
-        return (
-          <span className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 font-normal">
-            <Moon className="w-3 h-3 text-indigo-600" /> Sleeping
-          </span>
-        );
-      case 'waiting':
-        return (
-          <span className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-normal">
-            <Clock className="w-3 h-3 text-amber-600" /> Waiting
-          </span>
-        );
-      case 'pending':
-        return (
-          <span className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-300 font-normal">
-            <Hourglass className="w-3 h-3 text-slate-500" /> Pending
-          </span>
-        );
-      default:
-        return null;
-    }
+    const config = statusBadgeConfig[status] || statusBadgeConfig.pending;
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full border font-medium ${config.bg} ${config.border} ${config.text}`}
+      >
+        {config.icon}
+        <span>{config.label}</span>
+      </span>
+    );
   };
+
+  const selectedTimeLabel = timeOptions.find((opt) => opt.value === timeFilter)?.label || 'All Time';
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white font-sans select-none overflow-hidden">
       {/* Top Filter & Pagination Bar */}
-      <div className="h-12 px-6 border-b border-slate-200/80 flex items-center justify-between bg-white shrink-0">
+      <div className="h-14 px-8 border-b border-slate-200/80 flex items-center justify-between bg-white shrink-0">
         {/* Left: Pagination Controls */}
         <div className="flex items-center gap-3 text-xs text-slate-500 font-normal">
           <button
@@ -200,7 +162,7 @@ export const WorkflowExecutionsTable: React.FC<WorkflowExecutionsTableProps> = (
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <span>{pageRangeText}</span>
+          <span className="font-medium text-slate-700">{pageRangeText}</span>
           <button
             type="button"
             disabled={true}
@@ -210,36 +172,137 @@ export const WorkflowExecutionsTable: React.FC<WorkflowExecutionsTableProps> = (
           </button>
         </div>
 
-        {/* Right: Custom Floating Popover Filters */}
+        {/* Right: Status & Time Dropdowns */}
         <div className="flex items-center gap-3">
-          {/* Status Filter Dropdown */}
-          <CustomDropdown
-            value={statusFilter}
-            options={statusOptions}
-            onChange={(val) => setStatusFilter(val)}
-            icon={<Filter className="w-3.5 h-3.5 text-slate-400" />}
-          />
+          {/* Status Dropdown */}
+          <div className="relative inline-block text-left" ref={statusDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+              className="inline-flex items-center gap-2 text-xs font-normal text-slate-700 bg-white border border-slate-200 hover:border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#3a2088] cursor-pointer shadow-2xs transition-colors"
+            >
+              {statusFilter === 'all' ? (
+                <>
+                  <Filter className="w-3.5 h-3.5 text-slate-400" />
+                  <span>All Statuses</span>
+                </>
+              ) : (
+                renderStatusBadge(statusFilter)
+              )}
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-slate-400 transition-transform ${
+                  isStatusDropdownOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+
+            {isStatusDropdownOpen && (
+              <div className="absolute right-0 top-full mt-1.5 bg-white border border-slate-200/90 rounded-xl shadow-xl p-1.5 min-w-[170px] z-50 animate-in fade-in zoom-in-95 duration-100">
+                <div className="space-y-1">
+                  {/* All Statuses option */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStatusFilter('all');
+                      setIsStatusDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-3.5 py-2 text-sm rounded-lg transition-colors cursor-pointer block ${
+                      statusFilter === 'all'
+                        ? 'bg-[#EDE9FE] text-[#3a2088] font-medium'
+                        : 'text-[#0f3b6c] hover:bg-slate-50 font-normal'
+                    }`}
+                  >
+                    All Statuses
+                  </button>
+
+                  {/* Individual Status Badges */}
+                  {(['success', 'sleeping', 'waiting', 'pending', 'failed'] as ExecutionStatus[]).map(
+                    (statusKey) => {
+                      const isSelected = statusFilter === statusKey;
+                      const cfg = statusBadgeConfig[statusKey];
+                      return (
+                        <button
+                          key={statusKey}
+                          type="button"
+                          onClick={() => {
+                            setStatusFilter(statusKey);
+                            setIsStatusDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-between ${
+                            isSelected ? 'bg-purple-50 ring-1 ring-purple-300' : 'hover:bg-slate-50'
+                          }`}
+                        >
+                          <span
+                            className={`inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full border font-medium ${cfg.bg} ${cfg.border} ${cfg.text}`}
+                          >
+                            {cfg.icon}
+                            <span>{cfg.label}</span>
+                          </span>
+                        </button>
+                      );
+                    }
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Time Filter Dropdown */}
-          <CustomDropdown
-            value={timeFilter}
-            options={timeOptions}
-            onChange={(val) => setTimeFilter(val)}
-            icon={<Clock className="w-3.5 h-3.5 text-slate-400" />}
-          />
+          <div className="relative inline-block text-left" ref={timeDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setIsTimeDropdownOpen(!isTimeDropdownOpen)}
+              className="inline-flex items-center gap-2 text-xs font-normal text-slate-700 bg-white border border-slate-200 hover:border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#3a2088] cursor-pointer shadow-2xs transition-colors"
+            >
+              <Clock className="w-3.5 h-3.5 text-slate-400" />
+              <span>{selectedTimeLabel}</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-slate-400 transition-transform ${
+                  isTimeDropdownOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+
+            {isTimeDropdownOpen && (
+              <div className="absolute right-0 top-full mt-1.5 bg-white border border-slate-200/90 rounded-xl shadow-xl p-1.5 min-w-[155px] z-50 animate-in fade-in zoom-in-95 duration-100">
+                <div className="space-y-0.5">
+                  {timeOptions.map((opt) => {
+                    const isSelected = opt.value === timeFilter;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => {
+                          setTimeFilter(opt.value);
+                          setIsTimeDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-3.5 py-2 text-sm rounded-lg transition-colors cursor-pointer block ${
+                          isSelected
+                            ? 'bg-[#EDE9FE] text-[#3a2088] font-medium'
+                            : 'text-[#0f3b6c] hover:bg-slate-50 font-normal'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Main Table Container */}
-      <div className="flex-1 overflow-auto bg-slate-50/40 p-4">
+      {/* Main Table Container with Enhanced Left Padding */}
+      <div className="flex-1 overflow-auto bg-slate-50/40 p-8">
         <div className="bg-white rounded-lg border border-slate-200 shadow-2xs overflow-hidden">
           <table className="w-full text-left text-xs font-normal border-collapse">
             <thead>
               <tr className="border-b border-slate-200/90 bg-slate-50/75 text-slate-700 font-medium">
-                <th className="py-3 px-6 w-1/4">Execution</th>
-                <th className="py-3 px-6 w-1/4">Lead</th>
-                <th className="py-3 px-6 w-1/4">Status</th>
-                <th className="py-3 px-6 w-1/4">Duration</th>
+                <th className="py-4 px-8 w-[28%] text-left">Execution</th>
+                <th className="py-4 px-8 w-[26%] text-left">Lead</th>
+                <th className="py-4 px-8 w-[24%] text-left">Status</th>
+                <th className="py-4 px-8 w-[22%] text-left">Duration</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-normal">
@@ -256,18 +319,22 @@ export const WorkflowExecutionsTable: React.FC<WorkflowExecutionsTableProps> = (
                     onClick={() => setSelectedExecution(exec)}
                     className="hover:bg-slate-50/80 transition-colors cursor-pointer"
                   >
-                    <td className="py-3 px-6">
+                    <td className="py-4 px-8 text-left">
                       <div className="font-medium text-slate-900">{exec.id}</div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">{exec.triggerName} • {exec.timestamp}</div>
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        {exec.triggerName} • {exec.timestamp}
+                      </div>
                     </td>
-                    <td className="py-3 px-6">
+                    <td className="py-4 px-8 text-left">
                       <div className="text-slate-800 font-normal">{exec.leadName}</div>
-                      <div className="text-[11px] text-slate-400 mt-0.5 font-mono">{exec.leadPhone}</div>
+                      <div className="text-[11px] text-slate-400 mt-0.5 font-mono">
+                        {exec.leadPhone}
+                      </div>
                     </td>
-                    <td className="py-3 px-6">
+                    <td className="py-4 px-8 text-left">
                       {renderStatusBadge(exec.status)}
                     </td>
-                    <td className="py-3 px-6 text-slate-600 font-mono text-[11px]">
+                    <td className="py-4 px-8 text-left text-slate-600 font-mono text-[11px]">
                       {exec.duration}
                     </td>
                   </tr>
