@@ -9,7 +9,7 @@ export const TriggerNode: React.FC<NodeProps> = memo(({ data, selected }) => {
 
   return (
     <div
-      className={`relative min-w-[260px] max-w-[290px] rounded-lg bg-white border transition-all duration-150 shadow-xs ${
+      className={`relative min-w-[260px] max-w-[290px] rounded-lg bg-white border font-sans transition-all duration-150 shadow-xs ${
         selected
           ? 'border-[#3a2088] ring-2 ring-[#3a2088]/20 shadow-md'
           : 'border-purple-200/90 hover:border-[#3a2088]'

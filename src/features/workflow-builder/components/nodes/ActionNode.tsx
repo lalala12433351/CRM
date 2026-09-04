@@ -95,7 +95,7 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
 
   return (
     <div
-      className={`relative min-w-[260px] max-w-[290px] rounded-lg bg-white border transition-all duration-150 shadow-xs ${
+      className={`relative min-w-[260px] max-w-[290px] rounded-lg bg-white border font-sans transition-all duration-150 shadow-xs ${
         selected
           ? 'border-slate-800 ring-2 ring-slate-400/20 shadow-md'
           : 'border-slate-200/90 hover:border-slate-400'
