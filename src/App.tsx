@@ -44,6 +44,7 @@ import {
   NotFoundPage as NotFoundView,
 } from './pages';
 import { WorkflowBuilderPage } from './features/workflow-builder';
+import { saveWorkflowToDb } from './utils/workflowStorage';
 import { PhoneCall, X, Users } from 'lucide-react';
 import { verifyCurrentSession, logoutWithApi, fetchWithTenantAuth } from './lib/auth';
 import { formatArcleName } from './utils/brandUtils';
@@ -1397,7 +1398,8 @@ export function App() {
                   setCurrentView('workflows');
                 }}
                 onSave={(savedWorkflow) => {
-                  showToast(`Workflow "${savedWorkflow.name}" saved!`);
+                  saveWorkflowToDb(savedWorkflow, activeTenantId);
+                  showToast(`Workflow "${savedWorkflow.name}" saved to database!`);
                   setWorkflows((prev) => {
                     const exists = prev.some((w) => w.id === savedWorkflow.id || w.name === savedWorkflow.name);
                     if (exists) {

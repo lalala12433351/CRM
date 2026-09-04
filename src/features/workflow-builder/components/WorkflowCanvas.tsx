@@ -9,7 +9,9 @@ import {
   useReactFlow,
   ReactFlowProvider,
   Panel,
-  ConnectionMode
+  ConnectionMode,
+  Edge,
+  Connection
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -17,7 +19,6 @@ import { TriggerNode } from './nodes/TriggerNode';
 import { ConditionNode } from './nodes/ConditionNode';
 import { ActionNode } from './nodes/ActionNode';
 import { CustomWorkflowNode, CatalogItem } from '../types/workflow.types';
-import { Edge, Connection } from '@xyflow/react';
 import { Sparkles } from 'lucide-react';
 
 interface WorkflowCanvasProps {
@@ -98,7 +99,7 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
         onDrop={onDrop}
         nodeTypes={nodeTypes}
         connectionMode={ConnectionMode.Loose}
-        connectionRadius={40}
+        connectionRadius={35}
         connectOnClick={true}
         fitView
         fitViewOptions={{ padding: 0.2 }}
@@ -111,7 +112,6 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
         }}
         className="w-full h-full font-sans"
       >
-
         {/* Background Grid */}
         <Background
           variant={BackgroundVariant.Dots}
@@ -121,13 +121,13 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
           color="#cbd5e1"
         />
 
-        {/* Controls Panel (Reduced Curves) */}
+        {/* Controls Panel */}
         <Controls
           showInteractive={false}
           className="!bg-white !border !border-slate-200/90 !rounded-lg !shadow-xs !overflow-hidden"
         />
 
-        {/* MiniMap (Reduced Curves) */}
+        {/* MiniMap */}
         <MiniMap
           nodeStrokeWidth={3}
           nodeColor={(node) => {
@@ -150,7 +150,7 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
                 Design Your Workflow Pipeline
               </h3>
               <p className="text-[11px] text-slate-500 leading-relaxed">
-                Drag and drop a <strong>Trigger Event</strong> from the left sidebar to start, or load a preset template from the top bar.
+                Drag and drop a <strong>Trigger Event</strong> from the left sidebar to start.
               </p>
             </div>
           </Panel>

@@ -22,17 +22,22 @@ export const ConditionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         id="input"
         isConnectable={true}
         style={{
-          width: 14,
-          height: 14,
+          position: 'absolute',
+          top: '50%',
+          left: -8,
+          transform: 'translateY(-50%)',
+          width: 16,
+          height: 16,
           backgroundColor: '#3a2088',
-          border: '2px solid #ffffff',
+          border: '2.5px solid #ffffff',
           borderRadius: '50%',
           cursor: 'crosshair',
-          zIndex: 50
+          zIndex: 50,
+          boxShadow: '0 0 0 1px #3a2088'
         }}
       />
 
-      {/* Node Header (Solid Background, No Gradient, No Header Icon, No Badge) */}
+      {/* Node Header */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-[#3a2088] text-white rounded-t-lg">
         <div className="text-[11px] font-medium tracking-wider uppercase">
           <span>CONDITION (IF / ELSE)</span>
@@ -90,14 +95,18 @@ export const ConditionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         id="true"
         isConnectable={true}
         style={{
-          top: '38%',
-          width: 14,
-          height: 14,
+          position: 'absolute',
+          top: '40%',
+          right: -8,
+          transform: 'translateY(-50%)',
+          width: 16,
+          height: 16,
           backgroundColor: '#10b981',
-          border: '2px solid #ffffff',
+          border: '2.5px solid #ffffff',
           borderRadius: '50%',
           cursor: 'crosshair',
-          zIndex: 50
+          zIndex: 50,
+          boxShadow: '0 0 0 1px #10b981'
         }}
       />
 
@@ -108,14 +117,18 @@ export const ConditionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         id="false"
         isConnectable={true}
         style={{
+          position: 'absolute',
           top: '78%',
-          width: 14,
-          height: 14,
+          right: -8,
+          transform: 'translateY(-50%)',
+          width: 16,
+          height: 16,
           backgroundColor: '#DC2626',
-          border: '2px solid #ffffff',
+          border: '2.5px solid #ffffff',
           borderRadius: '50%',
           cursor: 'crosshair',
-          zIndex: 50
+          zIndex: 50,
+          boxShadow: '0 0 0 1px #DC2626'
         }}
       />
     </div>
@@ -123,4 +136,3 @@ export const ConditionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
 });
 
 ConditionNode.displayName = 'ConditionNode';
-

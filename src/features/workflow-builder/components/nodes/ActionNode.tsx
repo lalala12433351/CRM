@@ -107,17 +107,22 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         id="input"
         isConnectable={true}
         style={{
-          width: 14,
-          height: 14,
+          position: 'absolute',
+          top: '50%',
+          left: -8,
+          transform: 'translateY(-50%)',
+          width: 16,
+          height: 16,
           backgroundColor: '#475569',
-          border: '2px solid #ffffff',
+          border: '2.5px solid #ffffff',
           borderRadius: '50%',
           cursor: 'crosshair',
-          zIndex: 50
+          zIndex: 50,
+          boxShadow: '0 0 0 1px #475569'
         }}
       />
 
-      {/* Node Header (Solid Background, No Gradient, No Header Icon, No Badge) */}
+      {/* Node Header */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-slate-800 text-white rounded-t-lg">
         <div className="text-[11px] font-medium tracking-wider uppercase">
           <span>ACTION STEP</span>
@@ -139,13 +144,18 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         id="output"
         isConnectable={true}
         style={{
-          width: 14,
-          height: 14,
+          position: 'absolute',
+          top: '50%',
+          right: -8,
+          transform: 'translateY(-50%)',
+          width: 16,
+          height: 16,
           backgroundColor: '#475569',
-          border: '2px solid #ffffff',
+          border: '2.5px solid #ffffff',
           borderRadius: '50%',
           cursor: 'crosshair',
-          zIndex: 50
+          zIndex: 50,
+          boxShadow: '0 0 0 1px #475569'
         }}
       />
     </div>
@@ -153,4 +163,3 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
 });
 
 ActionNode.displayName = 'ActionNode';
-

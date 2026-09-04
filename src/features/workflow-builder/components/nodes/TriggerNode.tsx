@@ -1,6 +1,5 @@
 import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
-import { DynamicIcon } from '../DynamicIcon';
 import { WorkflowNodeData } from '../../types/workflow.types';
 import { CheckCircle2 } from 'lucide-react';
 
@@ -9,13 +8,13 @@ export const TriggerNode: React.FC<NodeProps> = memo(({ data, selected }) => {
 
   return (
     <div
-      className={`relative min-w-[260px] max-w-[290px] rounded-lg bg-white border font-sans transition-all duration-150 shadow-xs ${
+      className={`relative min-w-[270px] max-w-[300px] rounded-lg bg-white border font-sans transition-all duration-150 shadow-xs ${
         selected
           ? 'border-[#3a2088] ring-2 ring-[#3a2088]/20 shadow-md'
           : 'border-purple-200/90 hover:border-[#3a2088]'
       }`}
     >
-      {/* Node Header (Solid Background, No Gradient, No Header Icon, No Badge) */}
+      {/* Node Header */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-[#3a2088] text-white rounded-t-lg">
         <div className="text-[11px] font-medium tracking-wider uppercase">
           <span>EVENT (TRIGGER)</span>
@@ -48,13 +47,18 @@ export const TriggerNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         id="output"
         isConnectable={true}
         style={{
-          width: 14,
-          height: 14,
+          position: 'absolute',
+          top: '50%',
+          right: -8,
+          transform: 'translateY(-50%)',
+          width: 16,
+          height: 16,
           backgroundColor: '#3a2088',
-          border: '2px solid #ffffff',
+          border: '2.5px solid #ffffff',
           borderRadius: '50%',
           cursor: 'crosshair',
-          zIndex: 50
+          zIndex: 50,
+          boxShadow: '0 0 0 1px #3a2088'
         }}
       />
     </div>
@@ -62,4 +66,3 @@ export const TriggerNode: React.FC<NodeProps> = memo(({ data, selected }) => {
 });
 
 TriggerNode.displayName = 'TriggerNode';
-

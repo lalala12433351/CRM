@@ -1,7 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from '../context/ToastContext';
 import { EmptyState } from '../components/EmptyState';
 import { WorkflowBuilderPage } from '../features/workflow-builder';
+import { 
+  getWorkflowsFromDb, 
+  saveWorkflowToDb, 
+  deleteWorkflowFromDb, 
+  toggleWorkflowStatusInDb,
+  WorkflowRecord 
+} from '../utils/workflowStorage';
 import { 
   GitBranch, 
   RotateCw, 
@@ -74,13 +81,21 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('On');
+  const [statusFilter, setStatusFilter] = useState('All');
   const [eventTypeFilter, setEventTypeFilter] = useState('Select Event Types');
   const [appsCategory, setAppsCategory] = useState<'All' | 'Advertising' | 'Messaging' | 'E-Commerce' | 'Forms'>('All');
 
   // Visual Workflow Builder state
   const [isVisualBuilderOpen, setIsVisualBuilderOpen] = useState(false);
   const [selectedWorkflowForBuilder, setSelectedWorkflowForBuilder] = useState<any>(null);
+
+  // Persistent workflows list from Database
+  const [workflowsList, setWorkflowsList] = useState<WorkflowRecord[]>(() => getWorkflowsFromDb());
+
+  // Reload workflows when tab becomes active
+  useEffect(() => {
+    setWorkflowsList(getWorkflowsFromDb());
+  }, [activeSubTab, isVisualBuilderOpen]);
 
   const handleOpenBuilder = (workflowItem?: any) => {
     if (onOpenWorkflowBuilder) {
@@ -96,49 +111,6 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
   const [modalName, setModalName] = useState('');
   const [modalTrigger, setModalTrigger] = useState('Lead Creation');
   const [modalEndpoint, setModalEndpoint] = useState('https://graph.facebook.com/v25.0/2...');
-
-  // Live Data for Workflows
-  const [workflowsList, setWorkflowsList] = useState<any[]>([
-    {
-      id: 'wf-1',
-      name: 'On Website lead',
-      hasDraft: false,
-      event: 'Lead Creation',
-      eventIcon: 'globe',
-      status: true,
-      statusMeta: '13d ago by Faisal C',
-      totalRuns: 853,
-      last24hRuns: 10,
-      last24hFailures: 0,
-      isDraft: false
-    },
-    {
-      id: 'wf-2',
-      name: 'On Lead Status Change',
-      hasDraft: true,
-      event: 'Lead Status Change',
-      eventIcon: 'file',
-      status: true,
-      statusMeta: '2M ago by Faisal C',
-      totalRuns: 19233,
-      last24hRuns: 432,
-      last24hFailures: 0,
-      isDraft: false
-    },
-    {
-      id: 'wf-3',
-      name: 'On call log lead',
-      hasDraft: false,
-      event: 'Lead Creation +9',
-      eventIcon: 'phone',
-      status: true,
-      statusMeta: '3M ago by Faisal C',
-      totalRuns: 862,
-      last24hRuns: 0,
-      last24hFailures: 0,
-      isDraft: false
-    }
-  ]);
 
   // Live Data for Schedules
   const [schedules, setSchedules] = useState<any[]>([]);
@@ -239,17 +211,35 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
   // Handle Toast
   const triggerToast = (msg: string) => {
     if (onShowToast) onShowToast(msg);
+    else toast.success(msg);
   };
 
   // Handle duplicate row
   const handleDuplicate = (type: string, name: string) => {
+    if (type === 'Workflow') {
+      const target = workflowsList.find((w) => w.name === name);
+      if (target) {
+        const dup: any = {
+          ...target,
+          id: `wf-${Date.now()}`,
+          name: `${target.name} (Copy)`,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        const updated = saveWorkflowToDb(dup);
+        setWorkflowsList(updated);
+        triggerToast(`Duplicated workflow: "${dup.name}"`);
+        return;
+      }
+    }
     triggerToast(`Duplicated ${type}: "${name}"`);
   };
 
   // Handle delete row
   const handleDelete = (id: string, name: string) => {
     if (activeSubTab === 'workflows') {
-      setWorkflowsList(prev => prev.filter(w => w.id !== id));
+      const updated = deleteWorkflowFromDb(id);
+      setWorkflowsList(updated);
     } else if (activeSubTab === 'schedules') {
       setSchedules(prev => prev.filter(s => s.id !== id));
     } else if (activeSubTab === 'salesform') {
@@ -267,29 +257,12 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
         onBack={() => {
           setSelectedWorkflowForBuilder(null);
           setIsVisualBuilderOpen(false);
+          setWorkflowsList(getWorkflowsFromDb());
         }}
         onSave={(savedWorkflow) => {
-          triggerToast(`Workflow "${savedWorkflow.name}" saved!`);
-          setWorkflowsList((prev) => {
-            const exists = prev.some((w) => w.name === savedWorkflow.name);
-            if (exists) return prev;
-            return [
-              {
-                id: savedWorkflow.id,
-                name: savedWorkflow.name,
-                hasDraft: savedWorkflow.status === 'draft',
-                event: savedWorkflow.nodes[0]?.data?.label || 'Inbound Trigger',
-                eventIcon: 'globe',
-                status: savedWorkflow.status === 'published',
-                statusMeta: 'Just now by Admin',
-                totalRuns: 0,
-                last24hRuns: 0,
-                last24hFailures: 0,
-                isDraft: savedWorkflow.status === 'draft'
-              },
-              ...prev
-            ];
-          });
+          const updated = saveWorkflowToDb(savedWorkflow);
+          setWorkflowsList(updated);
+          triggerToast(`Workflow "${savedWorkflow.name}" saved to database!`);
         }}
       />
     );
@@ -495,7 +468,14 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
                   {workflowsList
-                    .filter(w => workflowsTab === 'Draft' ? w.isDraft : !w.isDraft).length === 0 ? (
+                    .filter((w) => {
+                      if (workflowsTab === 'Draft' ? !w.isDraft : w.isDraft) return false;
+                      if (searchQuery.trim() && !w.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+                      if (statusFilter === 'On' && !w.status) return false;
+                      if (statusFilter === 'Off' && w.status) return false;
+                      if (eventTypeFilter !== 'Select Event Types' && !w.event.toLowerCase().includes(eventTypeFilter.toLowerCase())) return false;
+                      return true;
+                    }).length === 0 ? (
                       <tr>
                         <td colSpan={6} className="p-4">
                           <EmptyState
@@ -509,7 +489,14 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                       </tr>
                     ) : (
                       workflowsList
-                        .filter(w => workflowsTab === 'Draft' ? w.isDraft : !w.isDraft)
+                        .filter((w) => {
+                          if (workflowsTab === 'Draft' ? !w.isDraft : w.isDraft) return false;
+                          if (searchQuery.trim() && !w.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+                          if (statusFilter === 'On' && !w.status) return false;
+                          if (statusFilter === 'Off' && w.status) return false;
+                          if (eventTypeFilter !== 'Select Event Types' && !w.event.toLowerCase().includes(eventTypeFilter.toLowerCase())) return false;
+                          return true;
+                        })
                         .map((wf) => (
                           <tr key={wf.id} className="hover:bg-slate-50/80 transition-colors">
                             <td className="py-3.5 px-4">
@@ -533,7 +520,7 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                             </td>
                             <td className="py-3.5 px-4 text-center">
                               <span className="inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold bg-indigo-50 text-[#3a2088] border border-indigo-200">
-                                {wf.eventsCount}
+                                {wf.event || (wf.nodes && wf.nodes.length > 0 ? `${wf.nodes.length} steps` : 'Lead Creation')}
                               </span>
                             </td>
                             <td className="py-3.5 px-4 text-center">
@@ -543,7 +530,8 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                                     type="checkbox" 
                                     checked={wf.status} 
                                     onChange={() => {
-                                      setWorkflowsList(prev => prev.map(w => w.id === wf.id ? { ...w, status: !w.status } : w));
+                                      const updated = toggleWorkflowStatusInDb(wf.id);
+                                      setWorkflowsList(updated);
                                       triggerToast(`Workflow "${wf.name}" toggled ${wf.status ? 'OFF' : 'ON'}`);
                                     }}
                                     className="sr-only peer" 
