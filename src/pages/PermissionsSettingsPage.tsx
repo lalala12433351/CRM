@@ -237,7 +237,7 @@ export const PermissionsSettingsPage: React.FC<PermissionsSettingsViewProps> = (
         {/* Table View (Matching Screenshot 1) */}
         <div className="overflow-x-auto rounded-xl border border-slate-200/80">
           <table className="w-full text-left text-xs text-slate-700">
-            <thead className="bg-slate-50/80 text-slate-500 font-semibold border-b border-slate-200 text-[11px]">
+            <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
               <tr>
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium text-center">Assigned to</th>

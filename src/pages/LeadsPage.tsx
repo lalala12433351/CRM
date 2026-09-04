@@ -3136,7 +3136,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                 <table className="w-full text-left text-xs text-slate-700">
                   
                   {/* Table Header */}
-                  <thead className="bg-[#f1f5f9]/70 text-slate-600 font-semibold border-b border-slate-200">
+                  <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
                     <tr>
                       {/* Checkbox */}
                       <th className="px-3.5 py-3 w-10 text-center">

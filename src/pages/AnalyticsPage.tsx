@@ -824,7 +824,7 @@ export const AnalyticsPage: React.FC<AnalyticsViewProps> = ({ leads, hourlyMetri
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-700">
-            <thead className="bg-slate-50/80 text-slate-500 uppercase text-[10px] tracking-wider font-bold border-b border-slate-200">
+            <thead className="bg-slate-100 text-slate-700 uppercase text-[10px] tracking-wider font-bold border-b border-slate-200">
               <tr>
                 <th className="px-3 py-2.5">Marketing Source</th>
                 <th className="px-3 py-2.5">Ad Budget Spend</th>

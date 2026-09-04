@@ -1050,17 +1050,21 @@ export function App() {
 
   const pendingTasksCount = useMemo(() => {
     const pendingFromTasks = (crmTasks || []).filter(t => t.status === 'Pending' || !t.status);
-    const pendingFollowups = (leads || []).filter(l => l.followUpAt || l.status === 'Follow Up');
 
     if (isAgentAdmin(activeAgent)) {
-      return pendingFromTasks.length + pendingFollowups.length;
+      return pendingFromTasks.length;
     }
 
-    const agentTasks = pendingFromTasks.filter(t => t.assigneeAgentId === activeAgent?.id || t.assigneeAgentName?.toLowerCase() === activeAgent?.name?.toLowerCase()).length;
-    const agentFollowups = pendingFollowups.filter(l => l.ownerAgentId === activeAgent?.id || l.ownerAgentName?.toLowerCase() === activeAgent?.name?.toLowerCase()).length;
+    return pendingFromTasks.filter(t => t.assigneeAgentId === activeAgent?.id || t.assigneeAgentName?.toLowerCase() === activeAgent?.name?.toLowerCase()).length;
+  }, [crmTasks, activeAgent]);
 
-    return agentTasks + agentFollowups;
-  }, [crmTasks, leads, activeAgent]);
+  const pendingFollowUpsCount = useMemo(() => {
+    const followups = (leads || []).filter(l => l.followUpAt || l.status === 'Follow Up');
+    if (isAgentAdmin(activeAgent)) {
+      return followups.length;
+    }
+    return followups.filter(l => l.ownerAgentId === activeAgent?.id || l.ownerAgentName?.toLowerCase() === activeAgent?.name?.toLowerCase()).length;
+  }, [leads, activeAgent]);
 
   return (
     <StagesContext.Provider value={activeStages}>
@@ -1078,7 +1082,7 @@ export function App() {
         onOpenPowerDialer={() => setIsPowerDialerQueueOpen(true)}
         onOpenAiCopilot={() => setIsAiCopilotOpen(true)}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
-        pendingFollowUpsCount={leads.filter((l) => l.followUpAt || l.status === 'Follow Up').length}
+        pendingFollowUpsCount={pendingFollowUpsCount}
         pendingTasksCount={pendingTasksCount}
         onNavigateToFollowUps={() => setCurrentView('followups')}
         onNavigateToSettings={() => setCurrentView('settings')}
@@ -1651,7 +1655,7 @@ export function App() {
           }
         }}
         unassignedLeadsCount={leads.filter((l) => !l.ownerAgentId).length}
-        pendingFollowUpsCount={leads.filter((l) => l.followUpAt || l.status === 'Follow Up').length}
+        pendingFollowUpsCount={pendingFollowUpsCount}
         activeAgent={activeAgent}
         agents={agents}
         companyName={rawCompanyName}

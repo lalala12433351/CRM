@@ -756,7 +756,7 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs font-sans border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-200/80 bg-slate-50/50 text-slate-500 font-semibold text-[11px] uppercase tracking-wider">
+                  <tr className="border-b border-slate-200 bg-slate-100 text-slate-700 font-bold text-[11px] uppercase tracking-wider">
                     {visibleFields.map((f) => (
                       <th 
                         key={f.id || f.name} 

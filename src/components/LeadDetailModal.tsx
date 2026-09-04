@@ -2785,7 +2785,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
 
         {/* Edit Form Modal (Unchanged structurally, just ensuring it still renders) */}
         {isEditingLead && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 animate-in fade-in duration-200">
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/40 animate-in fade-in duration-200">
             <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden font-sans">
               <div className="p-5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
                 <div className="flex items-center space-x-2">
@@ -2836,7 +2836,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
 
         {/* Modal: Schedule Follow-Up Date & Time */}
         {showFollowUpScheduler && (
-          <div className="fixed inset-0 bg-slate-900/60 z-[70] flex items-center justify-center p-4 font-sans animate-in fade-in duration-200">
+          <div className="fixed inset-0 bg-slate-900/60 z-[1001] flex items-center justify-center p-4 font-sans animate-in fade-in duration-200">
             <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-2xl p-5 space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center space-x-2">
@@ -2943,19 +2943,19 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
+    <div className="fixed inset-0 z-[999] flex justify-end overflow-hidden">
       {/* Subtle Gray Backdrop */}
       <div 
         onClick={onClose}
-        className="fixed inset-0 bg-slate-900/20 transition-opacity z-40 cursor-pointer"
+        className="fixed inset-0 bg-slate-900/40 transition-opacity z-[998] cursor-pointer"
       />
 
       {/* Wrapper for Drawer and Buttons */}
-      <div className="relative w-full lg:w-[65%] xl:w-[60%] max-w-6xl h-full flex flex-col z-50 font-sans animate-in slide-in-from-right duration-300">
+      <div className="relative w-full lg:w-[65%] xl:w-[60%] max-w-6xl h-full flex flex-col z-[999] font-sans animate-in slide-in-from-right duration-300">
         {/* Floating Close Button */}
         <button 
           onClick={onClose} 
-          className="absolute -left-14 top-4 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-all cursor-pointer hidden md:flex z-50"
+          className="absolute -left-14 top-4 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-all cursor-pointer hidden md:flex z-[1000]"
         >
           <X className="w-5 h-5" />
         </button>
