@@ -231,11 +231,11 @@
         "city": "Not Specified",
         "state": "Not Specified",
         "source": "Facebook Ads",
-        "status": "Fresh",
+        "status": "Follow Up",
         "pipelineStageId": "stage-1",
         "dealValue": 0,
-        "ownerAgentId": "agent_kiteaviation_admin",
-        "ownerAgentName": "Kite Aviation Admin",
+        "ownerAgentId": "agent-1788331750812",
+        "ownerAgentName": "DSSFSD",
         "aiScore": 80,
         "aiRating": "Hot",
         "aiReasoning": "Inbound lead entry",
@@ -245,7 +245,7 @@
           "HighIntent"
         ],
         "createdAt": "2026-09-04T06:39:35.675Z",
-        "updatedAt": "2026-09-04T06:39:35.989Z",
+        "updatedAt": "2026-09-04T06:46:47.516Z",
         "pincode": "",
         "whatsappOptIn": true,
         "activities": [
@@ -259,7 +259,9 @@
             "agentId": "agent_kiteaviation_admin",
             "agentName": "Kite Aviation Admin"
           }
-        ]
+        ],
+        "followUpAt": "2026-09-04T13:15:00",
+        "assignedTo": "agent-1788331750812"
       },
       {
         "id": "lead-1788503947437",
