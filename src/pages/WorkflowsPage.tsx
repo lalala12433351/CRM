@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { toast } from '../context/ToastContext';
 import { EmptyState } from '../components/EmptyState';
+import { WorkflowBuilderPage } from '../features/workflow-builder';
 import { 
   GitBranch, 
   RotateCw, 
@@ -74,6 +75,9 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
   const [statusFilter, setStatusFilter] = useState('On');
   const [eventTypeFilter, setEventTypeFilter] = useState('Select Event Types');
   const [appsCategory, setAppsCategory] = useState<'All' | 'Advertising' | 'Messaging' | 'E-Commerce' | 'Forms'>('All');
+
+  // Visual Workflow Builder state
+  const [isVisualBuilderOpen, setIsVisualBuilderOpen] = useState(false);
 
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -244,6 +248,37 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
     triggerToast(`Removed "${name}"`);
   };
 
+  if (isVisualBuilderOpen) {
+    return (
+      <WorkflowBuilderPage
+        onBack={() => setIsVisualBuilderOpen(false)}
+        onSave={(savedWorkflow) => {
+          triggerToast(`Workflow "${savedWorkflow.name}" saved!`);
+          setWorkflowsList((prev) => {
+            const exists = prev.some((w) => w.name === savedWorkflow.name);
+            if (exists) return prev;
+            return [
+              {
+                id: savedWorkflow.id,
+                name: savedWorkflow.name,
+                hasDraft: savedWorkflow.status === 'draft',
+                event: savedWorkflow.nodes[0]?.data?.label || 'Inbound Trigger',
+                eventIcon: 'globe',
+                status: savedWorkflow.status === 'published',
+                statusMeta: 'Just now by Admin',
+                totalRuns: 0,
+                last24hRuns: 0,
+                last24hFailures: 0,
+                isDraft: savedWorkflow.status === 'draft'
+              },
+              ...prev
+            ];
+          });
+        }}
+      />
+    );
+  }
+
   return (
     <div className="p-3 md:p-6 space-y-5 max-w-7xl mx-auto text-slate-900 font-sans">
       {/* ========================================================================= */}
@@ -279,12 +314,22 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
               </p>
             </div>
 
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="px-4 py-2 rounded-xl bg-[#3a2088] hover:bg-[#2c186b] text-white text-xs font-bold cursor-pointer transition-all shadow-xs flex items-center space-x-1.5 self-start sm:self-auto"
-            >
-              <span>Create Workflow +</span>
-            </button>
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <button
+                onClick={() => setIsVisualBuilderOpen(true)}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-bold cursor-pointer transition-all shadow-xs flex items-center space-x-1.5"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-purple-200" />
+                <span>Visual Flow Builder</span>
+              </button>
+
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="px-4 py-2 rounded-xl bg-[#3a2088] hover:bg-[#2c186b] text-white text-xs font-bold cursor-pointer transition-all shadow-xs flex items-center space-x-1.5"
+              >
+                <span>Create Workflow +</span>
+              </button>
+            </div>
           </div>
 
           {/* Time Filter Pills Row (All | 24h | 7d | 30d) */}
@@ -459,14 +504,22 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                         .map((wf) => (
                           <tr key={wf.id} className="hover:bg-slate-50/80 transition-colors">
                             <td className="py-3.5 px-4">
-                              <p className="font-bold text-slate-900 text-xs">{wf.name}</p>
+                              <button
+                                type="button"
+                                onClick={() => setIsVisualBuilderOpen(true)}
+                                className="font-bold text-slate-900 hover:text-purple-600 text-xs text-left cursor-pointer transition-colors"
+                              >
+                                {wf.name}
+                              </button>
                               {wf.hasDraft && (
-                                <button
-                                  onClick={() => triggerToast(`Opening draft of "${wf.name}"`)}
-                                  className="text-[11px] text-[#3a2088] underline hover:text-[#2c186b] font-medium cursor-pointer"
-                                >
-                                  (Draft in progress)
-                                </button>
+                                <div>
+                                  <button
+                                    onClick={() => setIsVisualBuilderOpen(true)}
+                                    className="text-[11px] text-[#3a2088] underline hover:text-[#2c186b] font-medium cursor-pointer"
+                                  >
+                                    (Draft in progress)
+                                  </button>
+                                </div>
                               )}
                             </td>
                             <td className="py-3.5 px-4 text-center">
