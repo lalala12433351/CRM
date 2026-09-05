@@ -35,7 +35,7 @@ import {
   Layers, 
   ArrowUpRight, 
   Filter,
-  Sparkles,
+  Zap,
   AtSign,
   Mail,
   FileText,
@@ -49,7 +49,6 @@ import {
   ThumbsDown,
   Trophy,
   Headphones,
-  Zap,
   Globe,
   IndianRupee,
   MapPin,
@@ -1790,7 +1789,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                       Search By Mode
                     </div>
                     {[
-                      { id: 'auto', label: 'Auto (Smart Detect)', icon: Sparkles },
+                      { id: 'auto', label: 'Auto (Smart Detect)', icon: Zap },
                       { id: 'phone', label: 'Phone Number', icon: Phone },
                       { id: 'name', label: 'Lead Name', icon: User },
                       { id: 'email', label: 'Email Address', icon: Mail },

@@ -25,7 +25,6 @@ import {
   AlertCircle, 
   HelpCircle, 
   ShieldCheck, 
-  Sparkles, 
   SlidersHorizontal,
   ArrowUpDown,
   Tag,

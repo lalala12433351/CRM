@@ -9,7 +9,7 @@ import {
   Search, 
   Megaphone, 
   UserPlus, 
-  Bot, 
+  GitBranch, 
   Trophy, 
   Inbox, 
   BarChart3, 
@@ -18,7 +18,6 @@ import {
   FileText, 
   Settings, 
   UserCheck, 
-  Sparkles,
   ChevronRight,
   Plus,
   PhoneCall,
@@ -83,7 +82,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       items: [
         { id: 'whatsapp' as TabType, label: 'WhatsApp CRM', icon: MessageSquare, desc: 'Chat sync & template broadcasts' },
         { id: 'inbox' as TabType, label: 'Unified Inbox', icon: Inbox, desc: 'Omnichannel chat messages' },
-        { id: 'workflows' as TabType, label: 'Automations', icon: Bot, desc: 'AI drips & webhook triggers' },
+        { id: 'workflows' as TabType, label: 'Automations', icon: GitBranch, desc: 'Drips & webhook triggers' },
         { id: 'reports' as TabType, label: 'Reports & Rankings', icon: Trophy, desc: 'Leaderboard & call recordings' }
       ]
     },
@@ -303,7 +302,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                       className="flex items-center space-x-2.5 p-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold text-xs shadow-xs cursor-pointer text-left transition-all active:scale-[0.98]"
                     >
                       <div className="p-1.5 rounded-lg bg-white/20 shrink-0">
-                        <Sparkles className="w-4 h-4 text-white" />
+                        <MessageSquare className="w-4 h-4 text-white" />
                       </div>
                       <div>
                         <div className="font-bold text-xs leading-tight">AI Copilot</div>

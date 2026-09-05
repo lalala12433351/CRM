@@ -410,16 +410,44 @@ export async function initializeAwsDbTables() {
     await client.query(`
       CREATE TABLE IF NOT EXISTS workflows (
         id VARCHAR(255) PRIMARY KEY,
-        title VARCHAR(255) NOT NULL,
-        trigger_event VARCHAR(100) NOT NULL,
+        tenant_id VARCHAR(255),
+        title VARCHAR(255),
+        name VARCHAR(255),
+        event VARCHAR(255),
+        event_icon VARCHAR(100),
+        trigger_event VARCHAR(100),
         trigger_stage_id VARCHAR(255),
         actions JSONB DEFAULT '[]'::jsonb,
+        status BOOLEAN DEFAULT TRUE,
+        status_meta VARCHAR(255),
+        total_runs INT DEFAULT 0,
+        last_24h_runs INT DEFAULT 0,
+        last_24h_failures INT DEFAULT 0,
+        is_draft BOOLEAN DEFAULT FALSE,
+        has_draft BOOLEAN DEFAULT FALSE,
+        nodes JSONB DEFAULT '[]'::jsonb,
+        edges JSONB DEFAULT '[]'::jsonb,
+        data JSONB DEFAULT '{}'::jsonb,
         is_active BOOLEAN DEFAULT TRUE,
         execution_count INT DEFAULT 0,
         last_triggered_at TIMESTAMP WITH TIME ZONE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
+      ALTER TABLE workflows ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255);
+      ALTER TABLE workflows ADD COLUMN IF NOT EXISTS name VARCHAR(255);
+      ALTER TABLE workflows ADD COLUMN IF NOT EXISTS event VARCHAR(255);
+      ALTER TABLE workflows ADD COLUMN IF NOT EXISTS event_icon VARCHAR(100);
+      ALTER TABLE workflows ADD COLUMN IF NOT EXISTS status BOOLEAN DEFAULT TRUE;
+      ALTER TABLE workflows ADD COLUMN IF NOT EXISTS status_meta VARCHAR(255);
+      ALTER TABLE workflows ADD COLUMN IF NOT EXISTS total_runs INT DEFAULT 0;
+      ALTER TABLE workflows ADD COLUMN IF NOT EXISTS last_24h_runs INT DEFAULT 0;
+      ALTER TABLE workflows ADD COLUMN IF NOT EXISTS last_24h_failures INT DEFAULT 0;
+      ALTER TABLE workflows ADD COLUMN IF NOT EXISTS is_draft BOOLEAN DEFAULT FALSE;
+      ALTER TABLE workflows ADD COLUMN IF NOT EXISTS has_draft BOOLEAN DEFAULT FALSE;
+      ALTER TABLE workflows ADD COLUMN IF NOT EXISTS nodes JSONB DEFAULT '[]'::jsonb;
+      ALTER TABLE workflows ADD COLUMN IF NOT EXISTS edges JSONB DEFAULT '[]'::jsonb;
+      ALTER TABLE workflows ADD COLUMN IF NOT EXISTS data JSONB DEFAULT '{}'::jsonb;
     `);
 
     // 14. Drip Sequences & Scheduled Executions
@@ -449,6 +477,40 @@ export async function initializeAwsDbTables() {
         last_received_at TIMESTAMP WITH TIME ZONE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
+    `);
+
+    // 15b. API Templates Table (Persistent templates table for workflows and automations)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS templates (
+        id VARCHAR(255) PRIMARY KEY,
+        tenant_id VARCHAR(255) DEFAULT 'default_tenant',
+        name VARCHAR(255) NOT NULL,
+        method VARCHAR(20) DEFAULT 'POST',
+        endpoint_url TEXT NOT NULL,
+        timeout_seconds INT DEFAULT 3,
+        headers JSONB DEFAULT '[]'::jsonb,
+        body_payload TEXT,
+        query_params JSONB DEFAULT '[]'::jsonb,
+        auth_config JSONB DEFAULT '{"type":"none"}'::jsonb,
+        variables_used VARCHAR(255),
+        workflow VARCHAR(255) DEFAULT 'None',
+        created_by VARCHAR(255) DEFAULT 'FC',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+      ALTER TABLE templates ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) DEFAULT 'default_tenant';
+      ALTER TABLE templates ADD COLUMN IF NOT EXISTS name VARCHAR(255);
+      ALTER TABLE templates ADD COLUMN IF NOT EXISTS method VARCHAR(20) DEFAULT 'POST';
+      ALTER TABLE templates ADD COLUMN IF NOT EXISTS endpoint_url TEXT;
+      ALTER TABLE templates ADD COLUMN IF NOT EXISTS timeout_seconds INT DEFAULT 3;
+      ALTER TABLE templates ADD COLUMN IF NOT EXISTS headers JSONB DEFAULT '[]'::jsonb;
+      ALTER TABLE templates ADD COLUMN IF NOT EXISTS body_payload TEXT;
+      ALTER TABLE templates ADD COLUMN IF NOT EXISTS query_params JSONB DEFAULT '[]'::jsonb;
+      ALTER TABLE templates ADD COLUMN IF NOT EXISTS auth_config JSONB DEFAULT '{"type":"none"}'::jsonb;
+      ALTER TABLE templates ADD COLUMN IF NOT EXISTS variables_used VARCHAR(255);
+      ALTER TABLE templates ADD COLUMN IF NOT EXISTS workflow VARCHAR(255) DEFAULT 'None';
+      ALTER TABLE templates ADD COLUMN IF NOT EXISTS created_by VARCHAR(255) DEFAULT 'FC';
+      CREATE INDEX IF NOT EXISTS idx_templates_tenant ON templates(tenant_id);
     `);
 
     // 16. Tasks & Action Items

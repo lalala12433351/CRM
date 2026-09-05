@@ -4,7 +4,6 @@ import {
   Settings,
   Building2,
   PhoneCall,
-  Bot,
   MessageSquare,
   Bell,
   ShieldCheck,
@@ -17,7 +16,7 @@ import {
   Trash2,
   ArrowUp,
   ArrowDown,
-  Sparkles,
+  Zap,
   ChevronRight,
   ChevronDown,
   CreditCard,
@@ -28,7 +27,6 @@ import {
   ExternalLink,
   CheckCircle2,
   X,
-  Zap,
   Info,
   Users,
   UserPlus,
@@ -1038,7 +1036,7 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
             }`}
           >
             <div className="flex items-center space-x-3 min-w-0 flex-1 text-left">
-              <Bot className={`w-4 h-4 shrink-0 ${activeTab === 'ai_scoring' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
+              <Zap className={`w-4 h-4 shrink-0 ${activeTab === 'ai_scoring' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
               <span className="truncate">AI & Lead Scoring</span>
             </div>
           </button>
@@ -2364,7 +2362,7 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
                     <div className="border border-slate-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-purple-300 transition-all bg-slate-50/50">
                       <div className="flex items-start space-x-3">
                         <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                          <Bot className="w-5 h-5" />
+                          <Building2 className="w-5 h-5" />
                         </div>
                         <div className="space-y-0.5 font-noto">
                           <h4 className="text-xs font-bold text-slate-900">Core CRM (A)</h4>
@@ -2402,7 +2400,7 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
                       <div className="flex items-start space-x-3">
                         <div className="relative">
                           <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                            <Bot className="w-5 h-5" />
+                            <Building2 className="w-5 h-5" />
                           </div>
                           <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center border-2 border-white shadow-xs">
                             <MessageSquare className="w-2.5 h-2.5" />
@@ -2480,7 +2478,7 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
                     <div className="border border-slate-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-purple-300 transition-all bg-slate-50/50">
                       <div className="flex items-start space-x-3">
                         <div className="w-9 h-9 rounded-lg bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                          <Sparkles className="w-4 h-4" />
+                          <Zap className="w-4 h-4" />
                         </div>
                         <div className="space-y-0.5 font-noto">
                           <h4 className="text-xs font-bold text-slate-900">Automation Consultancy</h4>

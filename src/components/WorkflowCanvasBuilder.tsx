@@ -11,8 +11,8 @@ import {
   UserCheck, 
   Clock, 
   FileSpreadsheet, 
-  Sparkles, 
-  Bot, 
+  Filter, 
+  Sliders, 
   Layers,
   ChevronDown,
   Info,
@@ -141,12 +141,12 @@ export const WorkflowCanvasBuilder: React.FC<WorkflowCanvasBuilderProps> = ({
   const getNodeIcon = (type: string) => {
     switch (type) {
       case 'zap': return <Zap className="w-4 h-4 text-amber-600" />;
-      case 'filter': return <Sparkles className="w-4 h-4 text-indigo-600" />;
+      case 'filter': return <Filter className="w-4 h-4 text-indigo-600" />;
       case 'whatsapp': return <MessageSquare className="w-4 h-4 text-emerald-600" />;
       case 'call': return <PhoneCall className="w-4 h-4 text-blue-600" />;
       case 'assign': return <UserCheck className="w-4 h-4 text-violet-600" />;
       case 'sheets': return <FileSpreadsheet className="w-4 h-4 text-teal-600" />;
-      case 'ai': return <Bot className="w-4 h-4 text-pink-600" />;
+      case 'ai': return <Sliders className="w-4 h-4 text-pink-600" />;
       default: return <Zap className="w-4 h-4 text-indigo-600" />;
     }
   };

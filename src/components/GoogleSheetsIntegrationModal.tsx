@@ -8,7 +8,7 @@ import {
   Download, 
   Upload, 
   Link2, 
-  Sparkles, 
+  Zap, 
   Layers, 
   Check, 
   Copy, 
@@ -512,7 +512,7 @@ function onFormOrSheetSubmit(e) {
             <div className="space-y-4">
               <div className="p-4 rounded-xl bg-indigo-50/60 border border-indigo-200 space-y-2">
                 <div className="flex items-center space-x-2">
-                  <Sparkles className="w-4 h-4 text-indigo-600" />
+                  <Zap className="w-4 h-4 text-indigo-600" />
                   <h4 className="text-xs sm:text-sm font-bold text-indigo-950">Real-Time Ingestion Trigger</h4>
                 </div>
                 <p className="text-xs text-indigo-900 leading-relaxed">

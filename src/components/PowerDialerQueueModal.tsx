@@ -6,13 +6,11 @@ import {
   Volume2, 
   Mic, 
   MicOff, 
-  Sparkles, 
   X, 
   Building,
   MapPin,
   Clock,
   CheckCircle2,
-  Brain,
   FileText
 } from 'lucide-react';
 import { Lead, Agent, LeadStatus, formatDealValue } from '../types';
@@ -274,20 +272,20 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
               </div>
             </div>
 
-            {/* AI Talking Points & Teleprompter Script */}
+            {/* Talking Points & Teleprompter Script */}
             <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-3">
               <div className="flex items-center justify-between text-xs font-bold text-slate-900">
                 <div className="flex items-center space-x-1.5">
-                  <Sparkles className="w-4 h-4 text-indigo-600" />
-                  <span className="font-bold font-sans text-sm text-slate-900">AI Teleprompter Script</span>
+                  <FileText className="w-4 h-4 text-indigo-600" />
+                  <span className="font-bold font-sans text-sm text-slate-900">Teleprompter Script</span>
                 </div>
-                {/* Working Interactive AI Summary Button */}
+                {/* Working Interactive Summary Button */}
                 <button
                   onClick={() => setShowAiSummaryModal(true)}
                   className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-[11px] cursor-pointer transition-colors shadow-xs flex items-center space-x-1"
                 >
-                  <Brain className="w-3.5 h-3.5" />
-                  <span>AI Summary</span>
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Call Summary</span>
                 </button>
               </div>
 
@@ -424,8 +422,8 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 space-y-4 animate-in fade-in">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center space-x-2">
-                <Brain className="w-5 h-5 text-indigo-600" />
-                <h3 className="text-base font-bold font-sans text-slate-900">AI Lead & Sales Summary</h3>
+                <FileText className="w-5 h-5 text-indigo-600" />
+                <h3 className="text-base font-bold font-sans text-slate-900">Lead & Sales Summary</h3>
               </div>
               <button onClick={() => setShowAiSummaryModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
                 <X className="w-5 h-5" />

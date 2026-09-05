@@ -20,7 +20,6 @@ import {
   ExternalLink, 
   Filter, 
   Search, 
-  Sparkles, 
   Plus, 
   Trash2, 
   Save, 
@@ -455,7 +454,7 @@ export const ConversionTrackingPage: React.FC<ConversionTrackingViewProps> = ({
             <div className="bg-gradient-to-r from-indigo-900 to-purple-900 rounded-2xl p-5 text-white shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center space-x-2">
-                  <Sparkles className="w-5 h-5 text-yellow-300" />
+                  <TrendingUp className="w-5 h-5 text-yellow-300" />
                   <h3 className="font-bold text-base">Why Lead Quality Signals Beat Raw Lead Volume</h3>
                 </div>
                 <p className="text-xs text-indigo-100 max-w-3xl leading-relaxed">

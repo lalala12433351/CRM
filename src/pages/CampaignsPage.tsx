@@ -13,7 +13,6 @@ import {
   MessageSquare, 
   Send, 
   FileText, 
-  Sparkles, 
   CheckSquare, 
   Calendar, 
   MapPin, 

@@ -14,7 +14,6 @@ import {
   Filter,
   User,
   ArrowUpRight,
-  Sparkles,
   Clock,
   ArrowUpDown,
   SlidersHorizontal,

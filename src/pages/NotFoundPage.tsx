@@ -7,8 +7,7 @@ import {
   PhoneCall, 
   Layers, 
   CheckSquare, 
-  HelpCircle,
-  Sparkles
+  HelpCircle
 } from 'lucide-react';
 
 interface NotFoundPageProps {

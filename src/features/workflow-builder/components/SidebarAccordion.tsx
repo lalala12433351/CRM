@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { WORKFLOW_CATEGORIES, WORKFLOW_CATALOG } from '../constants/workflowCatalog';
 import { CatalogItem, WorkflowCategory } from '../types/workflow.types';
+import { WorkflowIcon } from './WorkflowIcons';
 
 interface SidebarAccordionProps {
   onItemClick?: (item: CatalogItem) => void;
@@ -96,7 +97,7 @@ export const SidebarAccordion: React.FC<SidebarAccordionProps> = ({
               key={cat.id}
               className="border border-slate-200/90 rounded-md overflow-hidden bg-white shadow-2xs transition-all duration-150"
             >
-              {/* Category Accordion Header (No count badge) */}
+              {/* Category Accordion Header */}
               <button
                 type="button"
                 onClick={() => toggleCategory(cat.id)}
@@ -122,7 +123,7 @@ export const SidebarAccordion: React.FC<SidebarAccordionProps> = ({
                 </div>
               </button>
 
-              {/* Category Items (No Icons, No Badges, No Boldness) */}
+              {/* Category Items with Monochrome Icons */}
               {isOpen && (
                 <div className="p-1.5 space-y-1 bg-slate-50/50 border-t border-slate-100">
                   {items.length === 0 ? (
@@ -141,13 +142,16 @@ export const SidebarAccordion: React.FC<SidebarAccordionProps> = ({
                           onClick={() => {
                             if (!isDisabled) onItemClick?.(item);
                           }}
-                          className={`flex items-center px-3 py-2 rounded-md border border-slate-200/90 bg-white transition-all select-none ${
+                          className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-slate-200/90 bg-white transition-all select-none ${
                             isDisabled
                               ? 'opacity-40 cursor-not-allowed bg-slate-100'
                               : 'hover:border-[#3a2088] hover:shadow-2xs cursor-grab active:cursor-grabbing'
                           }`}
                           title={isDisabled ? 'Only 1 trigger event can be chosen per workflow' : undefined}
                         >
+                          <div className="w-5 h-5 rounded bg-slate-100/90 flex items-center justify-center text-slate-700 shrink-0 border border-slate-200/60">
+                            <WorkflowIcon id={item.id} size={12} className="text-slate-700" />
+                          </div>
                           <span className="text-xs font-normal text-slate-800 hover:text-[#3a2088] truncate">
                             {item.name}
                           </span>

@@ -1,27 +1,23 @@
-import React, { memo, useEffect } from 'react';
-import { Handle, Position, NodeProps, useUpdateNodeInternals } from '@xyflow/react';
+import React, { memo } from 'react';
+import { Handle, Position, NodeProps } from '@xyflow/react';
 import { WorkflowNodeData } from '../../types/workflow.types';
 import { CheckCircle2 } from 'lucide-react';
+import { WorkflowIcon } from '../WorkflowIcons';
 
-export const TriggerNode: React.FC<NodeProps> = memo(({ id, data, selected }) => {
+export const TriggerNode: React.FC<NodeProps> = memo(({ data, selected }) => {
   const nodeData = data as unknown as WorkflowNodeData;
-  const updateNodeInternals = useUpdateNodeInternals();
-
-  useEffect(() => {
-    updateNodeInternals(id);
-  }, [id, updateNodeInternals]);
 
   return (
     <div
-      className={`relative min-w-[270px] max-w-[300px] rounded-lg bg-white border font-sans shadow-xs ${
-        selected
-          ? 'border-[#3a2088] ring-2 ring-[#3a2088]/20 shadow-md'
-          : 'border-purple-200/90 hover:border-[#3a2088]'
-      }`}
+      className={`relative min-w-[270px] max-w-[300px] rounded-lg bg-white border font-sans shadow-xs ${selected
+        ? 'border-[#3a2088] ring-2 ring-[#3a2088]/20 shadow-md'
+        : 'border-purple-200/90 hover:border-[#3a2088]'
+        }`}
     >
       {/* Node Header */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-[#3a2088] text-white rounded-t-lg">
-        <div className="text-[11px] font-medium tracking-wider uppercase">
+        <div className="flex items-center gap-2 text-[11px] font-medium tracking-wider uppercase">
+          <WorkflowIcon id={nodeData.catalogId || 'facebook_lead'} size={13} className="text-purple-200" />
           <span>EVENT (TRIGGER)</span>
         </div>
       </div>
@@ -50,11 +46,7 @@ export const TriggerNode: React.FC<NodeProps> = memo(({ id, data, selected }) =>
         type="source"
         position={Position.Right}
         id="output"
-        isConnectable={true}
-        className="!w-4.5 !h-4.5 !bg-[#3a2088] !border-2 !border-white !rounded-full !cursor-crosshair hover:!ring-4 hover:!ring-purple-200 transition-shadow !z-50 shadow-sm"
-        style={{
-          boxShadow: '0 0 0 1.5px #3a2088'
-        }}
+        className="!w-3.5 !h-3.5 !bg-[#3a2088] !border-2 !border-white !rounded-full !cursor-crosshair shadow-sm"
       />
     </div>
   );

@@ -89,18 +89,25 @@ export function pathToView(pathname: string): string | null {
 /**
  * Returns the canonical URL path for a given view key
  */
-export function viewToPath(view: string, subTab?: string): string {
+export function viewToPath(view: string, subTab?: string, queryParams?: Record<string, string>): string {
   const basePath = VIEW_TO_PATH[view] || `/${view}`;
+  const params = new URLSearchParams();
   if (subTab && subTab !== 'general' && subTab !== 'call_logs' && subTab !== 'workflows') {
-    return `${basePath}?tab=${encodeURIComponent(subTab)}`;
+    params.set('tab', subTab);
   }
-  return basePath;
+  if (queryParams) {
+    Object.entries(queryParams).forEach(([k, v]) => {
+      if (v) params.set(k, v);
+    });
+  }
+  const qs = params.toString();
+  return qs ? `${basePath}?${qs}` : basePath;
 }
 
 /**
  * Parses the initial view from the current browser URL bar
  */
-export function getInitialViewFromUrl(defaultFallback: string = 'leads'): string {
+export function getInitialViewFromUrl(defaultFallback: string = 'dashboard'): string {
   if (typeof window === 'undefined') return defaultFallback;
   
   const fromPath = pathToView(window.location.pathname);
@@ -117,17 +124,22 @@ export function getInitialViewFromUrl(defaultFallback: string = 'leads'): string
 /**
  * Synchronizes the browser address bar with the active view and subtab
  */
-export function syncUrlWithView(view: string, subTab?: string, replace: boolean = false): void {
+export function syncUrlWithView(
+  view: string,
+  subTab?: string,
+  replace: boolean = false,
+  queryParams?: Record<string, string>
+): void {
   if (typeof window === 'undefined') return;
 
-  const targetPath = viewToPath(view, subTab);
+  const targetPath = viewToPath(view, subTab, queryParams);
   const currentPathWithQuery = window.location.pathname + window.location.search;
 
   if (currentPathWithQuery !== targetPath) {
     if (replace) {
-      window.history.replaceState({ view, subTab }, '', targetPath);
+      window.history.replaceState({ view, subTab, queryParams }, '', targetPath);
     } else {
-      window.history.pushState({ view, subTab }, '', targetPath);
+      window.history.pushState({ view, subTab, queryParams }, '', targetPath);
     }
   }
 

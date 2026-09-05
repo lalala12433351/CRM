@@ -5,7 +5,6 @@ import {
   Link2, 
   Check, 
   AlertTriangle, 
-  Sparkles, 
   Zap, 
   MapPin, 
   Building, 

@@ -40,109 +40,7 @@ export interface ApiTemplateOption {
   bodyPayload: string;
 }
 
-export const API_TEMPLATES: ApiTemplateOption[] = [
-  {
-    id: 'meta_capi',
-    name: 'Meta Conversions API (CAPI)',
-    method: 'POST',
-    endpointUrl: 'https://graph.facebook.com/v18.0/{{pixel_id}}/events',
-    headers: [
-      { key: 'Content-Type', value: 'application/json' },
-      { key: 'Authorization', value: 'Bearer {{meta_access_token}}' }
-    ],
-    bodyPayload: JSON.stringify({
-      data: [{
-        event_name: 'Lead',
-        event_time: '{{timestamp}}',
-        user_data: {
-          ph: '{{lead.phone_hash}}',
-          em: '{{lead.email_hash}}'
-        },
-        custom_data: {
-          lead_id: '{{lead.id}}',
-          source: '{{lead.source}}'
-        }
-      }]
-    }, null, 2)
-  },
-  {
-    id: 'zapier_webhook',
-    name: 'Zapier / Make Ingestion Webhook',
-    method: 'POST',
-    endpointUrl: 'https://hooks.zapier.com/hooks/catch/{{account_id}}/{{hook_id}}/',
-    headers: [
-      { key: 'Content-Type', value: 'application/json' }
-    ],
-    bodyPayload: JSON.stringify({
-      lead_id: '{{lead.id}}',
-      name: '{{lead.name}}',
-      phone: '{{lead.phone}}',
-      email: '{{lead.email}}',
-      stage: '{{lead.status}}',
-      source: '{{lead.source}}'
-    }, null, 2)
-  },
-  {
-    id: 'slack_notification',
-    name: 'Slack Team Alert Webhook',
-    method: 'POST',
-    endpointUrl: 'https://hooks.slack.com/services/T000/B000/XXXX',
-    headers: [
-      { key: 'Content-Type', value: 'application/json' }
-    ],
-    bodyPayload: JSON.stringify({
-      text: '🔥 *New High-Value Lead Captured!*\n*Name:* {{lead.name}}\n*Phone:* {{lead.phone}}\n*Status:* {{lead.status}}'
-    }, null, 2)
-  },
-  {
-    id: 'sms_gateway',
-    name: 'SMS Gateway Trigger (Twilio / MSG91)',
-    method: 'POST',
-    endpointUrl: 'https://api.msg91.com/api/v5/flow/',
-    headers: [
-      { key: 'Content-Type', value: 'application/json' },
-      { key: 'authkey', value: '{{sms_auth_key}}' }
-    ],
-    bodyPayload: JSON.stringify({
-      flow_id: '{{flow_id}}',
-      recipients: [{
-        mobiles: '{{lead.phone}}',
-        name: '{{lead.name}}'
-      }]
-    }, null, 2)
-  },
-  {
-    id: 'external_crm_sync',
-    name: 'Sync Lead to External ERP / CRM',
-    method: 'POST',
-    endpointUrl: 'https://api.external-crm.com/v2/contacts',
-    headers: [
-      { key: 'Content-Type', value: 'application/json' },
-      { key: 'Authorization', value: 'Bearer {{external_api_token}}' }
-    ],
-    bodyPayload: JSON.stringify({
-      contact_id: '{{lead.id}}',
-      first_name: '{{lead.name}}',
-      phone: '{{lead.phone}}',
-      company: '{{lead.company}}',
-      tags: '{{lead.tags}}'
-    }, null, 2)
-  },
-  {
-    id: 'custom_endpoint',
-    name: 'Custom Webhook Endpoint',
-    method: 'POST',
-    endpointUrl: 'https://api.yourdomain.com/v1/webhook',
-    headers: [
-      { key: 'Content-Type', value: 'application/json' }
-    ],
-    bodyPayload: JSON.stringify({
-      lead_id: '{{lead.id}}',
-      phone: '{{lead.phone}}',
-      status: '{{lead.status}}'
-    }, null, 2)
-  }
-];
+export const API_TEMPLATES: ApiTemplateOption[] = [];
 
 export const WORKFLOW_CATALOG: CatalogItem[] = [
   // =================== EVENTS (TRIGGERS) ===================
@@ -242,7 +140,7 @@ export const WORKFLOW_CATALOG: CatalogItem[] = [
     }
   },
 
-  // =================== ACTIONS ===================
+  // =================== ACTIONS (ALL 15 ACTIONS MATCHING CATALOG) ===================
   {
     id: 'call_api',
     kind: 'action',
@@ -260,38 +158,77 @@ export const WORKFLOW_CATALOG: CatalogItem[] = [
     }
   },
   {
-    id: 'capi',
+    id: 'create_custom_action',
     kind: 'action',
     category: 'actions',
-    name: 'CAPI - Meta Conversions API',
-    description: 'Post offline lead conversions back to Meta Ads Manager',
-    iconName: 'Share2',
-    badge: 'Marketing',
+    name: 'Create Custom Action',
+    description: 'Execute custom webhook or external business action',
+    iconName: 'Activity',
     defaultConfig: {
-      apiTemplate: 'Meta Conversions API (CAPI)',
-      capiEventName: 'Lead',
-      pixelId: '849204918239',
-      customEventCode: 'LEAD_OFFLINE_CONVERSION',
-      notes: 'Syncs lead status to Facebook Pixel'
+      customActionName: 'Trigger Webhook Action',
+      customActionCode: 'ACTION_EXECUTE_V1',
+      customPayload: '{\n  "status": "triggered"\n}',
+      notes: 'Custom business logic'
     }
   },
   {
-    id: 'send_template',
+    id: 'notification_team_member',
     kind: 'action',
     category: 'actions',
-    name: 'Send WhatsApp Template',
-    description: 'Send official Meta Cloud API approved template with dynamic variables',
-    iconName: 'Send',
-    badge: 'WhatsApp',
+    name: 'Notification To TeamMember',
+    description: 'Send push alert to team members and lead assignees with dynamic variables',
+    iconName: 'Bell',
     defaultConfig: {
-      templateName: 'lead_welcome_brochure',
-      templateLanguage: 'en_US',
-      recipientPhoneVariable: '{{lead.phone}}',
-      templateParams: {
-        '1': '{{lead.name}}',
-        '2': '{{company.name}}'
-      },
-      notes: 'Sends high-conversion welcome template'
+      teamMember: 'Assignee',
+      targetTeamMember: 'assignee',
+      header: '',
+      body: '',
+      url: '{{LEAD_LINK}}',
+      notes: 'Push notification to team member'
+    }
+  },
+  {
+    id: 'update_lead_assignee',
+    kind: 'action',
+    category: 'actions',
+    name: 'Update Lead Assignee',
+    description: 'Assign lead to specific telecaller or distribute via round-robin',
+    iconName: 'UserPlus',
+    defaultConfig: {
+      assignmentPreference: 'Assign Always',
+      taskPreference: 'No Change',
+      ignoreCurrentAssignee: 'No',
+      selectedTeamMembers: [],
+      distributeActiveOnly: true,
+      fallbackAssignee: '',
+      notes: 'Distribute leads among team members'
+    }
+  },
+  {
+    id: 'update_lead_fields',
+    kind: 'action',
+    category: 'actions',
+    name: 'Update Lead Fields',
+    description: 'Update lead attributes, source, company, location or custom fields',
+    iconName: 'Settings',
+    defaultConfig: {
+      fieldName: 'company',
+      fieldValue: '',
+      fieldUpdateMode: 'set',
+      notes: 'Updates lead metadata field'
+    }
+  },
+  {
+    id: 'update_lead_rating',
+    kind: 'action',
+    category: 'actions',
+    name: 'Update Lead Rating',
+    description: 'Update lead qualification rating to Hot, Warm, Cold or Not Qualified',
+    iconName: 'Star',
+    defaultConfig: {
+      targetRating: 'Hot',
+      ratingScore: 90,
+      notes: 'Sets lead temperature rating'
     }
   },
   {
@@ -307,19 +244,6 @@ export const WORKFLOW_CATALOG: CatalogItem[] = [
     }
   },
   {
-    id: 'update_lead_assignee',
-    kind: 'action',
-    category: 'actions',
-    name: 'Update Lead Assignee',
-    description: 'Assign lead to specific telecaller or distribute via round-robin',
-    iconName: 'UserPlus',
-    defaultConfig: {
-      assigneeType: 'round_robin',
-      assigneeAgentId: '',
-      notes: 'Distributes leads equally among sales reps'
-    }
-  },
-  {
     id: 'time_delay',
     kind: 'action',
     category: 'actions',
@@ -330,6 +254,125 @@ export const WORKFLOW_CATALOG: CatalogItem[] = [
       delayValue: 15,
       delayUnit: 'minutes',
       notes: 'Wait period before subsequent actions'
+    }
+  },
+  {
+    id: 'send_template',
+    kind: 'action',
+    category: 'actions',
+    name: 'Send Template',
+    description: 'Send official WhatsApp or SMS template with dynamic variables',
+    iconName: 'Send',
+    badge: 'WhatsApp',
+    defaultConfig: {
+      templateName: 'lead_welcome_brochure',
+      templateLanguage: 'en_US',
+      recipientPhoneVariable: '{{lead.phone}}',
+      templateParams: {
+        '1': '{{lead.name}}',
+        '2': '{{company.name}}'
+      },
+      notes: 'Sends high-conversion welcome template'
+    }
+  },
+  {
+    id: 'add_in_list',
+    kind: 'action',
+    category: 'actions',
+    name: 'Add in List',
+    description: 'Add lead to a campaign list, tag group, or audience segment',
+    iconName: 'Tag',
+    defaultConfig: {
+      listName: 'High Intent Buyers List',
+      listCategory: 'Marketing Segment',
+      notes: 'Tags lead into campaign audience'
+    }
+  },
+  {
+    id: 'remove_from_list',
+    kind: 'action',
+    category: 'actions',
+    name: 'Remove from List',
+    description: 'Remove lead from a campaign list or audience segment',
+    iconName: 'Tag',
+    defaultConfig: {
+      removeListName: 'Cold Outreach Segment',
+      notes: 'Suppresses lead from cold campaigns'
+    }
+  },
+  {
+    id: 'add_task',
+    kind: 'action',
+    category: 'actions',
+    name: 'Add Task',
+    description: 'Create an automated follow-up task or reminder for the lead assignee',
+    iconName: 'CheckSquare',
+    defaultConfig: {
+      taskTitle: 'Call lead for product demo',
+      taskDueInHours: 24,
+      taskPriority: 'High',
+      taskNotes: 'Verify requirements and propose tailored quotation',
+      notes: 'Automated CRM task'
+    }
+  },
+  {
+    id: 'cancel_tasks',
+    kind: 'action',
+    category: 'actions',
+    name: 'Cancel Tasks',
+    description: 'Cancel all open or pending tasks associated with this lead',
+    iconName: 'XSquare',
+    defaultConfig: {
+      cancelScope: 'all',
+      notes: 'Clears stale tasks upon conversion or drop'
+    }
+  },
+  {
+    id: 'add_payment',
+    kind: 'action',
+    category: 'actions',
+    name: 'Add payment',
+    description: 'Record a deal payment or transaction against this lead',
+    iconName: 'CreditCard',
+    defaultConfig: {
+      paymentAmount: 5000,
+      paymentCurrency: 'INR',
+      paymentStatus: 'Completed',
+      paymentMode: 'UPI',
+      invoiceNumber: 'INV-2026-001',
+      notes: 'Records revenue transaction'
+    }
+  },
+  {
+    id: 'add_ivr_action',
+    kind: 'action',
+    category: 'actions',
+    name: 'Add IVR Action',
+    description: 'Trigger automated IVR voice dialer or speech bot call to the lead',
+    iconName: 'Headphones',
+    badge: 'Telephony',
+    defaultConfig: {
+      ivrCampaignName: 'Auto-Qualification IVR',
+      ivrVoiceBotScript: 'Welcome to Enterprise CRM. Press 1 for Sales, 2 for Support.',
+      ivrMaxRetries: 3,
+      ivrRingTimeout: 30,
+      notes: 'Outbound automated telecalling trigger'
+    }
+  },
+  {
+    id: 'capi',
+    kind: 'action',
+    category: 'actions',
+    name: 'CAPI - Meta Conversions API',
+    description: 'Post offline lead conversions back to Meta Ads Manager',
+    iconName: 'Share2',
+    badge: 'Marketing',
+    defaultConfig: {
+      apiTemplate: 'Meta Conversions API (CAPI)',
+      capiEventName: 'Lead',
+      pixelId: '849204918239',
+      customEventCode: 'LEAD_OFFLINE_CONVERSION',
+      notes: 'Syncs lead status to Facebook Pixel'
     }
   },
 

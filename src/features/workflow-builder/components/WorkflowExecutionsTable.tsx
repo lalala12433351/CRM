@@ -9,6 +9,8 @@ import {
   XCircle,
   Moon,
   Hourglass,
+  Zap,
+  Activity,
   X
 } from 'lucide-react';
 import { formatProperName } from '../../../utils/formatUtils';
@@ -309,8 +311,20 @@ export const WorkflowExecutionsTable: React.FC<WorkflowExecutionsTableProps> = (
             <tbody className="divide-y divide-slate-100 font-normal">
               {filteredExecutions.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-24 text-center text-slate-500 font-normal">
-                    No executions found
+                  <td colSpan={4} className="py-20 text-center">
+                    <div className="flex flex-col items-center justify-center max-w-sm mx-auto space-y-3">
+                      <div className="w-12 h-12 rounded-2xl bg-[#EDE9FE] border border-[#DDD6FE] flex items-center justify-center text-[#3a2088] shadow-2xs">
+                        <Zap className="w-6 h-6 text-[#3a2088]" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="text-sm font-bold text-slate-800">No Executions Found</h3>
+                        <p className="text-xs text-slate-500 font-normal leading-relaxed">
+                          {executions.length === 0
+                            ? 'When this workflow triggers on incoming leads or events, execution runs and step-by-step logs will appear here.'
+                            : 'No execution records match the currently selected status or time filter.'}
+                        </p>
+                      </div>
+                    </div>
                   </td>
                 </tr>
               ) : (

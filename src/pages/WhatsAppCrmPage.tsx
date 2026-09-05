@@ -3,16 +3,14 @@ import {
   MessageSquare, 
   Send, 
   FileText, 
-  Bot, 
   Zap, 
   CheckCircle2, 
   Plus, 
   Users, 
   BarChart2, 
   Clock, 
-  Sparkles,
-  Layers,
-  Settings,
+  Layers, 
+  Settings, 
   Flame
 } from 'lucide-react';
 import { WhatsAppTemplate, WhatsAppCampaign, Lead } from '../types';
@@ -128,7 +126,7 @@ export const WhatsAppCrmPage: React.FC<WhatsAppCrmViewProps> = ({
           { id: 'broadcast', label: 'Broadcasting Campaigns', icon: Send },
           { id: 'templates', label: 'Approved Templates', icon: FileText },
           { id: 'drip', label: 'WhatsApp Drip Nurturing', icon: Clock },
-          { id: 'chatbot', label: 'AI WhatsApp Chatbot', icon: Bot },
+          { id: 'chatbot', label: 'AI WhatsApp Chatbot', icon: MessageSquare },
           { id: 'settings', label: 'Cloud API Config', icon: Settings },
         ].map((tab) => {
           const Icon = tab.icon;
@@ -244,7 +242,7 @@ export const WhatsAppCrmPage: React.FC<WhatsAppCrmViewProps> = ({
       {activeTab === 'chatbot' && (
         <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-4">
           <div className="flex items-center space-x-2 text-indigo-600">
-            <Bot className="w-5 h-5" />
+            <MessageSquare className="w-5 h-5" />
             <h2 className="text-sm font-bold text-slate-900">WhatsApp AI Lead Qualification Chatbot</h2>
           </div>
           <p className="text-xs text-slate-600">
@@ -419,7 +417,6 @@ export const WhatsAppCrmPage: React.FC<WhatsAppCrmViewProps> = ({
     </div>
   );
 };
-
 
 export const WhatsAppCrmView = WhatsAppCrmPage;
 export default WhatsAppCrmPage;

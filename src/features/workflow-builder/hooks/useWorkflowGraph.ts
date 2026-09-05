@@ -1,15 +1,15 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   useNodesState,
   useEdgesState,
-  addEdge,
   Connection,
   Edge,
   MarkerType,
   applyNodeChanges,
   applyEdgeChanges,
   NodeChange,
-  EdgeChange
+  EdgeChange,
+  reconnectEdge
 } from '@xyflow/react';
 import {
   CustomWorkflowNode,
@@ -42,6 +42,7 @@ const sanitizeEdges = (rawEdges: Edge[]): Edge[] => {
       targetHandle: e.targetHandle || 'input',
       type: e.type || 'smoothstep',
       animated: e.animated !== undefined ? e.animated : true,
+      reconnectable: true,
       style: {
         stroke: strokeColor,
         strokeWidth: 2,
@@ -57,18 +58,26 @@ const sanitizeEdges = (rawEdges: Edge[]): Edge[] => {
   });
 };
 
-export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
-  const initialNodes: CustomWorkflowNode[] = (initialWorkflow?.nodes && initialWorkflow.nodes.length > 0
-    ? (initialWorkflow.nodes as CustomWorkflowNode[])
-    : (SAMPLE_TEMPLATES[0].nodes as CustomWorkflowNode[]));
-  const initialEdges: Edge[] = sanitizeEdges(
-    initialWorkflow?.edges && initialWorkflow.edges.length > 0
-      ? (initialWorkflow.edges as Edge[])
-      : (initialWorkflow?.nodes && initialWorkflow.nodes.length > 0 ? [] : (SAMPLE_TEMPLATES[0].edges as Edge[]))
-  );
+export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized | any) => {
+  const getInitialNodes = (wf?: any): CustomWorkflowNode[] => {
+    if (wf?.nodes && Array.isArray(wf.nodes) && wf.nodes.length > 0) {
+      return wf.nodes as CustomWorkflowNode[];
+    }
+    return SAMPLE_TEMPLATES[0].nodes as CustomWorkflowNode[];
+  };
 
-  const [nodes, setNodes] = useNodesState<CustomWorkflowNode>(initialNodes);
-  const [edges, setEdges] = useEdgesState<Edge>(initialEdges);
+  const getInitialEdges = (wf?: any): Edge[] => {
+    if (wf && Array.isArray(wf.edges)) {
+      return sanitizeEdges(wf.edges as Edge[]);
+    }
+    if (wf?.nodes && Array.isArray(wf.nodes) && wf.nodes.length > 0) {
+      return [];
+    }
+    return sanitizeEdges(SAMPLE_TEMPLATES[0].edges as Edge[]);
+  };
+
+  const [nodes, setNodes] = useNodesState<CustomWorkflowNode>(getInitialNodes(initialWorkflow));
+  const [edges, setEdges] = useEdgesState<Edge>(getInitialEdges(initialWorkflow));
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   // Workflow meta
@@ -76,45 +85,93 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
     initialWorkflow?.name || 'Inbound Lead Routing & WhatsApp Automation'
   );
   const [workflowStatus, setWorkflowStatus] = useState<'draft' | 'published'>(
-    initialWorkflow?.status || 'published'
+    initialWorkflow?.status === 'draft' || initialWorkflow?.isDraft ? 'draft' : 'published'
   );
   const [isSaved, setIsSaved] = useState<boolean>(true);
+
+  // Sync state whenever initialWorkflow object or ID changes
+  useEffect(() => {
+    if (initialWorkflow) {
+      const incomingNodes = getInitialNodes(initialWorkflow);
+      const incomingEdges = getInitialEdges(initialWorkflow);
+      setNodes(incomingNodes);
+      setEdges(incomingEdges);
+      setWorkflowName(initialWorkflow.name || 'Inbound Lead Routing & WhatsApp Automation');
+      setWorkflowStatus(
+        initialWorkflow.status === 'draft' || initialWorkflow.isDraft ? 'draft' : 'published'
+      );
+      setIsSaved(true);
+      setSelectedNodeId(null);
+    }
+  }, [initialWorkflow?.id, initialWorkflow?.updatedAt]);
+
+  // Nodes & Edges Change Handlers (Memoized to prevent canvas re-mounts)
+  const onNodesChange = useCallback(
+    (changes: NodeChange<CustomWorkflowNode>[]) => {
+      const isContentChange = changes.some(
+        (c) => c.type === 'position' || c.type === 'remove' || c.type === 'add'
+      );
+      if (isContentChange) {
+        setIsSaved(false);
+      }
+      setNodes((nds) => applyNodeChanges(changes, nds));
+    },
+    [setNodes]
+  );
+
+  const onEdgesChange = useCallback(
+    (changes: EdgeChange<Edge>[]) => {
+      const isContentChange = changes.some(
+        (c) => c.type === 'remove' || c.type === 'add'
+      );
+      if (isContentChange) {
+        setIsSaved(false);
+      }
+      setEdges((eds) => applyEdgeChanges(changes, eds));
+    },
+    [setEdges]
+  );
 
   // Simulation state
   const [isSimulating, setIsSimulating] = useState<boolean>(false);
   const [simulationLogs, setSimulationLogs] = useState<WorkflowSimulationStep[]>([]);
   const simulationTimerRef = useRef<NodeJS.Timeout[]>([]);
+  const edgeReconnectSuccessful = useRef<boolean>(true);
 
   // Find currently selected node object
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) || null;
 
   // Track connections between ports and persist created edges
   const onConnect = useCallback(
-    (params: Connection | Edge) => {
-      if (!params.source || !params.target) return;
-      if (params.source === params.target) return;
+    (connection: Connection) => {
+      console.log('[ReactFlow Drop Event] Connection captured:', connection);
+
+      if (!connection.source || !connection.target) return;
+      if (connection.source === connection.target) return;
 
       setIsSaved(false);
 
-      // Determine branch color
-      let strokeColor = '#3a2088'; // primary CRM royal violet
-      if (params.sourceHandle === 'true') strokeColor = '#10b981'; // emerald green
-      else if (params.sourceHandle === 'false') strokeColor = '#DC2626'; // rose red
+      const sourceId = connection.source;
+      const targetId = connection.target;
+      const sHandle = connection.sourceHandle || null;
+      const tHandle = connection.targetHandle || null;
 
-      const edgeId = `edge-${params.source}-${params.sourceHandle || 'out'}-${params.target}-${params.targetHandle || 'in'}-${Date.now()}`;
+      let strokeColor = '#3a2088'; // primary CRM royal violet
+      if (sHandle === 'true') strokeColor = '#10b981'; // emerald green
+      if (sHandle === 'false') strokeColor = '#DC2626'; // rose red
+
+      const edgeId = `xy-edge_${sourceId}_${sHandle || 'def'}-${targetId}_${tHandle || 'def'}-${Date.now()}`;
+
       const newEdge: Edge = {
-        ...params,
         id: edgeId,
-        source: params.source,
-        target: params.target,
-        sourceHandle: params.sourceHandle || null,
-        targetHandle: params.targetHandle || null,
+        source: sourceId,
+        target: targetId,
+        sourceHandle: sHandle,
+        targetHandle: tHandle,
         type: 'smoothstep',
         animated: true,
-        style: {
-          stroke: strokeColor,
-          strokeWidth: 2
-        },
+        reconnectable: true,
+        style: { stroke: strokeColor, strokeWidth: 2 },
         markerEnd: {
           type: MarkerType.ArrowClosed,
           color: strokeColor,
@@ -123,7 +180,71 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
         }
       };
 
-      setEdges((eds) => addEdge(newEdge, eds));
+      setEdges((prevEdges) => {
+        const isDuplicate = prevEdges.some(
+          (e) => e.source === sourceId && e.target === targetId && (e.sourceHandle || null) === sHandle
+        );
+        if (isDuplicate) return prevEdges;
+        console.log('[ReactFlow Edge State] Appending edge. Previous edges count:', prevEdges.length);
+        return [...prevEdges, newEdge];
+      });
+    },
+    [setEdges]
+  );
+
+  // Reconnection Handlers: Allow users to click/drag existing line endpoints to change connections or disconnect
+  const onReconnectStart = useCallback(() => {
+    edgeReconnectSuccessful.current = false;
+  }, []);
+
+  const onReconnect = useCallback(
+    (oldEdge: Edge, newConnection: Connection) => {
+      if (!newConnection.source || !newConnection.target) return;
+      if (newConnection.source === newConnection.target) return;
+
+      edgeReconnectSuccessful.current = true;
+      setIsSaved(false);
+
+      const sHandle = newConnection.sourceHandle || null;
+      let strokeColor = '#3a2088';
+      if (sHandle === 'true') strokeColor = '#10b981';
+      else if (sHandle === 'false') strokeColor = '#DC2626';
+
+      setEdges((prevEdges) => {
+        const reconnected = reconnectEdge(oldEdge, newConnection, prevEdges);
+        return reconnected.map((e) => {
+          if (e.id === oldEdge.id || (e.source === newConnection.source && e.target === newConnection.target)) {
+            return {
+              ...e,
+              source: newConnection.source,
+              target: newConnection.target,
+              sourceHandle: newConnection.sourceHandle || null,
+              targetHandle: newConnection.targetHandle || null,
+              reconnectable: true,
+              style: { ...e.style, stroke: strokeColor, strokeWidth: 2 },
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+                color: strokeColor,
+                width: 14,
+                height: 14
+              }
+            };
+          }
+          return e;
+        });
+      });
+    },
+    [setEdges]
+  );
+
+  const onReconnectEnd = useCallback(
+    (_: MouseEvent | TouchEvent, edge: Edge) => {
+      if (!edgeReconnectSuccessful.current) {
+        // Dragged to empty space -> Disconnect/Delete the line
+        setIsSaved(false);
+        setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+      }
+      edgeReconnectSuccessful.current = true;
     },
     [setEdges]
   );
@@ -239,32 +360,56 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
         nodes: nodes.map((n) => ({
           id: n.id,
           type: n.type,
-          position: n.position,
-          data: n.data
+          position: { ...n.position },
+          data: {
+            ...n.data,
+            config: { ...(n.data?.config || {}) }
+          }
         })) as CustomWorkflowNode[],
-        edges: edges.map((e) => ({
-          id: e.id,
-          source: e.source,
-          target: e.target,
-          sourceHandle: e.sourceHandle || null,
-          targetHandle: e.targetHandle || null,
-          animated: e.animated,
-          style: e.style
-        })) as Edge[]
+        edges: edges.map((e) => {
+          const isTrue = e.sourceHandle === 'true';
+          const isFalse = e.sourceHandle === 'false';
+          let strokeColor = (e.style as any)?.stroke || '#3a2088';
+          if (isTrue) strokeColor = '#10b981';
+          else if (isFalse) strokeColor = '#DC2626';
+
+          return {
+            id: e.id,
+            source: e.source,
+            target: e.target,
+            sourceHandle: e.sourceHandle || null,
+            targetHandle: e.targetHandle || null,
+            type: e.type || 'smoothstep',
+            animated: e.animated !== undefined ? e.animated : true,
+            reconnectable: true,
+            style: {
+              stroke: strokeColor,
+              strokeWidth: 2,
+              ...(e.style || {})
+            },
+            markerEnd: e.markerEnd || {
+              type: MarkerType.ArrowClosed,
+              color: strokeColor,
+              width: 14,
+              height: 14
+            }
+          };
+        }) as Edge[]
       };
     },
-    [edges, nodes, workflowName, workflowStatus]
+    [edges, nodes, workflowName, workflowStatus, initialWorkflow]
   );
 
   // Save workflow
   const saveWorkflow = useCallback(
     (status?: 'draft' | 'published') => {
-      if (status) setWorkflowStatus(status);
-      const serialized = serializeWorkflow(undefined, status);
+      const targetStatus = status || workflowStatus;
+      setWorkflowStatus(targetStatus);
+      const serialized = serializeWorkflow(undefined, targetStatus);
       setIsSaved(true);
       return serialized;
     },
-    [serializeWorkflow]
+    [serializeWorkflow, workflowStatus]
   );
 
   // Interactive Simulation runner (walks the graph nodes and yields logs)
@@ -359,15 +504,12 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
     edges,
     setNodes,
     setEdges,
-    onNodesChange: (changes: NodeChange<CustomWorkflowNode>[]) => {
-      setIsSaved(false);
-      setNodes((nds) => applyNodeChanges(changes, nds));
-    },
-    onEdgesChange: (changes: EdgeChange<Edge>[]) => {
-      setIsSaved(false);
-      setEdges((eds) => applyEdgeChanges(changes, eds));
-    },
+    onNodesChange,
+    onEdgesChange,
     onConnect,
+    onReconnect,
+    onReconnectStart,
+    onReconnectEnd,
     selectedNodeId,
     setSelectedNodeId,
     selectedNode,
@@ -381,6 +523,7 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
     workflowStatus,
     setWorkflowStatus,
     isSaved,
+    setIsSaved,
     serializeWorkflow,
     saveWorkflow,
     runSimulation,

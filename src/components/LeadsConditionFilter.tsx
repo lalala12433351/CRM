@@ -9,7 +9,6 @@ import {
   Clock, 
   ArrowUpDown, 
   SlidersHorizontal, 
-  Sparkles, 
   Check, 
   Bookmark, 
   Trash2,

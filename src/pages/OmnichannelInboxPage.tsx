@@ -4,7 +4,7 @@ import {
   MessageSquare, 
   Mail, 
   Send, 
-  Sparkles, 
+  Zap, 
   User, 
   ShieldCheck, 
   Search, 
@@ -305,8 +305,8 @@ export const OmnichannelInboxPage: React.FC<OmnichannelInboxProps> = ({
                     disabled={generatingAi}
                     className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-semibold flex items-center space-x-1 cursor-pointer transition-all"
                   >
-                    <Sparkles className={`w-3 h-3 text-indigo-600 ${generatingAi ? 'animate-spin' : ''}`} />
-                    <span>{generatingAi ? 'Generating...' : 'AI Suggest Reply'}</span>
+                    <Zap className={`w-3 h-3 text-indigo-600 ${generatingAi ? 'animate-spin' : ''}`} />
+                    <span>{generatingAi ? 'Generating...' : 'Smart Reply'}</span>
                   </button>
                   <span className="text-[11px] text-slate-400 hidden sm:inline">Press Enter or click Send</span>
                 </div>

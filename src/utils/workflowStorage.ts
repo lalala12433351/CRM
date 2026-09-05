@@ -1,4 +1,5 @@
 import { WorkflowSerialized } from '../features/workflow-builder/types/workflow.types';
+import { SAMPLE_TEMPLATES } from '../features/workflow-builder/constants/workflowCatalog';
 import { fetchWithTenantAuth, getAuthHeaders } from '../lib/auth';
 
 export interface WorkflowRecord {
@@ -35,8 +36,8 @@ export const DEFAULT_WORKFLOWS: WorkflowRecord[] = [
     last24hRuns: 10,
     last24hFailures: 0,
     isDraft: false,
-    nodes: [],
-    edges: []
+    nodes: SAMPLE_TEMPLATES[0].nodes,
+    edges: SAMPLE_TEMPLATES[0].edges
   },
   {
     id: 'wf-2',
@@ -50,8 +51,8 @@ export const DEFAULT_WORKFLOWS: WorkflowRecord[] = [
     last24hRuns: 432,
     last24hFailures: 0,
     isDraft: false,
-    nodes: [],
-    edges: []
+    nodes: SAMPLE_TEMPLATES[0].nodes,
+    edges: SAMPLE_TEMPLATES[0].edges
   },
   {
     id: 'wf-3',
@@ -65,8 +66,8 @@ export const DEFAULT_WORKFLOWS: WorkflowRecord[] = [
     last24hRuns: 0,
     last24hFailures: 0,
     isDraft: false,
-    nodes: [],
-    edges: []
+    nodes: SAMPLE_TEMPLATES[0].nodes,
+    edges: SAMPLE_TEMPLATES[0].edges
   }
 ];
 
@@ -160,15 +161,17 @@ export function saveWorkflowToDb(
       (w) => w.id === serialized.id || (w.name && serialized.name && w.name.trim().toLowerCase() === serialized.name.trim().toLowerCase())
     );
 
+    const resolvedId = serialized.id || (existingIndex >= 0 ? currentList[existingIndex].id : `wf-${Date.now()}`);
+
     const record: WorkflowRecord = {
-      id: serialized.id || `wf-${Date.now()}`,
+      id: resolvedId,
       tenantId: tId,
       name: serialized.name || 'Untitled Workflow',
       hasDraft: isDraft,
       event: triggerLabel,
       eventIcon: serialized.eventIcon || 'globe',
       status: isPublished,
-      statusMeta: 'Just now by Admin',
+      statusMeta: isPublished ? 'Published by Admin' : 'Draft saved by Admin',
       totalRuns: existingIndex >= 0 ? currentList[existingIndex].totalRuns : 0,
       last24hRuns: existingIndex >= 0 ? currentList[existingIndex].last24hRuns : 0,
       last24hFailures: existingIndex >= 0 ? currentList[existingIndex].last24hFailures : 0,
@@ -291,6 +294,76 @@ export function toggleWorkflowStatusInDb(
     return updatedList;
   } catch (e) {
     console.warn('Error toggling workflow in DB:', e);
+    return [];
+  }
+}
+
+export interface WorkflowExecutionLog {
+  step: number;
+  title: string;
+  status: 'success' | 'failed';
+  message: string;
+}
+
+export interface StoredWorkflowExecution {
+  id: string;
+  workflowId?: string;
+  triggerName: string;
+  leadName: string;
+  leadPhone: string;
+  status: 'success' | 'failed' | 'sleeping' | 'waiting' | 'pending';
+  duration: string;
+  timestamp: string;
+  createdAt?: string;
+  logs?: WorkflowExecutionLog[];
+}
+
+const EXECUTIONS_STORAGE_KEY = 'pixbe_crm_workflow_executions';
+
+/**
+ * Synchronously retrieve executions for a specific workflow from local storage.
+ * Defaults to an empty array [] (no mock data).
+ */
+export function getWorkflowExecutionsFromDb(
+  workflowId?: string,
+  tenantId?: string
+): StoredWorkflowExecution[] {
+  const tId = getEffectiveTenantId(tenantId);
+  if (typeof window === 'undefined') return [];
+
+  try {
+    const raw = localStorage.getItem(`${EXECUTIONS_STORAGE_KEY}_${tId}`);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        if (!workflowId) return parsed;
+        return parsed.filter((item: StoredWorkflowExecution) => !item.workflowId || item.workflowId === workflowId);
+      }
+    }
+  } catch (e) {
+    console.warn('Error reading local workflow executions:', e);
+  }
+
+  return [];
+}
+
+/**
+ * Save a new execution run record to local storage.
+ */
+export function saveWorkflowExecutionToDb(
+  execution: StoredWorkflowExecution,
+  tenantId?: string
+): StoredWorkflowExecution[] {
+  const tId = getEffectiveTenantId(tenantId);
+  if (typeof window === 'undefined') return [];
+
+  try {
+    const existing = getWorkflowExecutionsFromDb(undefined, tId);
+    const updated = [execution, ...existing];
+    localStorage.setItem(`${EXECUTIONS_STORAGE_KEY}_${tId}`, JSON.stringify(updated));
+    return updated;
+  } catch (e) {
+    console.warn('Error saving execution record to DB:', e);
     return [];
   }
 }

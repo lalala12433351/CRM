@@ -5,10 +5,9 @@ import {
   MessageSquare, 
   Mail, 
   Calendar, 
-  Sparkles, 
+  Activity, 
   Clock, 
   Send, 
-  Bot, 
   CheckCircle2, 
   Edit3, 
   UserCheck, 
@@ -1873,7 +1872,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                     <span>FOLLOW UP</span>
                  </button>
                  <button className="min-w-[54px] flex-1 flex flex-col items-center justify-center space-y-1 hover:text-slate-800 transition-colors py-2 sm:py-3 cursor-pointer">
-                   <Sparkles className="w-4 sm:w-5 h-4 sm:h-5 mb-0.5 sm:mb-1" strokeWidth={1.5} />
+                   <Activity className="w-4 sm:w-5 h-4 sm:h-5 mb-0.5 sm:mb-1 text-indigo-600" strokeWidth={1.5} />
                    <span>LEAD-IQ</span>
                  </button>
                </div>
@@ -2767,7 +2766,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
 
                           {isFacebook || isCapi || act.agentId === 'bot' ? (
                             <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
-                              <Bot className="w-3.5 h-3.5 text-slate-500" />
+                              <Zap className="w-3.5 h-3.5 text-slate-500" />
                             </div>
                           ) : (
                             <div className="w-6 h-6 rounded-full bg-indigo-50 flex items-center justify-center border border-indigo-200 text-[9px] font-bold text-indigo-700 tracking-wider">

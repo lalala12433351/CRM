@@ -173,6 +173,50 @@ export interface TenantWorkflow {
   updatedAt: string;
 }
 
+export interface TenantApiTemplate {
+  id: string;
+  tenantId: string;
+  name: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  endpointUrl: string;
+  timeoutSeconds?: number;
+  headers: { key: string; value: string }[];
+  bodyPayload?: string;
+  queryParams?: { key: string; value: string }[];
+  authConfig?: {
+    type: 'none' | 'bearer' | 'basic' | 'apikey';
+    token?: string;
+    username?: string;
+    password?: string;
+    apiKeyKey?: string;
+    apiKeyValue?: string;
+    apiKeyLocation?: 'header' | 'query';
+  };
+  variablesUsed?: string;
+  workflow?: string;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TenantAction {
+  id: string;
+  tenantId: string;
+  actionType: string;
+  name?: string;
+  teamMember?: string;
+  targetTeamMember?: string;
+  header?: string;
+  body?: string;
+  url?: string;
+  config?: Record<string, any>;
+  variablesUsed?: string[];
+  workflowId?: string;
+  nodeId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface LocalStoreSchema {
   tenants: Record<string, ClientTenant>;
   agents: Record<string, TenantAgent[]>;
@@ -185,6 +229,8 @@ interface LocalStoreSchema {
   activities: Record<string, TenantActivity[]>;
   lostReasons: Record<string, string[]>;
   workflows: Record<string, TenantWorkflow[]>;
+  templates: Record<string, TenantApiTemplate[]>;
+  actions: Record<string, TenantAction[]>;
 }
 
 const DATA_DIR = path.join(process.cwd(), '.data');
@@ -285,7 +331,9 @@ export class MultiTenantDatabase {
     activities: {},
     lostReasons: {},
     calls: {},
-    workflows: {}
+    workflows: {},
+    templates: {},
+    actions: {}
   };
 
   constructor() {
@@ -312,7 +360,9 @@ export class MultiTenantDatabase {
           activities: parsed.activities || {},
           lostReasons: parsed.lostReasons || {},
           calls: parsed.calls || {},
-          workflows: parsed.workflows || {}
+          workflows: parsed.workflows || {},
+          templates: parsed.templates || {},
+          actions: parsed.actions || {}
         };
       } else {
         this.saveStore();
@@ -613,6 +663,97 @@ export class MultiTenantDatabase {
   // 3. TEAM MEMBERS / AGENTS (STRICTLY SCOPED TO tenantId)
   // =========================================================================
   public async getAgents(tenantId: string): Promise<TenantAgent[]> {
+    if (!this.store.agents[tenantId] || this.store.agents[tenantId].length === 0) {
+      const defaultAgents: TenantAgent[] = [
+        {
+          id: 'agent-root',
+          tenantId,
+          name: 'Super Admin (Root)',
+          email: 'root@company.com',
+          phone: '+91 99000 00001',
+          role: 'Root',
+          companyName: 'Default Workspace',
+          isAdmin: true,
+          status: 'online',
+          avatar: '',
+          totalCallsToday: 0,
+          talkTimeMinutes: 0,
+          convertedLeadsCount: 0,
+          revenueGenerated: 0,
+          responseTimeMinutes: 1.0
+        },
+        {
+          id: 'agent-admin',
+          tenantId,
+          name: 'System Administrator',
+          email: 'admin@company.com',
+          phone: '+91 98000 00000',
+          role: 'Admin',
+          companyName: 'Default Workspace',
+          isAdmin: true,
+          status: 'online',
+          avatar: '',
+          totalCallsToday: 0,
+          talkTimeMinutes: 0,
+          convertedLeadsCount: 0,
+          revenueGenerated: 0,
+          responseTimeMinutes: 1.0
+        },
+        {
+          id: 'agent-mgr',
+          tenantId,
+          name: 'Vikram Singh',
+          email: 'vikram.manager@company.com',
+          phone: '+91 98111 22334',
+          role: 'Manager',
+          companyName: 'Default Workspace',
+          isAdmin: false,
+          status: 'online',
+          avatar: '',
+          totalCallsToday: 12,
+          talkTimeMinutes: 45,
+          convertedLeadsCount: 5,
+          revenueGenerated: 120000,
+          responseTimeMinutes: 2.0
+        },
+        {
+          id: 'agent-caller',
+          tenantId,
+          name: 'Rahul Sharma',
+          email: 'rahul.caller@company.com',
+          phone: '+91 98222 33445',
+          role: 'Caller',
+          companyName: 'Default Workspace',
+          isAdmin: false,
+          status: 'online',
+          avatar: '',
+          totalCallsToday: 28,
+          talkTimeMinutes: 110,
+          convertedLeadsCount: 8,
+          revenueGenerated: 85000,
+          responseTimeMinutes: 1.5
+        },
+        {
+          id: 'agent-marketing',
+          tenantId,
+          name: 'Priya Patel',
+          email: 'priya.marketing@company.com',
+          phone: '+91 98333 44556',
+          role: 'Marketing_user',
+          companyName: 'Default Workspace',
+          isAdmin: false,
+          status: 'online',
+          avatar: '',
+          totalCallsToday: 5,
+          talkTimeMinutes: 18,
+          convertedLeadsCount: 2,
+          revenueGenerated: 35000,
+          responseTimeMinutes: 2.5
+        }
+      ];
+      this.store.agents[tenantId] = defaultAgents;
+      this.saveStore();
+    }
     return this.store.agents[tenantId] || [];
   }
 
@@ -1012,15 +1153,24 @@ export class MultiTenantDatabase {
   }
 
   // =========================================================================
-  // 10. WORKFLOWS (STRICTLY SCOPED TO tenantId & STORED IN multi_tenant_store.json)
+  // 10. WORKFLOWS (PERSISTED IN DATABASE & MULTI-TENANT STORE)
   // =========================================================================
   public async getWorkflows(tenantId: string): Promise<TenantWorkflow[]> {
     if (!this.store.workflows) {
       this.store.workflows = {};
     }
+    
+    // Check if store has workflows for this tenant
     if (!this.store.workflows[tenantId] || this.store.workflows[tenantId].length === 0) {
-      this.store.workflows[tenantId] = DEFAULT_WORKFLOWS.map((w) => ({ ...w, tenantId }));
-      this.saveStore();
+      // Try to hydrate from RDS PostgreSQL database
+      const fromRds = await this.fetchWorkflowsFromRds(tenantId);
+      if (fromRds && fromRds.length > 0) {
+        this.store.workflows[tenantId] = fromRds;
+        this.saveStore();
+      } else {
+        this.store.workflows[tenantId] = DEFAULT_WORKFLOWS.map((w) => ({ ...w, tenantId }));
+        this.saveStore();
+      }
     }
     return this.store.workflows[tenantId];
   }
@@ -1034,7 +1184,7 @@ export class MultiTenantDatabase {
     }
 
     const index = this.store.workflows[tenantId].findIndex(
-      (w) => w.id === workflowData.id || (workflowData.name && w.name.trim().toLowerCase() === workflowData.name.trim().toLowerCase())
+      (w) => w.id === workflowData.id || (workflowData.name && w.name && w.name.trim().toLowerCase() === workflowData.name.trim().toLowerCase())
     );
 
     const now = new Date().toISOString();
@@ -1045,6 +1195,8 @@ export class MultiTenantDatabase {
         ...this.store.workflows[tenantId][index],
         ...workflowData,
         tenantId,
+        nodes: workflowData.nodes !== undefined ? workflowData.nodes : (this.store.workflows[tenantId][index].nodes || []),
+        edges: workflowData.edges !== undefined ? workflowData.edges : (this.store.workflows[tenantId][index].edges || []),
         updatedAt: now
       };
       this.store.workflows[tenantId][index] = workflow;
@@ -1057,7 +1209,7 @@ export class MultiTenantDatabase {
         event: workflowData.event || 'Lead Creation',
         eventIcon: workflowData.eventIcon || 'globe',
         status: workflowData.status !== undefined ? Boolean(workflowData.status) : true,
-        statusMeta: workflowData.statusMeta || 'Just now by Admin',
+        statusMeta: workflowData.statusMeta || (workflowData.isDraft ? 'Draft saved by Admin' : 'Published by Admin'),
         totalRuns: workflowData.totalRuns || 0,
         last24hRuns: workflowData.last24hRuns || 0,
         last24hFailures: workflowData.last24hFailures || 0,
@@ -1071,6 +1223,9 @@ export class MultiTenantDatabase {
     }
 
     this.saveStore();
+    this.syncWorkflowToRds(workflow).catch((err) => {
+      logger.warn('[multiTenantDb] Async RDS sync for workflow error:', err?.message || err);
+    });
     return workflow;
   }
 
@@ -1079,7 +1234,10 @@ export class MultiTenantDatabase {
     const initialLen = this.store.workflows[tenantId].length;
     this.store.workflows[tenantId] = this.store.workflows[tenantId].filter((w) => w.id !== workflowId);
     const deleted = this.store.workflows[tenantId].length < initialLen;
-    if (deleted) this.saveStore();
+    if (deleted) {
+      this.saveStore();
+      this.deleteWorkflowFromRds(tenantId, workflowId).catch(() => {});
+    }
     return deleted;
   }
 
@@ -1088,10 +1246,433 @@ export class MultiTenantDatabase {
     const target = this.store.workflows[tenantId].find((w) => w.id === workflowId);
     if (!target) return null;
     target.status = !target.status;
-    target.statusMeta = 'Just now by Admin';
+    target.statusMeta = target.status ? 'Published by Admin' : 'Disabled by Admin';
     target.updatedAt = new Date().toISOString();
     this.saveStore();
+    this.syncWorkflowToRds(target).catch(() => {});
     return target;
+  }
+
+  private async syncWorkflowToRds(workflow: TenantWorkflow) {
+    let pool: any = null;
+    let client: any = null;
+    try {
+      pool = await getAwsClient();
+      client = await pool.connect();
+      await client.query(`
+        INSERT INTO workflows (
+          id, title, trigger_event, actions, is_active, tenant_id,
+          name, event, event_icon, status, status_meta, total_runs,
+          last_24h_runs, last_24h_failures, is_draft, has_draft,
+          nodes, edges, data, updated_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW())
+        ON CONFLICT (id) DO UPDATE SET
+          title = EXCLUDED.title,
+          trigger_event = EXCLUDED.trigger_event,
+          actions = EXCLUDED.actions,
+          is_active = EXCLUDED.is_active,
+          tenant_id = EXCLUDED.tenant_id,
+          name = EXCLUDED.name,
+          event = EXCLUDED.event,
+          event_icon = EXCLUDED.event_icon,
+          status = EXCLUDED.status,
+          status_meta = EXCLUDED.status_meta,
+          total_runs = EXCLUDED.total_runs,
+          last_24h_runs = EXCLUDED.last_24h_runs,
+          last_24h_failures = EXCLUDED.last_24h_failures,
+          is_draft = EXCLUDED.is_draft,
+          has_draft = EXCLUDED.has_draft,
+          nodes = EXCLUDED.nodes,
+          edges = EXCLUDED.edges,
+          data = EXCLUDED.data,
+          updated_at = NOW();
+      `, [
+        workflow.id,
+        workflow.name,
+        workflow.event || 'Lead Creation',
+        JSON.stringify(workflow.nodes?.filter((n: any) => n.data?.kind === 'action') || []),
+        Boolean(workflow.status),
+        workflow.tenantId,
+        workflow.name,
+        workflow.event || 'Lead Creation',
+        workflow.eventIcon || 'globe',
+        Boolean(workflow.status),
+        workflow.statusMeta || 'Active',
+        workflow.totalRuns || 0,
+        workflow.last24hRuns || 0,
+        workflow.last24hFailures || 0,
+        Boolean(workflow.isDraft),
+        Boolean(workflow.hasDraft),
+        JSON.stringify(workflow.nodes || []),
+        JSON.stringify(workflow.edges || []),
+        JSON.stringify(workflow)
+      ]);
+    } catch (err: any) {
+      logger.warn('[multiTenantDb] Failed to sync workflow to RDS:', err?.message || err);
+    } finally {
+      if (client) try { client.release(); } catch {}
+      if (pool) try { await pool.end(); } catch {}
+    }
+  }
+
+  private async fetchWorkflowsFromRds(tenantId: string): Promise<TenantWorkflow[]> {
+    let pool: any = null;
+    let client: any = null;
+    try {
+      pool = await getAwsClient();
+      client = await pool.connect();
+      const res = await client.query(`
+        SELECT * FROM workflows WHERE tenant_id = $1 OR tenant_id IS NULL ORDER BY updated_at DESC;
+      `, [tenantId]);
+      if (res.rows && res.rows.length > 0) {
+        return res.rows.map((row: any) => ({
+          id: row.id,
+          tenantId: row.tenant_id || tenantId,
+          name: row.name || row.title || 'Untitled Workflow',
+          hasDraft: Boolean(row.has_draft),
+          event: row.event || row.trigger_event || 'Lead Creation',
+          eventIcon: row.event_icon || 'globe',
+          status: row.status !== undefined ? Boolean(row.status) : (row.is_active !== undefined ? Boolean(row.is_active) : true),
+          statusMeta: row.status_meta || 'Saved in Database',
+          totalRuns: row.total_runs || row.execution_count || 0,
+          last24hRuns: row.last_24h_runs || 0,
+          last24hFailures: row.last_24h_failures || 0,
+          isDraft: Boolean(row.is_draft),
+          nodes: typeof row.nodes === 'string' ? JSON.parse(row.nodes) : (Array.isArray(row.nodes) ? row.nodes : []),
+          edges: typeof row.edges === 'string' ? JSON.parse(row.edges) : (Array.isArray(row.edges) ? row.edges : []),
+          createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
+          updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString()
+        }));
+      }
+    } catch {
+      // Ignored for fallback
+    } finally {
+      if (client) try { client.release(); } catch {}
+      if (pool) try { await pool.end(); } catch {}
+    }
+    return [];
+  }
+
+  private async deleteWorkflowFromRds(tenantId: string, workflowId: string) {
+    let pool: any = null;
+    let client: any = null;
+    try {
+      pool = await getAwsClient();
+      client = await pool.connect();
+      await client.query(`DELETE FROM workflows WHERE id = $1 AND (tenant_id = $2 OR tenant_id IS NULL);`, [workflowId, tenantId]);
+    } catch {
+    } finally {
+      if (client) try { client.release(); } catch {}
+      if (pool) try { await pool.end(); } catch {}
+    }
+  }
+
+  // =========================================================================
+  // 11. API TEMPLATES (PERSISTED IN DATABASE & MULTI-TENANT STORE)
+  // =========================================================================
+  public async getTemplates(tenantId: string): Promise<TenantApiTemplate[]> {
+    if (!this.store.templates) {
+      this.store.templates = {};
+    }
+
+    if (this.store.templates[tenantId] && this.store.templates[tenantId].length > 0) {
+      return this.store.templates[tenantId];
+    }
+
+    // Try to hydrate from RDS PostgreSQL database with 2s timeout
+    try {
+      const fromRds = await Promise.race([
+        this.fetchTemplatesFromRds(tenantId),
+        new Promise<TenantApiTemplate[]>((resolve) => setTimeout(() => resolve([]), 2000))
+      ]);
+      if (fromRds && fromRds.length > 0) {
+        this.store.templates[tenantId] = fromRds;
+        this.saveStore();
+      }
+    } catch {}
+
+    return this.store.templates[tenantId] || [];
+  }
+
+  public async saveTemplate(tenantId: string, templateData: Partial<TenantApiTemplate>): Promise<TenantApiTemplate> {
+    if (!this.store.templates) {
+      this.store.templates = {};
+    }
+    if (!this.store.templates[tenantId]) {
+      this.store.templates[tenantId] = [];
+    }
+
+    const index = this.store.templates[tenantId].findIndex(
+      (t) => t.id === templateData.id || (templateData.name && t.name && t.name.trim().toLowerCase() === templateData.name.trim().toLowerCase())
+    );
+
+    const now = new Date().toISOString();
+    let template: TenantApiTemplate;
+
+    if (index >= 0) {
+      template = {
+        ...this.store.templates[tenantId][index],
+        ...templateData,
+        tenantId,
+        headers: templateData.headers !== undefined ? templateData.headers : (this.store.templates[tenantId][index].headers || []),
+        queryParams: templateData.queryParams !== undefined ? templateData.queryParams : (this.store.templates[tenantId][index].queryParams || []),
+        authConfig: templateData.authConfig !== undefined ? templateData.authConfig : (this.store.templates[tenantId][index].authConfig || { type: 'none' }),
+        updatedAt: now
+      };
+      this.store.templates[tenantId][index] = template;
+    } else {
+      template = {
+        id: templateData.id || `tpl-${Date.now()}`,
+        tenantId,
+        name: templateData.name || 'My Awesome API',
+        method: templateData.method || 'POST',
+        endpointUrl: templateData.endpointUrl || '',
+        timeoutSeconds: Number(templateData.timeoutSeconds) || 3,
+        headers: templateData.headers || [],
+        bodyPayload: templateData.bodyPayload || '',
+        queryParams: templateData.queryParams || [],
+        authConfig: templateData.authConfig || { type: 'none' },
+        variablesUsed: templateData.variablesUsed || '',
+        workflow: templateData.workflow || 'None',
+        createdBy: templateData.createdBy || 'FC',
+        createdAt: templateData.createdAt || now,
+        updatedAt: now
+      };
+      this.store.templates[tenantId].unshift(template);
+    }
+
+    this.saveStore();
+    this.syncTemplateToRds(template).catch((err) => {
+      logger.warn('[multiTenantDb] Async RDS sync for template error:', err?.message || err);
+    });
+    return template;
+  }
+
+  public async deleteTemplate(tenantId: string, templateId: string): Promise<boolean> {
+    if (!this.store.templates || !this.store.templates[tenantId]) return false;
+    const initialLen = this.store.templates[tenantId].length;
+    this.store.templates[tenantId] = this.store.templates[tenantId].filter((t) => t.id !== templateId);
+    const deleted = this.store.templates[tenantId].length < initialLen;
+    if (deleted) {
+      this.saveStore();
+      this.deleteTemplateFromRds(tenantId, templateId).catch(() => {});
+    }
+    return deleted;
+  }
+
+  private async syncTemplateToRds(template: TenantApiTemplate) {
+    let pool: any = null;
+    let client: any = null;
+    try {
+      pool = await getAwsClient();
+      client = await pool.connect();
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS templates (
+          id VARCHAR(255) PRIMARY KEY,
+          tenant_id VARCHAR(255) DEFAULT 'default_tenant',
+          name VARCHAR(255) NOT NULL,
+          method VARCHAR(20) DEFAULT 'POST',
+          endpoint_url TEXT NOT NULL,
+          timeout_seconds INT DEFAULT 3,
+          headers JSONB DEFAULT '[]'::jsonb,
+          body_payload TEXT,
+          query_params JSONB DEFAULT '[]'::jsonb,
+          auth_config JSONB DEFAULT '{"type":"none"}'::jsonb,
+          variables_used VARCHAR(255),
+          workflow VARCHAR(255) DEFAULT 'None',
+          created_by VARCHAR(255) DEFAULT 'FC',
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await client.query(`
+        INSERT INTO templates (
+          id, tenant_id, name, method, endpoint_url, timeout_seconds,
+          headers, body_payload, query_params, auth_config, variables_used,
+          workflow, created_by, updated_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
+        ON CONFLICT (id) DO UPDATE SET
+          tenant_id = EXCLUDED.tenant_id,
+          name = EXCLUDED.name,
+          method = EXCLUDED.method,
+          endpoint_url = EXCLUDED.endpoint_url,
+          timeout_seconds = EXCLUDED.timeout_seconds,
+          headers = EXCLUDED.headers,
+          body_payload = EXCLUDED.body_payload,
+          query_params = EXCLUDED.query_params,
+          auth_config = EXCLUDED.auth_config,
+          variables_used = EXCLUDED.variables_used,
+          workflow = EXCLUDED.workflow,
+          created_by = EXCLUDED.created_by,
+          updated_at = NOW();
+      `, [
+        template.id,
+        template.tenantId,
+        template.name,
+        template.method,
+        template.endpointUrl,
+        template.timeoutSeconds || 3,
+        JSON.stringify(template.headers || []),
+        template.bodyPayload || '',
+        JSON.stringify(template.queryParams || []),
+        JSON.stringify(template.authConfig || { type: 'none' }),
+        template.variablesUsed || '',
+        template.workflow || 'None',
+        template.createdBy || 'FC'
+      ]);
+    } catch (err: any) {
+      logger.warn('[multiTenantDb] Failed to sync template to RDS:', err?.message || err);
+    } finally {
+      if (client) try { client.release(); } catch {}
+      if (pool) try { await pool.end(); } catch {}
+    }
+  }
+
+  private async fetchTemplatesFromRds(tenantId: string): Promise<TenantApiTemplate[]> {
+    let pool: any = null;
+    let client: any = null;
+    try {
+      pool = await getAwsClient();
+      client = await pool.connect();
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS templates (
+          id VARCHAR(255) PRIMARY KEY,
+          tenant_id VARCHAR(255) DEFAULT 'default_tenant',
+          name VARCHAR(255) NOT NULL,
+          method VARCHAR(20) DEFAULT 'POST',
+          endpoint_url TEXT NOT NULL,
+          timeout_seconds INT DEFAULT 3,
+          headers JSONB DEFAULT '[]'::jsonb,
+          body_payload TEXT,
+          query_params JSONB DEFAULT '[]'::jsonb,
+          auth_config JSONB DEFAULT '{"type":"none"}'::jsonb,
+          variables_used VARCHAR(255),
+          workflow VARCHAR(255) DEFAULT 'None',
+          created_by VARCHAR(255) DEFAULT 'FC',
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      const res = await client.query(`
+        SELECT * FROM templates WHERE tenant_id = $1 OR tenant_id IS NULL ORDER BY updated_at DESC;
+      `, [tenantId]);
+      if (res.rows && res.rows.length > 0) {
+        return res.rows.map((row: any) => ({
+          id: row.id,
+          tenantId: row.tenant_id || tenantId,
+          name: row.name || 'Untitled Template',
+          method: row.method || 'POST',
+          endpointUrl: row.endpoint_url || '',
+          timeoutSeconds: row.timeout_seconds !== undefined ? Number(row.timeout_seconds) : 3,
+          headers: typeof row.headers === 'string' ? JSON.parse(row.headers) : (Array.isArray(row.headers) ? row.headers : []),
+          bodyPayload: row.body_payload || '',
+          queryParams: typeof row.query_params === 'string' ? JSON.parse(row.query_params) : (Array.isArray(row.query_params) ? row.query_params : []),
+          authConfig: typeof row.auth_config === 'string' ? JSON.parse(row.auth_config) : (row.auth_config || { type: 'none' }),
+          variablesUsed: row.variables_used || '',
+          workflow: row.workflow || 'None',
+          createdBy: row.created_by || 'FC',
+          createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
+          updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString()
+        }));
+      }
+    } catch {
+      // Ignored for fallback
+    } finally {
+      if (client) try { client.release(); } catch {}
+      if (pool) try { await pool.end(); } catch {}
+    }
+    return [];
+  }
+
+  private async deleteTemplateFromRds(tenantId: string, templateId: string) {
+    let pool: any = null;
+    let client: any = null;
+    try {
+      pool = await getAwsClient();
+      client = await pool.connect();
+      await client.query(`DELETE FROM templates WHERE id = $1 AND (tenant_id = $2 OR tenant_id IS NULL);`, [templateId, tenantId]);
+    } catch {
+    } finally {
+      if (client) try { client.release(); } catch {}
+      if (pool) try { await pool.end(); } catch {}
+    }
+  }
+
+  // =========================================================================
+  // 13. WORKFLOW ACTIONS TABLE (STRICTLY SCOPED TO tenantId)
+  // =========================================================================
+  public async getActions(tenantId: string, actionType?: string): Promise<TenantAction[]> {
+    if (!this.store.actions) {
+      this.store.actions = {};
+    }
+    const list = this.store.actions[tenantId] || [];
+    if (actionType) {
+      return list.filter((a) => a.actionType === actionType);
+    }
+    return list;
+  }
+
+  public async saveAction(tenantId: string, actionData: Partial<TenantAction>): Promise<TenantAction> {
+    if (!this.store.actions) {
+      this.store.actions = {};
+    }
+    if (!this.store.actions[tenantId]) {
+      this.store.actions[tenantId] = [];
+    }
+
+    const now = new Date().toISOString();
+    const actionId = actionData.id || `action_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const existingIndex = this.store.actions[tenantId].findIndex((a) => a.id === actionId);
+
+    let action: TenantAction;
+    if (existingIndex >= 0) {
+      action = {
+        ...this.store.actions[tenantId][existingIndex],
+        ...actionData,
+        id: actionId,
+        tenantId,
+        updatedAt: now
+      };
+      this.store.actions[tenantId][existingIndex] = action;
+    } else {
+      action = {
+        id: actionId,
+        tenantId,
+        actionType: actionData.actionType || 'notification_team_member',
+        name: actionData.name || 'Push Notification Action',
+        teamMember: actionData.teamMember || 'Assignee',
+        targetTeamMember: actionData.targetTeamMember || 'assignee',
+        header: actionData.header || '',
+        body: actionData.body || '',
+        url: actionData.url || '{{LEAD_LINK}}',
+        config: actionData.config || {},
+        variablesUsed: actionData.variablesUsed || [],
+        workflowId: actionData.workflowId,
+        nodeId: actionData.nodeId,
+        createdAt: actionData.createdAt || now,
+        updatedAt: now
+      };
+      this.store.actions[tenantId].unshift(action);
+    }
+
+    this.saveStore();
+    logger.info(`[MultiTenantDb] Saved action '${action.name || action.id}' (${action.actionType}) for tenant ${tenantId}`);
+    return action;
+  }
+
+  public async deleteAction(tenantId: string, id: string): Promise<boolean> {
+    if (!this.store.actions || !this.store.actions[tenantId]) {
+      return false;
+    }
+    const prevLen = this.store.actions[tenantId].length;
+    this.store.actions[tenantId] = this.store.actions[tenantId].filter((a) => a.id !== id);
+    const deleted = this.store.actions[tenantId].length < prevLen;
+    if (deleted) {
+      this.saveStore();
+    }
+    return deleted;
   }
 
   // =========================================================================

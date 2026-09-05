@@ -10,7 +10,6 @@ import {
   Archive, 
   Trash2, 
   RotateCcw,
-  Sparkles,
   PhoneCall
 } from 'lucide-react';
 import { Agent } from '../types';

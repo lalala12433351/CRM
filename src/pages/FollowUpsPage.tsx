@@ -14,7 +14,6 @@ import {
   AlertCircle, 
   ArrowRight,
   Filter,
-  Sparkles,
   ChevronRight,
   ChevronDown,
   Check,
@@ -195,8 +194,8 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
     // Customer Name
     if (key === 'name' || idKey === 'f-name' || labelLower === 'name' || labelLower === 'customer name') {
       return (
-        <td key={field.id || field.name} className="py-3.5 px-4 font-medium text-slate-900 whitespace-nowrap">
-          <span className="font-medium font-sans text-slate-900 text-sm">{formatProperName(lead.name)}</span>
+        <td key={field.id || field.name} className="py-3.5 px-4 font-normal text-slate-700 whitespace-nowrap">
+          <span className="font-normal font-sans text-slate-700 text-xs">{formatProperName(lead.name)}</span>
         </td>
       );
     }

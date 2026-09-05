@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bot, Sparkles, Send, PhoneCall, CheckCircle2, X, RefreshCw } from 'lucide-react';
+import { PhoneCall, Send, CheckCircle2, X, RefreshCw } from 'lucide-react';
 import { Lead } from '../types';
 
 interface AiVoiceBotModalProps {
@@ -56,7 +56,7 @@ export const AiVoiceBotModal: React.FC<AiVoiceBotModalProps> = ({ lead, onClose 
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center font-bold">
-              <Bot className="w-4 h-4" />
+              <PhoneCall className="w-4 h-4" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-white">AI Voice Calling Bot Simulator</h3>

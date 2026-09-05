@@ -45,32 +45,85 @@ export interface WorkflowNodeData extends Record<string, unknown> {
     logicOperator?: 'AND' | 'OR';
     rules?: ConditionRule[];
 
-    // Action: Call API / Webhook
+    // Action 1: Call API
     apiTemplate?: string;
     method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
     endpointUrl?: string;
     headers?: HeaderKeyValue[];
     bodyPayload?: string;
 
-    // Action: WhatsApp Template
+    // Action 2: Create Custom Action
+    customActionName?: string;
+    customActionCode?: string;
+    customPayload?: string;
+
+    // Action 3: Notification To TeamMember
+    notificationChannel?: 'in_app' | 'email' | 'whatsapp' | 'sms';
+    targetTeamMember?: 'assignee' | 'all_admins' | 'specific_agent';
+    teamMemberAgentId?: string;
+    teamMemberAgentName?: string;
+    notificationTitle?: string;
+    notificationMessage?: string;
+
+    // Action 4: Update Lead Assignee
+    assigneeType?: 'specific' | 'round_robin';
+    assigneeAgentId?: string;
+    assigneeAgentName?: string;
+
+    // Action 5: Update Lead Fields
+    fieldName?: string;
+    fieldValue?: string;
+    fieldUpdateMode?: 'set' | 'append' | 'clear';
+
+    // Action 6: Update Lead Rating
+    targetRating?: 'Hot' | 'Warm' | 'Cold' | 'Not Qualified';
+    ratingScore?: number;
+
+    // Action 7: Update Lead Status
+    targetStage?: string;
+
+    // Action 8: Time Delay
+    delayValue?: number;
+    delayUnit?: 'minutes' | 'hours' | 'days';
+
+    // Action 9: Send Template
     templateName?: string;
     templateLanguage?: string;
     recipientPhoneVariable?: string;
     templateParams?: Record<string, string>;
 
-    // Action: Update Lead Status
-    targetStage?: string;
+    // Action 10: Add in List
+    listName?: string;
+    listCategory?: string;
 
-    // Action: Update Assignee
-    assigneeType?: 'specific' | 'round_robin';
-    assigneeAgentId?: string;
-    assigneeAgentName?: string;
+    // Action 11: Remove from List
+    removeListName?: string;
 
-    // Action: Time Delay
-    delayValue?: number;
-    delayUnit?: 'minutes' | 'hours' | 'days';
+    // Action 12: Add Task
+    taskTitle?: string;
+    taskDueInHours?: number;
+    taskPriority?: 'High' | 'Medium' | 'Low';
+    taskNotes?: string;
 
-    // Action: CAPI
+    // Action 13: Cancel Tasks
+    cancelScope?: 'all' | 'overdue' | 'specific';
+    cancelTaskType?: string;
+
+    // Action 14: Add payment
+    paymentAmount?: number;
+    paymentCurrency?: string;
+    paymentStatus?: 'Completed' | 'Pending' | 'Partial';
+    paymentMode?: 'UPI' | 'Bank Transfer' | 'Credit Card' | 'Cash' | 'Cheque';
+    invoiceNumber?: string;
+
+    // Action 15: Add IVR Action
+    ivrCampaignName?: string;
+    ivrVoiceBotScript?: string;
+    ivrMaxRetries?: number;
+    ivrRingTimeout?: number;
+    ivrCallerId?: string;
+
+    // Extra: Meta CAPI
     capiEventName?: string;
     pixelId?: string;
     customEventCode?: string;

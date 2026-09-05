@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from '../context/ToastContext';
 import { EmptyState } from '../components/EmptyState';
 import { WorkflowBuilderPage } from '../features/workflow-builder';
@@ -10,6 +10,14 @@ import {
   toggleWorkflowStatusInDb,
   WorkflowRecord 
 } from '../utils/workflowStorage';
+import {
+  StoredApiTemplate,
+  getApiTemplates,
+  fetchApiTemplatesFromApi,
+  saveApiTemplate,
+  deleteApiTemplate
+} from '../utils/templateStorage';
+import { CreateApiTemplateModal } from '../features/workflow-builder/components/CreateApiTemplateModal';
 import { formatProperName } from '../utils/formatUtils';
 import { 
   GitBranch, 
@@ -28,7 +36,6 @@ import {
   SlidersHorizontal,
   CheckCircle2,
   Clock,
-  Sparkles,
   ArrowRight,
   ShieldCheck,
   Zap,
@@ -94,12 +101,24 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
   // Persistent workflows list from Database
   const [workflowsList, setWorkflowsList] = useState<WorkflowRecord[]>(() => getWorkflowsFromDb());
 
-  // Reload workflows when tab becomes active or builder closes
+  // Persistent API Templates list from Database table 'templates'
+  const [apiTemplatesList, setApiTemplatesList] = useState<StoredApiTemplate[]>(() => getApiTemplates());
+  const [isCreateApiTemplateModalOpen, setIsCreateApiTemplateModalOpen] = useState(false);
+  const [selectedApiTemplateForEdit, setSelectedApiTemplateForEdit] = useState<StoredApiTemplate | null>(null);
+
+  // Reload workflows and templates when tab becomes active or builder closes
   useEffect(() => {
     setWorkflowsList(getWorkflowsFromDb());
     fetchWorkflowsFromApi().then((fresh) => {
       if (Array.isArray(fresh) && fresh.length > 0) {
         setWorkflowsList(fresh);
+      }
+    }).catch(() => {});
+
+    setApiTemplatesList(getApiTemplates());
+    fetchApiTemplatesFromApi().then((fresh) => {
+      if (Array.isArray(fresh)) {
+        setApiTemplatesList(fresh);
       }
     }).catch(() => {});
   }, [activeSubTab, isVisualBuilderOpen]);
@@ -132,28 +151,6 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
       statusUpdatedOn: '3M ago',
       statusUpdatedBy: 'FC',
       isDraft: false
-    }
-  ]);
-
-  // Live Data for API Templates
-  const [apiTemplates, setApiTemplates] = useState<any[]>([
-    {
-      id: 'api-1',
-      name: 'CAPI',
-      endpoint: 'https://graph.facebook.com/v25.0/2...',
-      variablesUsed: 'Facebook Lead id +4',
-      workflow: 'On Lead Status Change',
-      lastModified: '4M ago',
-      lastModifiedBy: 'FC'
-    },
-    {
-      id: 'api-2',
-      name: 'CAPI - CTWA',
-      endpoint: 'https://graph.facebook.com/v25.0/2...',
-      variablesUsed: 'CTWA id +4',
-      workflow: 'None',
-      lastModified: '4M ago',
-      lastModifiedBy: 'FC'
     }
   ]);
 
@@ -238,6 +235,21 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
         triggerToast(`Duplicated workflow: "${dup.name}"`);
         return;
       }
+    } else if (type === 'API Template') {
+      const target = apiTemplatesList.find((t) => t.name === name);
+      if (target) {
+        const dup: Partial<StoredApiTemplate> = {
+          ...target,
+          id: `tpl-${Date.now()}`,
+          name: `${target.name} (Copy)`,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        const updated = saveApiTemplate(dup);
+        setApiTemplatesList(updated);
+        triggerToast(`Duplicated API template: "${dup.name}"`);
+        return;
+      }
     }
     triggerToast(`Duplicated ${type}: "${name}"`);
   };
@@ -252,7 +264,8 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
     } else if (activeSubTab === 'salesform') {
       setSalesforms(prev => prev.filter(sf => sf.id !== id));
     } else if (activeSubTab === 'api_templates') {
-      setApiTemplates(prev => prev.filter(a => a.id !== id));
+      const updated = deleteApiTemplate(id);
+      setApiTemplatesList(updated);
     }
     triggerToast(`Removed "${name}"`);
   };
@@ -321,8 +334,8 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                 onClick={() => handleOpenBuilder()}
                 className="px-4 py-2 rounded-xl bg-[#3a2088] hover:bg-[#2c186b] text-white text-xs font-bold cursor-pointer transition-all shadow-xs flex items-center space-x-1.5"
               >
-                <Sparkles className="w-3.5 h-3.5 text-purple-200" />
-                <span>Create Workflow +</span>
+                <Plus className="w-3.5 h-3.5 text-white" />
+                <span>Create Workflow</span>
               </button>
             </div>
           </div>
@@ -351,7 +364,7 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                 <span>Total Runs</span>
                 <Info className="w-3.5 h-3.5 text-slate-400" />
               </div>
-              <p className="text-sm font-bold text-slate-900">462</p>
+              <p className="text-sm font-bold text-slate-900">{workflowsList.reduce((acc, w) => acc + (w.totalRuns || 0), 0).toLocaleString()}</p>
               <p className="text-[11px] text-slate-400 font-mono">last {timeRange}</p>
             </div>
 
@@ -360,7 +373,14 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                 <span>Success</span>
                 <Info className="w-3.5 h-3.5 text-slate-400" />
               </div>
-              <p className="text-sm font-bold text-emerald-600">100%</p>
+              <p className="text-sm font-bold text-emerald-600">
+                {(() => {
+                  const runs = workflowsList.reduce((acc, w) => acc + (w.last24hRuns || 0), 0);
+                  const fails = workflowsList.reduce((acc, w) => acc + (w.last24hFailures || 0), 0);
+                  if (runs === 0) return '100%';
+                  return `${Math.max(0, Math.round(((runs - fails) / runs) * 100))}%`;
+                })()}
+              </p>
               <p className="text-[11px] text-slate-400 font-mono">last {timeRange}</p>
             </div>
 
@@ -369,7 +389,7 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                 <span>Failed</span>
                 <Info className="w-3.5 h-3.5 text-slate-400" />
               </div>
-              <p className="text-sm font-bold text-[#DC2626]">0</p>
+              <p className="text-sm font-bold text-[#DC2626]">{workflowsList.reduce((acc, w) => acc + (w.last24hFailures || 0), 0)}</p>
               <p className="text-[11px] text-slate-400 font-mono">last {timeRange}</p>
             </div>
 
@@ -396,23 +416,33 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
           <div className="border-b border-slate-200 flex items-center space-x-6 text-xs font-bold pt-2">
             <button
               onClick={() => setWorkflowsTab('Published')}
-              className={`pb-2.5 transition-all cursor-pointer ${
+              className={`pb-2.5 transition-all cursor-pointer flex items-center gap-1.5 ${
                 workflowsTab === 'Published'
                   ? 'text-[#3a2088] border-b-2 border-[#3a2088] font-bold'
                   : 'text-slate-500 hover:text-slate-800 font-medium'
               }`}
             >
-              Published
+              <span>Published</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                workflowsTab === 'Published' ? 'bg-[#EDE9FE] text-[#3a2088]' : 'bg-slate-100 text-slate-500'
+              }`}>
+                {workflowsList.filter((w) => !w.isDraft).length}
+              </span>
             </button>
             <button
               onClick={() => setWorkflowsTab('Draft')}
-              className={`pb-2.5 transition-all cursor-pointer ${
+              className={`pb-2.5 transition-all cursor-pointer flex items-center gap-1.5 ${
                 workflowsTab === 'Draft'
                   ? 'text-[#3a2088] border-b-2 border-[#3a2088] font-bold'
                   : 'text-slate-500 hover:text-slate-800 font-medium'
               }`}
             >
-              Draft
+              <span>Draft</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                workflowsTab === 'Draft' ? 'bg-[#EDE9FE] text-[#3a2088]' : 'bg-slate-100 text-slate-500'
+              }`}>
+                {workflowsList.filter((w) => w.isDraft).length}
+              </span>
             </button>
           </div>
 
@@ -1014,7 +1044,7 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
       )}
 
       {/* ========================================================================= */}
-      {/* 5. API TEMPLATES VIEW (Exact match to Screenshot 5)                       */}
+      {/* 5. API TEMPLATES VIEW (Persistent from Database table 'templates')          */}
       {/* ========================================================================= */}
       {activeSubTab === 'api_templates' && (
         <div className="space-y-4">
@@ -1026,9 +1056,15 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                 <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center space-x-2">
                   <span>API Templates</span>
                   <button 
-                    onClick={() => triggerToast('Refreshing API templates...')}
+                    onClick={() => {
+                      triggerToast('Refreshing API templates from database...');
+                      fetchApiTemplatesFromApi().then((fresh) => {
+                        setApiTemplatesList(fresh);
+                        triggerToast('API templates up to date');
+                      });
+                    }}
                     className="text-slate-400 hover:text-[#3a2088] transition-colors p-0.5 cursor-pointer"
-                    title="Refresh"
+                    title="Refresh from DB"
                   >
                     <RotateCw className="w-4 h-4" />
                   </button>
@@ -1040,73 +1076,142 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
             </div>
 
             <button
-              onClick={() => handleOpenBuilder()}
+              type="button"
+              onClick={() => {
+                setSelectedApiTemplateForEdit(null);
+                setIsCreateApiTemplateModalOpen(true);
+              }}
               className="px-4 py-2 rounded-xl bg-[#3a2088] hover:bg-[#2c186b] text-white text-xs font-bold cursor-pointer transition-all shadow-xs flex items-center space-x-1.5 self-start sm:self-auto"
             >
+              <Plus className="w-3.5 h-3.5 text-white" />
               <span>Create New +</span>
             </button>
           </div>
 
-          {/* API Templates Table */}
-          <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-medium text-[11px]">
-                    <th className="py-3 px-4">Template Name</th>
-                    <th className="py-3 px-4">Endpoint URL</th>
-                    <th className="py-3 px-4 text-center">Variables Used</th>
-                    <th className="py-3 px-4 text-center">Workflow</th>
-                    <th className="py-3 px-4 text-center">
-                      <div className="inline-flex items-center space-x-1">
-                        <span>Last Modified</span>
-                        <SlidersHorizontal className="w-3 h-3 text-slate-400" />
-                      </div>
-                    </th>
-                    <th className="py-3 px-4 text-center">Last Modified By</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium">
-                  {apiTemplates.map((tpl) => (
-                    <tr key={tpl.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3.5 px-4 font-medium text-slate-900">{tpl.name}</td>
-                      <td className="py-3.5 px-4 font-mono text-slate-600 truncate max-w-xs">{tpl.endpoint}</td>
-                      <td className="py-3.5 px-4 text-center">
-                        <span className="px-2.5 py-1 rounded-full bg-purple-50 border border-purple-200 text-purple-700 text-[11px] font-bold">
-                          {tpl.variablesUsed}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-center">
-                        {tpl.workflow === 'None' ? (
-                          <span className="text-slate-400 italic font-normal">None</span>
-                        ) : (
-                          <span className="px-2.5 py-1 rounded-full bg-purple-50 text-purple-800 text-[11px] font-bold border border-purple-200">
-                            {tpl.workflow}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4 text-center font-mono text-slate-600">{tpl.lastModified}</td>
-                      <td className="py-3.5 px-4 text-center">
-                        <span className="w-6 h-6 rounded-full bg-purple-100 text-[#3a2088] font-bold text-[10px] flex items-center justify-center font-mono border border-purple-200 mx-auto">
-                          {tpl.lastModifiedBy}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        <button 
-                          onClick={() => triggerToast(`Testing API endpoint for "${tpl.name}"`)}
-                          className="p-1.5 rounded-lg border border-slate-200/90 hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer"
-                          title="Open Template"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {/* API Templates Table or Empty State */}
+          {apiTemplatesList.length === 0 ? (
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-10 sm:p-14 text-center space-y-4 max-w-3xl mx-auto shadow-2xs">
+              <div className="w-14 h-14 rounded-full bg-purple-50 text-[#3a2088] flex items-center justify-center mx-auto border border-purple-200">
+                <Code className="w-7 h-7 text-[#3a2088]" />
+              </div>
+              <div className="space-y-1.5 max-w-md mx-auto">
+                <h2 className="text-base font-bold text-slate-900">No API templates yet</h2>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Create reusable API templates with endpoints, headers, and dynamic variables to trigger webhooks or sync CRM contacts.
+                </p>
+              </div>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedApiTemplateForEdit(null);
+                    setIsCreateApiTemplateModalOpen(true);
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-[#3a2088] hover:bg-[#2c186b] text-white text-xs font-bold cursor-pointer transition-all shadow-xs inline-flex items-center space-x-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Create API Template</span>
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-medium text-[11px]">
+                      <th className="py-3 px-4">Template Name</th>
+                      <th className="py-3 px-4">Method & Endpoint URL</th>
+                      <th className="py-3 px-4 text-center">Variables Used</th>
+                      <th className="py-3 px-4 text-center">Workflow</th>
+                      <th className="py-3 px-4 text-center">
+                        <div className="inline-flex items-center space-x-1">
+                          <span>Last Modified</span>
+                          <SlidersHorizontal className="w-3 h-3 text-slate-400" />
+                        </div>
+                      </th>
+                      <th className="py-3 px-4 text-center">Created By</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {apiTemplatesList.map((tpl) => (
+                      <tr key={tpl.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td 
+                          onClick={() => {
+                            setSelectedApiTemplateForEdit(tpl);
+                            setIsCreateApiTemplateModalOpen(true);
+                          }}
+                          className="py-3.5 px-4 font-bold text-[#3a2088] hover:underline cursor-pointer"
+                        >
+                          {tpl.name}
+                        </td>
+                        <td className="py-3.5 px-4 font-mono text-slate-600 truncate max-w-xs">
+                          <span className="inline-block mr-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">
+                            {tpl.method}
+                          </span>
+                          <span>{tpl.endpointUrl}</span>
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <span className="px-2.5 py-1 rounded-full bg-purple-50 border border-purple-200 text-purple-700 text-[11px] font-bold">
+                            {tpl.variablesUsed || 'None'}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          {tpl.workflow === 'None' || !tpl.workflow ? (
+                            <span className="text-slate-400 italic font-normal">None</span>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-full bg-purple-50 text-purple-800 text-[11px] font-bold border border-purple-200">
+                              {tpl.workflow}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 text-center font-mono text-slate-600">
+                          {tpl.updatedAt ? new Date(tpl.updatedAt).toLocaleDateString() : 'Just now'}
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <span className="w-6 h-6 rounded-full bg-purple-100 text-[#3a2088] font-bold text-[10px] flex items-center justify-center font-mono border border-purple-200 mx-auto">
+                            {tpl.createdBy || 'FC'}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <div className="flex items-center justify-end space-x-1.5">
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                setSelectedApiTemplateForEdit(tpl);
+                                setIsCreateApiTemplateModalOpen(true);
+                              }}
+                              className="p-1.5 rounded-lg border border-slate-200/90 hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer"
+                              title="Edit / Test Template"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => handleDuplicate('API Template', tpl.name)}
+                              className="p-1.5 rounded-lg border border-slate-200/90 hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer"
+                              title="Duplicate Template"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => handleDelete(tpl.id, tpl.name)}
+                              className="p-1.5 rounded-lg border border-slate-200/90 hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer"
+                              title="Delete Template"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1292,15 +1397,15 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                     isDraft: false
                   }, ...prev]);
                 } else if (activeSubTab === 'api_templates') {
-                  setApiTemplates(prev => [{
-                    id: `api-${Date.now()}`,
+                  const updated = saveApiTemplate({
+                    id: `tpl-${Date.now()}`,
                     name,
-                    endpoint: modalEndpoint,
-                    variablesUsed: 'Lead ID +4',
+                    endpointUrl: modalEndpoint || 'https://api.yourdomain.com/v1/lead',
+                    method: 'POST',
                     workflow: 'On Lead Creation',
-                    lastModified: 'Just now',
-                    lastModifiedBy: 'Admin'
-                  }, ...prev]);
+                    createdBy: 'Admin'
+                  });
+                  setApiTemplatesList(updated);
                 }
 
                 triggerToast(`Created "${name}" successfully!`);
@@ -1377,6 +1482,19 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* API Template Manager / Create API Template Modal */}
+      <CreateApiTemplateModal
+        isOpen={isCreateApiTemplateModalOpen}
+        initialTemplate={selectedApiTemplateForEdit}
+        onClose={() => {
+          setIsCreateApiTemplateModalOpen(false);
+          setSelectedApiTemplateForEdit(null);
+        }}
+        onSaved={(saved) => {
+          setApiTemplatesList(getApiTemplates());
+        }}
+      />
     </div>
   );
 };

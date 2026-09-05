@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import { 
-  Sparkles, 
   X, 
   Copy, 
   Check, 
   Send, 
-  Bot, 
   Target, 
   ShieldAlert, 
   Zap, 
@@ -118,7 +116,7 @@ export const AiCopilotModal: React.FC<AiCopilotModalProps> = ({
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-violet-900 via-indigo-900 to-slate-900 text-white">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-xl bg-violet-600/30 border border-violet-400/40 flex items-center justify-center text-violet-200 shadow-inner">
-              <Sparkles className="w-5 h-5" />
+              <MessageSquare className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
@@ -383,8 +381,8 @@ export const AiCopilotModal: React.FC<AiCopilotModalProps> = ({
             <div className="space-y-4">
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
                 <div className="text-xs font-bold text-slate-800 flex items-center space-x-2">
-                  <Bot className="w-4 h-4 text-indigo-600" />
-                  <span>Custom AI Message / Objection Generator</span>
+                  <MessageSquare className="w-4 h-4 text-indigo-600" />
+                  <span>Custom Message / Objection Generator</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <input
@@ -399,7 +397,7 @@ export const AiCopilotModal: React.FC<AiCopilotModalProps> = ({
                     disabled={isGenerating}
                     className="px-4 py-2 bg-[#3a2088] text-white rounded-xl text-xs font-semibold hover:bg-[#2c186b] cursor-pointer transition-colors shadow-2xs flex items-center space-x-1.5 shrink-0"
                   >
-                    <Sparkles className="w-3.5 h-3.5" />
+                    <Send className="w-3.5 h-3.5" />
                     <span>{isGenerating ? 'Drafting...' : 'Generate'}</span>
                   </button>
                 </div>

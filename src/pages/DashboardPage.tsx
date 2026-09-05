@@ -4,7 +4,6 @@ import {
   PhoneCall,
   Clock,
   IndianRupee,
-  Sparkles,
   Flame,
   ArrowUpRight,
   Calendar,
@@ -762,29 +761,29 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
                     <td className="py-3 px-3">
                       <div className="flex items-center space-x-2.5">
                         <UserAvatar name={formatProperName(row.name)} avatarUrl={row.agent.avatar} size="sm" rounded="full" />
-                        <span className="font-medium text-slate-900 truncate max-w-[160px] sm:max-w-xs">
+                        <span className="font-normal text-slate-900 truncate max-w-[160px] sm:max-w-xs">
                           {formatProperName(row.name)}
                         </span>
                       </div>
                     </td>
 
                     {/* Fresh Count */}
-                    <td className="py-3 px-3 text-center font-medium text-slate-700">
+                    <td className="py-3 px-3 text-center font-normal text-slate-700">
                       {row.fresh}
                     </td>
 
                     {/* Active Count */}
-                    <td className="py-3 px-3 text-center font-medium text-slate-700">
+                    <td className="py-3 px-3 text-center font-normal text-slate-700">
                       {row.active}
                     </td>
 
                     {/* Won Count */}
-                    <td className="py-3 px-3 text-center font-semibold text-emerald-600">
+                    <td className="py-3 px-3 text-center font-normal text-emerald-600">
                       {row.won}
                     </td>
 
                     {/* Lost Count */}
-                    <td className="py-3 px-3 text-center font-semibold text-rose-600">
+                    <td className="py-3 px-3 text-center font-normal text-rose-600">
                       {row.lost}
                     </td>
 
@@ -799,12 +798,12 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
             {/* Total Footer Row */}
             {leadByStagesData.rows.length > 0 && (
               <tfoot>
-                <tr className="border-t border-slate-200 bg-slate-50/60 font-bold text-slate-900">
-                  <td className="py-3 px-3 font-bold">Total</td>
-                  <td className="py-3 px-3 text-center font-bold text-slate-900">{leadByStagesData.totals.fresh}</td>
-                  <td className="py-3 px-3 text-center font-bold text-slate-900">{leadByStagesData.totals.active}</td>
-                  <td className="py-3 px-3 text-center font-bold text-emerald-600">{leadByStagesData.totals.won}</td>
-                  <td className="py-3 px-3 text-center font-bold text-rose-600">{leadByStagesData.totals.lost}</td>
+                <tr className="border-t border-slate-200 bg-slate-50/60 font-medium text-slate-900">
+                  <td className="py-3 px-3 font-medium">Total</td>
+                  <td className="py-3 px-3 text-center font-medium text-slate-900">{leadByStagesData.totals.fresh}</td>
+                  <td className="py-3 px-3 text-center font-medium text-slate-900">{leadByStagesData.totals.active}</td>
+                  <td className="py-3 px-3 text-center font-medium text-emerald-600">{leadByStagesData.totals.won}</td>
+                  <td className="py-3 px-3 text-center font-medium text-rose-600">{leadByStagesData.totals.lost}</td>
                   <td className="py-3 px-3 text-right text-slate-400">
                     <ChevronRight className="w-3.5 h-3.5" />
                   </td>
@@ -947,8 +946,8 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
                 >
                   <div className="flex items-start justify-between gap-2" onClick={() => onOpenLeadDetail(lead)}>
                     <div className="bg-slate-50/80 border border-slate-200/60 hover:border-slate-400 active:border-slate-400 px-3 py-1 rounded-xl transition-colors">
-                      <h4 className="font-extrabold text-slate-900 text-sm sm:text-base truncate font-['Poppins',sans-serif] tracking-tight">{formatProperName(lead.name)}</h4>
-                      {lead.company && <p className="text-[11px] text-slate-500 truncate font-['Poppins',sans-serif]">{formatProperName(lead.company)}</p>}
+                      <h4 className="font-medium text-slate-800 text-xs truncate tracking-tight">{formatProperName(lead.name)}</h4>
+                      {lead.company && <p className="text-[11px] text-slate-400 truncate">{formatProperName(lead.company)}</p>}
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-xs font-bold text-slate-900">{formatDealValue(lead.dealValue || 0, currency)}</p>
@@ -985,7 +984,7 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
 
           {/* DESKTOP MASTER TABLE (Medium+ Screens) */}
           <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200/80 max-h-[500px]">
-            <table className="w-full text-left text-xs text-slate-600 font-normal">
+            <table className="w-full text-left text-xs text-slate-700 font-normal">
               <thead className="bg-slate-100 text-slate-600 text-[11px] font-medium border-b border-slate-200 sticky top-0 z-10">
                 <tr>
                   {visibleFields.map((field) => (
@@ -1015,10 +1014,10 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
                           if (field.primarySlot === 'H1' || k === 'name') {
                             return (
                               <td key={field.id} className="px-3.5 py-2.5 cursor-pointer" onClick={() => onOpenLeadDetail(lead)}>
-                                <div className="font-medium text-slate-900 flex items-center space-x-1.5 text-sm font-['Poppins',sans-serif]">
+                                <div className="font-normal text-slate-700 hover:text-slate-900 flex items-center space-x-1.5 text-xs">
                                   <span className="truncate max-w-[200px] hover:text-[#3a2088] hover:underline">{formatProperName(lead.name)}</span>
                                   {lead.tags?.includes('High Value') && (
-                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
                                       VIP
                                     </span>
                                   )}
@@ -1035,7 +1034,7 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
                               <td key={field.id} className="px-3.5 py-2.5 whitespace-nowrap">
                                 <span
                                   style={{ backgroundColor: `${color}15`, color: color, borderColor: `${color}40` }}
-                                  className="border px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide"
+                                  className="border px-2 py-0.5 rounded-full text-[10px] font-medium tracking-wide"
                                 >
                                   {lead.status || 'Fresh'}
                                 </span>
@@ -1046,7 +1045,7 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
                           if (k === 'source') {
                             return (
                               <td key={field.id} className="px-3.5 py-2.5 whitespace-nowrap">
-                                <span className="text-slate-700 text-xs font-medium">
+                                <span className="text-slate-700 text-xs font-normal">
                                   {lead.source || 'Direct'}
                                 </span>
                               </td>
@@ -1056,7 +1055,7 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
                           if (k === 'deal_value' || k === 'dealValue') {
                             return (
                               <td key={field.id} className="px-3.5 py-2.5 whitespace-nowrap">
-                                <span className="font-semibold text-slate-900 text-xs">
+                                <span className="font-normal text-slate-700 text-xs">
                                   {formatDealValue(lead.dealValue || 0, currency)}
                                 </span>
                               </td>

@@ -19,7 +19,6 @@ import {
   Plus,
   Plane,
   X,
-  Sparkles,
   Command,
   Search,
   LogOut,

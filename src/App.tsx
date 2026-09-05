@@ -44,7 +44,7 @@ import {
   NotFoundPage as NotFoundView,
 } from './pages';
 import { WorkflowBuilderPage } from './features/workflow-builder';
-import { saveWorkflowToDb } from './utils/workflowStorage';
+import { saveWorkflowToDb, getWorkflowsFromDb, fetchWorkflowsFromApi } from './utils/workflowStorage';
 import { PhoneCall, X, Users } from 'lucide-react';
 import { verifyCurrentSession, logoutWithApi, fetchWithTenantAuth, clearLocalStorageAuth } from './lib/auth';
 import { formatArcleName } from './utils/brandUtils';
@@ -92,9 +92,9 @@ export const StagesContext = React.createContext<PipelineStage[]>(INITIAL_STAGES
 export function App() {
   // Navigation & Active View State (synchronized with browser URL and history)
   const [currentView, setCurrentView] = useState<string>(() => {
-    return getInitialViewFromUrl('leads');
+    return getInitialViewFromUrl('dashboard');
   });
-  const [previousView, setPreviousView] = useState<string>('leads');
+  const [previousView, setPreviousView] = useState<string>('dashboard');
 
   const handleOpenAddLead = () => {
     if (currentView !== 'add_lead') {
@@ -103,7 +103,25 @@ export function App() {
     setCurrentView('add_lead');
   };
 
-  const [activeWorkflowForBuilder, setActiveWorkflowForBuilder] = useState<any>(null);
+  const [activeWorkflowForBuilder, setActiveWorkflowForBuilder] = useState<any>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlId = urlParams.get('id');
+      const storedId = sessionStorage.getItem('pixbe_active_workflow_id') || localStorage.getItem('pixbe_active_workflow_id');
+      const targetId = urlId || storedId;
+
+      const dbWorkflows = getWorkflowsFromDb();
+      if (targetId) {
+        const found = dbWorkflows.find((w) => w.id === targetId || w.name === targetId);
+        if (found) return found;
+      }
+      if (window.location.pathname.includes('workflow-builder')) {
+        return dbWorkflows[0] || null;
+      }
+    } catch {}
+    return null;
+  });
   const [reportsSubTab, setReportsSubTab] = useState<ReportsSubTab>(() => {
     try {
       if (typeof window !== 'undefined') {
@@ -191,7 +209,7 @@ export function App() {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname.toLowerCase().replace(/\/+$/, '');
       if (path === '/login' || path === '/signup' || path === '/sign-up' || path === '') {
-        syncUrlWithView(currentView || 'leads');
+        syncUrlWithView(currentView || 'dashboard');
         return;
       }
     }
@@ -496,11 +514,11 @@ export function App() {
     setIsAuthenticated(true);
     setIsLoggingIn(false);
 
-    // Clean browser redirection to /leads ensuring all collections hydrate freshly
+    // Clean browser redirection to /dashboard ensuring all collections hydrate freshly
     if (typeof window !== 'undefined') {
       const path = window.location.pathname.toLowerCase().replace(/\/+$/, '');
       if (path === '/login' || path === '/signup' || path === '/sign-up' || path === '') {
-        window.location.href = '/leads';
+        window.location.href = '/dashboard';
         return;
       }
     }
@@ -1078,13 +1096,30 @@ export function App() {
     return (
       <StagesContext.Provider value={activeStages}>
         <WorkflowBuilderPage
+          key={activeWorkflowForBuilder?.id || 'new_workflow'}
           initialWorkflow={activeWorkflowForBuilder}
           onBack={() => {
             setActiveWorkflowForBuilder(null);
+            if (typeof sessionStorage !== 'undefined') {
+              sessionStorage.removeItem('pixbe_active_workflow_id');
+            }
+            if (typeof localStorage !== 'undefined') {
+              localStorage.removeItem('pixbe_active_workflow_id');
+            }
             setCurrentView('workflows');
+            syncUrlWithView('workflows');
           }}
           onSave={(savedWorkflow) => {
-            showToast(`Workflow "${savedWorkflow.name}" saved!`);
+            saveWorkflowToDb(savedWorkflow, activeTenantId);
+            showToast(`Workflow "${savedWorkflow.name}" saved and published!`);
+            setActiveWorkflowForBuilder(savedWorkflow);
+            if (typeof sessionStorage !== 'undefined' && savedWorkflow?.id) {
+              sessionStorage.setItem('pixbe_active_workflow_id', savedWorkflow.id);
+            }
+            if (typeof localStorage !== 'undefined' && savedWorkflow?.id) {
+              localStorage.setItem('pixbe_active_workflow_id', savedWorkflow.id);
+            }
+            syncUrlWithView('workflow_builder', undefined, true, { id: savedWorkflow.id });
             setWorkflows((prev) => {
               const exists = prev.some((w) => w.id === savedWorkflow.id || w.name === savedWorkflow.name);
               if (exists) {
@@ -1385,52 +1420,22 @@ export function App() {
                 onToggleWorkflow={(id) => setWorkflows((prev) => prev.map((w) => w.id === id ? { ...w, isActive: !w.isActive } : w))}
                 onAddWorkflow={(wf) => setWorkflows((prev) => [wf, ...prev])}
                 onOpenWorkflowBuilder={(wf) => {
-                  setActiveWorkflowForBuilder(wf || null);
+                  const target = wf || getWorkflowsFromDb(activeTenantId)[0] || null;
+                  setActiveWorkflowForBuilder(target);
+                  if (typeof sessionStorage !== 'undefined' && target?.id) {
+                    sessionStorage.setItem('pixbe_active_workflow_id', target.id);
+                  }
+                  if (typeof localStorage !== 'undefined' && target?.id) {
+                    localStorage.setItem('pixbe_active_workflow_id', target.id);
+                  }
                   setCurrentView('workflow_builder');
+                  syncUrlWithView('workflow_builder', undefined, false, target?.id ? { id: target.id } : undefined);
                 }}
                 onShowToast={(msg) => showToast(msg)}
               />
             ) : renderAccessRestricted('AI Automations & Workflows')
           )}
 
-          {currentView === 'workflow_builder' && (
-            activeAgentRights.automations ? (
-              <WorkflowBuilderPage
-                initialWorkflow={activeWorkflowForBuilder}
-                onBack={() => {
-                  setActiveWorkflowForBuilder(null);
-                  setCurrentView('workflows');
-                }}
-                onSave={(savedWorkflow) => {
-                  saveWorkflowToDb(savedWorkflow, activeTenantId);
-                  showToast(`Workflow "${savedWorkflow.name}" saved to database!`);
-                  setWorkflows((prev) => {
-                    const exists = prev.some((w) => w.id === savedWorkflow.id || w.name === savedWorkflow.name);
-                    if (exists) {
-                      return prev.map((w) =>
-                        w.id === savedWorkflow.id || w.name === savedWorkflow.name
-                          ? { ...w, name: savedWorkflow.name, isActive: savedWorkflow.status === 'published' }
-                          : w
-                      );
-                    }
-                    return [
-                      {
-                        id: savedWorkflow.id,
-                        name: savedWorkflow.name,
-                        description: savedWorkflow.description || 'Visual workflow automation',
-                        triggerEvent: savedWorkflow.nodes[0]?.data?.label || 'Lead Event',
-                        condition: 'Custom Conditions',
-                        actions: savedWorkflow.nodes.filter((n: any) => n.data?.kind === 'action').map((n: any) => n.data?.label),
-                        isActive: savedWorkflow.status === 'published',
-                        executedCount: 0
-                      },
-                      ...prev
-                    ];
-                  });
-                }}
-              />
-            ) : renderAccessRestricted('AI Automations & Workflows')
-          )}
 
           {(currentView === 'calls' || currentView === 'calling_logs') && (
             <MyCallsView

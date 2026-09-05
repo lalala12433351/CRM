@@ -74,10 +74,50 @@
   }
 
   /* Universal responsive media constraint */
-  img, video, canvas, svg {
+  img, video, canvas, svg:not(.react-flow svg):not(.react-flow__edges):not(.react-flow__connectionline) {
     max-width: 100%;
     height: auto;
   }
+}
+
+/* Fix React Flow SVG dimensions & layers */
+.react-flow svg {
+  max-width: none !important;
+  height: 100% !important;
+}
+.react-flow__edges {
+  width: 100% !important;
+  height: 100% !important;
+}
+.react-flow__handle {
+  pointer-events: all !important;
+}
+
+/* Interactive Edge Selection & Reconnection Handles */
+.react-flow__edge {
+  cursor: pointer !important;
+}
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 3.5px !important;
+  stroke: #7c3aed !important;
+  transition: stroke-width 0.15s ease, stroke 0.15s ease;
+}
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke-width: 4px !important;
+  stroke: #7c3aed !important;
+  filter: drop-shadow(0 0 6px rgba(124, 58, 237, 0.5));
+}
+.react-flow__edge-updater,
+.react-flow__edge-reconnect {
+  cursor: grab !important;
+  fill: #7c3aed !important;
+  stroke: #ffffff !important;
+  stroke-width: 2px !important;
+  r: 6 !important;
+}
+.react-flow__edge-updater:active,
+.react-flow__edge-reconnect:active {
+  cursor: grabbing !important;
 }
 
 /* ========================================================================== */
@@ -235,9 +275,30 @@ input[type="time"] {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+/* ========================================================================== */
+/* UNIVERSAL TABLE TYPOGRAPHY (Clean unbolded regular weight across CRM)     */
+/* ========================================================================== */
+table,
+table tr,
+table td,
+table td *,
+table td span,
+table td p,
+table td div,
+table td a,
+table td strong,
+table td h1,
+table td h2,
+table td h3,
+table td h4,
+table td h5,
+table td h6 {
+  font-weight: 400 !important;
+}
+
+table th,
+table th * {
+  font-weight: 500 !important;
 }
 
 /* ========================================================================== */
@@ -248,16 +309,6 @@ input[type="time"] {
   cursor: crosshair !important;
   transition: box-shadow 0.15s ease, background-color 0.15s ease;
   z-index: 50 !important;
-}
-
-.react-flow__handle::after {
-  content: '';
-  position: absolute;
-  top: -8px;
-  left: -8px;
-  right: -8px;
-  bottom: -8px;
-  cursor: crosshair;
 }
 
 .react-flow__handle:hover {
@@ -271,7 +322,6 @@ input[type="time"] {
 
 .react-flow__handle.connectingto {
   box-shadow: 0 0 0 6px rgba(58, 32, 136, 0.45) !important;
-  animation: pulse 1s infinite;
 }
 
 .react-flow__handle-valid,
@@ -283,6 +333,7 @@ input[type="time"] {
 .react-flow__connection-path {
   stroke: #3a2088;
   stroke-width: 2.5px;
+  pointer-events: none !important;
 }
 
 @keyframes dash {

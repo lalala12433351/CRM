@@ -21,7 +21,8 @@ import { TriggerNode } from './nodes/TriggerNode';
 import { ConditionNode } from './nodes/ConditionNode';
 import { ActionNode } from './nodes/ActionNode';
 import { CustomWorkflowNode, CatalogItem } from '../types/workflow.types';
-import { Sparkles } from 'lucide-react';
+import { Plus } from 'lucide-react';
+import { WorkflowIcon } from './WorkflowIcons';
 import { ConnectionLineComponentProps, getSmoothStepPath } from '@xyflow/react';
 
 interface WorkflowCanvasProps {
@@ -30,6 +31,9 @@ interface WorkflowCanvasProps {
   onNodesChange: any;
   onEdgesChange: any;
   onConnect: (connection: Connection) => void;
+  onReconnect?: (oldEdge: Edge, newConnection: Connection) => void;
+  onReconnectStart?: () => void;
+  onReconnectEnd?: (event: MouseEvent | TouchEvent, edge: Edge) => void;
   onNodeClick: (node: CustomWorkflowNode) => void;
   onPaneClick: () => void;
   onAddNode: (item: CatalogItem, position?: { x: number; y: number }) => void;
@@ -42,7 +46,7 @@ const nodeTypes: NodeTypes = {
   action: ActionNode
 };
 
-// Animated magnetic connection line with visual snap feedback
+// Clean connection line with guaranteed pointer-events none
 const WorkflowConnectionLine: React.FC<ConnectionLineComponentProps> = ({
   fromX,
   fromY,
@@ -65,7 +69,7 @@ const WorkflowConnectionLine: React.FC<ConnectionLineComponentProps> = ({
   const isSnapped = connectionStatus === 'valid';
 
   return (
-    <g>
+    <g style={{ pointerEvents: 'none' }}>
       <path
         fill="none"
         stroke={isSnapped ? '#10b981' : '#3a2088'}
@@ -73,27 +77,18 @@ const WorkflowConnectionLine: React.FC<ConnectionLineComponentProps> = ({
         strokeDasharray={isSnapped ? undefined : '6,6'}
         className="react-flow__connection-path"
         d={edgePath}
+        style={{ pointerEvents: 'none' }}
       />
-      {/* Magnetic Snapping Indicator Dot */}
+      {/* Snapping dot indicator at cursor */}
       <circle
         cx={toX}
         cy={toY}
         fill={isSnapped ? '#10b981' : '#3a2088'}
-        r={isSnapped ? 7 : 4.5}
+        r={isSnapped ? 6 : 4}
         stroke="#ffffff"
-        strokeWidth={2.5}
-        className={isSnapped ? 'animate-ping' : ''}
+        strokeWidth={2}
+        style={{ pointerEvents: 'none' }}
       />
-      {isSnapped && (
-        <circle
-          cx={toX}
-          cy={toY}
-          fill="#10b981"
-          r={5}
-          stroke="#ffffff"
-          strokeWidth={2}
-        />
-      )}
     </g>
   );
 };
@@ -104,6 +99,9 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
   onNodesChange,
   onEdgesChange,
   onConnect,
+  onReconnect,
+  onReconnectStart,
+  onReconnectEnd,
   onNodeClick,
   onPaneClick,
   onAddNode,
@@ -141,11 +139,6 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
     [onAddNode, reactFlowInstance]
   );
 
-  const isValidConnection = useCallback((connection: Connection | Edge) => {
-    // Only disallow self-connection (same node to same node)
-    return connection.source !== connection.target;
-  }, []);
-
   return (
     <div ref={reactFlowWrapper} className="w-full h-full relative bg-[#f8fafc] overflow-hidden">
       <ReactFlow
@@ -153,20 +146,38 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        isValidConnection={isValidConnection}
+        onConnect={(conn) => {
+          console.log('[WorkflowCanvas onConnect] FIRED with payload:', conn);
+          onConnect(conn);
+        }}
+        onReconnect={onReconnect}
+        onReconnectStart={onReconnectStart}
+        onReconnectEnd={onReconnectEnd}
+        onConnectStart={(event, params) => {
+          console.log('[WorkflowCanvas onConnectStart] Drag started from handle:', params);
+        }}
+        onConnectEnd={(event) => {
+          console.log('[WorkflowCanvas onConnectEnd] Drag finished / mouse released');
+        }}
+        isValidConnection={(edge) => {
+          console.log('[WorkflowCanvas isValidConnection] Validating:', edge);
+          return true;
+        }}
         onNodeClick={(_, node) => onNodeClick(node as CustomWorkflowNode)}
         onPaneClick={onPaneClick}
         onDragOver={onDragOver}
         onDrop={onDrop}
         nodeTypes={nodeTypes}
         connectionMode={ConnectionMode.Loose}
-        connectionRadius={100}
-        connectOnClick={true}
+        connectionRadius={60}
+        reconnectRadius={40}
+        edgesReconnectable={true}
+        edgesFocusable={true}
+        connectOnClick={false}
         nodesConnectable={true}
         elevateEdgesOnSelect={true}
         deleteKeyCode={['Backspace', 'Delete']}
-        connectionLineComponent={WorkflowConnectionLine}
+        connectionLineType={ConnectionLineType.SmoothStep}
         fitView
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.2}
@@ -174,6 +185,7 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
         defaultEdgeOptions={{
           type: 'smoothstep',
           animated: true,
+          reconnectable: true,
           style: { stroke: '#3a2088', strokeWidth: 2 },
           markerEnd: {
             type: MarkerType.ArrowClosed,
@@ -216,7 +228,7 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
           <Panel position="top-center" className="mt-20">
             <div className="bg-white border border-purple-200 p-5 rounded-lg shadow-xs max-w-md text-center space-y-2.5 font-sans">
               <div className="w-10 h-10 rounded-md bg-purple-50 border border-purple-200 text-[#3a2088] flex items-center justify-center mx-auto">
-                <Sparkles className="w-5 h-5" />
+                <WorkflowIcon id="custom_action_created" size={20} className="text-[#3a2088]" />
               </div>
               <h3 className="text-xs font-bold text-slate-900">
                 Design Your Workflow Pipeline

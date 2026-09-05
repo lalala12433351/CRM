@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, CheckCircle2, Download, Send, Plus, Sparkles, PenTool, ShieldCheck, Database, Server, Code2, Globe, Layers, CheckSquare, Copy, Check } from 'lucide-react';
+import { FileText, CheckCircle2, Download, Send, Plus, PenTool, ShieldCheck, Database, Server, Code2, Globe, Layers, CheckSquare, Copy, Check } from 'lucide-react';
 import { Lead } from '../types';
 import { toast } from '../context/ToastContext';
 import { formatProperName } from '../utils/formatUtils';
@@ -205,7 +205,7 @@ The goal of this project is to build a high-performance, full-stack TeleCRM & Sa
             {/* Document Background Callout Notice */}
             <div className="bg-indigo-50 px-6 py-2 border-b border-indigo-100 flex items-center justify-between text-[11px] text-indigo-900">
               <span className="flex items-center space-x-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                <FileText className="w-3.5 h-3.5 text-indigo-600" />
                 <span><strong>Google Docs Friendly Paper Theme</strong>: The document below uses a clean white paper sheet so copying text will never paste with a dark background.</span>
               </span>
             </div>

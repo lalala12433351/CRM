@@ -14,7 +14,6 @@ import {
   Users, 
   Phone, 
   TrendingUp, 
-  Bot, 
   Link2, 
   CreditCard, 
   FileText, 
@@ -24,7 +23,6 @@ import {
   Mail,
   Zap,
   CheckCircle2,
-  Sparkles,
   UserPlus
 } from 'lucide-react';
 import { PermissionTemplate, PermissionRights, Agent } from '../types';

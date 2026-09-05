@@ -1,16 +1,12 @@
-import React, { memo, useEffect } from 'react';
-import { Handle, Position, NodeProps, useUpdateNodeInternals } from '@xyflow/react';
+import React, { memo } from 'react';
+import { Handle, Position, NodeProps } from '@xyflow/react';
 import { WorkflowNodeData } from '../../types/workflow.types';
 import { Check, X } from 'lucide-react';
+import { WorkflowIcon } from '../WorkflowIcons';
 
-export const ConditionNode: React.FC<NodeProps> = memo(({ id, data, selected }) => {
+export const ConditionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
   const nodeData = data as unknown as WorkflowNodeData;
   const rules = nodeData.config?.rules || [];
-  const updateNodeInternals = useUpdateNodeInternals();
-
-  useEffect(() => {
-    updateNodeInternals(id);
-  }, [id, updateNodeInternals]);
 
   return (
     <div
@@ -25,16 +21,13 @@ export const ConditionNode: React.FC<NodeProps> = memo(({ id, data, selected }) 
         type="target"
         position={Position.Left}
         id="input"
-        isConnectable={true}
-        className="!w-4.5 !h-4.5 !bg-[#3a2088] !border-2 !border-white !rounded-full !cursor-crosshair hover:!ring-4 hover:!ring-purple-200 transition-shadow !z-50 shadow-sm"
-        style={{
-          boxShadow: '0 0 0 1.5px #3a2088'
-        }}
+        className="!w-3.5 !h-3.5 !bg-[#3a2088] !border-2 !border-white !rounded-full !cursor-crosshair shadow-sm"
       />
 
       {/* Node Header */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-[#3a2088] text-white rounded-t-lg">
-        <div className="text-[11px] font-medium tracking-wider uppercase">
+        <div className="flex items-center gap-2 text-[11px] font-medium tracking-wider uppercase">
+          <WorkflowIcon id={nodeData.catalogId || 'lead_condition'} size={13} className="text-purple-200" />
           <span>CONDITION (IF / ELSE)</span>
         </div>
       </div>
@@ -88,12 +81,8 @@ export const ConditionNode: React.FC<NodeProps> = memo(({ id, data, selected }) 
         type="source"
         position={Position.Right}
         id="true"
-        isConnectable={true}
-        className="!w-4.5 !h-4.5 !bg-[#10b981] !border-2 !border-white !rounded-full !cursor-crosshair hover:!ring-4 hover:!ring-emerald-200 transition-shadow !z-50 shadow-sm"
-        style={{
-          top: '38%',
-          boxShadow: '0 0 0 1.5px #10b981'
-        }}
+        style={{ top: '38%' }}
+        className="!w-3.5 !h-3.5 !bg-[#10b981] !border-2 !border-white !rounded-full !cursor-crosshair shadow-sm"
       />
 
       {/* False Handle (Red Dot on Lower Right) */}
@@ -101,12 +90,8 @@ export const ConditionNode: React.FC<NodeProps> = memo(({ id, data, selected }) 
         type="source"
         position={Position.Right}
         id="false"
-        isConnectable={true}
-        className="!w-4.5 !h-4.5 !bg-[#DC2626] !border-2 !border-white !rounded-full !cursor-crosshair hover:!ring-4 hover:!ring-rose-200 transition-shadow !z-50 shadow-sm"
-        style={{
-          top: '80%',
-          boxShadow: '0 0 0 1.5px #DC2626'
-        }}
+        style={{ top: '80%' }}
+        className="!w-3.5 !h-3.5 !bg-[#DC2626] !border-2 !border-white !rounded-full !cursor-crosshair shadow-sm"
       />
     </div>
   );

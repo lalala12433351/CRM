@@ -13,7 +13,7 @@ import {
   Download,
   ArrowUpRight,
   ArrowDownRight,
-  Sparkles,
+  Users,
   Layers,
   PhoneCall,
   CheckCircle2,
@@ -368,7 +368,7 @@ export const AnalyticsPage: React.FC<AnalyticsViewProps> = ({ leads, hourlyMetri
         <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs space-y-1">
           <div className="flex items-center justify-between text-slate-500">
             <span className="text-[11px] font-medium uppercase tracking-wider">Total Leads</span>
-            <Sparkles className="w-3.5 h-3.5 text-sky-600" />
+            <Users className="w-3.5 h-3.5 text-sky-600" />
           </div>
           <p className="text-lg sm:text-xl font-bold text-slate-900">
             {totalMetrics.totalLeads}

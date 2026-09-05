@@ -245,7 +245,7 @@
           "HighIntent"
         ],
         "createdAt": "2026-09-05T04:44:49.651Z",
-        "updatedAt": "2026-09-05T04:44:49.654Z",
+        "updatedAt": "2026-09-05T10:03:08.211Z",
         "pincode": "",
         "whatsappOptIn": true,
         "activities": [
@@ -259,7 +259,8 @@
             "agentId": "agent_kiteaviation_admin",
             "agentName": "Kite Aviation Admin"
           }
-        ]
+        ],
+        "rating": 1
       },
       {
         "id": "lead-1788503975675",
@@ -951,13 +952,15 @@
           "deal_value": 0,
           "dealValue": 0,
           "f-deal-val": 0,
-          "Deal Value (₹)": 0
+          "Deal Value (₹)": 0,
+          "batch": "1",
+          "f-1788413929081": "1"
         },
         "tags": [
           "HighIntent"
         ],
-        "createdAt": "Just Now",
-        "updatedAt": "2026-09-03T05:35:59.725Z",
+        "createdAt": "2026-09-01T10:14:23.855Z",
+        "updatedAt": "2026-09-05T09:45:25.088Z",
         "pincode": "",
         "priority": "Hot",
         "whatsappOptIn": true,
@@ -1098,7 +1101,9 @@
             "createdAt": "2026-09-02T10:55:18.595Z"
           }
         ],
-        "deal_value": 0
+        "deal_value": 0,
+        "batch": "1",
+        "f-1788413929081": "1"
       }
     ]
   },
@@ -3126,18 +3131,6 @@
         "lastModified": "2026-09-02T09:50:11.187Z"
       },
       {
-        "tenantId": "company_kite_aviation",
-        "id": "f-deal-val",
-        "type": "currency",
-        "category": "General",
-        "name": "deal_value",
-        "label": "Deal Value (₹)",
-        "isHidden": false,
-        "required": false,
-        "createdOn": "2026-09-02T09:50:11.187Z",
-        "lastModified": "2026-09-02T09:50:11.187Z"
-      },
-      {
         "id": "f-1788343133996",
         "name": "car",
         "label": "car",
@@ -3239,6 +3232,31 @@
         "lastModified": "2026-09-03T05:39:10.252Z",
         "isHidden": false,
         "tenantId": "company_kite_aviation"
+      },
+      {
+        "id": "f-1788601443454",
+        "name": "christ",
+        "label": "christ",
+        "type": "text",
+        "category": "General",
+        "required": false,
+        "isUnique": false,
+        "showInQuickAdd": true,
+        "showInImport": true,
+        "lockAfterCreate": false,
+        "canUseVariable": true,
+        "variableDefaultValue": "NA",
+        "minLength": 1,
+        "maxLength": 102,
+        "minValue": 0,
+        "maxValue": 10000000,
+        "isSearchable": false,
+        "placeholder": "",
+        "description": "",
+        "createdOn": "2026-09-05T09:44:03.454Z",
+        "lastModified": "2026-09-05T09:44:03.454Z",
+        "isHidden": false,
+        "tenantId": "company_kite_aviation"
       }
     ]
   },
@@ -3272,6 +3290,61 @@
     "company_zenith_aviation": [],
     "company_wfwwfwf": [],
     "company_kite_aviation": [
+      {
+        "id": "act-1788602588208",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788583489651",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "note",
+        "title": "Lead Star Rating Updated",
+        "description": "Rated 1 out of 5 stars",
+        "timestamp": "2026-09-05T10:03:08.208Z"
+      },
+      {
+        "id": "act-1788602586369",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788583489651",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "note",
+        "title": "Lead Star Rating Updated",
+        "description": "Rated 1 out of 5 stars",
+        "timestamp": "2026-09-05T10:03:06.369Z"
+      },
+      {
+        "id": "act-1788602585103",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788583489651",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "note",
+        "title": "Lead Star Rating Updated",
+        "description": "Rated 4 out of 5 stars",
+        "timestamp": "2026-09-05T10:03:05.103Z"
+      },
+      {
+        "id": "act-1788601526655",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788257663855",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "call",
+        "title": "Call Placed",
+        "description": "Outgoing call placed to +91 2432423424",
+        "timestamp": "2026-09-05T09:45:26.655Z"
+      },
+      {
+        "id": "act-1788601525072",
+        "tenantId": "company_kite_aviation",
+        "leadId": "lead-1788257663855",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Kite Aviation Admin",
+        "type": "edit",
+        "title": "Updated batch",
+        "description": "Changed to \"1\"",
+        "timestamp": "2026-09-05T09:45:25.072Z"
+      },
       {
         "id": "act-1788504997591",
         "tenantId": "company_kite_aviation",
@@ -3861,6 +3934,199 @@
       }
     ],
     "company_kite_aviation": [
+      {
+        "id": "wf-1788592289529",
+        "tenantId": "company_kite_aviation",
+        "name": "Inbound Lead Routing & WhatsApp Automation",
+        "hasDraft": false,
+        "event": "Facebook Lead Ad Ingest",
+        "eventIcon": "globe",
+        "status": true,
+        "statusMeta": "Published by Admin",
+        "totalRuns": 0,
+        "last24hRuns": 0,
+        "last24hFailures": 0,
+        "isDraft": false,
+        "nodes": [
+          {
+            "id": "node-trigger-1",
+            "type": "trigger",
+            "position": {
+              "x": 50,
+              "y": 150
+            },
+            "data": {
+              "kind": "trigger",
+              "catalogId": "facebook_lead",
+              "label": "Facebook Lead Ad Ingest",
+              "description": "Instant lead capture from Meta Ads",
+              "iconName": "Share2",
+              "category": "events",
+              "config": {
+                "triggerEvent": "facebook_lead",
+                "leadSource": "Facebook Ads"
+              }
+            }
+          },
+          {
+            "id": "node-condition-1",
+            "type": "condition",
+            "position": {
+              "x": 380,
+              "y": 130
+            },
+            "data": {
+              "kind": "condition",
+              "catalogId": "lead_condition",
+              "label": "Check: Valid Phone & Fresh Status",
+              "description": "Validates contact number before messaging",
+              "iconName": "Filter",
+              "category": "lead_conditions",
+              "config": {
+                "conditionType": "lead",
+                "logicOperator": "AND",
+                "rules": [
+                  {
+                    "id": "r1",
+                    "field": "phone",
+                    "operator": "is_not_empty",
+                    "value": ""
+                  },
+                  {
+                    "id": "r2",
+                    "field": "status",
+                    "operator": "equals",
+                    "value": "Fresh"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "id": "node-action-1",
+            "type": "action",
+            "position": {
+              "x": 740,
+              "y": 60
+            },
+            "data": {
+              "kind": "action",
+              "catalogId": "send_template",
+              "label": "Send Welcome WhatsApp Brochure",
+              "description": "Dispatches instant catalog to customer",
+              "iconName": "Send",
+              "category": "actions",
+              "config": {
+                "templateName": "lead_welcome_brochure",
+                "templateLanguage": "en_US",
+                "recipientPhoneVariable": "{{lead.phone}}"
+              }
+            }
+          },
+          {
+            "id": "node-action-2",
+            "type": "action",
+            "position": {
+              "x": 1060,
+              "y": 60
+            },
+            "data": {
+              "kind": "action",
+              "catalogId": "update_lead_assignee",
+              "label": "Round-Robin Lead Assignment",
+              "description": "Equally distributes to active sales agents",
+              "iconName": "UserPlus",
+              "category": "actions",
+              "config": {
+                "assigneeType": "round_robin"
+              }
+            }
+          },
+          {
+            "id": "node-action-3",
+            "type": "action",
+            "position": {
+              "x": 740,
+              "y": 260
+            },
+            "data": {
+              "kind": "action",
+              "catalogId": "call_api",
+              "label": "Call API",
+              "description": "Sends notification for manual phone verification",
+              "iconName": "Globe",
+              "category": "actions",
+              "config": {
+                "method": "POST",
+                "endpointUrl": "fsfsfsfsdf",
+                "apiTemplate": "new api",
+                "templateId": "tpl-1788602750957",
+                "headers": [
+                  {
+                    "key": "Content-type",
+                    "value": "application/json"
+                  }
+                ],
+                "bodyPayload": "{\n  \"lead_id\": \"{{lead.id}}\",\n  \"name\": \"{{lead.name}}\",\n  \"phone\": \"{{lead.phone}}\",\n  \"email\": \"{{lead.email}}\",\n  \"status\": \"{{lead.status}}\"\n}",
+                "queryParams": [],
+                "authConfig": {
+                  "type": "none",
+                  "token": "",
+                  "username": "",
+                  "password": "",
+                  "apiKeyKey": "",
+                  "apiKeyValue": "",
+                  "apiKeyLocation": "header"
+                }
+              }
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "e3",
+            "source": "node-action-1",
+            "target": "node-action-2",
+            "sourceHandle": "output",
+            "targetHandle": "input",
+            "type": "smoothstep",
+            "animated": true,
+            "reconnectable": true,
+            "style": {
+              "stroke": "#475569",
+              "strokeWidth": 2
+            },
+            "markerEnd": {
+              "type": "arrowclosed",
+              "color": "#475569",
+              "width": 14,
+              "height": 14
+            }
+          },
+          {
+            "id": "e4",
+            "source": "node-condition-1",
+            "target": "node-action-3",
+            "sourceHandle": "false",
+            "targetHandle": "input",
+            "type": "smoothstep",
+            "animated": true,
+            "reconnectable": true,
+            "style": {
+              "stroke": "#DC2626",
+              "strokeWidth": 2
+            },
+            "markerEnd": {
+              "type": "arrowclosed",
+              "color": "#DC2626",
+              "width": 14,
+              "height": 14
+            }
+          }
+        ],
+        "createdAt": "2026-09-05T07:10:57.249Z",
+        "updatedAt": "2026-09-05T10:10:40.035Z"
+      },
       {
         "id": "wf-1",
         "name": "On Website lead",
