@@ -33,6 +33,12 @@ interface WorkflowCanvasProps {
   selectedNodeId: string | null;
 }
 
+const nodeTypes: NodeTypes = {
+  trigger: TriggerNode,
+  condition: ConditionNode,
+  action: ActionNode
+};
+
 const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
   nodes,
   edges,
@@ -46,15 +52,6 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
 }) => {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const reactFlowInstance = useReactFlow();
-
-  const nodeTypes: NodeTypes = useMemo(
-    () => ({
-      trigger: TriggerNode,
-      condition: ConditionNode,
-      action: ActionNode
-    }),
-    []
-  );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();

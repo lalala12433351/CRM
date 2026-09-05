@@ -159,7 +159,12 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
         }
       };
 
-      setEdges((eds) => addEdge(newEdge, eds));
+      setEdges((eds) => {
+        const withoutDuplicate = eds.filter(
+          (e) => !(e.source === actualSource && e.sourceHandle === actualSourceHandle && e.target === actualTarget)
+        );
+        return [...withoutDuplicate, newEdge];
+      });
     },
     [nodes, setEdges]
   );
