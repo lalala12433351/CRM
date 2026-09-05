@@ -222,6 +222,46 @@
     "company_wfwwfwf": [],
     "company_kite_aviation": [
       {
+        "id": "lead-1788583489651",
+        "tenantId": "company_kite_aviation",
+        "name": "sfdsfs",
+        "phone": "+91 3422433242",
+        "email": "",
+        "company": "",
+        "city": "Not Specified",
+        "state": "Not Specified",
+        "source": "Facebook Ads",
+        "status": "Fresh",
+        "pipelineStageId": "stage-1",
+        "dealValue": 0,
+        "ownerAgentId": "agent_kiteaviation_admin",
+        "ownerAgentName": "Kite Aviation Admin",
+        "aiScore": 80,
+        "aiRating": "Hot",
+        "aiReasoning": "Inbound lead entry",
+        "notes": "Added manually.",
+        "customFields": {},
+        "tags": [
+          "HighIntent"
+        ],
+        "createdAt": "2026-09-05T04:44:49.651Z",
+        "updatedAt": "2026-09-05T04:44:49.654Z",
+        "pincode": "",
+        "whatsappOptIn": true,
+        "activities": [
+          {
+            "id": "act-1788583489651",
+            "leadId": "lead-1788583489651",
+            "type": "creation",
+            "title": "Lead Created",
+            "description": "Lead created from Facebook Ads",
+            "timestamp": "2026-09-05T04:44:49.651Z",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Kite Aviation Admin"
+          }
+        ]
+      },
+      {
         "id": "lead-1788503975675",
         "tenantId": "company_kite_aviation",
         "name": "sfsfs",

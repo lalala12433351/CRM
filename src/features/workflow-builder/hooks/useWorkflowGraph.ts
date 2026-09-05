@@ -28,13 +28,44 @@ export interface WorkflowSimulationStep {
   timestamp: string;
 }
 
+const sanitizeEdges = (rawEdges: Edge[]): Edge[] => {
+  return rawEdges.map((e) => {
+    const isTrue = e.sourceHandle === 'true';
+    const isFalse = e.sourceHandle === 'false';
+    let strokeColor = (e.style as any)?.stroke || '#3a2088';
+    if (isTrue) strokeColor = '#10b981';
+    else if (isFalse) strokeColor = '#DC2626';
+
+    return {
+      ...e,
+      sourceHandle: e.sourceHandle || (e.source.includes('condition') ? 'true' : 'output'),
+      targetHandle: e.targetHandle || 'input',
+      type: e.type || 'smoothstep',
+      animated: e.animated !== undefined ? e.animated : true,
+      style: {
+        stroke: strokeColor,
+        strokeWidth: 2,
+        ...(e.style || {})
+      },
+      markerEnd: e.markerEnd || {
+        type: MarkerType.ArrowClosed,
+        color: strokeColor,
+        width: 14,
+        height: 14
+      }
+    };
+  });
+};
+
 export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
   const initialNodes: CustomWorkflowNode[] = (initialWorkflow?.nodes && initialWorkflow.nodes.length > 0
     ? (initialWorkflow.nodes as CustomWorkflowNode[])
     : (SAMPLE_TEMPLATES[0].nodes as CustomWorkflowNode[]));
-  const initialEdges: Edge[] = (initialWorkflow?.edges && initialWorkflow.edges.length > 0
-    ? (initialWorkflow.edges as Edge[])
-    : (initialWorkflow?.nodes && initialWorkflow.nodes.length > 0 ? [] : (SAMPLE_TEMPLATES[0].edges as Edge[])));
+  const initialEdges: Edge[] = sanitizeEdges(
+    initialWorkflow?.edges && initialWorkflow.edges.length > 0
+      ? (initialWorkflow.edges as Edge[])
+      : (initialWorkflow?.nodes && initialWorkflow.nodes.length > 0 ? [] : (SAMPLE_TEMPLATES[0].edges as Edge[]))
+  );
 
   const [nodes, setNodes] = useNodesState<CustomWorkflowNode>(initialNodes);
   const [edges, setEdges] = useEdgesState<Edge>(initialEdges);
@@ -64,21 +95,56 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
       if (connection.source === connection.target) return;
 
       setIsSaved(false);
-      // Format edge style based on handle type (e.g. true=green, false=red, trigger=purple)
-      const isTrueBranch = connection.sourceHandle === 'true';
-      const isFalseBranch = connection.sourceHandle === 'false';
+
+      // Normalize connection direction if dragged in reverse
+      const sourceNode = nodes.find((n) => n.id === connection.source);
+      const targetNode = nodes.find((n) => n.id === connection.target);
+
+      let actualSource = connection.source;
+      let actualTarget = connection.target;
+      let actualSourceHandle = connection.sourceHandle;
+      let actualTargetHandle = connection.targetHandle;
+
+      // If user dragged in reverse (from target handle 'input' or from a target-only node backwards to an output)
+      if (
+        (connection.sourceHandle === 'input' || targetNode?.type === 'trigger') &&
+        connection.targetHandle !== 'input'
+      ) {
+        actualSource = connection.target;
+        actualTarget = connection.source;
+        actualSourceHandle = connection.targetHandle;
+        actualTargetHandle = connection.sourceHandle;
+      }
+
+      const srcNode = nodes.find((n) => n.id === actualSource);
+      const tgtNode = nodes.find((n) => n.id === actualTarget);
+
+      // Ensure proper sourceHandle
+      if (!actualSourceHandle || actualSourceHandle === 'input') {
+        actualSourceHandle = srcNode?.type === 'condition' ? 'true' : 'output';
+      }
+
+      // Ensure proper targetHandle
+      if (!actualTargetHandle || actualTargetHandle === 'output') {
+        actualTargetHandle = 'input';
+      }
+
+      // Determine edge styling based on branch type
+      const isTrueBranch = actualSourceHandle === 'true';
+      const isFalseBranch = actualSourceHandle === 'false';
 
       let strokeColor = '#3a2088'; // primary CRM royal violet
       if (isTrueBranch) strokeColor = '#10b981'; // emerald green
-      if (isFalseBranch) strokeColor = '#DC2626'; // rose red
+      else if (isFalseBranch) strokeColor = '#DC2626'; // rose red
+      else if (srcNode?.type === 'action') strokeColor = '#475569'; // slate
 
-      const edgeId = `edge-${connection.source}-${connection.sourceHandle || 'out'}-${connection.target}-${Date.now()}`;
+      const edgeId = `edge-${actualSource}-${actualSourceHandle}-${actualTarget}-${Date.now()}`;
       const newEdge: Edge = {
         id: edgeId,
-        source: connection.source,
-        target: connection.target,
-        sourceHandle: connection.sourceHandle || null,
-        targetHandle: connection.targetHandle || null,
+        source: actualSource,
+        target: actualTarget,
+        sourceHandle: actualSourceHandle,
+        targetHandle: actualTargetHandle,
         animated: true,
         type: 'smoothstep',
         style: {
@@ -95,7 +161,7 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
 
       setEdges((eds) => addEdge(newEdge, eds));
     },
-    [setEdges]
+    [nodes, setEdges]
   );
 
   // Add node from catalog item (Enforces single trigger rule)

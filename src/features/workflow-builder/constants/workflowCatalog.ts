@@ -1,4 +1,5 @@
 import { CatalogItem, WorkflowCategory } from '../types/workflow.types';
+import { MarkerType } from '@xyflow/react';
 
 export interface CategoryMeta {
   id: WorkflowCategory;
@@ -478,10 +479,50 @@ export const SAMPLE_TEMPLATES = [
       }
     ],
     edges: [
-      { id: 'e1', source: 'node-trigger-1', target: 'node-condition-1', animated: true, style: { stroke: '#3a2088', strokeWidth: 2 } },
-      { id: 'e2', source: 'node-condition-1', sourceHandle: 'true', target: 'node-action-1', animated: true, style: { stroke: '#10b981', strokeWidth: 2 } },
-      { id: 'e3', source: 'node-action-1', target: 'node-action-2', animated: true, style: { stroke: '#475569', strokeWidth: 2 } },
-      { id: 'e4', source: 'node-condition-1', sourceHandle: 'false', target: 'node-action-3', animated: true, style: { stroke: '#DC2626', strokeWidth: 2 } }
+      {
+        id: 'e1',
+        source: 'node-trigger-1',
+        sourceHandle: 'output',
+        target: 'node-condition-1',
+        targetHandle: 'input',
+        animated: true,
+        type: 'smoothstep',
+        style: { stroke: '#3a2088', strokeWidth: 2 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#3a2088', width: 14, height: 14 }
+      },
+      {
+        id: 'e2',
+        source: 'node-condition-1',
+        sourceHandle: 'true',
+        target: 'node-action-1',
+        targetHandle: 'input',
+        animated: true,
+        type: 'smoothstep',
+        style: { stroke: '#10b981', strokeWidth: 2 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#10b981', width: 14, height: 14 }
+      },
+      {
+        id: 'e3',
+        source: 'node-action-1',
+        sourceHandle: 'output',
+        target: 'node-action-2',
+        targetHandle: 'input',
+        animated: true,
+        type: 'smoothstep',
+        style: { stroke: '#475569', strokeWidth: 2 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#475569', width: 14, height: 14 }
+      },
+      {
+        id: 'e4',
+        source: 'node-condition-1',
+        sourceHandle: 'false',
+        target: 'node-action-3',
+        targetHandle: 'input',
+        animated: true,
+        type: 'smoothstep',
+        style: { stroke: '#DC2626', strokeWidth: 2 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#DC2626', width: 14, height: 14 }
+      }
     ]
   }
 ];
