@@ -1,14 +1,19 @@
-import React, { memo } from 'react';
-import { Handle, Position, NodeProps } from '@xyflow/react';
+import React, { memo, useEffect } from 'react';
+import { Handle, Position, NodeProps, useUpdateNodeInternals } from '@xyflow/react';
 import { WorkflowNodeData } from '../../types/workflow.types';
 import { CheckCircle2 } from 'lucide-react';
 
-export const TriggerNode: React.FC<NodeProps> = memo(({ data, selected }) => {
+export const TriggerNode: React.FC<NodeProps> = memo(({ id, data, selected }) => {
   const nodeData = data as unknown as WorkflowNodeData;
+  const updateNodeInternals = useUpdateNodeInternals();
+
+  useEffect(() => {
+    updateNodeInternals(id);
+  }, [id, updateNodeInternals]);
 
   return (
     <div
-      className={`relative min-w-[270px] max-w-[300px] rounded-lg bg-white border font-sans transition-all duration-150 shadow-xs ${
+      className={`relative min-w-[270px] max-w-[300px] rounded-lg bg-white border font-sans shadow-xs ${
         selected
           ? 'border-[#3a2088] ring-2 ring-[#3a2088]/20 shadow-md'
           : 'border-purple-200/90 hover:border-[#3a2088]'

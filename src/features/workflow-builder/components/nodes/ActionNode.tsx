@@ -1,11 +1,16 @@
-import React, { memo } from 'react';
-import { Handle, Position, NodeProps } from '@xyflow/react';
+import React, { memo, useEffect } from 'react';
+import { Handle, Position, NodeProps, useUpdateNodeInternals } from '@xyflow/react';
 import { WorkflowNodeData } from '../../types/workflow.types';
 import { AlertCircle } from 'lucide-react';
 
-export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
+export const ActionNode: React.FC<NodeProps> = memo(({ id, data, selected }) => {
   const nodeData = data as unknown as WorkflowNodeData;
   const config = nodeData.config || {};
+  const updateNodeInternals = useUpdateNodeInternals();
+
+  useEffect(() => {
+    updateNodeInternals(id);
+  }, [id, updateNodeInternals]);
 
   const renderActionPreview = () => {
     switch (nodeData.catalogId) {

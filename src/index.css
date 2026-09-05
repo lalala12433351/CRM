@@ -264,20 +264,25 @@ input[type="time"] {
   cursor: crosshair !important;
 }
 
-.react-flow__handle-connecting {
-  box-shadow: 0 0 0 4px rgba(58, 32, 136, 0.35) !important;
+.react-flow__handle-connecting,
+.react-flow__handle.connectingfrom {
+  box-shadow: 0 0 0 5px rgba(58, 32, 136, 0.45) !important;
 }
 
-.react-flow__handle-valid {
-  box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.5) !important;
-  animation: pulse 1.5s infinite;
+.react-flow__handle.connectingto {
+  box-shadow: 0 0 0 6px rgba(58, 32, 136, 0.45) !important;
+  animation: pulse 1s infinite;
+}
+
+.react-flow__handle-valid,
+.react-flow__handle.valid {
+  box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.6) !important;
+  background-color: #10b981 !important;
 }
 
 .react-flow__connection-path {
-  stroke: #3a2088 !important;
-  stroke-width: 2.5px !important;
-  stroke-dasharray: 6, 6;
-  animation: dash 1s linear infinite;
+  stroke: #3a2088;
+  stroke-width: 2.5px;
 }
 
 @keyframes dash {

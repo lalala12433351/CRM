@@ -22,6 +22,7 @@ import { ConditionNode } from './nodes/ConditionNode';
 import { ActionNode } from './nodes/ActionNode';
 import { CustomWorkflowNode, CatalogItem } from '../types/workflow.types';
 import { Sparkles } from 'lucide-react';
+import { ConnectionLineComponentProps, getSmoothStepPath } from '@xyflow/react';
 
 interface WorkflowCanvasProps {
   nodes: CustomWorkflowNode[];
@@ -40,6 +41,62 @@ const nodeTypes: NodeTypes = {
   trigger: TriggerNode,
   condition: ConditionNode,
   action: ActionNode
+};
+
+// Animated magnetic connection line with visual snap feedback
+const WorkflowConnectionLine: React.FC<ConnectionLineComponentProps> = ({
+  fromX,
+  fromY,
+  toX,
+  toY,
+  fromPosition,
+  toPosition,
+  connectionStatus
+}) => {
+  const [edgePath] = getSmoothStepPath({
+    sourceX: fromX,
+    sourceY: fromY,
+    sourcePosition: fromPosition,
+    targetX: toX,
+    targetY: toY,
+    targetPosition: toPosition,
+    borderRadius: 12
+  });
+
+  const isSnapped = connectionStatus === 'valid';
+
+  return (
+    <g>
+      <path
+        fill="none"
+        stroke={isSnapped ? '#10b981' : '#3a2088'}
+        strokeWidth={isSnapped ? 3 : 2.5}
+        strokeDasharray={isSnapped ? undefined : '6,6'}
+        className="react-flow__connection-path"
+        d={edgePath}
+      />
+      {/* Magnetic Snapping Indicator Dot */}
+      <circle
+        cx={toX}
+        cy={toY}
+        fill={isSnapped ? '#10b981' : '#3a2088'}
+        r={isSnapped ? 7 : 4.5}
+        stroke="#ffffff"
+        strokeWidth={2.5}
+        className={isSnapped ? 'animate-ping' : ''}
+      />
+      {isSnapped && (
+        <circle
+          cx={toX}
+          cy={toY}
+          fill="#10b981"
+          r={5}
+          stroke="#ffffff"
+          strokeWidth={2}
+        />
+      )}
+    </g>
+  );
 };
 
 const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
@@ -107,17 +164,12 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
         onDrop={onDrop}
         nodeTypes={nodeTypes}
         connectionMode={ConnectionMode.Loose}
-        connectionRadius={60}
+        connectionRadius={100}
         connectOnClick={true}
         nodesConnectable={true}
         elevateEdgesOnSelect={true}
         deleteKeyCode={['Backspace', 'Delete']}
-        connectionLineType={ConnectionLineType.SmoothStep}
-        connectionLineStyle={{
-          stroke: '#3a2088',
-          strokeWidth: 2.5,
-          strokeDasharray: '5,5'
-        }}
+        connectionLineComponent={WorkflowConnectionLine}
         fitView
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.2}
