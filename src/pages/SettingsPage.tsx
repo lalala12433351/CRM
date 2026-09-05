@@ -341,11 +341,13 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
       }
 
       try {
-        localStorage.setItem('pixbe_current_user', JSON.stringify(updatedUser));
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.setItem('pixbe_current_user', JSON.stringify(updatedUser));
+        }
       } catch (e) {}
 
       // 2. Sync to backend API with a fast timeout fallback
-      const token = localStorage.getItem('pixbe_auth_token') || '';
+      const token = typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('pixbe_auth_token') || '') : '';
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
 
@@ -534,7 +536,7 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
     if (onUpdateLostReasons) {
       onUpdateLostReasons(updatedReasons);
     }
-    const token = localStorage.getItem('pixbe_auth_token') || '';
+    const token = typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('pixbe_auth_token') || '') : '';
     fetch('/api/pipelines/lost-reasons', {
       method: 'POST',
       headers: {

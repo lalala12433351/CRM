@@ -46,7 +46,7 @@ import {
 import { WorkflowBuilderPage } from './features/workflow-builder';
 import { saveWorkflowToDb } from './utils/workflowStorage';
 import { PhoneCall, X, Users } from 'lucide-react';
-import { verifyCurrentSession, logoutWithApi, fetchWithTenantAuth } from './lib/auth';
+import { verifyCurrentSession, logoutWithApi, fetchWithTenantAuth, clearLocalStorageAuth } from './lib/auth';
 import { formatArcleName } from './utils/brandUtils';
 import { toast, useToast, ToastType } from './context/ToastContext';
 
@@ -151,9 +151,10 @@ export function App() {
   const [activeFilterId, setActiveFilterId] = useState<string>('all_leads');
 
   // Keep navigation states synchronized with browser URL & localStorage
-  // Real-World Authentication & Session State
+  // Real-World Authentication & Session State (Scoped to Session, not persistent localStorage)
   const [currentUser, setCurrentUser] = useState<Agent | null>(() => {
-    const stored = localStorage.getItem('pixbe_auth_user') || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pixbe_auth_user') : null);
+    clearLocalStorageAuth();
+    const stored = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pixbe_auth_user') : null;
     if (stored) {
       try {
         return JSON.parse(stored) as Agent;
@@ -162,7 +163,7 @@ export function App() {
     return null;
   });
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    const stored = localStorage.getItem('pixbe_auth_user') || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pixbe_auth_user') : null);
+    const stored = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pixbe_auth_user') : null;
     return !!stored;
   });
   const [authScreen, setAuthScreen] = useState<'login' | 'signup'>(() => {
@@ -260,9 +261,9 @@ export function App() {
   ];
 
   // Active authenticated tenant id
-  const activeTenantId = currentUser?.tenantId || (typeof localStorage !== 'undefined' ? (() => {
+  const activeTenantId = currentUser?.tenantId || (typeof sessionStorage !== 'undefined' ? (() => {
     try {
-      const u = localStorage.getItem('pixbe_auth_user');
+      const u = sessionStorage.getItem('pixbe_auth_user');
       return u ? JSON.parse(u)?.tenantId : 'default_tenant';
     } catch { return 'default_tenant'; }
   })() : 'default_tenant') || 'default_tenant';
@@ -400,7 +401,7 @@ export function App() {
     let activeId = tenantId || currentUser?.tenantId;
     if (!activeId) {
       try {
-        const stored = localStorage.getItem('pixbe_auth_user') || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pixbe_auth_user') : null);
+        const stored = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pixbe_auth_user') : null;
         if (stored) {
           activeId = JSON.parse(stored)?.tenantId;
         }
@@ -483,8 +484,8 @@ export function App() {
   };
 
   const handleLoginSuccess = async (agent: Agent) => {
+    clearLocalStorageAuth();
     try {
-      localStorage.setItem('pixbe_auth_user', JSON.stringify(agent));
       sessionStorage.setItem('pixbe_auth_user', JSON.stringify(agent));
     } catch (e) {}
     setCurrentUser(agent);
@@ -509,12 +510,13 @@ export function App() {
   };
 
   const handleLogout = () => {
-    try {
-      localStorage.removeItem('pixbe_auth_user');
-      localStorage.removeItem('pixbe_auth_token');
-      sessionStorage.removeItem('pixbe_auth_user');
-      sessionStorage.removeItem('pixbe_auth_token');
-    } catch (e) {}
+    clearLocalStorageAuth();
+    if (typeof sessionStorage !== 'undefined') {
+      try {
+        sessionStorage.removeItem('pixbe_auth_user');
+        sessionStorage.removeItem('pixbe_auth_token');
+      } catch (e) {}
+    }
     logoutWithApi().catch(() => {});
     
     // Clean full navigation to /login to ensure the login page and subsequent logins render cleanly
@@ -528,7 +530,9 @@ export function App() {
     if (targetAgent) {
       setCurrentUser(targetAgent);
       setActiveAgentId(targetAgent.id);
-      sessionStorage.setItem('pixbe_auth_user', JSON.stringify(targetAgent));
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem('pixbe_auth_user', JSON.stringify(targetAgent));
+      }
       showToast(`Switched active user to ${targetAgent.name} (${isAgentAdmin(targetAgent) ? 'Admin' : 'Employee'})`);
     } else {
       setActiveAgentId(agentId);
@@ -1558,7 +1562,9 @@ export function App() {
                 if (currentUser) {
                   const updated = { ...currentUser, companyName: newName };
                   setCurrentUser(updated);
-                  localStorage.setItem('pixbe_auth_user', JSON.stringify(updated));
+                  if (typeof sessionStorage !== 'undefined') {
+                    sessionStorage.setItem('pixbe_auth_user', JSON.stringify(updated));
+                  }
                 }
               }}
               supportEmail={activeSupportEmail}
@@ -1583,8 +1589,9 @@ export function App() {
                 setCurrentUser(updatedUser);
                 setActiveAgentId(updatedUser.id);
                 setAgents((prev) => prev.map((a) => (a.id === activeAgent?.id ? updatedUser : a)));
-                localStorage.setItem('pixbe_auth_user', JSON.stringify(updatedUser));
-                sessionStorage.setItem('pixbe_auth_user', JSON.stringify(updatedUser));
+                if (typeof sessionStorage !== 'undefined') {
+                  sessionStorage.setItem('pixbe_auth_user', JSON.stringify(updatedUser));
+                }
               }}
               customFields={activeCustomFields}
               onUpdateFields={(updatedFields) => {

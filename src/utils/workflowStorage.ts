@@ -76,7 +76,7 @@ export function getEffectiveTenantId(explicitTenantId?: string): string {
   }
   if (typeof window !== 'undefined') {
     try {
-      const stored = localStorage.getItem('pixbe_auth_user') || sessionStorage.getItem('pixbe_auth_user');
+      const stored = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pixbe_auth_user') : null;
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed.tenantId) return parsed.tenantId;

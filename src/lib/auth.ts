@@ -1,7 +1,35 @@
 import { Agent, RegisterPayload } from '../types';
 
-const TOKEN_KEY = 'pixbe_auth_token';
-const USER_KEY = 'pixbe_auth_user';
+export const TOKEN_KEY = 'pixbe_auth_token';
+export const USER_KEY = 'pixbe_auth_user';
+
+/**
+ * Remove all stored authentication credentials, tokens, and session keys from localStorage
+ * to ensure that opening the application always prompts for login.
+ */
+export function clearLocalStorageAuth(): void {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    localStorage.removeItem('pixbe_current_user');
+    
+    // Purge any temporary OTP keys in localStorage
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('pixbe_otp_') || key.startsWith('token_') || key.includes('auth'))) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+  } catch (e) {
+    console.warn('Notice clearing local storage auth:', e);
+  }
+}
+
+// Immediately purge any stale credentials from localStorage upon module load
+clearLocalStorageAuth();
 
 export async function sendVerificationOtp(email: string, phone: string): Promise<{ success: boolean; demoOtp?: string; error?: string }> {
   try {
@@ -16,9 +44,11 @@ export async function sendVerificationOtp(email: string, phone: string): Promise
     }
     return { success: false, error: data.error || 'Failed to send OTP' };
   } catch (err: any) {
-    // Offline fallback generated code
+    // Session-only fallback generated code
     const fallbackOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    localStorage.setItem(`pixbe_otp_${email}`, fallbackOtp);
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(`pixbe_otp_${email}`, fallbackOtp);
+    }
     return { success: true, demoOtp: fallbackOtp };
   }
 }
@@ -36,9 +66,9 @@ export async function verifyRegistrationOtp(email: string, phone: string, otp: s
     }
     return { success: false, error: data.error || 'Invalid verification code' };
   } catch (err: any) {
-    const localOtp = localStorage.getItem(`pixbe_otp_${email}`);
-    if (localOtp && localOtp === otp.trim()) {
-      localStorage.removeItem(`pixbe_otp_${email}`);
+    const sessionOtp = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(`pixbe_otp_${email}`) : null;
+    if (sessionOtp && sessionOtp === otp.trim()) {
+      sessionStorage.removeItem(`pixbe_otp_${email}`);
       return { success: true };
     }
     return { success: false, error: 'Invalid verification code' };
@@ -46,6 +76,7 @@ export async function verifyRegistrationOtp(email: string, phone: string, otp: s
 }
 
 export async function registerClientAccount(payload: RegisterPayload): Promise<{ success: boolean; user?: Agent; tenantId?: string; error?: string }> {
+  clearLocalStorageAuth();
   try {
     const response = await fetch('/api/auth/register', {
       method: 'POST',
@@ -58,16 +89,18 @@ export async function registerClientAccount(payload: RegisterPayload): Promise<{
     const data = await response.json();
 
     if (response.ok && data.success && data.user) {
-      if (data.token) {
-        localStorage.setItem(TOKEN_KEY, data.token);
+      if (typeof sessionStorage !== 'undefined') {
+        if (data.token) {
+          sessionStorage.setItem(TOKEN_KEY, data.token);
+        }
+        sessionStorage.setItem(USER_KEY, JSON.stringify(data.user));
       }
-      localStorage.setItem(USER_KEY, JSON.stringify(data.user));
       return { success: true, user: data.user, tenantId: data.tenantId };
     }
 
     return { success: false, error: data.error || 'Registration failed' };
   } catch (err: any) {
-    console.warn('⚠️ Registration endpoint notice, using local tenant provisioning:', err?.message || err);
+    console.warn('⚠️ Registration endpoint notice, using session tenant provisioning:', err?.message || err);
     
     // Client-side company database collection fallback
     const companySlug = payload.companyName.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/^_+|_+$/g, '');
@@ -93,13 +126,16 @@ export async function registerClientAccount(payload: RegisterPayload): Promise<{
       responseTimeMinutes: 0,
     };
 
-    localStorage.setItem(TOKEN_KEY, `token_${tenantId}`);
-    localStorage.setItem(USER_KEY, JSON.stringify(newUser));
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(TOKEN_KEY, `token_${tenantId}`);
+      sessionStorage.setItem(USER_KEY, JSON.stringify(newUser));
+    }
     return { success: true, user: newUser, tenantId };
   }
 }
 
 export async function loginWithApi(email: string, password?: string): Promise<{ success: boolean; user?: Agent; error?: string }> {
+  clearLocalStorageAuth();
   const cleanEmail = (email || '').trim().toLowerCase();
   const inputPass = (password || '').trim();
 
@@ -113,12 +149,12 @@ export async function loginWithApi(email: string, password?: string): Promise<{ 
     const data = await response.json();
 
     if (response.ok && data.success && data.user) {
-      if (data.token) {
-        localStorage.setItem(TOKEN_KEY, data.token);
-        sessionStorage.setItem(TOKEN_KEY, data.token);
+      if (typeof sessionStorage !== 'undefined') {
+        if (data.token) {
+          sessionStorage.setItem(TOKEN_KEY, data.token);
+        }
+        sessionStorage.setItem(USER_KEY, JSON.stringify(data.user));
       }
-      localStorage.setItem(USER_KEY, JSON.stringify(data.user));
-      sessionStorage.setItem(USER_KEY, JSON.stringify(data.user));
       return { success: true, user: data.user };
     }
 
@@ -154,10 +190,10 @@ export async function loginWithApi(email: string, password?: string): Promise<{ 
       responseTimeMinutes: 0,
     };
 
-    localStorage.setItem(TOKEN_KEY, `token_${adminUser.id}`);
-    sessionStorage.setItem(TOKEN_KEY, `token_${adminUser.id}`);
-    localStorage.setItem(USER_KEY, JSON.stringify(adminUser));
-    sessionStorage.setItem(USER_KEY, JSON.stringify(adminUser));
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(TOKEN_KEY, `token_${adminUser.id}`);
+      sessionStorage.setItem(USER_KEY, JSON.stringify(adminUser));
+    }
 
     return { success: true, user: adminUser };
   }
@@ -166,7 +202,8 @@ export async function loginWithApi(email: string, password?: string): Promise<{ 
 }
 
 export async function verifyCurrentSession(): Promise<Agent | null> {
-  const storedUser = localStorage.getItem(USER_KEY) || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(USER_KEY) : null);
+  clearLocalStorageAuth();
+  const storedUser = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(USER_KEY) : null;
   if (!storedUser) return null;
 
   try {
@@ -177,25 +214,20 @@ export async function verifyCurrentSession(): Promise<Agent | null> {
 }
 
 export async function logoutWithApi(): Promise<void> {
-  try {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
-    sessionStorage.removeItem(USER_KEY);
-    sessionStorage.removeItem(TOKEN_KEY);
-  } catch (e) {}
+  clearLocalStorageAuth();
+  if (typeof sessionStorage !== 'undefined') {
+    try {
+      sessionStorage.removeItem(USER_KEY);
+      sessionStorage.removeItem(TOKEN_KEY);
+    } catch (e) {}
+  }
 }
 
 export function getAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem(TOKEN_KEY) || '';
-  const stored = localStorage.getItem(USER_KEY);
-  const sessionStored = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pixbe_auth_user') : null;
+  const token = typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem(TOKEN_KEY) || '') : '';
+  const sessionStored = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(USER_KEY) : null;
   let tenantId = 'default_tenant';
-  if (stored) {
-    try {
-      const user = JSON.parse(stored);
-      if (user.tenantId) tenantId = user.tenantId;
-    } catch {}
-  } else if (sessionStored) {
+  if (sessionStored) {
     try {
       const user = JSON.parse(sessionStored);
       if (user.tenantId) tenantId = user.tenantId;

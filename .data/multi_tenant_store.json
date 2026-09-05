@@ -3819,6 +3819,62 @@
         "updatedAt": "2026-08-20T10:00:00.000Z",
         "tenantId": "default_tenant"
       }
+    ],
+    "company_kite_aviation": [
+      {
+        "id": "wf-1",
+        "name": "On Website lead",
+        "hasDraft": false,
+        "event": "Lead Creation",
+        "eventIcon": "globe",
+        "status": true,
+        "statusMeta": "13d ago by Faisal C",
+        "totalRuns": 853,
+        "last24hRuns": 10,
+        "last24hFailures": 0,
+        "isDraft": false,
+        "nodes": [],
+        "edges": [],
+        "createdAt": "2026-08-20T10:00:00.000Z",
+        "updatedAt": "2026-08-20T10:00:00.000Z",
+        "tenantId": "company_kite_aviation"
+      },
+      {
+        "id": "wf-2",
+        "name": "On Lead Status Change",
+        "hasDraft": true,
+        "event": "Lead Status Change",
+        "eventIcon": "file",
+        "status": true,
+        "statusMeta": "2M ago by Faisal C",
+        "totalRuns": 19233,
+        "last24hRuns": 432,
+        "last24hFailures": 0,
+        "isDraft": false,
+        "nodes": [],
+        "edges": [],
+        "createdAt": "2026-08-20T10:00:00.000Z",
+        "updatedAt": "2026-08-20T10:00:00.000Z",
+        "tenantId": "company_kite_aviation"
+      },
+      {
+        "id": "wf-3",
+        "name": "On call log lead",
+        "hasDraft": false,
+        "event": "Call Log",
+        "eventIcon": "phone",
+        "status": true,
+        "statusMeta": "3M ago by Faisal C",
+        "totalRuns": 862,
+        "last24hRuns": 0,
+        "last24hFailures": 0,
+        "isDraft": false,
+        "nodes": [],
+        "edges": [],
+        "createdAt": "2026-08-20T10:00:00.000Z",
+        "updatedAt": "2026-08-20T10:00:00.000Z",
+        "tenantId": "company_kite_aviation"
+      }
     ]
   }
 }
