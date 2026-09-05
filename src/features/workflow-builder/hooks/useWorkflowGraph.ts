@@ -90,62 +90,27 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
 
   // Track connections between ports and persist created edges
   const onConnect = useCallback(
-    (connection: Connection | Edge) => {
-      if (!connection.source || !connection.target) return;
-      if (connection.source === connection.target) return;
+    (params: Connection | Edge) => {
+      if (!params.source || !params.target) return;
+      if (params.source === params.target) return;
 
       setIsSaved(false);
 
-      // Normalize connection direction if dragged in reverse (from target port to source port)
-      const sourceNode = nodes.find((n) => n.id === connection.source);
-      const targetNode = nodes.find((n) => n.id === connection.target);
-
-      let actualSource = connection.source;
-      let actualTarget = connection.target;
-      let actualSourceHandle = connection.sourceHandle;
-      let actualTargetHandle = connection.targetHandle;
-
-      // If user dragged in reverse (e.g. started from target 'input' or backwards from next node)
-      if (
-        (connection.sourceHandle === 'input' || targetNode?.type === 'trigger') &&
-        connection.targetHandle !== 'input'
-      ) {
-        actualSource = connection.target;
-        actualTarget = connection.source;
-        actualSourceHandle = connection.targetHandle;
-        actualTargetHandle = connection.sourceHandle;
-      }
-
-      const srcNode = nodes.find((n) => n.id === actualSource);
-
-      // Ensure proper sourceHandle
-      if (!actualSourceHandle || actualSourceHandle === 'input') {
-        actualSourceHandle = srcNode?.type === 'condition' ? 'true' : 'output';
-      }
-
-      // Ensure proper targetHandle
-      if (!actualTargetHandle || actualTargetHandle === 'output') {
-        actualTargetHandle = 'input';
-      }
-
-      // Determine edge styling based on branch type
-      const isTrueBranch = actualSourceHandle === 'true';
-      const isFalseBranch = actualSourceHandle === 'false';
-
+      // Determine branch color
       let strokeColor = '#3a2088'; // primary CRM royal violet
-      if (isTrueBranch) strokeColor = '#10b981'; // emerald green
-      else if (isFalseBranch) strokeColor = '#DC2626'; // rose red
-      else if (srcNode?.type === 'action') strokeColor = '#475569'; // slate
+      if (params.sourceHandle === 'true') strokeColor = '#10b981'; // emerald green
+      else if (params.sourceHandle === 'false') strokeColor = '#DC2626'; // rose red
 
-      const edgeId = `edge-${actualSource}-${actualSourceHandle}-${actualTarget}-${actualTargetHandle}-${Date.now()}`;
+      const edgeId = `edge-${params.source}-${params.sourceHandle || 'out'}-${params.target}-${params.targetHandle || 'in'}-${Date.now()}`;
       const newEdge: Edge = {
+        ...params,
         id: edgeId,
-        source: actualSource,
-        target: actualTarget,
-        sourceHandle: actualSourceHandle,
-        targetHandle: actualTargetHandle,
-        animated: true,
+        source: params.source,
+        target: params.target,
+        sourceHandle: params.sourceHandle || null,
+        targetHandle: params.targetHandle || null,
         type: 'smoothstep',
+        animated: true,
         style: {
           stroke: strokeColor,
           strokeWidth: 2
@@ -158,47 +123,9 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
         }
       };
 
-      setEdges((eds) => {
-        const filtered = eds.filter(
-          (e) => !(e.source === actualSource && e.sourceHandle === actualSourceHandle && e.target === actualTarget)
-        );
-        return [...filtered, newEdge];
-      });
+      setEdges((eds) => addEdge(newEdge, eds));
     },
-    [nodes, setEdges]
-  );
-
-  // Fallback handler if user releases drag over node card instead of exact handle dot
-  const onConnectEnd = useCallback(
-    (event: MouseEvent | TouchEvent, connectionState?: any) => {
-      const fromNode = connectionState?.fromNode;
-      if (!fromNode) return;
-
-      const fromNodeId = fromNode.id;
-      const fromHandleId =
-        connectionState?.fromHandle?.id || (fromNode.type === 'condition' ? 'true' : 'output');
-
-      const clientX = 'clientX' in event ? event.clientX : event.touches?.[0]?.clientX;
-      const clientY = 'clientY' in event ? event.clientY : event.touches?.[0]?.clientY;
-
-      if (clientX === undefined || clientY === undefined) return;
-
-      const elUnderCursor = document.elementFromPoint(clientX, clientY);
-      const nodeEl = elUnderCursor?.closest('.react-flow__node');
-
-      if (nodeEl) {
-        const targetNodeId = nodeEl.getAttribute('data-id');
-        if (targetNodeId && targetNodeId !== fromNodeId) {
-          onConnect({
-            source: fromNodeId,
-            sourceHandle: fromHandleId,
-            target: targetNodeId,
-            targetHandle: 'input'
-          });
-        }
-      }
-    },
-    [onConnect]
+    [setEdges]
   );
 
   // Add node from catalog item (Enforces single trigger rule)
@@ -441,7 +368,6 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
       setEdges((eds) => applyEdgeChanges(changes, eds));
     },
     onConnect,
-    onConnectEnd,
     selectedNodeId,
     setSelectedNodeId,
     selectedNode,
