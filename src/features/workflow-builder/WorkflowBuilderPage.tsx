@@ -28,6 +28,7 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
     onNodesChange,
     onEdgesChange,
     onConnect,
+    onConnectEnd,
     selectedNodeId,
     setSelectedNodeId,
     selectedNode,
@@ -235,6 +236,7 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
+              onConnectEnd={onConnectEnd}
               onNodeClick={(node) => setSelectedNodeId(node.id)}
               onPaneClick={() => setSelectedNodeId(null)}
               onAddNode={(item, pos) => addNodeFromCatalog(item, pos)}

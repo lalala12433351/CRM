@@ -90,7 +90,7 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
 
   // Track connections between ports and persist created edges
   const onConnect = useCallback(
-    (connection: Connection) => {
+    (connection: Connection | Edge) => {
       if (!connection.source || !connection.target) return;
       if (connection.source === connection.target) return;
 
@@ -159,13 +159,46 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
       };
 
       setEdges((eds) => {
-        const withoutDuplicate = eds.filter(
+        const filtered = eds.filter(
           (e) => !(e.source === actualSource && e.sourceHandle === actualSourceHandle && e.target === actualTarget)
         );
-        return addEdge(newEdge, withoutDuplicate);
+        return [...filtered, newEdge];
       });
     },
     [nodes, setEdges]
+  );
+
+  // Fallback handler if user releases drag over node card instead of exact handle dot
+  const onConnectEnd = useCallback(
+    (event: MouseEvent | TouchEvent, connectionState?: any) => {
+      const fromNode = connectionState?.fromNode;
+      if (!fromNode) return;
+
+      const fromNodeId = fromNode.id;
+      const fromHandleId =
+        connectionState?.fromHandle?.id || (fromNode.type === 'condition' ? 'true' : 'output');
+
+      const clientX = 'clientX' in event ? event.clientX : event.touches?.[0]?.clientX;
+      const clientY = 'clientY' in event ? event.clientY : event.touches?.[0]?.clientY;
+
+      if (clientX === undefined || clientY === undefined) return;
+
+      const elUnderCursor = document.elementFromPoint(clientX, clientY);
+      const nodeEl = elUnderCursor?.closest('.react-flow__node');
+
+      if (nodeEl) {
+        const targetNodeId = nodeEl.getAttribute('data-id');
+        if (targetNodeId && targetNodeId !== fromNodeId) {
+          onConnect({
+            source: fromNodeId,
+            sourceHandle: fromHandleId,
+            target: targetNodeId,
+            targetHandle: 'input'
+          });
+        }
+      }
+    },
+    [onConnect]
   );
 
   // Add node from catalog item (Enforces single trigger rule)
@@ -408,6 +441,7 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
       setEdges((eds) => applyEdgeChanges(changes, eds));
     },
     onConnect,
+    onConnectEnd,
     selectedNodeId,
     setSelectedNodeId,
     selectedNode,

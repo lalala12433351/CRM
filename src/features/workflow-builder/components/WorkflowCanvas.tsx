@@ -29,6 +29,7 @@ interface WorkflowCanvasProps {
   onNodesChange: any;
   onEdgesChange: any;
   onConnect: (connection: Connection) => void;
+  onConnectEnd?: (event: MouseEvent | TouchEvent, connectionState?: any) => void;
   onNodeClick: (node: CustomWorkflowNode) => void;
   onPaneClick: () => void;
   onAddNode: (item: CatalogItem, position?: { x: number; y: number }) => void;
@@ -47,6 +48,7 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
   onNodesChange,
   onEdgesChange,
   onConnect,
+  onConnectEnd,
   onNodeClick,
   onPaneClick,
   onAddNode,
@@ -97,6 +99,7 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onConnectEnd={onConnectEnd}
         isValidConnection={isValidConnection}
         onNodeClick={(_, node) => onNodeClick(node as CustomWorkflowNode)}
         onPaneClick={onPaneClick}
@@ -104,7 +107,7 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
         onDrop={onDrop}
         nodeTypes={nodeTypes}
         connectionMode={ConnectionMode.Loose}
-        connectionRadius={50}
+        connectionRadius={60}
         connectOnClick={true}
         nodesConnectable={true}
         elevateEdgesOnSelect={true}
