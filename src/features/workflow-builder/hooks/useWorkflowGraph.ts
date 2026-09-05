@@ -88,7 +88,7 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
   // Find currently selected node object
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) || null;
 
-  // Track connections between ports
+  // Track connections between ports and persist created edges
   const onConnect = useCallback(
     (connection: Connection) => {
       if (!connection.source || !connection.target) return;
@@ -96,7 +96,7 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
 
       setIsSaved(false);
 
-      // Normalize connection direction if dragged in reverse
+      // Normalize connection direction if dragged in reverse (from target port to source port)
       const sourceNode = nodes.find((n) => n.id === connection.source);
       const targetNode = nodes.find((n) => n.id === connection.target);
 
@@ -105,7 +105,7 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
       let actualSourceHandle = connection.sourceHandle;
       let actualTargetHandle = connection.targetHandle;
 
-      // If user dragged in reverse (from target handle 'input' or from a target-only node backwards to an output)
+      // If user dragged in reverse (e.g. started from target 'input' or backwards from next node)
       if (
         (connection.sourceHandle === 'input' || targetNode?.type === 'trigger') &&
         connection.targetHandle !== 'input'
@@ -117,7 +117,6 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
       }
 
       const srcNode = nodes.find((n) => n.id === actualSource);
-      const tgtNode = nodes.find((n) => n.id === actualTarget);
 
       // Ensure proper sourceHandle
       if (!actualSourceHandle || actualSourceHandle === 'input') {
@@ -138,7 +137,7 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
       else if (isFalseBranch) strokeColor = '#DC2626'; // rose red
       else if (srcNode?.type === 'action') strokeColor = '#475569'; // slate
 
-      const edgeId = `edge-${actualSource}-${actualSourceHandle}-${actualTarget}-${Date.now()}`;
+      const edgeId = `edge-${actualSource}-${actualSourceHandle}-${actualTarget}-${actualTargetHandle}-${Date.now()}`;
       const newEdge: Edge = {
         id: edgeId,
         source: actualSource,
@@ -163,7 +162,7 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized) => {
         const withoutDuplicate = eds.filter(
           (e) => !(e.source === actualSource && e.sourceHandle === actualSourceHandle && e.target === actualTarget)
         );
-        return [...withoutDuplicate, newEdge];
+        return addEdge(newEdge, withoutDuplicate);
       });
     },
     [nodes, setEdges]

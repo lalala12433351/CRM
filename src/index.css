@@ -239,3 +239,42 @@ input[type="time"] {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ========================================================================== */
+/* REACT FLOW / WORKFLOW BUILDER STYLING                                      */
+/* ========================================================================== */
+.react-flow__handle {
+  pointer-events: all !important;
+  cursor: crosshair !important;
+  transition: box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.react-flow__handle:hover {
+  cursor: crosshair !important;
+}
+
+.react-flow__handle-connecting {
+  box-shadow: 0 0 0 4px rgba(58, 32, 136, 0.35) !important;
+}
+
+.react-flow__handle-valid {
+  box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.5) !important;
+  animation: pulse 1.5s infinite;
+}
+
+.react-flow__connection-path {
+  stroke: #3a2088 !important;
+  stroke-width: 2.5px !important;
+  stroke-dasharray: 6, 6;
+  animation: dash 1s linear infinite;
+}
+
+@keyframes dash {
+  from {
+    stroke-dashoffset: 12;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+

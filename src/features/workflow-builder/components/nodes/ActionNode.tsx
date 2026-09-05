@@ -106,7 +106,7 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         position={Position.Left}
         id="input"
         isConnectable={true}
-        className="!w-4 !h-4 !bg-[#475569] !border-2 !border-white !rounded-full !pointer-events-auto !cursor-crosshair hover:!scale-125 transition-transform !z-50 shadow-sm"
+        className="!w-4.5 !h-4.5 !bg-[#475569] !border-2 !border-white !rounded-full !cursor-crosshair hover:!ring-4 hover:!ring-slate-300 transition-shadow !z-50 shadow-sm"
         style={{
           boxShadow: '0 0 0 1.5px #475569'
         }}
@@ -133,7 +133,7 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         position={Position.Right}
         id="output"
         isConnectable={true}
-        className="!w-4 !h-4 !bg-[#475569] !border-2 !border-white !rounded-full !pointer-events-auto !cursor-crosshair hover:!scale-125 transition-transform !z-50 shadow-sm"
+        className="!w-4.5 !h-4.5 !bg-[#475569] !border-2 !border-white !rounded-full !cursor-crosshair hover:!ring-4 hover:!ring-slate-300 transition-shadow !z-50 shadow-sm"
         style={{
           boxShadow: '0 0 0 1.5px #475569'
         }}

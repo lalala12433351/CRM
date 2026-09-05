@@ -21,7 +21,7 @@ export const ConditionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         position={Position.Left}
         id="input"
         isConnectable={true}
-        className="!w-4 !h-4 !bg-[#3a2088] !border-2 !border-white !rounded-full !pointer-events-auto !cursor-crosshair hover:!scale-125 transition-transform !z-50 shadow-sm"
+        className="!w-4.5 !h-4.5 !bg-[#3a2088] !border-2 !border-white !rounded-full !cursor-crosshair hover:!ring-4 hover:!ring-purple-200 transition-shadow !z-50 shadow-sm"
         style={{
           boxShadow: '0 0 0 1.5px #3a2088'
         }}
@@ -84,9 +84,9 @@ export const ConditionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         position={Position.Right}
         id="true"
         isConnectable={true}
-        className="!w-4 !h-4 !bg-[#10b981] !border-2 !border-white !rounded-full !pointer-events-auto !cursor-crosshair hover:!scale-125 transition-transform !z-50 shadow-sm"
+        className="!w-4.5 !h-4.5 !bg-[#10b981] !border-2 !border-white !rounded-full !cursor-crosshair hover:!ring-4 hover:!ring-emerald-200 transition-shadow !z-50 shadow-sm"
         style={{
-          top: '40%',
+          top: '38%',
           boxShadow: '0 0 0 1.5px #10b981'
         }}
       />
@@ -97,9 +97,9 @@ export const ConditionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         position={Position.Right}
         id="false"
         isConnectable={true}
-        className="!w-4 !h-4 !bg-[#DC2626] !border-2 !border-white !rounded-full !pointer-events-auto !cursor-crosshair hover:!scale-125 transition-transform !z-50 shadow-sm"
+        className="!w-4.5 !h-4.5 !bg-[#DC2626] !border-2 !border-white !rounded-full !cursor-crosshair hover:!ring-4 hover:!ring-rose-200 transition-shadow !z-50 shadow-sm"
         style={{
-          top: '78%',
+          top: '80%',
           boxShadow: '0 0 0 1.5px #DC2626'
         }}
       />

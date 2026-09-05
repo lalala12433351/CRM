@@ -10,8 +10,10 @@ import {
   ReactFlowProvider,
   Panel,
   ConnectionMode,
+  ConnectionLineType,
   Edge,
-  Connection
+  Connection,
+  MarkerType
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -82,6 +84,11 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
     [onAddNode, reactFlowInstance]
   );
 
+  const isValidConnection = useCallback((connection: Connection | Edge) => {
+    // Only disallow self-connection (same node to same node)
+    return connection.source !== connection.target;
+  }, []);
+
   return (
     <div ref={reactFlowWrapper} className="w-full h-full relative bg-[#f8fafc] overflow-hidden">
       <ReactFlow
@@ -90,18 +97,19 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        isValidConnection={isValidConnection}
         onNodeClick={(_, node) => onNodeClick(node as CustomWorkflowNode)}
         onPaneClick={onPaneClick}
         onDragOver={onDragOver}
         onDrop={onDrop}
         nodeTypes={nodeTypes}
         connectionMode={ConnectionMode.Loose}
-        connectionRadius={40}
+        connectionRadius={50}
         connectOnClick={true}
         nodesConnectable={true}
         elevateEdgesOnSelect={true}
         deleteKeyCode={['Backspace', 'Delete']}
-        connectionLineType="smoothstep" as any
+        connectionLineType={ConnectionLineType.SmoothStep}
         connectionLineStyle={{
           stroke: '#3a2088',
           strokeWidth: 2.5,
@@ -114,7 +122,13 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
         defaultEdgeOptions={{
           type: 'smoothstep',
           animated: true,
-          style: { stroke: '#3a2088', strokeWidth: 2 }
+          style: { stroke: '#3a2088', strokeWidth: 2 },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: '#3a2088',
+            width: 14,
+            height: 14
+          }
         }}
         className="w-full h-full font-sans"
       >
