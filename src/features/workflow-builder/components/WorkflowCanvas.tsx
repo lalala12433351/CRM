@@ -110,10 +110,6 @@ const FlowCanvasInternal: React.FC<WorkflowCanvasProps> = ({
           strokeWidth: 2.5,
           strokeDasharray: '5,5'
         }}
-        isValidConnection={(connection) => {
-          if (!connection.source || !connection.target) return false;
-          return connection.source !== connection.target;
-        }}
         fitView
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.2}

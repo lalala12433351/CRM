@@ -46,19 +46,9 @@ export const TriggerNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         position={Position.Right}
         id="output"
         isConnectable={true}
+        className="!w-4 !h-4 !bg-[#3a2088] !border-2 !border-white !rounded-full !cursor-crosshair hover:!scale-125 transition-transform !z-50 shadow-sm"
         style={{
-          position: 'absolute',
-          top: '50%',
-          right: -8,
-          transform: 'translateY(-50%)',
-          width: 16,
-          height: 16,
-          backgroundColor: '#3a2088',
-          border: '2.5px solid #ffffff',
-          borderRadius: '50%',
-          cursor: 'crosshair',
-          zIndex: 50,
-          boxShadow: '0 0 0 1px #3a2088'
+          boxShadow: '0 0 0 1.5px #3a2088'
         }}
       />
     </div>

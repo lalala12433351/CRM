@@ -106,19 +106,9 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         position={Position.Left}
         id="input"
         isConnectable={true}
+        className="!w-4 !h-4 !bg-[#475569] !border-2 !border-white !rounded-full !cursor-crosshair hover:!scale-125 transition-transform !z-50 shadow-sm"
         style={{
-          position: 'absolute',
-          top: '50%',
-          left: -8,
-          transform: 'translateY(-50%)',
-          width: 16,
-          height: 16,
-          backgroundColor: '#475569',
-          border: '2.5px solid #ffffff',
-          borderRadius: '50%',
-          cursor: 'crosshair',
-          zIndex: 50,
-          boxShadow: '0 0 0 1px #475569'
+          boxShadow: '0 0 0 1.5px #475569'
         }}
       />
 
@@ -143,19 +133,9 @@ export const ActionNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         position={Position.Right}
         id="output"
         isConnectable={true}
+        className="!w-4 !h-4 !bg-[#475569] !border-2 !border-white !rounded-full !cursor-crosshair hover:!scale-125 transition-transform !z-50 shadow-sm"
         style={{
-          position: 'absolute',
-          top: '50%',
-          right: -8,
-          transform: 'translateY(-50%)',
-          width: 16,
-          height: 16,
-          backgroundColor: '#475569',
-          border: '2.5px solid #ffffff',
-          borderRadius: '50%',
-          cursor: 'crosshair',
-          zIndex: 50,
-          boxShadow: '0 0 0 1px #475569'
+          boxShadow: '0 0 0 1.5px #475569'
         }}
       />
     </div>
