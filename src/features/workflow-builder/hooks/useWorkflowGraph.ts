@@ -61,7 +61,44 @@ const sanitizeEdges = (rawEdges: Edge[]): Edge[] => {
 export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized | any) => {
   const getInitialNodes = (wf?: any): CustomWorkflowNode[] => {
     if (wf?.nodes && Array.isArray(wf.nodes) && wf.nodes.length > 0) {
-      return wf.nodes as CustomWorkflowNode[];
+      return wf.nodes.map((n: any) => {
+        let nodeType = n.type || 'action';
+        const label = n.data?.label || n.name || n.label || '';
+        const id = (n.id || '').toLowerCase();
+        const catalogId = (n.data?.catalogId || '').toLowerCase();
+
+        if (
+          nodeType === 'trigger' ||
+          nodeType === 'triggerNode' ||
+          nodeType === 'event' ||
+          id.includes('trigger') ||
+          catalogId.includes('trigger') ||
+          n.data?.kind === 'trigger' ||
+          n.data?.category === 'events' ||
+          label.toLowerCase().startsWith('on ') ||
+          (wf?.event && label.toLowerCase() === wf.event.toLowerCase())
+        ) {
+          nodeType = 'trigger';
+        } else if (
+          nodeType === 'condition' ||
+          nodeType === 'conditionNode' ||
+          id.includes('condition') ||
+          n.data?.kind === 'condition'
+        ) {
+          nodeType = 'condition';
+        }
+
+        return {
+          ...n,
+          type: nodeType,
+          data: {
+            ...(n.data || {}),
+            label: label || wf?.event || wf?.name || 'On WhatsApp received',
+            catalogId: n.data?.catalogId || n.id || 'on_whatsapp_received',
+            kind: nodeType === 'trigger' ? 'trigger' : (nodeType === 'condition' ? 'condition' : 'action')
+          }
+        };
+      }) as CustomWorkflowNode[];
     }
     return SAMPLE_TEMPLATES[0].nodes as CustomWorkflowNode[];
   };
@@ -462,12 +499,22 @@ export const useWorkflowGraph = (initialWorkflow?: WorkflowSerialized | any) => 
           logMsg = `Evaluated rules on [${node.data.label}]: Condition MET (True branch selected).`;
         } else if (node.data.catalogId === 'send_template') {
           logMsg = `WhatsApp Template "${node.data.config?.templateName || 'welcome'}" dispatched with HTTP 200 OK.`;
+        } else if (node.data.catalogId === 'send_list') {
+          logMsg = `WhatsApp Interactive List "${node.data.config?.buttonText || 'Menu'}" dispatched with HTTP 200 OK.`;
+        } else if (node.data.catalogId === 'send_non_template') {
+          logMsg = `WhatsApp Non-Template message (${node.data.config?.messageType || 'text'}) dispatched with HTTP 200 OK.`;
+        } else if (node.data.catalogId === 'send_interactive') {
+          logMsg = `WhatsApp Interactive Buttons message dispatched with HTTP 200 OK.`;
+        } else if (node.data.catalogId === 'add_ivr_action') {
+          logMsg = `IVR Action [${node.data.config?.ivrActionType || 'Outbound Call'}] scheduled with provider dialer.`;
         } else if (node.data.catalogId === 'call_api') {
           logMsg = `HTTP ${node.data.config?.method || 'POST'} request sent to ${node.data.config?.endpointUrl || 'endpoint'} (200 OK).`;
         } else if (node.data.catalogId === 'update_lead_assignee') {
           logMsg = `Lead assigned to sales agent via ${node.data.config?.assigneeType || 'round_robin'}.`;
         } else if (node.data.catalogId === 'update_lead_status') {
           logMsg = `Lead stage updated to "${node.data.config?.targetStage || 'Contacted'}".`;
+        } else if (node.data.catalogId === 'time_delay') {
+          logMsg = `Execution delayed by ${node.data.config?.delayValue || 10} ${node.data.config?.delayUnit || 'Minute'}(s) ${node.data.config?.delayDirection || 'After'} ${node.data.config?.delayReference || 'Previous step'}.`;
         } else if (node.data.catalogId === 'capi') {
           logMsg = `Meta Conversions API event "${node.data.config?.capiEventName || 'Lead'}" posted successfully.`;
         }

@@ -125,6 +125,10 @@ export interface DynamicCondition {
   operator: ConditionOperator;
   value: string;
   iconType: string;
+  fromHour?: string;
+  toHour?: string;
+  fromMinute?: string;
+  toMinute?: string;
 }
 
 export interface ConditionFieldDef {

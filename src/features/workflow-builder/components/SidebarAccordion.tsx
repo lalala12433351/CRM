@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Search,
   ChevronDown,
   ChevronRight
 } from 'lucide-react';
@@ -19,9 +18,8 @@ export const SidebarAccordion: React.FC<SidebarAccordionProps> = ({
   hasTrigger = false,
   className = ''
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
   const [openCategories, setOpenCategories] = useState<Record<WorkflowCategory, boolean>>({
-    events: true,
+    events: false,
     actions: true,
     lead_conditions: true,
     event_conditions: true
@@ -34,15 +32,9 @@ export const SidebarAccordion: React.FC<SidebarAccordionProps> = ({
     }));
   };
 
-  const filteredCatalog = useMemo(() => {
-    if (!searchQuery.trim()) return WORKFLOW_CATALOG;
-    const query = searchQuery.toLowerCase();
-    return WORKFLOW_CATALOG.filter(
-      (item) =>
-        item.name.toLowerCase().includes(query) ||
-        item.category.toLowerCase().includes(query)
-    );
-  }, [searchQuery]);
+  const catalogItems = useMemo(() => {
+    return WORKFLOW_CATALOG.filter((item) => item.category !== 'events');
+  }, []);
 
   const onDragStart = (event: React.DragEvent, item: CatalogItem) => {
     if (item.category === 'events' && hasTrigger) {
@@ -56,41 +48,18 @@ export const SidebarAccordion: React.FC<SidebarAccordionProps> = ({
   return (
     <div className={`w-72 flex flex-col bg-white border-r border-slate-200/90 select-none h-full shadow-2xs font-sans ${className}`}>
       {/* Sidebar Header */}
-      <div className="p-3 border-b border-slate-200/90 space-y-2">
-        <div>
-          <h2 className="text-xs font-semibold text-slate-900 tracking-tight">Workflow Elements</h2>
-          <p className="text-[11px] text-slate-500 font-normal">Drag or click to insert node</p>
-        </div>
-
-        {/* Search Input (Clean, No Icon) */}
-        <div className="relative">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search elements..."
-            className="w-full px-2.5 py-1.5 text-xs font-normal rounded-md border border-slate-200/90 bg-slate-50 text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#3a2088] shadow-2xs"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer font-normal"
-            >
-              ✕
-            </button>
-          )}
-        </div>
+      <div className="p-3 border-b border-slate-200/90">
+        <h2 className="text-xs font-bold text-slate-900 tracking-tight">Workflow Elements</h2>
       </div>
 
-      {/* Accordion Categories List */}
+      {/* Accordion Categories List (Events omitted in editor) */}
       <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
-        {WORKFLOW_CATEGORIES.map((cat) => {
-          const items = filteredCatalog.filter((item) => item.category === cat.id);
-          const isOpen = openCategories[cat.id] || searchQuery.trim().length > 0;
+        {WORKFLOW_CATEGORIES.filter((cat) => cat.id !== 'events').map((cat) => {
+          const items = catalogItems.filter((item) => item.category === cat.id);
+          const isOpen = openCategories[cat.id];
           const isCategoryDisabled = cat.id === 'events' && hasTrigger;
 
-          if (searchQuery && items.length === 0) return null;
+          if (items.length === 0) return null;
 
           return (
             <div
@@ -123,42 +92,45 @@ export const SidebarAccordion: React.FC<SidebarAccordionProps> = ({
                 </div>
               </button>
 
-              {/* Category Items with Monochrome Icons */}
+              {/* Items List Inside Category */}
               {isOpen && (
                 <div className="p-1.5 space-y-1 bg-slate-50/50 border-t border-slate-100">
-                  {items.length === 0 ? (
-                    <div className="text-[11px] text-slate-400 py-2 text-center font-normal">
-                      No elements
-                    </div>
-                  ) : (
-                    items.map((item) => {
-                      const isDisabled = item.category === 'events' && hasTrigger;
+                  {items.map((item) => {
+                    const disabled = isCategoryDisabled;
 
-                      return (
-                        <div
-                          key={item.id}
-                          draggable={!isDisabled}
-                          onDragStart={(e) => onDragStart(e, item)}
-                          onClick={() => {
-                            if (!isDisabled) onItemClick?.(item);
-                          }}
-                          className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-slate-200/90 bg-white transition-all select-none ${
-                            isDisabled
-                              ? 'opacity-40 cursor-not-allowed bg-slate-100'
-                              : 'hover:border-[#3a2088] hover:shadow-2xs cursor-grab active:cursor-grabbing'
-                          }`}
-                          title={isDisabled ? 'Only 1 trigger event can be chosen per workflow' : undefined}
-                        >
-                          <div className="w-5 h-5 rounded bg-slate-100/90 flex items-center justify-center text-slate-700 shrink-0 border border-slate-200/60">
-                            <WorkflowIcon id={item.id} size={12} className="text-slate-700" />
-                          </div>
-                          <span className="text-xs font-normal text-slate-800 hover:text-[#3a2088] truncate">
+                    return (
+                      <div
+                        key={item.id}
+                        draggable={!disabled}
+                        onDragStart={(e) => onDragStart(e, item)}
+                        onClick={() => {
+                          if (!disabled && onItemClick) {
+                            onItemClick(item);
+                          }
+                        }}
+                        className={`p-2 rounded border border-slate-200/80 bg-white transition-all text-xs flex items-center space-x-2 ${
+                          disabled
+                            ? 'opacity-40 cursor-not-allowed border-dashed'
+                            : 'hover:border-[#3a2088] hover:shadow-xs cursor-grab active:cursor-grabbing hover:bg-purple-50/20'
+                        }`}
+                      >
+                        <div className="p-1 rounded bg-slate-100 text-slate-700 shrink-0">
+                          <WorkflowIcon id={item.id} size={14} className="text-[#3a2088]" />
+                        </div>
+
+                        <div className="flex-1 min-w-0 flex items-center justify-between">
+                          <span className="font-medium text-slate-900 text-xs truncate">
                             {item.name}
                           </span>
+                          {item.badge && (
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-50 text-[#3a2088] font-mono border border-purple-200 font-normal shrink-0 ml-1.5">
+                              {item.badge}
+                            </span>
+                          )}
                         </div>
-                      );
-                    })
-                  )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

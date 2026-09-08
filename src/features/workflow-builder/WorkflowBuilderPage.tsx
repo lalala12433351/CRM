@@ -46,7 +46,7 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
   } = useWorkflowGraph(initialWorkflow);
 
   const [activeTab, setActiveTab] = useState<'editor' | 'executions'>('editor');
-  const [executions, setExecutions] = useState<ExecutionRecord[]>(() => 
+  const [executions, setExecutions] = useState<ExecutionRecord[]>(() =>
     getWorkflowExecutionsFromDb(initialWorkflow?.id)
   );
 
@@ -93,7 +93,7 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
               className="text-sm sm:text-base font-semibold text-slate-900 bg-transparent hover:bg-slate-100 focus:bg-white focus:ring-1.5 focus:ring-[#3a2088]/40 border border-transparent hover:border-slate-200 focus:border-[#3a2088] rounded-md px-2.5 py-1 outline-none transition-all w-48 sm:w-64 truncate"
               title="Click to edit workflow name"
             />
-            
+
             {/* Status & Saved state badge */}
             <div className="hidden sm:flex items-center">
               {!isSaved ? (
@@ -121,22 +121,20 @@ export const WorkflowBuilderPage: React.FC<WorkflowBuilderPageProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('editor')}
-            className={`h-full px-4 text-sm sm:text-base font-semibold transition-all border-b-2 cursor-pointer flex items-center ${
-              activeTab === 'editor'
+            className={`h-full px-4 text-sm sm:text-base font-semibold transition-all border-b-2 cursor-pointer flex items-center ${activeTab === 'editor'
                 ? 'border-[#3a2088] text-[#3a2088]'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
+              }`}
           >
             Editor
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('executions')}
-            className={`h-full px-4 text-sm sm:text-base font-semibold transition-all border-b-2 cursor-pointer flex items-center ${
-              activeTab === 'executions'
+            className={`h-full px-4 text-sm sm:text-base font-semibold transition-all border-b-2 cursor-pointer flex items-center ${activeTab === 'executions'
                 ? 'border-[#3a2088] text-[#3a2088]'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
+              }`}
           >
             Executions
           </button>

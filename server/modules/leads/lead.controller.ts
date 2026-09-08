@@ -2,6 +2,19 @@ import { Request, Response } from 'express';
 import { leadService } from './lead.service';
 import { logger } from '../../utils/logger';
 
+function isFollowUpStatus(status?: string): boolean {
+  if (!status) return false;
+  const s = status.toLowerCase().replace(/[\s\-_]/g, '');
+  return (
+    s.includes('followup') ||
+    s.includes('callback') ||
+    s.includes('calllater') ||
+    s.includes('appointmentscheduled') ||
+    s.includes('visitscheduled') ||
+    s.includes('demoscheduled')
+  );
+}
+
 export class LeadController {
   public async getLeads(req: Request, res: Response) {
     try {

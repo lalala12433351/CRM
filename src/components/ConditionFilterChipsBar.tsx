@@ -17,7 +17,8 @@ import {
   Tag, 
   AlertCircle,
   ToggleLeft,
-  FileText
+  FileText,
+  Clock
 } from 'lucide-react';
 import { 
   DynamicCondition, 
@@ -34,8 +35,10 @@ interface ConditionFilterChipsBarProps {
   activeConditions: DynamicCondition[];
   onUpdateCondition: (id: string, updates: Partial<DynamicCondition>) => void;
   onRemoveCondition: (id: string) => void;
-  onClearAllConditions: () => void;
-  optionsContext: DynamicOptionsContext;
+  onClearAllConditions?: () => void;
+  optionsContext?: DynamicOptionsContext;
+  className?: string;
+  pillClassName?: string;
 }
 
 export const ConditionFilterChipsBar: React.FC<ConditionFilterChipsBarProps> = ({
@@ -43,7 +46,9 @@ export const ConditionFilterChipsBar: React.FC<ConditionFilterChipsBarProps> = (
   onUpdateCondition,
   onRemoveCondition,
   onClearAllConditions,
-  optionsContext
+  optionsContext = {},
+  className = '',
+  pillClassName = ''
 }) => {
   const [openOperatorDropdownId, setOpenOperatorDropdownId] = useState<string | null>(null);
   const dropdownContainerRef = useRef<HTMLDivElement | null>(null);
@@ -77,6 +82,7 @@ export const ConditionFilterChipsBar: React.FC<ConditionFilterChipsBarProps> = (
       case 'tags': return <Tag className="w-3.5 h-3.5 text-purple-600 shrink-0" />;
       case 'createdOn':
       case 'createdAt': return <Calendar className="w-3.5 h-3.5 text-purple-600 shrink-0" />;
+      case 'call_duration_seconds': return <Clock className="w-3.5 h-3.5 text-purple-600 shrink-0" />;
       default:
         if (dataType === 'phone') return <Phone className="w-3.5 h-3.5 text-purple-600 shrink-0" />;
         if (dataType === 'number') return <IndianRupee className="w-3.5 h-3.5 text-emerald-600 shrink-0" />;
@@ -123,13 +129,78 @@ export const ConditionFilterChipsBar: React.FC<ConditionFilterChipsBarProps> = (
 
     // 3. Date input
     if (cond.dataType === 'date') {
+      const datePresets = ['Any', 'Today', 'Yesterday', 'This Week', 'This Month', 'Last 7 Days', 'Last 30 Days', 'Custom Date'];
+      const isCustomDate = cond.value && !datePresets.includes(cond.value);
+      const isDateSelected = Boolean(cond.value && cond.value !== 'Any');
+      const fromHour = cond.fromHour !== undefined ? cond.fromHour : '0';
+      const toHour = cond.toHour !== undefined ? cond.toHour : '23';
+
       return (
-        <input
-          type="date"
-          value={cond.value}
-          onChange={(e) => onUpdateCondition(cond.id, { value: e.target.value })}
-          className="bg-purple-50/80 border border-purple-200 rounded-lg px-2 py-0.5 text-xs text-purple-900 font-medium focus:outline-none focus:ring-1 focus:ring-purple-400 w-32 shadow-2xs"
-        />
+        <div className="flex items-center gap-1.5 flex-nowrap">
+          <div className={`flex items-center gap-1 bg-transparent text-purple-900 px-1 py-0.5 text-xs font-semibold ${isDateSelected ? 'pr-1.5 border-r border-purple-200' : ''}`}>
+            <Clock className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+            <select
+              value={isCustomDate ? 'Custom Date' : (cond.value || 'Any')}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === 'Custom Date') {
+                  onUpdateCondition(cond.id, { 
+                    value: new Date().toISOString().split('T')[0],
+                    fromHour: cond.fromHour || '0',
+                    toHour: cond.toHour || '23'
+                  });
+                } else {
+                  onUpdateCondition(cond.id, { 
+                    value: val,
+                    fromHour: val !== 'Any' ? (cond.fromHour || '0') : cond.fromHour,
+                    toHour: val !== 'Any' ? (cond.toHour || '23') : cond.toHour
+                  });
+                }
+              }}
+              className="bg-transparent text-purple-900 font-medium focus:outline-none cursor-pointer pr-0.5"
+            >
+              {datePresets.map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          </div>
+
+          {isCustomDate && (
+            <div className={`flex items-center ${isDateSelected ? 'pr-1.5 border-r border-purple-200' : ''}`}>
+              <input
+                type="date"
+                value={cond.value}
+                onChange={(e) => onUpdateCondition(cond.id, { value: e.target.value })}
+                className="bg-purple-100/70 border border-purple-200 rounded-lg px-1.5 py-0.5 text-xs text-purple-900 font-medium focus:outline-none focus:ring-1 focus:ring-purple-400 w-28 shadow-2xs"
+              />
+            </div>
+          )}
+
+          {/* Time Selection Range: Opens after date is selected (matching exact screenshot) */}
+          {isDateSelected && (
+            <div className="flex items-center gap-1 text-xs text-slate-700 animate-in fade-in duration-150 whitespace-nowrap pl-0.5">
+              <span className="text-slate-600 font-normal">from:</span>
+              <input
+                type="text"
+                value={fromHour}
+                onChange={(e) => onUpdateCondition(cond.id, { fromHour: e.target.value })}
+                className="w-8 sm:w-9 border-b border-slate-700 bg-transparent text-left pl-0.5 font-normal text-xs text-slate-900 focus:outline-none focus:border-purple-600 transition-colors"
+                placeholder="0"
+              />
+              <span className="text-slate-700 font-normal">:00 h</span>
+
+              <span className="text-slate-600 font-normal ml-1.5">to:</span>
+              <input
+                type="text"
+                value={toHour}
+                onChange={(e) => onUpdateCondition(cond.id, { toHour: e.target.value })}
+                className="w-8 sm:w-9 border-b border-slate-700 bg-transparent text-left pl-0.5 font-normal text-xs text-slate-900 focus:outline-none focus:border-purple-600 transition-colors"
+                placeholder="23"
+              />
+              <span className="text-slate-700 font-normal">:59 h</span>
+            </div>
+          )}
+        </div>
       );
     }
 
@@ -170,7 +241,7 @@ export const ConditionFilterChipsBar: React.FC<ConditionFilterChipsBarProps> = (
   };
 
   return (
-    <div ref={dropdownContainerRef} className="flex items-center gap-2 flex-wrap pb-1 z-20">
+    <div ref={dropdownContainerRef} className={`flex items-center gap-2 flex-wrap pb-1 z-20 ${className}`}>
       {activeConditions.map((cond) => {
         const isDropdownOpen = openOperatorDropdownId === cond.id;
         const allowedOperators = DATA_TYPE_OPERATOR_MAPPING[cond.dataType] || DATA_TYPE_OPERATOR_MAPPING.text;
@@ -178,22 +249,22 @@ export const ConditionFilterChipsBar: React.FC<ConditionFilterChipsBarProps> = (
         return (
           <div
             key={cond.id}
-            className="relative inline-flex items-center bg-white border border-purple-300/80 rounded-xl px-3 py-1.5 text-xs shadow-xs text-slate-800 gap-2 font-medium animate-in fade-in zoom-in-95 group hover:border-purple-500 transition-all"
+            className={`relative inline-flex items-center bg-[#EDE9FE] border border-purple-200/80 rounded-xl px-2.5 py-1.5 text-xs shadow-2xs text-slate-800 gap-1.5 font-medium animate-in fade-in zoom-in-95 group hover:border-purple-400 transition-all ${pillClassName}`}
           >
             {/* Left Icon + Field Name */}
-            <div className="flex items-center space-x-1.5 font-semibold text-slate-800 pr-2 border-r border-slate-200">
+            <div className="flex items-center space-x-1.5 font-semibold text-slate-800 pr-1.5 border-r border-purple-200">
               {getConditionIcon(cond.iconType, cond.dataType)}
               <span className="whitespace-nowrap">{cond.fieldLabel}</span>
             </div>
 
             {/* Operator Dropdown (Populated strictly based on Field Data Type Mapping) */}
-            <div className="relative">
+            <div className="relative pr-1.5 border-r border-purple-200">
               <button
                 type="button"
                 onClick={() => setOpenOperatorDropdownId(isDropdownOpen ? null : cond.id)}
-                className="flex items-center space-x-1 text-slate-700 hover:text-purple-700 font-medium px-1.5 py-0.5 rounded hover:bg-purple-50 transition-colors cursor-pointer"
+                className="flex items-center space-x-0.5 text-slate-700 hover:text-purple-700 font-medium px-1 py-0.5 rounded hover:bg-purple-100/60 transition-colors cursor-pointer"
               >
-                <span className="whitespace-nowrap">{getOperatorLabel(cond.operator)}</span>
+                <span className="whitespace-nowrap capitalize">{getOperatorLabel(cond.operator)}</span>
                 <ChevronDown className={`w-3 h-3 text-slate-500 transition-transform ${isDropdownOpen ? 'rotate-180 text-purple-700' : ''}`} />
               </button>
 
@@ -235,10 +306,10 @@ export const ConditionFilterChipsBar: React.FC<ConditionFilterChipsBarProps> = (
             <button
               type="button"
               onClick={() => onRemoveCondition(cond.id)}
-              className="w-4 h-4 rounded-full bg-purple-100 hover:bg-purple-600 text-purple-700 hover:text-white flex items-center justify-center transition-all cursor-pointer shrink-0 ml-0.5 shadow-2xs"
+              className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-[#C084FC] hover:bg-[#7C3AED] text-white flex items-center justify-center transition-all cursor-pointer shrink-0 shadow-2xs z-10"
               title="Remove condition"
             >
-              <X className="w-2.5 h-2.5" />
+              <X className="w-2.5 h-2.5 stroke-[3]" />
             </button>
           </div>
         );

@@ -6,5 +6,7 @@ export { TriggerNode } from './components/nodes/TriggerNode';
 export { ConditionNode } from './components/nodes/ConditionNode';
 export { ActionNode } from './components/nodes/ActionNode';
 export { useWorkflowGraph } from './hooks/useWorkflowGraph';
+export { SelectEventDrawer } from './components/SelectEventDrawer';
+export * from './constants/workflowEvents';
 export * from './types/workflow.types';
 export * from './constants/workflowCatalog';

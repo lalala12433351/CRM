@@ -205,145 +205,230 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="h-14 glass-panel border-b border-slate-200 px-3 md:px-5 flex items-center justify-between sticky top-0 z-30 text-slate-900 font-sans select-none relative shadow-xs">
       
-      {/* LEFT: Institute / Workspace Selector & Settings Flyout Trigger */}
-      <div className="flex items-center space-x-1.5 sm:space-x-2 min-w-0">
-        {/* Workspace Title Badge */}
-        <div className="flex items-center space-x-1.5 sm:space-x-2 px-1.5 sm:px-2 py-1 rounded-lg text-left min-w-0">
-          <div className="w-6 h-6 rounded-full bg-[#5034a8] text-white flex items-center justify-center font-bold text-xs shadow-2xs shrink-0">
-            <Plane className="w-3.5 h-3.5 transform -rotate-45" />
-          </div>
-          <span className="font-semibold text-xs md:text-sm text-slate-800 tracking-tight truncate max-w-[120px] sm:max-w-[220px] md:max-w-none">
-            {currentWorkspaceName}
-          </span>
-        </div>
-
-        {/* Settings Gear Button with Popover Flyout matching screenshot */}
-        <div className="relative shrink-0" ref={settingsDropdownRef}>
-          <button
-            onClick={() => setIsSettingsMenuOpen(!isSettingsMenuOpen)}
-            className={`p-1.5 rounded-lg border transition-all cursor-pointer min-w-[34px] min-h-[34px] flex items-center justify-center ${
-              isSettingsMenuOpen || currentView === 'fields' || currentView === 'settings'
-                ? 'border-slate-300/80 bg-white/80 text-slate-900 shadow-2xs'
-                : 'border-slate-200/80 bg-white/50 hover:bg-white/90 text-slate-600'
-            }`}
-            title="Workspace Settings Menu"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
-
-          {/* EXACT WORKSPACE / TEAM / BILLING SETTINGS FLYOUT MENU */}
-          {isSettingsMenuOpen && (
-            <div className="absolute left-0 top-full mt-2 w-[calc(100vw-24px)] max-w-xs glass-dropdown rounded-2xl p-2.5 z-[99999] animate-in fade-in text-xs font-sans shadow-2xl max-h-[80vh] overflow-y-auto">
-              
-              {/* WORKSPACE SECTION */}
-              <div className="px-2.5 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider font-sans">
-                WORKSPACE
+      {/* LEFT: Institute / Workspace Selector & Settings Flyout Trigger Pill */}
+      <div className="flex items-center min-w-0">
+        <div className="flex items-center rounded-full bg-white border border-slate-200/90 shadow-2xs pl-1 pr-2 py-0.5 hover:border-slate-300 transition-all">
+          {/* Workspace Dropdown Trigger */}
+          <div className="relative" ref={accountDropdownRef}>
+            <button
+              onClick={() => {
+                setIsAccountMenuOpen(!isAccountMenuOpen);
+                setIsSettingsMenuOpen(false);
+              }}
+              className="flex items-center space-x-1.5 px-1.5 py-1 rounded-full hover:bg-slate-50 transition-colors cursor-pointer group text-left min-w-0"
+              title="Switch Workspace"
+            >
+              <div className="w-6 h-6 rounded-full bg-[#5034a8] text-white flex items-center justify-center font-bold text-xs shadow-2xs shrink-0">
+                <Plane className="w-3.5 h-3.5 transform -rotate-45" />
               </div>
-              <div className="space-y-0.5 mb-2">
-                {isAgentAdmin(activeAgent) && (
+              <span className="font-semibold text-xs md:text-sm text-slate-800 tracking-tight truncate max-w-[120px] sm:max-w-[220px] md:max-w-none">
+                {currentWorkspaceName}
+              </span>
+              <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${isAccountMenuOpen ? 'rotate-180 text-[#5034a8]' : 'group-hover:text-slate-800'}`} />
+            </button>
+
+            {/* WORKSPACES CHOOSER DROPDOWN POPOVER */}
+            {isAccountMenuOpen && (
+              <div className="absolute left-0 top-full mt-2.5 w-72 glass-dropdown rounded-2xl p-2.5 z-[99999] animate-in fade-in text-xs font-sans shadow-2xl border border-slate-200">
+                {/* Header */}
+                <div className="px-2.5 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider font-sans">
+                  WORKSPACES
+                </div>
+                
+                {/* Workspaces List */}
+                <div className="space-y-1 mb-2">
+                  {workAccounts.map((account) => {
+                    const isSelected = activeAccount.id === account.id;
+                    return (
+                      <button
+                        key={account.id}
+                        onClick={() => handleSwitchAccount(account)}
+                        className={`w-full flex items-center justify-between p-2 rounded-xl text-left cursor-pointer transition-all ${
+                          isSelected
+                            ? 'bg-purple-50/80 text-[#3a2088] border border-purple-200/80 shadow-2xs font-medium'
+                            : 'text-slate-700 hover:bg-slate-50 border border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2.5 min-w-0">
+                          <div className={`w-7 h-7 rounded-lg ${account.color || 'bg-[#5034a8]'} text-white flex items-center justify-center font-bold text-xs shrink-0`}>
+                            {account.iconLetter || account.name.charAt(0)}
+                          </div>
+                          <div className="min-w-0 truncate">
+                            <div className="font-semibold text-xs text-slate-900 truncate flex items-center gap-1.5">
+                              <span className="truncate">{account.name}</span>
+                              {account.badge && (
+                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-normal">
+                                  {account.badge}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-slate-400 truncate">
+                              {account.orgName} • {account.membersCount} members
+                            </div>
+                          </div>
+                        </div>
+                        {isSelected && (
+                          <Check className="w-4 h-4 text-[#5034a8] shrink-0 ml-2" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Manage Workspaces Bottom Button (Matching Screenshot) */}
+                <div className="pt-2 border-t border-slate-100">
                   <button
-                    onClick={() => handleMenuClick('settings', 'Lead Fields Settings', 'fields')}
+                    onClick={() => {
+                      setIsAccountMenuOpen(false);
+                      if (onNavigateToTab) {
+                        onNavigateToTab('settings', 'general');
+                      } else if (onNavigateToSettings) {
+                        onNavigateToSettings();
+                      }
+                      if (onShowToast) onShowToast('Manage Workspaces');
+                    }}
+                    className="w-full py-2 px-3 rounded-xl border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-medium text-xs text-center transition-all cursor-pointer shadow-2xs flex items-center justify-center space-x-2"
+                  >
+                    <span>Manage Workspaces</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="w-[1px] h-4 bg-slate-200 mx-1.5 shrink-0" />
+
+          {/* Settings Gear Button with Popover Flyout */}
+          <div className="relative shrink-0" ref={settingsDropdownRef}>
+            <button
+              onClick={() => {
+                setIsSettingsMenuOpen(!isSettingsMenuOpen);
+                setIsAccountMenuOpen(false);
+              }}
+              className={`p-1.5 rounded-full transition-all cursor-pointer flex items-center justify-center ${
+                isSettingsMenuOpen || currentView === 'fields' || currentView === 'settings'
+                  ? 'bg-purple-50 text-[#5034a8]'
+                  : 'text-slate-500 hover:text-[#5034a8] hover:bg-slate-50'
+              }`}
+              title="Workspace Settings Menu"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+
+            {/* EXACT WORKSPACE / TEAM / BILLING SETTINGS FLYOUT MENU */}
+            {isSettingsMenuOpen && (
+              <div className="absolute left-0 top-full mt-2.5 w-[calc(100vw-24px)] max-w-xs glass-dropdown rounded-2xl p-2.5 z-[99999] animate-in fade-in text-xs font-sans shadow-2xl max-h-[80vh] overflow-y-auto">
+                
+                {/* WORKSPACE SECTION */}
+                <div className="px-2.5 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider font-sans">
+                  WORKSPACE
+                </div>
+                <div className="space-y-0.5 mb-2">
+                  {isAgentAdmin(activeAgent) && (
+                    <button
+                      onClick={() => handleMenuClick('settings', 'Lead Fields Settings', 'fields')}
+                      className={`w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left cursor-pointer transition-all ${
+                        currentView === 'fields'
+                          ? 'bg-indigo-50/80 text-indigo-900 font-medium border border-indigo-200 shadow-2xs'
+                          : 'text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <ListFilter className="w-4 h-4 text-slate-500" />
+                      <span>Lead Fields</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => handleMenuClick('settings', 'Pipeline Stages & Colors', 'pipeline')}
+                    className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  >
+                    <Layers className="w-4 h-4 text-slate-500" />
+                    <span>Lead Stage</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleMenuClick('call_feedback', 'Call Feedback Statuses & Dispositions')}
                     className={`w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left cursor-pointer transition-all ${
-                      currentView === 'fields'
+                      currentView === 'call_feedback'
                         ? 'bg-indigo-50/80 text-indigo-900 font-medium border border-indigo-200 shadow-2xs'
                         : 'text-slate-700 hover:bg-slate-50'
                     }`}
                   >
-                    <ListFilter className="w-4 h-4 text-slate-500" />
-                    <span>Lead Fields</span>
+                    <PhoneCall className="w-4 h-4 text-slate-500" />
+                    <span>Call Feedback</span>
                   </button>
-                )}
 
-                <button
-                  onClick={() => handleMenuClick('settings', 'Pipeline Stages & Colors', 'pipeline')}
-                  className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
-                >
-                  <Layers className="w-4 h-4 text-slate-500" />
-                  <span>Lead Stage</span>
-                </button>
-
-                <button
-                  onClick={() => handleMenuClick('call_feedback', 'Call Feedback Statuses & Dispositions')}
-                  className={`w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left cursor-pointer transition-all ${
-                    currentView === 'call_feedback'
-                      ? 'bg-indigo-50/80 text-indigo-900 font-medium border border-indigo-200 shadow-2xs'
-                      : 'text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <PhoneCall className="w-4 h-4 text-slate-500" />
-                  <span>Call Feedback</span>
-                </button>
-
-                <button
-                  onClick={() => handleMenuClick('workflows', 'Custom Automation Actions')}
-                  className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
-                >
-                  <Zap className="w-4 h-4 text-slate-500" />
-                  <span>Custom Actions</span>
-                </button>
-
-                <button
-                  onClick={() => handleMenuClick('settings', 'System Preferences', 'general')}
-                  className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
-                >
-                  <Sliders className="w-4 h-4 text-slate-500" />
-                  <span>Preferences</span>
-                </button>
-              </div>
-
-              {/* TEAM SECTION */}
-              <div className="px-2.5 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider font-sans border-t border-slate-100 pt-2">
-                TEAM
-              </div>
-              <div className="space-y-0.5 mb-2">
-                <button
-                  onClick={() => handleMenuClick('team', 'Managing Users & Representatives')}
-                  className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
-                >
-                  <Users className="w-4 h-4 text-slate-500" />
-                  <span>Users & Team</span>
-                </button>
-
-                {isAgentAdmin(activeAgent) && (
                   <button
-                    onClick={() => handleMenuClick('settings', 'Permission Templates & Roles', 'permissions')}
+                    onClick={() => handleMenuClick('workflows', 'Custom Automation Actions')}
                     className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
                   >
-                    <Shield className="w-4 h-4 text-slate-500" />
-                    <span>Permission Templates</span>
+                    <Zap className="w-4 h-4 text-slate-500" />
+                    <span>Custom Actions</span>
                   </button>
+
+                  <button
+                    onClick={() => handleMenuClick('settings', 'System Preferences', 'general')}
+                    className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  >
+                    <Sliders className="w-4 h-4 text-slate-500" />
+                    <span>Preferences</span>
+                  </button>
+                </div>
+
+                {/* TEAM SECTION */}
+                <div className="px-2.5 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider font-sans border-t border-slate-100 pt-2">
+                  TEAM
+                </div>
+                <div className="space-y-0.5 mb-2">
+                  <button
+                    onClick={() => handleMenuClick('team', 'Managing Users & Representatives')}
+                    className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  >
+                    <Users className="w-4 h-4 text-slate-500" />
+                    <span>Users & Team</span>
+                  </button>
+
+                  {isAgentAdmin(activeAgent) && (
+                    <button
+                      onClick={() => handleMenuClick('settings', 'Permission Templates & Roles', 'permissions')}
+                      className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
+                    >
+                      <Shield className="w-4 h-4 text-slate-500" />
+                      <span>Permission Templates</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* BILLING SECTION (Admin Only) */}
+                {isAgentAdmin(activeAgent) && (
+                  <>
+                    <div className="px-2.5 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider font-sans border-t border-slate-100 pt-2">
+                      BILLING & PAYMENTS
+                    </div>
+                    <div className="space-y-0.5">
+                      <button
+                        onClick={() => handleMenuClick('settings', 'Buy Licenses & Billing Desk', 'billing')}
+                        className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
+                      >
+                        <CreditCard className="w-4 h-4 text-slate-500" />
+                        <span>Buy Licenses / Payment Options</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleMenuClick('settings', 'Billing & Transaction History', 'billing')}
+                        className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
+                      >
+                        <FileText className="w-4 h-4 text-slate-500" />
+                        <span>Transaction History</span>
+                      </button>
+                    </div>
+                  </>
                 )}
               </div>
-
-              {/* BILLING SECTION (Admin Only) */}
-              {isAgentAdmin(activeAgent) && (
-                <>
-                  <div className="px-2.5 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider font-sans border-t border-slate-100 pt-2">
-                    BILLING & PAYMENTS
-                  </div>
-                  <div className="space-y-0.5">
-                    <button
-                      onClick={() => handleMenuClick('settings', 'Buy Licenses & Billing Desk', 'billing')}
-                      className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
-                    >
-                      <CreditCard className="w-4 h-4 text-slate-500" />
-                      <span>Buy Licenses / Payment Options</span>
-                    </button>
-
-                    <button
-                      onClick={() => handleMenuClick('settings', 'Billing & Transaction History', 'billing')}
-                      className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
-                    >
-                      <FileText className="w-4 h-4 text-slate-500" />
-                      <span>Transaction History</span>
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
+            )}
+          </div>
         </div>
-
       </div>
 
       {/* RIGHT: Action Buttons & Modals */}
@@ -352,10 +437,10 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Power Dialer Queue Button */}
         <button
           onClick={onOpenPowerDialer}
-          className="hidden md:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-semibold text-xs shadow-2xs cursor-pointer transition-all shrink-0 mr-2"
+          className="hidden md:flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-[#5034a8] hover:bg-[#432993] text-white font-semibold text-xs shadow-xs cursor-pointer transition-all shrink-0 mr-1.5 active:scale-95"
           title="Launch Power Dialer Call Queue"
         >
-          <PhoneCall className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+          <PhoneCall className="w-3.5 h-3.5 text-white shrink-0" />
           <span>Power Dialer</span>
         </button>
 

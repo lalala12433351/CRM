@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from '../context/ToastContext';
 import { EmptyState } from '../components/EmptyState';
-import { WorkflowBuilderPage } from '../features/workflow-builder';
+import { WorkflowBuilderPage, SelectEventDrawer, WorkflowEventItem } from '../features/workflow-builder';
 import { 
   getWorkflowsFromDb, 
   fetchWorkflowsFromApi,
@@ -97,6 +97,7 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
   // Visual Workflow Builder state
   const [isVisualBuilderOpen, setIsVisualBuilderOpen] = useState(false);
   const [selectedWorkflowForBuilder, setSelectedWorkflowForBuilder] = useState<any>(null);
+  const [isSelectEventOpen, setIsSelectEventOpen] = useState(false);
 
   // Persistent workflows list from Database
   const [workflowsList, setWorkflowsList] = useState<WorkflowRecord[]>(() => getWorkflowsFromDb());
@@ -124,10 +125,57 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
   }, [activeSubTab, isVisualBuilderOpen]);
 
   const handleOpenBuilder = (workflowItem?: any) => {
-    if (onOpenWorkflowBuilder) {
-      onOpenWorkflowBuilder(workflowItem);
+    if (workflowItem) {
+      if (onOpenWorkflowBuilder) {
+        onOpenWorkflowBuilder(workflowItem);
+      } else {
+        setSelectedWorkflowForBuilder(workflowItem);
+        setIsVisualBuilderOpen(true);
+      }
     } else {
-      setSelectedWorkflowForBuilder(workflowItem || null);
+      // Opening drawer to select triggering event first (matching Image 4)
+      setIsSelectEventOpen(true);
+    }
+  };
+
+  const handleSelectEventAndCreate = (event: WorkflowEventItem) => {
+    const newWorkflow: any = {
+      id: `wf-${Date.now()}`,
+      name: event.name,
+      event: event.name,
+      isDraft: event.badge === 'Draft',
+      status: event.badge !== 'Draft',
+      statusMeta: event.badge === 'Draft' ? 'Draft' : 'Active',
+      totalRuns: 0,
+      last24hRuns: 0,
+      last24hFailures: 0,
+      hasDraft: true,
+      nodes: [
+        {
+          id: 'node-trigger',
+          type: 'trigger',
+          position: { x: 300, y: 120 },
+          data: {
+            kind: 'trigger',
+            catalogId: event.id,
+            label: event.name,
+            description: event.description || `Triggers on ${event.name}`,
+            iconName: event.iconType,
+            category: 'events',
+            config: {
+              triggerEvent: event.id,
+              notes: `Workflow triggered by ${event.name}`
+            }
+          }
+        }
+      ],
+      edges: []
+    };
+
+    if (onOpenWorkflowBuilder) {
+      onOpenWorkflowBuilder(newWorkflow);
+    } else {
+      setSelectedWorkflowForBuilder(newWorkflow);
       setIsVisualBuilderOpen(true);
     }
   };
@@ -554,9 +602,9 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                                 <div>
                                   <button
                                     onClick={() => handleOpenBuilder(wf)}
-                                    className="text-[11px] text-[#3a2088] underline hover:text-[#2c186b] font-medium cursor-pointer"
+                                    className="text-[11px] text-slate-500 hover:text-[#3a2088] border-b border-dashed border-slate-400 hover:border-[#3a2088] font-medium cursor-pointer transition-colors"
                                   >
-                                    (Draft in progress)
+                                    View Draft
                                   </button>
                                 </div>
                               )}
@@ -1494,6 +1542,13 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
         onSaved={(saved) => {
           setApiTemplatesList(getApiTemplates());
         }}
+      />
+
+      {/* Select Event Slide-Over Drawer (Matching Image 4) */}
+      <SelectEventDrawer
+        isOpen={isSelectEventOpen}
+        onClose={() => setIsSelectEventOpen(false)}
+        onSelectEvent={handleSelectEventAndCreate}
       />
     </div>
   );

@@ -818,7 +818,7 @@ export function App() {
     }
   };
 
-  const handlePartialUpdateLead = (leadId: string, updates: Partial<Lead>) => {
+  const handlePartialUpdateLead = (leadId: string, updates: Partial<Lead>, toastMsg?: string | null) => {
     setLeads((prev) => {
       const exists = prev.some((l) => l.id === leadId);
       if (exists) {
@@ -832,7 +832,9 @@ export function App() {
       }
     });
     if (detailLead?.id === leadId) setDetailLead((prev) => (prev ? { ...prev, ...updates } : null));
-    showToast('Lead follow-up / details updated');
+    if (toastMsg) {
+      showToast(toastMsg);
+    }
 
     fetchWithTenantAuth('/api/leads', {
       method: 'POST',
@@ -1318,12 +1320,16 @@ export function App() {
               stages={activeStages}
               customFields={activeCustomFields}
               currency={activeCurrency}
+              lostReasons={lostReasons}
+              onUpdateLostReasons={handleUpdateLostReasons}
+              activeAgent={activeAgent}
+              activeTenantId={activeTenantId}
               onOpenLeadDetail={(lead) => setDetailLead(lead)}
               onUpdateLeadStage={(leadId, newStageStatus) => {
-                setLeads((prev) =>
-                  prev.map((l) => (l.id === leadId ? { ...l, status: newStageStatus, updatedAt: 'Just Now' } : l))
-                );
-                showToast(`Updated lead stage to ${newStageStatus}`);
+                handlePartialUpdateLead(leadId, { 
+                  status: newStageStatus as any, 
+                  pipelineStageId: newStageStatus 
+                });
               }}
               onUpdateStages={(updatedStages) => {
                 setStages(updatedStages);
@@ -1334,6 +1340,7 @@ export function App() {
                 showToast('Pipeline stages updated!');
               }}
               onUpdateLead={handlePartialUpdateLead}
+              onShowToast={(msg) => showToast(msg)}
             />
           )}
 

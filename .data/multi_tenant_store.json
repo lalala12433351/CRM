@@ -272,8 +272,8 @@
         "city": "Not Specified",
         "state": "Not Specified",
         "source": "Facebook Ads",
-        "status": "Follow Up",
-        "pipelineStageId": "stage-1",
+        "status": "Demo Scheduled",
+        "pipelineStageId": "Demo Scheduled",
         "dealValue": 0,
         "ownerAgentId": "agent-1788331750812",
         "ownerAgentName": "DSSFSD",
@@ -286,7 +286,7 @@
           "HighIntent"
         ],
         "createdAt": "2026-09-04T06:39:35.675Z",
-        "updatedAt": "2026-09-04T06:56:37.920Z",
+        "updatedAt": "2026-09-08T12:19:29.530Z",
         "pincode": "",
         "whatsappOptIn": true,
         "activities": [
@@ -302,7 +302,8 @@
           }
         ],
         "followUpAt": "2026-09-04T15:15:00",
-        "assignedTo": "agent-1788331750812"
+        "assignedTo": "agent-1788331750812",
+        "stage": "Follow Up"
       },
       {
         "id": "lead-1788503947437",
@@ -395,7 +396,7 @@
         "state": "Not Specified",
         "source": "Facebook Ads",
         "status": "Contacted",
-        "pipelineStageId": "stage-2",
+        "pipelineStageId": "Contacted",
         "dealValue": 0,
         "ownerAgentId": "agent_kiteaviation_admin",
         "ownerAgentName": "Kite Aviation Admin",
@@ -408,7 +409,7 @@
           "HighIntent"
         ],
         "createdAt": "2026-09-04T06:36:30.754Z",
-        "updatedAt": "2026-09-04T06:36:30.759Z",
+        "updatedAt": "2026-09-08T12:33:20.290Z",
         "pincode": "",
         "whatsappOptIn": true,
         "activities": [
@@ -480,8 +481,8 @@
         "city": "Not Specified",
         "state": "Not Specified",
         "source": "Facebook Ads",
-        "status": "Contacted",
-        "pipelineStageId": "stage-1",
+        "status": "Fresh",
+        "pipelineStageId": "Fresh",
         "dealValue": 0,
         "ownerAgentId": "agent_kiteaviation_admin",
         "ownerAgentName": "Kite Aviation Admin",
@@ -496,8 +497,8 @@
         "tags": [
           "HighIntent"
         ],
-        "createdAt": "Just Now",
-        "updatedAt": "2026-09-03T05:55:15.846Z",
+        "createdAt": "2026-09-03T05:27:17.307Z",
+        "updatedAt": "2026-09-08T12:33:18.735Z",
         "pincode": "",
         "whatsappOptIn": true,
         "activities": [
@@ -816,7 +817,7 @@
         "city": "Not Specified",
         "state": "Not Specified",
         "source": "Facebook Ads",
-        "status": "Follow Up",
+        "status": "Contacted",
         "pipelineStageId": "stage-1",
         "dealValue": 231,
         "ownerAgentId": "agent_kiteaviation_admin",
@@ -837,8 +838,8 @@
         "tags": [
           "HighIntent"
         ],
-        "createdAt": "Just Now",
-        "updatedAt": "2026-09-02T13:01:42.190Z",
+        "createdAt": "2026-09-02T04:25:22.427Z",
+        "updatedAt": "2026-09-08T12:01:41.715Z",
         "pincode": "",
         "priority": "Hot",
         "whatsappOptIn": true,
@@ -926,7 +927,8 @@
         ],
         "car": "santroo",
         "deal_value": 231,
-        "f-1788343133996": "santroo"
+        "f-1788343133996": "santroo",
+        "stage": "Contacted"
       },
       {
         "id": "lead-1788257663855",
@@ -3935,6 +3937,295 @@
     ],
     "company_kite_aviation": [
       {
+        "id": "wf-1788848079603",
+        "tenantId": "company_kite_aviation",
+        "name": "On User Note",
+        "hasDraft": false,
+        "event": "On User Note",
+        "eventIcon": "globe",
+        "status": false,
+        "statusMeta": "Disabled by Admin",
+        "totalRuns": 0,
+        "last24hRuns": 0,
+        "last24hFailures": 0,
+        "isDraft": false,
+        "nodes": [
+          {
+            "id": "node-trigger",
+            "type": "trigger",
+            "position": {
+              "x": -38.97377125136498,
+              "y": 49.16965973852075
+            },
+            "data": {
+              "kind": "trigger",
+              "catalogId": "on_user_note",
+              "label": "On User Note",
+              "description": "Triggers when an agent adds a custom note on a lead",
+              "iconName": "file_text",
+              "category": "events",
+              "config": {
+                "triggerEvent": "on_user_note",
+                "notes": "Workflow triggered by On User Note"
+              }
+            }
+          },
+          {
+            "id": "node-action-80937",
+            "type": "action",
+            "position": {
+              "x": 159.99999999999994,
+              "y": -4.308955569651225
+            },
+            "data": {
+              "kind": "action",
+              "catalogId": "call_api",
+              "label": "Call API",
+              "description": "Send custom HTTP requests with template, URL, headers, and body fields",
+              "iconName": "Globe",
+              "category": "actions",
+              "config": {
+                "apiTemplate": "hjkuhkhk",
+                "method": "POST",
+                "endpointUrl": "hkjhkjhkj",
+                "headers": [
+                  {
+                    "key": "Content-type",
+                    "value": "application/json"
+                  }
+                ],
+                "bodyPayload": "{\n  \"lead_id\": \"{{lead.id}}\",\n  \"name\": \"{{lead.name}}\",\n  \"phone\": \"{{lead.phone}}\",\n  \"email\": \"{{lead.email}}\",\n  \"status\": \"{{lead.status}}\"\n}",
+                "notes": "Custom API invocation",
+                "templateId": "tpl-1788754723961",
+                "queryParams": [],
+                "authConfig": {
+                  "type": "none",
+                  "token": "",
+                  "username": "",
+                  "password": "",
+                  "apiKeyKey": "",
+                  "apiKeyValue": "",
+                  "apiKeyLocation": "header"
+                }
+              }
+            }
+          },
+          {
+            "id": "node-action-00034",
+            "type": "action",
+            "position": {
+              "x": 712.6600230772049,
+              "y": 141.068175107176
+            },
+            "data": {
+              "kind": "action",
+              "catalogId": "add_in_list",
+              "label": "Add in List(s)",
+              "description": "Add lead to a campaign list, tag group, or audience segment",
+              "iconName": "Tag",
+              "category": "actions",
+              "config": {
+                "listName": "",
+                "listCategory": "Marketing Segment",
+                "notes": "Tags lead into campaign audience"
+              }
+            }
+          },
+          {
+            "id": "node-condition-15201",
+            "type": "condition",
+            "position": {
+              "x": 520.3172258871616,
+              "y": -106.68135631673482
+            },
+            "data": {
+              "kind": "condition",
+              "catalogId": "lead_condition",
+              "label": "Check If Lead",
+              "description": "Branch flow based on lead attributes, deal value, tags or source",
+              "iconName": "Filter",
+              "category": "lead_conditions",
+              "config": {
+                "conditionType": "Check If Whatsapp Message",
+                "logicOperator": "AND",
+                "conditions": [],
+                "rules": [],
+                "notes": "Splits path into True (green) and False (red)"
+              }
+            }
+          },
+          {
+            "id": "node-action-56282",
+            "type": "action",
+            "position": {
+              "x": 340,
+              "y": 300
+            },
+            "data": {
+              "kind": "action",
+              "catalogId": "send_template",
+              "label": "Send Whatsapp To Lead",
+              "description": "Send official WhatsApp template with dynamic variables to lead phone",
+              "iconName": "Send",
+              "category": "actions",
+              "config": {
+                "whatsappAccount": "",
+                "toPhoneFields": [
+                  "Phone"
+                ],
+                "templateName": "",
+                "templateLanguage": "en_US",
+                "recipientPhoneVariable": "{{lead.phone}}",
+                "notes": ""
+              }
+            }
+          },
+          {
+            "id": "node-action-64682",
+            "type": "action",
+            "position": {
+              "x": 100,
+              "y": 100
+            },
+            "data": {
+              "kind": "action",
+              "catalogId": "call_api",
+              "label": "Call API",
+              "description": "Send custom HTTP requests with template, URL, headers, and body fields",
+              "iconName": "Globe",
+              "category": "actions",
+              "config": {
+                "apiTemplate": "hjkuhkhk",
+                "method": "POST",
+                "endpointUrl": "hkjhkjhkj",
+                "headers": [
+                  {
+                    "key": "Content-type",
+                    "value": "application/json"
+                  }
+                ],
+                "bodyPayload": "{\n  \"lead_id\": \"{{lead.id}}\",\n  \"name\": \"{{lead.name}}\",\n  \"phone\": \"{{lead.phone}}\",\n  \"email\": \"{{lead.email}}\",\n  \"status\": \"{{lead.status}}\"\n}",
+                "notes": "Custom API invocation",
+                "templateId": "tpl-1788754723961",
+                "queryParams": [],
+                "authConfig": {
+                  "type": "none",
+                  "token": "",
+                  "username": "",
+                  "password": "",
+                  "apiKeyKey": "",
+                  "apiKeyValue": "",
+                  "apiKeyLocation": "header"
+                }
+              }
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "xy-edge_node-trigger_output-node-action-80937_input-1788848189250",
+            "source": "node-trigger",
+            "target": "node-action-80937",
+            "sourceHandle": "output",
+            "targetHandle": "input",
+            "type": "smoothstep",
+            "animated": true,
+            "reconnectable": true,
+            "style": {
+              "stroke": "#3a2088",
+              "strokeWidth": 2
+            },
+            "markerEnd": {
+              "type": "arrowclosed",
+              "color": "#3a2088",
+              "width": 14,
+              "height": 14
+            }
+          },
+          {
+            "id": "xy-edge__node-action-80937output-node-condition-15201input",
+            "source": "node-action-80937",
+            "target": "node-condition-15201",
+            "sourceHandle": "output",
+            "targetHandle": "input",
+            "type": "smoothstep",
+            "animated": true,
+            "reconnectable": true,
+            "style": {
+              "stroke": "#3a2088",
+              "strokeWidth": 2
+            },
+            "markerEnd": {
+              "type": "arrowclosed",
+              "color": "#3a2088",
+              "width": 14,
+              "height": 14
+            }
+          },
+          {
+            "id": "xy-edge_node-condition-15201_true-node-action-00034_input-1788848230333",
+            "source": "node-condition-15201",
+            "target": "node-action-00034",
+            "sourceHandle": "true",
+            "targetHandle": "input",
+            "type": "smoothstep",
+            "animated": true,
+            "reconnectable": true,
+            "style": {
+              "stroke": "#10b981",
+              "strokeWidth": 2
+            },
+            "markerEnd": {
+              "type": "arrowclosed",
+              "color": "#10b981",
+              "width": 14,
+              "height": 14
+            }
+          }
+        ],
+        "createdAt": "2026-09-08T06:18:36.600Z",
+        "updatedAt": "2026-09-08T06:18:44.419Z"
+      },
+      {
+        "id": "wf-1788847527199",
+        "tenantId": "company_kite_aviation",
+        "name": "On WhatsApp received",
+        "hasDraft": true,
+        "event": "On WhatsApp received",
+        "eventIcon": "globe",
+        "status": false,
+        "statusMeta": "Draft saved by Admin",
+        "totalRuns": 0,
+        "last24hRuns": 0,
+        "last24hFailures": 0,
+        "isDraft": true,
+        "nodes": [
+          {
+            "id": "node-trigger",
+            "type": "triggerNode",
+            "position": {
+              "x": 97.33333333333334,
+              "y": 0
+            },
+            "data": {
+              "kind": "trigger",
+              "catalogId": "on_whatsapp_received",
+              "label": "On WhatsApp received",
+              "description": "Triggers when a new WhatsApp message is received from a lead",
+              "iconName": "whatsapp_msg",
+              "category": "events",
+              "config": {
+                "triggerEvent": "on_whatsapp_received",
+                "notes": "Workflow triggered by On WhatsApp received"
+              }
+            }
+          }
+        ],
+        "edges": [],
+        "createdAt": "2026-09-08T06:07:11.340Z",
+        "updatedAt": "2026-09-08T06:07:11.678Z"
+      },
+      {
         "id": "wf-1788592289529",
         "tenantId": "company_kite_aviation",
         "name": "Inbound Lead Routing & WhatsApp Automation",
@@ -4058,9 +4349,9 @@
               "category": "actions",
               "config": {
                 "method": "POST",
-                "endpointUrl": "fsfsfsfsdf",
-                "apiTemplate": "new api",
-                "templateId": "tpl-1788602750957",
+                "endpointUrl": "hkjhkjhkj",
+                "apiTemplate": "hjkuhkhk",
+                "templateId": "tpl-1788754723961",
                 "headers": [
                   {
                     "key": "Content-type",
@@ -4125,7 +4416,7 @@
           }
         ],
         "createdAt": "2026-09-05T07:10:57.249Z",
-        "updatedAt": "2026-09-05T10:10:40.035Z"
+        "updatedAt": "2026-09-08T05:51:15.738Z"
       },
       {
         "id": "wf-1",
@@ -4180,6 +4471,224 @@
         "createdAt": "2026-08-20T10:00:00.000Z",
         "updatedAt": "2026-08-20T10:00:00.000Z",
         "tenantId": "company_kite_aviation"
+      }
+    ]
+  },
+  "templates": {
+    "company_kite_aviation": [
+      {
+        "id": "tpl-1788754723961",
+        "tenantId": "company_kite_aviation",
+        "name": "hjkuhkhk",
+        "method": "POST",
+        "endpointUrl": "hkjhkjhkj",
+        "timeoutSeconds": 3,
+        "headers": [
+          {
+            "key": "Content-type",
+            "value": "application/json"
+          }
+        ],
+        "bodyPayload": "{\n  \"lead_id\": \"{{lead.id}}\",\n  \"name\": \"{{lead.name}}\",\n  \"phone\": \"{{lead.phone}}\",\n  \"email\": \"{{lead.email}}\",\n  \"status\": \"{{lead.status}}\"\n}",
+        "queryParams": [],
+        "authConfig": {
+          "type": "none",
+          "token": "",
+          "username": "",
+          "password": "",
+          "apiKeyKey": "",
+          "apiKeyValue": "",
+          "apiKeyLocation": "header"
+        },
+        "variablesUsed": "lead.id +4",
+        "workflow": "None",
+        "createdBy": "FC",
+        "createdAt": "2026-09-07T04:18:43.962Z",
+        "updatedAt": "2026-09-07T04:18:44.299Z"
+      }
+    ]
+  },
+  "actions": {
+    "company_kite_aviation": [
+      {
+        "id": "node-action-80937",
+        "tenantId": "company_kite_aviation",
+        "actionType": "call_api",
+        "name": "Call API",
+        "teamMember": "Assignee",
+        "targetTeamMember": "assignee",
+        "header": "",
+        "body": "",
+        "url": "{{LEAD_LINK}}",
+        "config": {
+          "apiTemplate": "hjkuhkhk",
+          "method": "POST",
+          "endpointUrl": "hkjhkjhkj",
+          "headers": [
+            {
+              "key": "Content-type",
+              "value": "application/json"
+            }
+          ],
+          "bodyPayload": "{\n  \"lead_id\": \"{{lead.id}}\",\n  \"name\": \"{{lead.name}}\",\n  \"phone\": \"{{lead.phone}}\",\n  \"email\": \"{{lead.email}}\",\n  \"status\": \"{{lead.status}}\"\n}",
+          "notes": "Custom API invocation",
+          "templateId": "tpl-1788754723961",
+          "queryParams": [],
+          "authConfig": {
+            "type": "none",
+            "token": "",
+            "username": "",
+            "password": "",
+            "apiKeyKey": "",
+            "apiKeyValue": "",
+            "apiKeyLocation": "header"
+          }
+        },
+        "variablesUsed": [],
+        "nodeId": "node-action-80937",
+        "createdAt": "2026-09-08T06:16:34.958Z",
+        "updatedAt": "2026-09-08T06:16:34.963Z"
+      },
+      {
+        "id": "node-action-52536",
+        "tenantId": "company_kite_aviation",
+        "actionType": "time_delay",
+        "name": "Time Delay",
+        "teamMember": "Assignee",
+        "targetTeamMember": "assignee",
+        "header": "10 Minute",
+        "body": "After Previous step",
+        "url": "{{LEAD_LINK}}",
+        "config": {
+          "delayValue": 10,
+          "delayUnit": "Minute",
+          "delayDirection": "After",
+          "delayReference": "Previous step",
+          "notes": ""
+        },
+        "variablesUsed": [],
+        "nodeId": "node-action-52536",
+        "createdAt": "2026-09-07T06:18:31.701Z",
+        "updatedAt": "2026-09-07T06:18:32.024Z"
+      },
+      {
+        "id": "node-action-75518",
+        "tenantId": "company_kite_aviation",
+        "actionType": "update_lead_status",
+        "name": "Update Lead Status",
+        "teamMember": "Assignee",
+        "targetTeamMember": "assignee",
+        "header": "Follow Up",
+        "body": "Follow Up",
+        "url": "{{LEAD_LINK}}",
+        "config": {
+          "targetStage": "Follow Up",
+          "stageName": "Follow Up",
+          "stageColor": "#F59E0B",
+          "status": "Follow Up",
+          "notes": ""
+        },
+        "variablesUsed": [],
+        "nodeId": "node-action-75518",
+        "createdAt": "2026-09-07T06:04:52.849Z",
+        "updatedAt": "2026-09-07T06:04:53.174Z"
+      },
+      {
+        "id": "node-action-56554",
+        "tenantId": "company_kite_aviation",
+        "actionType": "update_lead_rating",
+        "name": "Update Lead Rating",
+        "teamMember": "Assignee",
+        "targetTeamMember": "assignee",
+        "header": "increment",
+        "body": "",
+        "url": "{{LEAD_LINK}}",
+        "config": {
+          "ratingOperation": "increment",
+          "ratingValue": "",
+          "notes": ""
+        },
+        "variablesUsed": [],
+        "nodeId": "node-action-56554",
+        "createdAt": "2026-09-07T05:26:35.092Z",
+        "updatedAt": "2026-09-07T05:26:35.404Z"
+      },
+      {
+        "id": "node-action-92117",
+        "tenantId": "company_kite_aviation",
+        "actionType": "update_lead_fields",
+        "name": "Update Lead Fields",
+        "teamMember": "Assignee",
+        "targetTeamMember": "assignee",
+        "header": "Batch",
+        "body": "",
+        "url": "{{LEAD_LINK}}",
+        "config": {
+          "fieldName": "batch",
+          "fieldLabel": "Batch",
+          "fieldValue": "",
+          "fieldType": "text",
+          "fieldUpdateMode": "clear",
+          "notes": "",
+          "fieldUpdates": [
+            {
+              "id": "row-1",
+              "fieldName": "batch",
+              "fieldLabel": "Batch",
+              "fieldType": "text",
+              "operation": "empty",
+              "valueMode": "variable",
+              "variableKey": "",
+              "variableLabel": "",
+              "customValue": ""
+            }
+          ],
+          "variableKey": "",
+          "variableLabel": "",
+          "customValue": ""
+        },
+        "variablesUsed": [],
+        "nodeId": "node-action-92117",
+        "createdAt": "2026-09-07T05:14:52.292Z",
+        "updatedAt": "2026-09-07T05:14:52.601Z"
+      },
+      {
+        "id": "node-action-3",
+        "tenantId": "company_kite_aviation",
+        "actionType": "call_api",
+        "name": "Call API",
+        "teamMember": "Assignee",
+        "targetTeamMember": "assignee",
+        "header": "",
+        "body": "",
+        "url": "{{LEAD_LINK}}",
+        "config": {
+          "method": "POST",
+          "endpointUrl": "hkjhkjhkj",
+          "apiTemplate": "hjkuhkhk",
+          "templateId": "tpl-1788754723961",
+          "headers": [
+            {
+              "key": "Content-type",
+              "value": "application/json"
+            }
+          ],
+          "bodyPayload": "{\n  \"lead_id\": \"{{lead.id}}\",\n  \"name\": \"{{lead.name}}\",\n  \"phone\": \"{{lead.phone}}\",\n  \"email\": \"{{lead.email}}\",\n  \"status\": \"{{lead.status}}\"\n}",
+          "queryParams": [],
+          "authConfig": {
+            "type": "none",
+            "token": "",
+            "username": "",
+            "password": "",
+            "apiKeyKey": "",
+            "apiKeyValue": "",
+            "apiKeyLocation": "header"
+          }
+        },
+        "variablesUsed": [],
+        "nodeId": "node-action-3",
+        "createdAt": "2026-09-07T04:19:01.672Z",
+        "updatedAt": "2026-09-07T04:19:01.984Z"
       }
     ]
   }

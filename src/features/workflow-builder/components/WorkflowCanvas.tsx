@@ -42,8 +42,12 @@ interface WorkflowCanvasProps {
 
 const nodeTypes: NodeTypes = {
   trigger: TriggerNode,
+  triggerNode: TriggerNode,
+  event: TriggerNode,
   condition: ConditionNode,
-  action: ActionNode
+  conditionNode: ConditionNode,
+  action: ActionNode,
+  actionNode: ActionNode
 };
 
 // Clean connection line with guaranteed pointer-events none

@@ -317,14 +317,14 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                         setIsDrawerOpen(false);
                         onOpenPowerDialer();
                       }}
-                      className="flex items-center space-x-2.5 p-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-bold text-xs shadow-xs cursor-pointer text-left transition-all active:scale-[0.98]"
+                      className="flex items-center space-x-2.5 p-2.5 rounded-xl bg-[#5034a8] hover:bg-[#432993] text-white font-bold text-xs shadow-xs cursor-pointer text-left transition-all active:scale-[0.98]"
                     >
                       <div className="p-1.5 rounded-lg bg-white/20 shrink-0">
-                        <PhoneCall className="w-4 h-4 text-emerald-400" />
+                        <PhoneCall className="w-4 h-4 text-white" />
                       </div>
                       <div>
                         <div className="font-bold text-xs leading-tight">Power Dialer</div>
-                        <div className="text-[9px] text-blue-100 font-normal">Auto Call Queue</div>
+                        <div className="text-[9px] text-purple-100 font-normal">Auto Call Queue</div>
                       </div>
                     </button>
                   )}

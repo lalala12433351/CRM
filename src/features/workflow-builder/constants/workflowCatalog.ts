@@ -45,98 +45,326 @@ export const API_TEMPLATES: ApiTemplateOption[] = [];
 export const WORKFLOW_CATALOG: CatalogItem[] = [
   // =================== EVENTS (TRIGGERS) ===================
   {
-    id: 'incoming_call_ended',
+    id: 'on_whatsapp_received',
     kind: 'trigger',
     category: 'events',
-    name: 'On incoming call ended',
-    description: 'Triggers immediately when an inbound telecalling call concludes',
-    iconName: 'PhoneCall',
-    badge: 'Real-time',
-    defaultConfig: {
-      triggerEvent: 'incoming_call_ended',
-      eventFilter: 'all_calls',
-      notes: 'Triggers for all incoming phone calls'
-    }
-  },
-  {
-    id: 'incoming_whatsapp',
-    kind: 'trigger',
-    category: 'events',
-    name: 'Incoming Whatsapp',
-    description: 'Triggers when a customer replies or sends an inbound WhatsApp message',
+    name: 'On WhatsApp received',
+    description: 'Triggers when an inbound WhatsApp message or reply is received',
     iconName: 'MessageSquare',
-    badge: 'Popular',
+    badge: 'Draft',
     defaultConfig: {
-      triggerEvent: 'incoming_whatsapp',
-      eventFilter: 'any_message',
-      notes: 'Triggers on incoming WhatsApp conversation'
+      triggerEvent: 'on_whatsapp_received',
+      notes: 'Inbound WhatsApp webhook trigger'
     }
   },
   {
-    id: 'payment_completed',
+    id: 'on_facebook_lead',
     kind: 'trigger',
     category: 'events',
-    name: 'Payment Completed',
-    description: 'Triggers when an online Razorpay, Stripe or manual payment completes',
-    iconName: 'CreditCard',
-    badge: 'Finance',
+    name: 'On Facebook lead',
+    description: 'Triggers automatically when a new lead is captured from Facebook Instant Forms',
+    iconName: 'Share2',
+    badge: 'Published',
     defaultConfig: {
-      triggerEvent: 'payment_completed',
-      eventFilter: 'success_only',
-      notes: 'Fires when transaction status is PAID'
+      triggerEvent: 'on_facebook_lead',
+      leadSource: 'Facebook Ads'
     }
   },
   {
-    id: 'lead_status_change',
+    id: 'on_website_lead',
+    kind: 'trigger',
+    category: 'events',
+    name: 'On Website lead',
+    description: 'Triggers when an inbound lead submits a form on the website',
+    iconName: 'Globe',
+    badge: 'Published',
+    defaultConfig: {
+      triggerEvent: 'on_website_lead',
+      leadSource: 'Website Inbound'
+    }
+  },
+  {
+    id: 'on_justdial_lead',
+    kind: 'trigger',
+    category: 'events',
+    name: 'On Justdial lead',
+    description: 'Triggers when an inquiry arrives from Justdial lead sync',
+    iconName: 'Share2',
+    badge: 'Published',
+    defaultConfig: {
+      triggerEvent: 'on_justdial_lead',
+      leadSource: 'JustDial'
+    }
+  },
+  {
+    id: 'on_woocommerce_payment',
+    kind: 'trigger',
+    category: 'events',
+    name: 'On WooCommerce payment',
+    description: 'Triggers when an order or payment is processed in WooCommerce',
+    iconName: 'CreditCard',
+    defaultConfig: {
+      triggerEvent: 'on_woocommerce_payment'
+    }
+  },
+  {
+    id: 'on_call_log_lead',
+    kind: 'trigger',
+    category: 'events',
+    name: 'On call log lead',
+    description: 'Triggers when a new call log entry is recorded for a contact',
+    iconName: 'PhoneCall',
+    badge: 'Published',
+    defaultConfig: {
+      triggerEvent: 'on_call_log_lead'
+    }
+  },
+  {
+    id: 'on_excel_upload_lead',
+    kind: 'trigger',
+    category: 'events',
+    name: 'On Excel upload lead',
+    description: 'Triggers when leads are imported via CSV or Excel sheet upload',
+    iconName: 'Share2',
+    defaultConfig: {
+      triggerEvent: 'on_excel_upload_lead'
+    }
+  },
+  {
+    id: 'on_manual_lead',
+    kind: 'trigger',
+    category: 'events',
+    name: 'On manual lead',
+    description: 'Triggers when an agent manually adds a lead into the CRM',
+    iconName: 'Settings',
+    badge: 'Paused',
+    defaultConfig: {
+      triggerEvent: 'on_manual_lead'
+    }
+  },
+  {
+    id: 'on_lead_status_change',
     kind: 'trigger',
     category: 'events',
     name: 'On Lead Status Change',
     description: 'Triggers whenever a lead is moved across sales pipeline stages',
     iconName: 'RefreshCw',
+    badge: 'Published',
     defaultConfig: {
-      triggerEvent: 'lead_status_change',
-      eventFilter: 'any_stage_change',
-      notes: 'Monitors stage transition events'
+      triggerEvent: 'on_lead_status_change'
     }
   },
   {
-    id: 'missed_call',
+    id: 'on_lead_rating_change',
+    kind: 'trigger',
+    category: 'events',
+    name: 'On Lead Rating Change',
+    description: 'Triggers when lead rating or AI priority score changes (Hot, Warm, Cold)',
+    iconName: 'Star',
+    badge: 'Draft',
+    defaultConfig: {
+      triggerEvent: 'on_lead_rating_change'
+    }
+  },
+  {
+    id: 'on_lead_assignment_change',
+    kind: 'trigger',
+    category: 'events',
+    name: 'On Lead Assignment Change',
+    description: 'Triggers when a lead is reassigned to a telecaller or sales agent',
+    iconName: 'User',
+    badge: 'Draft',
+    defaultConfig: {
+      triggerEvent: 'on_lead_assignment_change'
+    }
+  },
+  {
+    id: 'on_user_note',
+    kind: 'trigger',
+    category: 'events',
+    name: 'On User Note',
+    description: 'Triggers when an agent adds a custom note on a lead',
+    iconName: 'FileText',
+    defaultConfig: {
+      triggerEvent: 'on_user_note'
+    }
+  },
+  {
+    id: 'on_system_note',
+    kind: 'trigger',
+    category: 'events',
+    name: 'On System Note',
+    description: 'Triggers when an automated system note or audit log is posted',
+    iconName: 'FileText',
+    defaultConfig: {
+      triggerEvent: 'on_system_note'
+    }
+  },
+  {
+    id: 'on_location_checkin',
+    kind: 'trigger',
+    category: 'events',
+    name: 'On Location Check-in',
+    description: 'Triggers when field sales agents perform a mobile GPS location check-in',
+    iconName: 'MapPin',
+    defaultConfig: {
+      triggerEvent: 'on_location_checkin'
+    }
+  },
+  {
+    id: 'on_ivr_incoming_call',
+    kind: 'trigger',
+    category: 'events',
+    name: 'On IVR incoming call',
+    description: 'Triggers when an incoming call connects to cloud IVR system',
+    iconName: 'PhoneCall',
+    defaultConfig: {
+      triggerEvent: 'on_ivr_incoming_call'
+    }
+  },
+  {
+    id: 'on_ivr_outgoing_call',
+    kind: 'trigger',
+    category: 'events',
+    name: 'On IVR outgoing call',
+    description: 'Triggers when an automated IVR outbound call is dialed',
+    iconName: 'PhoneCall',
+    defaultConfig: {
+      triggerEvent: 'on_ivr_outgoing_call'
+    }
+  },
+  {
+    id: 'on_incoming_call_ended',
+    kind: 'trigger',
+    category: 'events',
+    name: 'On incoming call ended',
+    description: 'Triggers immediately when an inbound telecalling call concludes',
+    iconName: 'PhoneCall',
+    badge: 'Draft',
+    defaultConfig: {
+      triggerEvent: 'on_incoming_call_ended',
+      eventFilter: 'all_calls'
+    }
+  },
+  {
+    id: 'on_outgoing_call_ended',
+    kind: 'trigger',
+    category: 'events',
+    name: 'On outgoing call ended',
+    description: 'Triggers after an outbound telecall by an agent finishes',
+    iconName: 'PhoneCall',
+    defaultConfig: {
+      triggerEvent: 'on_outgoing_call_ended'
+    }
+  },
+  {
+    id: 'on_missed_call',
     kind: 'trigger',
     category: 'events',
     name: 'On Missed Call',
     description: 'Triggers instantly when an inbound lead call goes unanswered',
     iconName: 'PhoneMissed',
-    badge: 'Priority',
     defaultConfig: {
-      triggerEvent: 'missed_call',
-      eventFilter: 'all_missed',
-      notes: 'Instant callback automation trigger'
+      triggerEvent: 'on_missed_call'
     }
   },
   {
-    id: 'facebook_lead',
+    id: 'on_call_recording_completed',
     kind: 'trigger',
     category: 'events',
-    name: 'Facebook Lead Ad Ingest',
-    description: 'Triggers automatically when Meta Instant Form is submitted',
+    name: 'On call recording completed',
+    description: 'Triggers once the audio recording file is uploaded and available',
+    iconName: 'PhoneCall',
+    defaultConfig: {
+      triggerEvent: 'on_call_recording_completed'
+    }
+  },
+  {
+    id: 'on_payment_completed',
+    kind: 'trigger',
+    category: 'events',
+    name: 'On payment completed',
+    description: 'Triggers when payment is marked successful or captured',
+    iconName: 'CreditCard',
+    defaultConfig: {
+      triggerEvent: 'on_payment_completed'
+    }
+  },
+  {
+    id: 'on_payment_pending',
+    kind: 'trigger',
+    category: 'events',
+    name: 'On payment pending',
+    description: 'Triggers when an invoice or payment link is generated and pending',
+    iconName: 'CreditCard',
+    defaultConfig: {
+      triggerEvent: 'on_payment_pending'
+    }
+  },
+  {
+    id: 'on_payment_failed',
+    kind: 'trigger',
+    category: 'events',
+    name: 'On payment failed',
+    description: 'Triggers when transaction fails or is declined by gateway',
+    iconName: 'CreditCard',
+    defaultConfig: {
+      triggerEvent: 'on_payment_failed'
+    }
+  },
+  {
+    id: 'on_payment_processing',
+    kind: 'trigger',
+    category: 'events',
+    name: 'On payment processing',
+    description: 'Triggers while payment settlement is undergoing bank processing',
+    iconName: 'CreditCard',
+    defaultConfig: {
+      triggerEvent: 'on_payment_processing'
+    }
+  },
+  {
+    id: 'on_payment_cancelled',
+    kind: 'trigger',
+    category: 'events',
+    name: 'On payment cancelled',
+    description: 'Triggers when user cancels payment flow',
+    iconName: 'CreditCard',
+    defaultConfig: {
+      triggerEvent: 'on_payment_cancelled'
+    }
+  },
+  {
+    id: 'on_payment_refunded',
+    kind: 'trigger',
+    category: 'events',
+    name: 'On payment refunded',
+    description: 'Triggers when transaction amount is partially or fully refunded',
+    iconName: 'CreditCard',
+    defaultConfig: {
+      triggerEvent: 'on_payment_refunded'
+    }
+  },
+  {
+    id: 'lead_recapture',
+    kind: 'trigger',
+    category: 'events',
+    name: 'Lead Recapture',
+    description: 'Triggers upon automatic lead recapture or deduplication action',
+    iconName: 'Users',
+    defaultConfig: {
+      triggerEvent: 'lead_recapture'
+    }
+  },
+  {
+    id: 'justdial_action',
+    kind: 'trigger',
+    category: 'events',
+    name: 'Justdial',
+    description: 'Triggers when Justdial custom webhook sync updates',
     iconName: 'Share2',
     defaultConfig: {
-      triggerEvent: 'facebook_lead',
-      leadSource: 'Facebook Ads',
-      notes: 'Instant lead capture from Meta Ads'
-    }
-  },
-  {
-    id: 'custom_action_created',
-    kind: 'trigger',
-    category: 'events',
-    name: 'Custom Webhook Trigger',
-    description: 'Inbound HTTP webhook listener for custom third-party integrations',
-    iconName: 'Zap',
-    defaultConfig: {
-      triggerEvent: 'custom_action_created',
-      eventFilter: 'POST',
-      notes: 'Receives JSON payloads at webhook endpoint'
+      triggerEvent: 'justdial_action'
     }
   },
 
@@ -212,10 +440,12 @@ export const WORKFLOW_CATALOG: CatalogItem[] = [
     description: 'Update lead attributes, source, company, location or custom fields',
     iconName: 'Settings',
     defaultConfig: {
-      fieldName: 'company',
+      fieldName: '',
+      fieldLabel: '',
       fieldValue: '',
+      fieldType: 'text',
       fieldUpdateMode: 'set',
-      notes: 'Updates lead metadata field'
+      notes: ''
     }
   },
   {
@@ -226,9 +456,9 @@ export const WORKFLOW_CATALOG: CatalogItem[] = [
     description: 'Update lead qualification rating to Hot, Warm, Cold or Not Qualified',
     iconName: 'Star',
     defaultConfig: {
-      targetRating: 'Hot',
-      ratingScore: 90,
-      notes: 'Sets lead temperature rating'
+      ratingOperation: 'replace',
+      ratingValue: '',
+      notes: ''
     }
   },
   {
@@ -239,8 +469,11 @@ export const WORKFLOW_CATALOG: CatalogItem[] = [
     description: 'Move lead to a specified pipeline stage automatically',
     iconName: 'UserCheck',
     defaultConfig: {
-      targetStage: 'Contacted',
-      notes: 'Advances lead status in CRM'
+      targetStage: '',
+      stageName: '',
+      stageColor: '',
+      status: '',
+      notes: ''
     }
   },
   {
@@ -251,39 +484,39 @@ export const WORKFLOW_CATALOG: CatalogItem[] = [
     description: 'Pause the workflow for minutes, hours or days before next step',
     iconName: 'Clock',
     defaultConfig: {
-      delayValue: 15,
-      delayUnit: 'minutes',
-      notes: 'Wait period before subsequent actions'
+      delayValue: 10,
+      delayUnit: 'Minute',
+      delayDirection: 'After',
+      delayReference: 'Previous step',
+      notes: ''
     }
   },
   {
     id: 'send_template',
     kind: 'action',
     category: 'actions',
-    name: 'Send Template',
-    description: 'Send official WhatsApp or SMS template with dynamic variables',
+    name: 'Send Whatsapp To Lead',
+    description: 'Send official WhatsApp template with dynamic variables to lead phone',
     iconName: 'Send',
     badge: 'WhatsApp',
     defaultConfig: {
-      templateName: 'lead_welcome_brochure',
+      whatsappAccount: '',
+      toPhoneFields: ['Phone'],
+      templateName: '',
       templateLanguage: 'en_US',
       recipientPhoneVariable: '{{lead.phone}}',
-      templateParams: {
-        '1': '{{lead.name}}',
-        '2': '{{company.name}}'
-      },
-      notes: 'Sends high-conversion welcome template'
+      notes: ''
     }
   },
   {
     id: 'add_in_list',
     kind: 'action',
     category: 'actions',
-    name: 'Add in List',
+    name: 'Add in List(s)',
     description: 'Add lead to a campaign list, tag group, or audience segment',
     iconName: 'Tag',
     defaultConfig: {
-      listName: 'High Intent Buyers List',
+      listName: '',
       listCategory: 'Marketing Segment',
       notes: 'Tags lead into campaign audience'
     }
@@ -292,11 +525,11 @@ export const WORKFLOW_CATALOG: CatalogItem[] = [
     id: 'remove_from_list',
     kind: 'action',
     category: 'actions',
-    name: 'Remove from List',
+    name: 'Remove from List(s)',
     description: 'Remove lead from a campaign list or audience segment',
     iconName: 'Tag',
     defaultConfig: {
-      removeListName: 'Cold Outreach Segment',
+      removeListName: '',
       notes: 'Suppresses lead from cold campaigns'
     }
   },
@@ -308,10 +541,15 @@ export const WORKFLOW_CATALOG: CatalogItem[] = [
     description: 'Create an automated follow-up task or reminder for the lead assignee',
     iconName: 'CheckSquare',
     defaultConfig: {
-      taskTitle: 'Call lead for product demo',
-      taskDueInHours: 24,
-      taskPriority: 'High',
-      taskNotes: 'Verify requirements and propose tailored quotation',
+      taskType: '',
+      assignTo: 'Lead Assignee',
+      taskPriority: 'None',
+      deadlineValue: 15,
+      deadlineUnit: 'Minute',
+      deadlineDirection: 'After',
+      deadlineReference: 'Previous step',
+      taskNotes: '',
+      cancelPreviousFollowups: false,
       notes: 'Automated CRM task'
     }
   },
@@ -323,8 +561,9 @@ export const WORKFLOW_CATALOG: CatalogItem[] = [
     description: 'Cancel all open or pending tasks associated with this lead',
     iconName: 'XSquare',
     defaultConfig: {
-      cancelScope: 'all',
-      notes: 'Clears stale tasks upon conversion or drop'
+      selectedTaskTypes: [],
+      cancelScope: 'specific',
+      notes: 'Cancel specific task types created on the lead'
     }
   },
   {
@@ -335,11 +574,12 @@ export const WORKFLOW_CATALOG: CatalogItem[] = [
     description: 'Record a deal payment or transaction against this lead',
     iconName: 'CreditCard',
     defaultConfig: {
-      paymentAmount: 5000,
+      paymentAmount: 0,
+      amountMode: 'variable',
+      amountVariable: '',
       paymentCurrency: 'INR',
-      paymentStatus: 'Completed',
-      paymentMode: 'UPI',
-      invoiceNumber: 'INV-2026-001',
+      paymentStatus: 'PENDING',
+      paymentDescription: '',
       notes: 'Records revenue transaction'
     }
   },
@@ -352,11 +592,85 @@ export const WORKFLOW_CATALOG: CatalogItem[] = [
     iconName: 'Headphones',
     badge: 'Telephony',
     defaultConfig: {
-      ivrCampaignName: 'Auto-Qualification IVR',
-      ivrVoiceBotScript: 'Welcome to Enterprise CRM. Press 1 for Sales, 2 for Support.',
-      ivrMaxRetries: 3,
-      ivrRingTimeout: 30,
-      notes: 'Outbound automated telecalling trigger'
+      ivrActionType: '',
+      fieldMappings: {},
+      notes: 'Outbound automated IVR action'
+    }
+  },
+  {
+    id: 'send_list',
+    kind: 'action',
+    category: 'actions',
+    name: 'Send Waca List To Lead',
+    description: 'Send a WhatsApp interactive list menu with custom sections and selectable options',
+    iconName: 'Send',
+    badge: 'WhatsApp',
+    defaultConfig: {
+      whatsappAccount: '',
+      toPhoneFields: ['Phone'],
+      recipientPhoneVariable: '{{lead.phone}}',
+      headerText: '',
+      bodyText: 'Please choose an option from the menu below:',
+      footerText: '',
+      buttonText: 'Select Option',
+      sections: [
+        {
+          id: 'sec_1',
+          title: 'Options',
+          rows: [
+            { id: 'opt_1', title: 'Option 1', description: '' },
+            { id: 'opt_2', title: 'Option 2', description: '' }
+          ]
+        }
+      ],
+      notes: 'WhatsApp Interactive List Message'
+    }
+  },
+  {
+    id: 'send_non_template',
+    kind: 'action',
+    category: 'actions',
+    name: 'Send Non Template message',
+    description: 'Send custom non-template text or media message to leads within the 24-hour service window',
+    iconName: 'Send',
+    badge: 'WhatsApp',
+    defaultConfig: {
+      whatsappAccount: '',
+      toPhoneFields: ['Phone'],
+      recipientPhoneVariable: '{{lead.phone}}',
+      messageType: 'text',
+      messageText: '',
+      mediaUrl: '',
+      mediaCaption: '',
+      notes: 'WhatsApp Non-Template Session Message'
+    }
+  },
+  {
+    id: 'send_interactive',
+    kind: 'action',
+    category: 'actions',
+    name: 'Send Waca Interactive To Lead',
+    description: 'Send WhatsApp quick reply action buttons or call-to-action website/call buttons',
+    iconName: 'Send',
+    badge: 'WhatsApp',
+    defaultConfig: {
+      whatsappAccount: '',
+      toPhoneFields: ['Phone'],
+      recipientPhoneVariable: '{{lead.phone}}',
+      interactiveType: 'quick_reply',
+      headerType: 'none',
+      headerText: '',
+      bodyText: '',
+      footerText: '',
+      buttons: [
+        { id: 'btn_1', title: 'Yes, Interested' },
+        { id: 'btn_2', title: 'Call Me Back' }
+      ],
+      ctaUrlLabel: 'Visit Website',
+      ctaUrl: 'https://',
+      ctaPhoneLabel: 'Call Us',
+      ctaPhone: '',
+      notes: 'WhatsApp Interactive Button Message'
     }
   },
   {
@@ -381,21 +695,15 @@ export const WORKFLOW_CATALOG: CatalogItem[] = [
     id: 'lead_condition',
     kind: 'condition',
     category: 'lead_conditions',
-    name: 'Lead Condition / If Else',
+    name: 'Check If Lead',
     description: 'Branch flow based on lead attributes, deal value, tags or source',
     iconName: 'Filter',
     badge: 'Branching',
     defaultConfig: {
-      conditionType: 'lead',
+      conditionType: 'Check If Whatsapp Message',
       logicOperator: 'AND',
-      rules: [
-        {
-          id: 'rule-1',
-          field: 'status',
-          operator: 'equals',
-          value: 'Interested'
-        }
-      ],
+      conditions: [],
+      rules: [],
       notes: 'Splits path into True (green) and False (red)'
     }
   },
@@ -410,17 +718,11 @@ export const WORKFLOW_CATALOG: CatalogItem[] = [
     iconName: 'GitFork',
     badge: 'Branching',
     defaultConfig: {
-      conditionType: 'event',
+      conditionType: 'Event Condition / If Else',
       logicOperator: 'AND',
-      rules: [
-        {
-          id: 'rule-1',
-          field: 'call_duration_seconds',
-          operator: 'greater_than',
-          value: '30'
-        }
-      ],
-      notes: 'Evaluates real-time event telemetry'
+      conditions: [],
+      rules: [],
+      notes: 'Branch flow based on call duration, response codes or message text'
     }
   }
 ];

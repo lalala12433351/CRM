@@ -1,21 +1,32 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-jakarta: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-inter: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sidebar: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-poppins: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-noto: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-nav: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --font-jetbrains: 'JetBrains Mono', monospace;
-  --font-sidebar: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-poppins: 'Poppins', sans-serif;
 }
 
 @layer base {
+  /* ======================================================================== */
+  /* MASTER CRM TYPOGRAPHY & THEME CONTROLLER                                  */
+  /* Single Source of Truth for all styling across the entire CRM            */
+  /* ======================================================================== */
+  *, *::before, *::after {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  }
+
   html {
     font-size: 100%;
     -webkit-text-size-adjust: 100%;
     touch-action: manipulation;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
     height: 100%;
     width: 100%;
   }
@@ -23,7 +34,7 @@
   body {
     background-color: #F8FAFC;
     color: #1E293B;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     -webkit-tap-highlight-color: transparent;
@@ -42,25 +53,37 @@
     width: 100%;
     display: flex;
     flex-direction: column;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
   }
 
-  h1, h2, h3, h4, h5, h6, .font-heading, .font-sans, .font-inter {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  /* Universal headings, buttons, forms, and navigation */
+  h1, h2, h3, h4, h5, h6, 
+  button, input, select, textarea, option, optgroup,
+  aside, nav, header, main, section, table, tr, th, td,
+  .font-heading, .font-sans, .font-inter, .font-poppins, .font-noto, .font-nav, .font-sidebar {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
     letter-spacing: -0.015em;
   }
 
+  /* CREATE WORKFLOWS & WORKFLOW BUILDER TYPOGRAPHY */
+  .react-flow,
+  .react-flow *,
+  .react-flow__node,
+  .react-flow__node *,
+  .react-flow__panel,
+  .react-flow__panel *,
+  .react-flow__controls,
+  .react-flow__controls *,
+  .react-flow__attribution,
+  .workflow-canvas,
+  .workflow-canvas * {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  }
+
+  /* Monospace only for code snippets and raw system payloads */
   .font-mono, code, pre, kbd, samp, .font-code {
     font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
     letter-spacing: -0.01em;
-  }
-
-  /* Preserve original font for the side navigation bar */
-  aside, .sidebar-nav, .side-nav, [data-sidebar="true"] {
-    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-  }
-  aside *, .sidebar-nav *, .side-nav *, [data-sidebar="true"] * {
-    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 
   /* Prevent auto-zoom on focus in iOS Safari for form fields */
@@ -124,7 +147,7 @@
 /* DROPDOWN SYSTEM (<select>, <option>, <optgroup>)                           */
 /* ========================================================================== */
 select {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
   color: #0f172a !important;
   background-color: #ffffff !important;
   border-color: #cbd5e1;
@@ -156,7 +179,7 @@ select option {
   font-size: 13px !important;
   font-weight: 500 !important;
   padding: 8px 12px !important;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
   line-height: 1.4 !important;
 }
 
@@ -174,7 +197,7 @@ select optgroup {
   color: #475569 !important;
   font-size: 11px !important;
   font-weight: 700 !important;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
   text-transform: uppercase !important;
   letter-spacing: 0.05em !important;
   padding: 6px 10px !important;
@@ -184,7 +207,7 @@ select optgroup {
 input[type="date"],
 input[type="datetime-local"],
 input[type="time"] {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
   color: #0f172a !important;
   background-color: #ffffff !important;
   border-color: #cbd5e1;
