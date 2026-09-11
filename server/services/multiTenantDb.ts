@@ -102,12 +102,15 @@ export interface TenantTask {
   description?: string;
   assigneeAgentId: string;
   assigneeAgentName: string;
-  priority: 'High' | 'Medium' | 'Low';
-  status: 'Pending' | 'Completed' | 'Rejected';
+  priority: 'High' | 'Medium' | 'Low' | 'high' | 'medium' | 'low';
+  status: 'Pending' | 'Completed' | 'Rejected' | 'pending' | 'completed' | 'rejected' | 'cancelled' | 'Cancelled';
   dueDate: string;
-  taskValue: number;
+  taskValue?: number;
   createdAt: string;
   createdByAdminId?: string;
+  leadId?: string;
+  leadName?: string;
+  leadPhone?: string;
 }
 
 export interface TenantIntegration {
@@ -128,9 +131,12 @@ export interface TenantActivity {
   agentId?: string;
   agentName?: string;
   type: string;
-  title: string;
+  title?: string;
   description?: string;
-  timestamp: string;
+  timestamp?: string;
+  action?: string;
+  details?: string;
+  createdAt?: string;
 }
 
 export interface TenantCall {
@@ -236,59 +242,7 @@ interface LocalStoreSchema {
 const DATA_DIR = path.join(process.cwd(), '.data');
 const STORE_PATH = path.join(DATA_DIR, 'multi_tenant_store.json');
 
-const DEFAULT_WORKFLOWS: Omit<TenantWorkflow, 'tenantId'>[] = [
-  {
-    id: 'wf-1',
-    name: 'On Website lead',
-    hasDraft: false,
-    event: 'Lead Creation',
-    eventIcon: 'globe',
-    status: true,
-    statusMeta: '13d ago by Faisal C',
-    totalRuns: 853,
-    last24hRuns: 10,
-    last24hFailures: 0,
-    isDraft: false,
-    nodes: [],
-    edges: [],
-    createdAt: '2026-08-20T10:00:00.000Z',
-    updatedAt: '2026-08-20T10:00:00.000Z'
-  },
-  {
-    id: 'wf-2',
-    name: 'On Lead Status Change',
-    hasDraft: true,
-    event: 'Lead Status Change',
-    eventIcon: 'file',
-    status: true,
-    statusMeta: '2M ago by Faisal C',
-    totalRuns: 19233,
-    last24hRuns: 432,
-    last24hFailures: 0,
-    isDraft: false,
-    nodes: [],
-    edges: [],
-    createdAt: '2026-08-20T10:00:00.000Z',
-    updatedAt: '2026-08-20T10:00:00.000Z'
-  },
-  {
-    id: 'wf-3',
-    name: 'On call log lead',
-    hasDraft: false,
-    event: 'Call Log',
-    eventIcon: 'phone',
-    status: true,
-    statusMeta: '3M ago by Faisal C',
-    totalRuns: 862,
-    last24hRuns: 0,
-    last24hFailures: 0,
-    isDraft: false,
-    nodes: [],
-    edges: [],
-    createdAt: '2026-08-20T10:00:00.000Z',
-    updatedAt: '2026-08-20T10:00:00.000Z'
-  }
-];
+const DEFAULT_WORKFLOWS: Omit<TenantWorkflow, 'tenantId'>[] = [];
 
 const DEFAULT_STAGES: Omit<TenantStage, 'tenantId'>[] = [
   { id: 'stage-1', name: 'Fresh', color: '#3B82F6', order: 1, category: 'initial', winProbability: 10, isActive: true },
@@ -1171,14 +1125,14 @@ export class MultiTenantDatabase {
     }
     
     // Check if store has workflows for this tenant
-    if (!this.store.workflows[tenantId] || this.store.workflows[tenantId].length === 0) {
+    if (!this.store.workflows[tenantId]) {
       // Try to hydrate from RDS PostgreSQL database
       const fromRds = await this.fetchWorkflowsFromRds(tenantId);
       if (fromRds && fromRds.length > 0) {
         this.store.workflows[tenantId] = fromRds;
         this.saveStore();
       } else {
-        this.store.workflows[tenantId] = DEFAULT_WORKFLOWS.map((w) => ({ ...w, tenantId }));
+        this.store.workflows[tenantId] = [];
         this.saveStore();
       }
     }
@@ -1251,11 +1205,12 @@ export class MultiTenantDatabase {
     return deleted;
   }
 
-  public async toggleWorkflowStatus(tenantId: string, workflowId: string): Promise<TenantWorkflow | null> {
+  public async toggleWorkflowStatus(tenantId: string, workflowId: string, explicitStatus?: boolean): Promise<TenantWorkflow | null> {
     if (!this.store.workflows || !this.store.workflows[tenantId]) return null;
     const target = this.store.workflows[tenantId].find((w) => w.id === workflowId);
     if (!target) return null;
-    target.status = !target.status;
+    target.status = explicitStatus !== undefined ? Boolean(explicitStatus) : !target.status;
+    (target as any).is_active = target.status;
     target.statusMeta = target.status ? 'Published by Admin' : 'Disabled by Admin';
     target.updatedAt = new Date().toISOString();
     this.saveStore();

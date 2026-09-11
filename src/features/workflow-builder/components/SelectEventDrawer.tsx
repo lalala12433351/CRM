@@ -25,24 +25,19 @@ export const SelectEventDrawer: React.FC<SelectEventDrawerProps> = ({
   onSelectEvent
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedEventId, setSelectedEventId] = useState<string>('on_whatsapp_received');
+  const [selectedEventId, setSelectedEventId] = useState<string>('');
   
-  // Track open/closed state for categories
-  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({
-    'cat-whatsapp': true,
-    'cat-lead-field-change': false,
-    'cat-ivr': true,
-    'cat-call-activities': true,
-    'cat-payment-activities': true,
-    'cat-custom-action-creation': true,
-    'cat-custom-action-updation': true
-  });
+  // Track open/closed state for categories (collapsed by default, opens only on user click)
+  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
 
   const toggleCategory = (categoryId: string) => {
-    setOpenCategories((prev) => ({
-      ...prev,
-      [categoryId]: !prev[categoryId]
-    }));
+    setOpenCategories((prev) => {
+      const currentState = prev[categoryId] ?? (searchQuery.trim().length > 0);
+      return {
+        ...prev,
+        [categoryId]: !currentState
+      };
+    });
   };
 
   // Find all items flat to get selected object
@@ -192,7 +187,7 @@ export const SelectEventDrawer: React.FC<SelectEventDrawerProps> = ({
 
             // Accordion category
             const cat = entry.data;
-            const isCategoryOpen = openCategories[cat.id] ?? true;
+            const isCategoryOpen = openCategories[cat.id] ?? (searchQuery.trim().length > 0);
 
             return (
               <div key={cat.id} className="pt-1">

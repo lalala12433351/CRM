@@ -22,7 +22,16 @@ import {
   Command,
   Search,
   LogOut,
-  User
+  User,
+  CheckCircle2,
+  Clock,
+  UserPlus,
+  PhoneForwarded,
+  CheckSquare,
+  BellRing,
+  Calendar,
+  Sparkles,
+  ExternalLink
 } from 'lucide-react';
 import { Agent, isAgentAdmin } from '../types';
 import { formatArcleName } from '../utils/brandUtils';
@@ -92,6 +101,9 @@ interface NavbarProps {
   setSearchQuery?: (query: string) => void;
   pendingFollowUpsCount?: number;
   pendingTasksCount?: number;
+  leads?: any[];
+  tasks?: any[];
+  onOpenLeadDetail?: (lead: any) => void;
   onNavigateToFollowUps?: () => void;
   onNavigateToSettings?: () => void;
   onNavigateToTab?: (tab: string, subTab?: string) => void;
@@ -116,6 +128,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   setSearchQuery = (_query: string) => {},
   pendingFollowUpsCount = 0,
   pendingTasksCount = 0,
+  leads = [],
+  tasks = [],
+  onOpenLeadDetail,
   onNavigateToFollowUps,
   onNavigateToSettings,
   onNavigateToTab,
@@ -129,6 +144,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
   const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false);
+  const [notificationTab, setNotificationTab] = useState<'all' | 'followups' | 'tasks'>('all');
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [showLicenseBanner, setShowLicenseBanner] = useState(true);
 
@@ -482,63 +498,196 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
 
           {/* Notifications Dropdown Popover */}
-          {isNotificationMenuOpen && (
-            <div className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-24px)] glass-dropdown rounded-2xl p-3 z-[99999] animate-in fade-in text-xs font-sans shadow-2xl">
-              <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
-                <div className="flex items-center space-x-2">
-                  <Bell className="w-4 h-4 text-[#3a2088]" />
-                  <span className="font-bold text-slate-900">Notifications & Alarms</span>
-                </div>
-                {pendingFollowUpsCount > 0 && (
-                  <span className="px-2 py-0.5 rounded-full bg-rose-50 border border-rose-200 text-rose-700 text-[10px] font-bold">
-                    {pendingFollowUpsCount} Due
-                  </span>
-                )}
-              </div>
+          {isNotificationMenuOpen && (() => {
+            const followupsList = (leads || []).filter((l: any) => l.followUpAt || l.status === 'Follow Up').slice(0, 5);
+            const pendingTasksList = (tasks || []).filter((t: any) => t.status === 'Pending' || !t.status).slice(0, 5);
+            const totalActiveAlerts = pendingFollowUpsCount + pendingTasksCount;
 
-              <div className="py-2.5 space-y-2">
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-slate-700 text-[11px]">Follow-Up Reminders</span>
-                    <span className="font-mono font-bold text-slate-900 text-[11px]">{pendingFollowUpsCount}</span>
+            return (
+              <div className="absolute right-0 top-full mt-2.5 w-96 max-w-[calc(100vw-24px)] rounded-2xl bg-white/95 backdrop-blur-xl border border-slate-200/90 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.18),0_10px_20px_-5px_rgba(0,0,0,0.08)] p-0 z-[99999] animate-in fade-in slide-in-from-top-2 duration-150 text-xs font-sans overflow-hidden">
+                {/* Header */}
+                <div className="px-4 py-3 bg-gradient-to-r from-slate-50/90 via-purple-50/40 to-slate-50/90 border-b border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-7 h-7 rounded-lg bg-[#5034a8]/10 text-[#5034a8] flex items-center justify-center">
+                      <BellRing className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-[13px] leading-tight">Notifications</h4>
+                      <p className="text-[10px] text-slate-500">Live alerts & reminders</p>
+                    </div>
                   </div>
-                  <p className="text-[10px] text-slate-500">Scheduled client calls and follow-ups requiring attention.</p>
+                  {totalActiveAlerts > 0 ? (
+                    <span className="px-2.5 py-0.5 rounded-full bg-rose-50 border border-rose-200/80 text-rose-600 text-[10px] font-bold shadow-2xs">
+                      {totalActiveAlerts} Active
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 text-[10px] font-semibold">
+                      All Clear
+                    </span>
+                  )}
                 </div>
 
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-slate-700 text-[11px]">Pending Tasks</span>
-                    <span className="font-mono font-bold text-slate-900 text-[11px]">{pendingTasksCount}</span>
-                  </div>
-                  <p className="text-[10px] text-slate-500">Uncompleted tasks and action items assigned to you.</p>
+                {/* Filter Tabs */}
+                <div className="flex items-center p-1.5 bg-slate-50/80 border-b border-slate-100 gap-1 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => setNotificationTab('all')}
+                    className={`flex-1 py-1 px-2 rounded-lg font-semibold transition-all cursor-pointer text-center ${
+                      notificationTab === 'all'
+                        ? 'bg-white text-[#5034a8] shadow-2xs border border-slate-200/80'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    All ({totalActiveAlerts})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNotificationTab('followups')}
+                    className={`flex-1 py-1 px-2 rounded-lg font-semibold transition-all cursor-pointer text-center ${
+                      notificationTab === 'followups'
+                        ? 'bg-white text-[#5034a8] shadow-2xs border border-slate-200/80'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    Follow-Ups ({pendingFollowUpsCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNotificationTab('tasks')}
+                    className={`flex-1 py-1 px-2 rounded-lg font-semibold transition-all cursor-pointer text-center ${
+                      notificationTab === 'tasks'
+                        ? 'bg-white text-[#5034a8] shadow-2xs border border-slate-200/80'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    Tasks ({pendingTasksCount})
+                  </button>
+                </div>
+
+                {/* Content List */}
+                <div className="max-h-72 overflow-y-auto divide-y divide-slate-100 p-1.5 space-y-1">
+                  {/* Follow-up Items */}
+                  {(notificationTab === 'all' || notificationTab === 'followups') && followupsList.length > 0 && (
+                    followupsList.map((lead: any) => (
+                      <div
+                        key={`notif-lead-${lead.id}`}
+                        className="p-2.5 rounded-xl hover:bg-slate-50/90 transition-all group flex items-start space-x-3 cursor-pointer"
+                        onClick={() => {
+                          setIsNotificationMenuOpen(false);
+                          if (onOpenLeadDetail) onOpenLeadDetail(lead);
+                          else if (onNavigateToFollowUps) onNavigateToFollowUps();
+                        }}
+                      >
+                        <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 border border-amber-200/80 flex items-center justify-center shrink-0 mt-0.5">
+                          <PhoneForwarded className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-bold text-slate-900 truncate text-[12px]">{lead.name || 'Unnamed Contact'}</span>
+                            <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md shrink-0">
+                              Follow-Up
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 truncate mt-0.5">{lead.phone || 'Phone not set'}</p>
+                          <div className="flex items-center justify-between mt-1.5">
+                            <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-slate-400" />
+                              <span>{lead.followUpAt ? new Date(lead.followUpAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Scheduled'}</span>
+                            </span>
+                            {lead.phone && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.location.href = `tel:${lead.phone}`;
+                                }}
+                                className="px-2 py-0.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-[10px] flex items-center space-x-1 cursor-pointer transition-all shadow-2xs"
+                              >
+                                <PhoneCall className="w-2.5 h-2.5" />
+                                <span>Call</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+
+                  {/* Task Items */}
+                  {(notificationTab === 'all' || notificationTab === 'tasks') && pendingTasksList.length > 0 && (
+                    pendingTasksList.map((task: any) => (
+                      <div
+                        key={`notif-task-${task.id}`}
+                        className="p-2.5 rounded-xl hover:bg-slate-50/90 transition-all flex items-start space-x-3 cursor-pointer"
+                        onClick={() => {
+                          setIsNotificationMenuOpen(false);
+                          if (onNavigateToTab) onNavigateToTab('tasks');
+                        }}
+                      >
+                        <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-200/80 flex items-center justify-center shrink-0 mt-0.5">
+                          <CheckSquare className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-bold text-slate-900 truncate text-[12px]">{task.title}</span>
+                            <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-md shrink-0">
+                              {task.priority || 'Task'}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                            Assigned to {task.assigneeAgentName || 'You'}
+                          </p>
+                          <div className="flex items-center justify-between mt-1.5">
+                            <span className="text-[10px] text-slate-400">
+                              {task.dueDate ? `Due: ${new Date(task.dueDate).toLocaleDateString()}` : 'Pending action'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+
+                  {/* Empty state when no items in tab */}
+                  {((notificationTab === 'all' && totalActiveAlerts === 0) ||
+                    (notificationTab === 'followups' && followupsList.length === 0) ||
+                    (notificationTab === 'tasks' && pendingTasksList.length === 0)) && (
+                    <div className="p-6 text-center space-y-2">
+                      <div className="w-10 h-10 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                        <CheckCircle2 className="w-5 h-5" />
+                      </div>
+                      <p className="font-bold text-slate-800 text-[12px]">All caught up!</p>
+                      <p className="text-[11px] text-slate-500 max-w-xs mx-auto">No pending follow-ups or alerts in this view.</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer Quick Links */}
+                <div className="p-2.5 bg-slate-50/90 border-t border-slate-100 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsNotificationMenuOpen(false);
+                      if (onNavigateToFollowUps) onNavigateToFollowUps();
+                      else if (onNavigateToTab) onNavigateToTab('followups');
+                    }}
+                    className="flex-1 py-1.5 px-2.5 rounded-xl bg-[#5034a8] hover:bg-[#3f278c] text-white font-bold text-center text-[11px] transition-colors cursor-pointer shadow-xs"
+                  >
+                    Open Follow-Ups
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsNotificationMenuOpen(false);
+                      if (onNavigateToTab) onNavigateToTab('tasks');
+                    }}
+                    className="flex-1 py-1.5 px-2.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-center text-[11px] transition-colors cursor-pointer shadow-2xs"
+                  >
+                    View All Tasks
+                  </button>
                 </div>
               </div>
-
-              <div className="pt-2 border-t border-slate-100 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsNotificationMenuOpen(false);
-                    if (onNavigateToFollowUps) onNavigateToFollowUps();
-                    else if (onNavigateToTab) onNavigateToTab('followups');
-                  }}
-                  className="flex-1 py-1.5 px-2.5 rounded-xl bg-[#3a2088] hover:bg-[#2c186b] text-white font-bold text-center text-xs transition-colors cursor-pointer shadow-2xs"
-                >
-                  View Follow-Ups
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsNotificationMenuOpen(false);
-                    if (onNavigateToTab) onNavigateToTab('tasks');
-                  }}
-                  className="flex-1 py-1.5 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-center text-xs transition-colors cursor-pointer"
-                >
-                  View Tasks
-                </button>
-              </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
 
         {/* User Account Button (Rectangular white background behind user name) */}

@@ -309,8 +309,22 @@ export const PipelinePage: React.FC<PipelineViewProps> = ({
 
   // Filtered Leads for Kanban
   const filteredLeads = leads.filter(ld => {
-    if (selectedAgentFilter !== 'all' && ld.assignedAgentId !== selectedAgentFilter && ld.agentName !== selectedAgentFilter) {
-      return false;
+    if (selectedAgentFilter !== 'all') {
+      if (selectedAgentFilter === 'unassigned') {
+        const hasOwner = ld.ownerAgentId || (ld.ownerAgentName && ld.ownerAgentName !== 'Unassigned');
+        if (hasOwner) return false;
+      } else {
+        const agentObj = agents.find(a => a.id === selectedAgentFilter);
+        const matchesId = ld.ownerAgentId === selectedAgentFilter || (ld as any).assignedAgentId === selectedAgentFilter || ld.assignedTo === selectedAgentFilter;
+        const matchesName = (ld.ownerAgentName && ld.ownerAgentName.toLowerCase() === selectedAgentFilter.toLowerCase()) || 
+                            ((ld as any).agentName && (ld as any).agentName.toLowerCase() === selectedAgentFilter.toLowerCase()) ||
+                            (agentObj && (
+                              (ld.ownerAgentName && ld.ownerAgentName.toLowerCase() === agentObj.name.toLowerCase()) ||
+                              ((ld as any).agentName && (ld as any).agentName.toLowerCase() === agentObj.name.toLowerCase()) ||
+                              (ld.assignedTo && ld.assignedTo.toLowerCase() === agentObj.name.toLowerCase())
+                            ));
+        if (!matchesId && !matchesName) return false;
+      }
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -323,9 +337,7 @@ export const PipelinePage: React.FC<PipelineViewProps> = ({
     return true;
   });
 
-  // Calculate totals
-  const totalLeadsCount = filteredLeads.length;
-  const totalDealValue = filteredLeads.reduce((acc, ld) => acc + (ld.dealValue || ld.value || 0), 0);
+
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans p-3 md:p-6 space-y-4">
@@ -337,20 +349,9 @@ export const PipelinePage: React.FC<PipelineViewProps> = ({
             {viewMode === 'kanban' ? <Kanban className="w-5 h-5" /> : <SlidersHorizontal className="w-5 h-5" />}
           </div>
           <div>
-            <div className="flex items-center space-x-2">
-              <h1 className="text-base md:text-lg font-bold text-slate-900 tracking-tight">
-                {viewMode === 'kanban' ? 'Deals & Pipeline Kanban' : 'Lead Stages Configuration'}
-              </h1>
-              <span className="text-xs text-slate-400 font-medium">|</span>
-              <span className="text-xs text-slate-600 font-medium">
-                {viewMode === 'kanban' ? `${totalLeadsCount} Active Deals • ${formatDealValue(totalDealValue, currency)} Total Value` : 'Custom Stage Architecture'}
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {viewMode === 'kanban' 
-                ? 'Drag and drop lead cards across columns to update deal stages instantly in the database.'
-                : 'Configure initial, active, won and lost pipeline stages & manage lost reasons in the central database.'}
-            </p>
+            <h1 className="text-base md:text-lg font-bold text-slate-900 tracking-tight">
+              {viewMode === 'kanban' ? 'Deals & Pipeline Kanban' : 'Lead Stages Configuration'}
+            </h1>
           </div>
         </div>
 
@@ -408,6 +409,7 @@ export const PipelinePage: React.FC<PipelineViewProps> = ({
                 className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 font-semibold focus:outline-none cursor-pointer"
               >
                 <option value="all">All Telecallers & Agents</option>
+                <option value="unassigned">Unassigned</option>
                 {agents.map((ag) => (
                   <option key={ag.id} value={ag.id}>{ag.name}</option>
                 ))}
@@ -517,8 +519,11 @@ export const PipelinePage: React.FC<PipelineViewProps> = ({
 
                             <div className="text-[11px] text-slate-500 flex items-center justify-between">
                               <span>{lead.phone}</span>
-                              <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 truncate max-w-[90px]">
-                                {lead.agentName || 'Unassigned'}
+                              <span 
+                                className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 truncate max-w-[90px]"
+                                title={lead.ownerAgentName || (lead as any).agentName || agents.find(a => a.id === lead.ownerAgentId)?.name || 'Unassigned'}
+                              >
+                                {lead.ownerAgentName || (lead as any).agentName || agents.find(a => a.id === lead.ownerAgentId)?.name || 'Unassigned'}
                               </span>
                             </div>
 

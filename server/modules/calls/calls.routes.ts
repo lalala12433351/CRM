@@ -22,6 +22,17 @@ router.post('/calls', async (req: Request, res: Response) => {
     const tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string) || req.body?.tenantId || process.env.DEFAULT_TENANT_ID || 'default_tenant';
     const callData = { ...req.body, tenantId };
     const saved = await multiTenantDb.saveCall(tenantId, callData);
+    
+    // Trigger active workflows for Call Log
+    try {
+      const { workflowEngine } = await import('../../services/workflowEngine');
+      const leads = await multiTenantDb.getLeads(tenantId);
+      const matchedLead = leads.find((l) => l.id === callData.leadId || l.phone === callData.phoneNumber || l.name === callData.leadName);
+      await workflowEngine.triggerWorkflowsForEvent(tenantId, 'call_logged', { call: saved, lead: matchedLead });
+    } catch (wfErr: any) {
+      logger.warn('[Calls Route] Workflow trigger notice:', wfErr?.message);
+    }
+
     res.status(201).json({ success: true, tenantId, call: saved });
   } catch (err: any) {
     logger.error('Error creating call:', err);

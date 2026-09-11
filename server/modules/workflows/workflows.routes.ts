@@ -46,7 +46,8 @@ router.put('/workflows/:id/toggle', async (req: Request, res: Response) => {
       (req.headers['x-tenant-id'] as string) ||
       process.env.DEFAULT_TENANT_ID ||
       'default_tenant';
-    const updated = await multiTenantDb.toggleWorkflowStatus(tenantId, req.params.id);
+    const explicitStatus = req.body?.status !== undefined ? Boolean(req.body.status) : undefined;
+    const updated = await multiTenantDb.toggleWorkflowStatus(tenantId, req.params.id, explicitStatus);
     if (!updated) {
       return res.status(404).json({ success: false, message: 'Workflow not found' });
     }

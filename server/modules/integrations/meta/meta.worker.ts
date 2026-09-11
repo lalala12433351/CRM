@@ -65,6 +65,16 @@ export class MetaWorker {
         sourcePlatform: 'Meta Lead Ads'
       });
 
+      // Trigger active workflows for Meta Lead Ad Ingest
+      try {
+        const { workflowEngine } = await import('../../../services/workflowEngine');
+        const { multiTenantDb } = await import('../../../services/multiTenantDb');
+        await multiTenantDb.saveLead(client_id, newLead);
+        await workflowEngine.triggerWorkflowsForEvent(client_id, 'on_facebook_lead', { lead: newLead });
+      } catch (wfErr: any) {
+        logger.warn('[Meta Worker] Workflow trigger notice:', wfErr?.message);
+      }
+
       logger.info(`[Meta Worker] ✅ Lead ingested live: ${newLead.name} (${newLead.phone})`);
     } catch (err: any) {
       logger.error(`[Meta Worker] Failed to process leadgen ${leadgen_id}:`, err?.response?.data || err.message);

@@ -23,53 +23,7 @@ export interface WorkflowRecord {
 
 const STORAGE_KEY = 'pixbe_crm_workflows_db';
 
-export const DEFAULT_WORKFLOWS: WorkflowRecord[] = [
-  {
-    id: 'wf-1',
-    name: 'On Website lead',
-    hasDraft: false,
-    event: 'Lead Creation',
-    eventIcon: 'globe',
-    status: true,
-    statusMeta: '13d ago by Faisal C',
-    totalRuns: 853,
-    last24hRuns: 10,
-    last24hFailures: 0,
-    isDraft: false,
-    nodes: SAMPLE_TEMPLATES[0].nodes,
-    edges: SAMPLE_TEMPLATES[0].edges
-  },
-  {
-    id: 'wf-2',
-    name: 'On Lead Status Change',
-    hasDraft: true,
-    event: 'Lead Status Change',
-    eventIcon: 'file',
-    status: true,
-    statusMeta: '2M ago by Faisal C',
-    totalRuns: 19233,
-    last24hRuns: 432,
-    last24hFailures: 0,
-    isDraft: false,
-    nodes: SAMPLE_TEMPLATES[0].nodes,
-    edges: SAMPLE_TEMPLATES[0].edges
-  },
-  {
-    id: 'wf-3',
-    name: 'On call log lead',
-    hasDraft: false,
-    event: 'Call Log',
-    eventIcon: 'phone',
-    status: true,
-    statusMeta: '3M ago by Faisal C',
-    totalRuns: 862,
-    last24hRuns: 0,
-    last24hFailures: 0,
-    isDraft: false,
-    nodes: SAMPLE_TEMPLATES[0].nodes,
-    edges: SAMPLE_TEMPLATES[0].edges
-  }
-];
+export const DEFAULT_WORKFLOWS: WorkflowRecord[] = [];
 
 export function getEffectiveTenantId(explicitTenantId?: string): string {
   if (explicitTenantId && explicitTenantId !== 'default_tenant') {
@@ -92,22 +46,23 @@ export function getEffectiveTenantId(explicitTenantId?: string): string {
  */
 export function getWorkflowsFromDb(tenantId?: string): WorkflowRecord[] {
   const tId = getEffectiveTenantId(tenantId);
-  if (typeof window === 'undefined') return DEFAULT_WORKFLOWS;
+  if (typeof window === 'undefined') return [];
 
   try {
     const raw = localStorage.getItem(`${STORAGE_KEY}_${tId}`);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+      if (Array.isArray(parsed)) {
+        // Filter out legacy mock placeholder workflows
+        const genuine = parsed.filter((w) => !w.statusMeta?.includes('Faisal C'));
+        return genuine;
       }
     }
   } catch (e) {
     console.warn('Error reading local workflows cache:', e);
   }
 
-  // If no cache, return defaults
-  return DEFAULT_WORKFLOWS;
+  return [];
 }
 
 /**
@@ -260,19 +215,23 @@ export function deleteWorkflowFromDb(
  */
 export function toggleWorkflowStatusInDb(
   id: string,
-  tenantId?: string
+  tenantId?: string,
+  explicitStatus?: boolean
 ): WorkflowRecord[] {
   const tId = getEffectiveTenantId(tenantId);
   if (typeof window === 'undefined') return [];
 
   try {
     const currentList = getWorkflowsFromDb(tId);
+    let targetNewStatus = false;
     const updatedList = currentList.map((w) => {
       if (w.id === id) {
+        const nextStatus = explicitStatus !== undefined ? explicitStatus : !w.status;
+        targetNewStatus = nextStatus;
         return {
           ...w,
-          status: !w.status,
-          statusMeta: 'Just now by Admin',
+          status: nextStatus,
+          statusMeta: nextStatus ? 'Published by Admin' : 'Disabled by Admin',
           updatedAt: new Date().toISOString()
         };
       }
@@ -281,12 +240,14 @@ export function toggleWorkflowStatusInDb(
 
     localStorage.setItem(`${STORAGE_KEY}_${tId}`, JSON.stringify(updatedList));
 
-    // Persist status toggle to multi_tenant_store.json
+    // Persist status toggle to multi_tenant_store.json & backend database
     fetchWithTenantAuth(`/api/workflows/${encodeURIComponent(id)}/toggle`, {
       method: 'PUT',
       headers: {
+        'Content-Type': 'application/json',
         'x-tenant-id': tId
-      }
+      },
+      body: JSON.stringify({ status: targetNewStatus })
     }).catch((err) => {
       console.warn('[workflowStorage] Async toggle in backend JSON store error:', err);
     });
@@ -299,21 +260,25 @@ export function toggleWorkflowStatusInDb(
 }
 
 export interface WorkflowExecutionLog {
-  step: number;
-  title: string;
+  step?: number;
+  nodeId?: string;
+  nodeLabel?: string;
+  title?: string;
   status: 'success' | 'failed';
   message: string;
+  timestamp?: string;
 }
 
 export interface StoredWorkflowExecution {
   id: string;
   workflowId?: string;
   triggerName: string;
-  leadName: string;
-  leadPhone: string;
-  status: 'success' | 'failed' | 'sleeping' | 'waiting' | 'pending';
-  duration: string;
-  timestamp: string;
+  leadName?: string;
+  leadPhone?: string;
+  executionTime?: string;
+  status: 'success' | 'failed' | 'sleeping' | 'waiting' | 'pending' | 'Failed' | 'Success';
+  duration?: string;
+  timestamp?: string;
   createdAt?: string;
   logs?: WorkflowExecutionLog[];
 }

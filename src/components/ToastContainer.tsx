@@ -1,5 +1,5 @@
-import React from 'react';
-import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
 import { useToast, ToastItem } from '../context/ToastContext';
 
 export const ToastContainer: React.FC = () => {
@@ -10,7 +10,7 @@ export const ToastContainer: React.FC = () => {
   return (
     <aside 
       aria-label="Notifications"
-      className="fixed top-4 right-3 sm:right-6 z-[999999] flex flex-col space-y-2.5 max-w-[calc(100vw-24px)] w-[380px] pointer-events-none"
+      className="fixed top-5 right-3 sm:right-6 z-[999999] flex flex-col space-y-2.5 max-w-[calc(100vw-24px)] w-[380px] pointer-events-none font-sans"
     >
       {toasts.map((toast) => (
         <ToastCard key={toast.id} toast={toast} onDismiss={() => removeToast(toast.id)} />
@@ -20,63 +20,58 @@ export const ToastContainer: React.FC = () => {
 };
 
 const ToastCard: React.FC<{ toast: ToastItem; onDismiss: () => void }> = ({ toast, onDismiss }) => {
-  const isSuccess = toast.type === 'success';
-  const isError = toast.type === 'error';
-  const isWarning = toast.type === 'warning';
-  const isInfo = toast.type === 'info';
+  const duration = toast.duration ?? 4000;
+  const [progress, setProgress] = useState(100);
+
+  useEffect(() => {
+    if (duration <= 0) return;
+    const interval = 20;
+    const step = (interval / duration) * 100;
+    const timer = setInterval(() => {
+      setProgress((prev) => Math.max(0, prev - step));
+    }, interval);
+
+    return () => clearInterval(timer);
+  }, [duration]);
 
   const typeConfig = {
     success: {
-      bg: 'bg-emerald-50/95 border-emerald-200/90 text-emerald-950',
-      iconBg: 'bg-emerald-500 text-white',
-      badgeBg: 'bg-emerald-100 text-emerald-800',
-      icon: CheckCircle2,
+      cardBorder: 'border-emerald-200/80 hover:border-emerald-300',
+      progressBar: 'bg-emerald-500',
       defaultTitle: 'Success'
     },
     error: {
-      bg: 'bg-rose-50/95 border-rose-200/90 text-rose-950',
-      iconBg: 'bg-rose-500 text-white',
-      badgeBg: 'bg-rose-100 text-rose-800',
-      icon: AlertCircle,
+      cardBorder: 'border-rose-200/80 hover:border-rose-300',
+      progressBar: 'bg-rose-500',
       defaultTitle: 'Error'
     },
     warning: {
-      bg: 'bg-amber-50/95 border-amber-200/90 text-amber-950',
-      iconBg: 'bg-amber-500 text-white',
-      badgeBg: 'bg-amber-100 text-amber-800',
-      icon: AlertTriangle,
+      cardBorder: 'border-amber-200/80 hover:border-amber-300',
+      progressBar: 'bg-amber-500',
       defaultTitle: 'Attention'
     },
     info: {
-      bg: 'bg-indigo-50/95 border-indigo-200/90 text-indigo-950',
-      iconBg: 'bg-indigo-600 text-white',
-      badgeBg: 'bg-indigo-100 text-indigo-800',
-      icon: Info,
-      defaultTitle: 'Update'
+      cardBorder: 'border-purple-200/80 hover:border-purple-300',
+      progressBar: 'bg-[#5034a8]',
+      defaultTitle: 'Notification'
     }
   };
 
   const config = typeConfig[toast.type] || typeConfig.info;
-  const IconComponent = config.icon;
 
   return (
     <div
       role="alert"
-      className={`pointer-events-auto rounded-2xl border shadow-xl backdrop-blur-md p-3.5 flex items-start space-x-3 transition-all animate-in fade-in slide-in-from-top-3 duration-200 select-none ${config.bg}`}
+      className={`pointer-events-auto relative overflow-hidden rounded-2xl bg-white/95 backdrop-blur-md border shadow-[0_10px_35px_-5px_rgba(0,0,0,0.12),0_4px_8px_-2px_rgba(0,0,0,0.06)] px-4 py-3.5 flex items-start space-x-3 transition-all duration-200 animate-in fade-in slide-in-from-top-3 select-none ${config.cardBorder}`}
     >
-      {/* Icon Badge */}
-      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-2xs ${config.iconBg}`}>
-        <IconComponent className="w-4.5 h-4.5 stroke-[2.2]" />
-      </div>
-
       {/* Message Body */}
       <div className="flex-1 min-w-0 pr-1 text-xs font-sans">
-        <div className="flex items-center space-x-1.5 mb-0.5">
-          <span className="font-bold tracking-tight text-[13px]">
+        <div className="flex items-center space-x-2 mb-1">
+          <span className="font-bold text-slate-900 tracking-tight text-[13px]">
             {toast.title || config.defaultTitle}
           </span>
         </div>
-        <p className="text-[12px] opacity-90 leading-snug font-normal break-words">
+        <p className="text-[12px] text-slate-600 font-normal leading-relaxed break-words">
           {toast.message}
         </p>
       </div>
@@ -84,12 +79,22 @@ const ToastCard: React.FC<{ toast: ToastItem; onDismiss: () => void }> = ({ toas
       {/* Dismiss Button */}
       <button
         onClick={onDismiss}
-        className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-black/5 transition-colors cursor-pointer shrink-0"
-        title="Dismiss Notification"
+        className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer shrink-0 mt-0.5"
+        title="Dismiss"
         aria-label="Close"
       >
         <X className="w-3.5 h-3.5" />
       </button>
+
+      {/* Subtle Progress Bar */}
+      {duration > 0 && (
+        <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-slate-100/80 overflow-hidden">
+          <div
+            className={`h-full transition-all duration-75 ease-linear ${config.progressBar}`}
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
     </div>
   );
 };

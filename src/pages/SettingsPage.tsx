@@ -340,6 +340,7 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
 
       try {
         if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.setItem('pixbe_auth_user', JSON.stringify(updatedUser));
           sessionStorage.setItem('pixbe_current_user', JSON.stringify(updatedUser));
         }
       } catch (e) {}

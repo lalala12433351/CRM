@@ -45,6 +45,7 @@ import {
 } from './pages';
 import { WorkflowBuilderPage } from './features/workflow-builder';
 import { saveWorkflowToDb, getWorkflowsFromDb, fetchWorkflowsFromApi } from './utils/workflowStorage';
+import { executeWorkflowTriggers } from './utils/workflowEngine';
 import { PhoneCall, X, Users } from 'lucide-react';
 import { verifyCurrentSession, logoutWithApi, fetchWithTenantAuth, clearLocalStorageAuth } from './lib/auth';
 import { formatArcleName } from './utils/brandUtils';
@@ -570,7 +571,12 @@ export function App() {
   };
 
   const activeAgentsList = agents && agents.length > 0 ? agents : (currentUser ? [currentUser] : INITIAL_AGENTS);
-  const activeAgent = currentUser || activeAgentsList.find((a) => a.id === activeAgentId) || activeAgentsList[0];
+  const matchedDbAgent = currentUser
+    ? activeAgentsList.find((a) => a.id === currentUser.id || (a.email && currentUser.email && a.email.toLowerCase() === currentUser.email.toLowerCase()) || (a.name && currentUser.name && a.name.toLowerCase() === currentUser.name.toLowerCase()))
+    : null;
+  const activeAgent = matchedDbAgent
+    ? { ...currentUser, ...matchedDbAgent, avatar: matchedDbAgent.avatar || currentUser?.avatar || '' }
+    : (currentUser || activeAgentsList.find((a) => a.id === activeAgentId) || activeAgentsList[0]);
   const activeAgentRights = getAgentPermissionRights(activeAgent, activeTemplates);
   const isAdmin = isAgentAdmin(activeAgent);
   const activeSupportEmail = workspaceEmail?.[0]?.email || activeAgent?.email || currentUser?.email || 'admin@company.com';
@@ -730,6 +736,11 @@ export function App() {
     };
 
     setLeads((prev) => [newLead, ...prev]);
+    fetchWithTenantAuth('/api/leads', {
+      method: 'POST',
+      body: JSON.stringify(newLead)
+    }).catch(console.warn);
+    executeWorkflowTriggers('Lead Creation', { lead: newLead }, activeTenantId).catch(() => {});
     showToast(`New Lead Captured: ${newLead.name} via ${newLead.source}`);
   };
 
@@ -815,6 +826,7 @@ export function App() {
     
     if (stageChanged) {
       triggerConversionDispatch(updated.id, updated.status, updated);
+      executeWorkflowTriggers('Lead Status Change', { lead: updated }, activeTenantId).catch(() => {});
     }
   };
 
@@ -843,6 +855,10 @@ export function App() {
     
     if (updates.status) {
       triggerConversionDispatch(leadId, updates.status);
+      executeWorkflowTriggers('Lead Status Change', { lead: { id: leadId, ...updates } }, activeTenantId).catch(() => {});
+    }
+    if (updates.notes) {
+      executeWorkflowTriggers('On User Note', { lead: { id: leadId, ...updates }, note: updates.notes }, activeTenantId).catch(() => {});
     }
   };
 
@@ -1169,6 +1185,9 @@ export function App() {
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         pendingFollowUpsCount={pendingFollowUpsCount}
         pendingTasksCount={pendingTasksCount}
+        leads={visibleLeads}
+        tasks={crmTasks}
+        onOpenLeadDetail={(lead) => setDetailLead(lead)}
         onNavigateToFollowUps={() => setCurrentView('followups')}
         onNavigateToSettings={() => setCurrentView('settings')}
         onNavigateToTab={(tab, subTab) => {

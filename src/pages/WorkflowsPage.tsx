@@ -49,7 +49,8 @@ import {
   Database,
   Sliders,
   Check,
-  X
+  X,
+  AlertTriangle
 } from 'lucide-react';
 import { WorkflowRule } from '../types';
 
@@ -111,7 +112,7 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
   useEffect(() => {
     setWorkflowsList(getWorkflowsFromDb());
     fetchWorkflowsFromApi().then((fresh) => {
-      if (Array.isArray(fresh) && fresh.length > 0) {
+      if (Array.isArray(fresh)) {
         setWorkflowsList(fresh);
       }
     }).catch(() => {});
@@ -302,20 +303,32 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
     triggerToast(`Duplicated ${type}: "${name}"`);
   };
 
-  // Handle delete row
-  const handleDelete = (id: string, name: string) => {
-    if (activeSubTab === 'workflows') {
+  // Delete confirmation dialog state
+  const [deleteConfirmTarget, setDeleteConfirmTarget] = useState<{ id: string; name: string; type: string } | null>(null);
+
+  // Trigger delete confirmation prompt
+  const promptDelete = (id: string, name: string, type: string = 'Workflow') => {
+    setDeleteConfirmTarget({ id, name, type });
+  };
+
+  // Perform confirmed deletion
+  const confirmDelete = () => {
+    if (!deleteConfirmTarget) return;
+    const { id, name, type } = deleteConfirmTarget;
+
+    if (activeSubTab === 'workflows' || type === 'Workflow') {
       const updated = deleteWorkflowFromDb(id);
       setWorkflowsList(updated);
-    } else if (activeSubTab === 'schedules') {
+    } else if (activeSubTab === 'schedules' || type === 'Schedule') {
       setSchedules(prev => prev.filter(s => s.id !== id));
-    } else if (activeSubTab === 'salesform') {
+    } else if (activeSubTab === 'salesform' || type === 'Salesform') {
       setSalesforms(prev => prev.filter(sf => sf.id !== id));
-    } else if (activeSubTab === 'api_templates') {
+    } else if (activeSubTab === 'api_templates' || type === 'API Template') {
       const updated = deleteApiTemplate(id);
       setApiTemplatesList(updated);
     }
-    triggerToast(`Removed "${name}"`);
+    triggerToast(`Removed ${type.toLowerCase()} "${name}"`);
+    setDeleteConfirmTarget(null);
   };
 
   if (isVisualBuilderOpen) {
@@ -619,17 +632,20 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                                 <label className="relative inline-flex items-center cursor-pointer">
                                   <input 
                                     type="checkbox" 
-                                    checked={wf.status} 
+                                    checked={Boolean(wf.status)} 
                                     onChange={() => {
-                                      const updated = toggleWorkflowStatusInDb(wf.id);
+                                      const nextStatus = !wf.status;
+                                      const updated = toggleWorkflowStatusInDb(wf.id, undefined, nextStatus);
                                       setWorkflowsList(updated);
-                                      triggerToast(`Workflow "${wf.name}" toggled ${wf.status ? 'OFF' : 'ON'}`);
+                                      triggerToast(`Workflow "${wf.name}" is now ${nextStatus ? 'ACTIVE (Will run on events)' : 'DISABLED (Will NOT run)'}`);
                                     }}
                                     className="sr-only peer" 
                                   />
                                   <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-[#3a2088]"></div>
                                 </label>
-                                <span className="text-[10px] text-slate-400 mt-1 font-sans">{wf.statusMeta}</span>
+                                <span className={`text-[10px] mt-1 font-sans font-medium ${wf.status ? 'text-slate-500' : 'text-slate-400'}`}>
+                                  {wf.status ? (wf.statusMeta || 'Published by Admin') : 'Disabled by Admin'}
+                                </span>
                               </div>
                             </td>
                             <td className="py-3.5 px-4 text-center font-bold text-slate-800">{wf.totalRuns}</td>
@@ -646,9 +662,9 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                                   <Copy className="w-3.5 h-3.5" />
                                 </button>
                                 <button 
-                                  onClick={() => handleDelete(wf.id, wf.name)}
+                                  onClick={() => promptDelete(wf.id, wf.name, 'Workflow')}
                                   className="p-1.5 rounded-lg border border-slate-200/90 hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer"
-                                  title="Delete"
+                                  title="Delete Workflow"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
@@ -837,7 +853,7 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                         <td className="py-3.5 px-4 text-center">{sch.lastRun}</td>
                         <td className="py-3.5 px-4 text-center">{sch.lastRunStatus}</td>
                         <td className="py-3.5 px-4 text-right">
-                          <button onClick={() => handleDelete(sch.id, sch.name)} className="p-1 text-slate-400 hover:text-rose-600">
+                          <button onClick={() => promptDelete(sch.id, sch.name, 'Schedule')} className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer" title="Delete Schedule">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </td>
@@ -1074,9 +1090,9 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                             <Copy className="w-3.5 h-3.5" />
                           </button>
                           <button 
-                            onClick={() => handleDelete(sf.id, sf.name)}
+                            onClick={() => promptDelete(sf.id, sf.name, 'Salesform')}
                             className="p-1.5 rounded-lg border border-slate-200/90 hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer"
-                            title="Delete"
+                            title="Delete Salesform"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1245,7 +1261,7 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
                             </button>
                             <button 
                               type="button"
-                              onClick={() => handleDelete(tpl.id, tpl.name)}
+                              onClick={() => promptDelete(tpl.id, tpl.name, 'API Template')}
                               className="p-1.5 rounded-lg border border-slate-200/90 hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer"
                               title="Delete Template"
                             >
@@ -1550,6 +1566,45 @@ export const WorkflowsPage: React.FC<WorkflowsViewProps> = ({
         onClose={() => setIsSelectEventOpen(false)}
         onSelectEvent={handleSelectEventAndCreate}
       />
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 transform transition-all">
+            <div className="flex items-start space-x-4">
+              <div className="w-11 h-11 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-6 h-6 text-rose-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-bold text-slate-900">
+                  Delete {deleteConfirmTarget.type}?
+                </h3>
+                <p className="text-sm text-slate-600 mt-1.5 leading-relaxed">
+                  Are you sure you want to delete <span className="font-semibold text-slate-900">"{deleteConfirmTarget.name}"</span>? This action cannot be undone.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 mt-6 pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmTarget(null)}
+                className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                className="px-4 py-2 text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors shadow-sm cursor-pointer flex items-center space-x-1.5"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Delete {deleteConfirmTarget.type}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
