@@ -83,8 +83,8 @@ export function CustomDropdown<T extends string = string>({
           <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
         </div>
         <ChevronDown
-          className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ml-1 ${
-            isOpen ? 'rotate-180 text-indigo-600' : ''
+          className={`w-3.5 h-3.5 opacity-75 transition-transform duration-200 shrink-0 ml-1 ${
+            isOpen ? 'rotate-180 opacity-100' : ''
           }`}
         />
       </button>

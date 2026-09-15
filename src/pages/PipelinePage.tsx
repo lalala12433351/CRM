@@ -16,11 +16,17 @@ import {
   TrendingUp,
   DollarSign,
   User,
-  Sparkles
+  Sparkles,
+  Calendar,
+  CalendarPlus,
+  Clock,
+  UserCheck
 } from 'lucide-react';
 import { PipelineStage, Lead, Agent, formatDealValue } from '../types';
 import { INITIAL_STAGES } from '../constants/initialState';
 import { toast } from '../context/ToastContext';
+import { ScheduleFollowUpModal } from '../components/ScheduleFollowUpModal';
+import { CustomDropdown, DropdownOption } from '../components/CustomDropdown';
 
 interface PipelineViewProps {
   leads?: Lead[];
@@ -254,6 +260,20 @@ export const PipelinePage: React.FC<PipelineViewProps> = ({
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
   const [dragOverStageName, setDragOverStageName] = useState<string | null>(null);
 
+  // Follow-up scheduling modal state
+  const [followUpLead, setFollowUpLead] = useState<Lead | null>(null);
+  const [followUpTargetStage, setFollowUpTargetStage] = useState<string>('Follow Up');
+
+  const isFollowUpStage = (stageName: string) => {
+    const normalized = stageName.trim().toLowerCase().replace(/[-_\s]+/g, '');
+    return normalized.includes('followup') || normalized.includes('follow');
+  };
+
+  const openFollowUpModal = (lead: Lead, targetStageName: string = 'Follow Up') => {
+    setFollowUpLead(lead);
+    setFollowUpTargetStage(targetStageName);
+  };
+
   const executeLeadStageChange = (
     targetLead: Lead,
     targetStageName: string
@@ -302,6 +322,11 @@ export const PipelinePage: React.FC<PipelineViewProps> = ({
     const targetLead = leads.find((l) => l.id === leadId);
     if (!targetLead) return;
     if ((targetLead.status || 'Fresh').toLowerCase() === targetStageName.toLowerCase()) return;
+
+    if (isFollowUpStage(targetStageName)) {
+      openFollowUpModal(targetLead, targetStageName);
+      return;
+    }
 
     // Normal stage progression directly
     executeLeadStageChange(targetLead, targetStageName);
@@ -533,19 +558,35 @@ export const PipelinePage: React.FC<PipelineViewProps> = ({
                               </p>
                             )}
 
-                            <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
-                              {/* Quick Stage Mover Dropdown */}
-                              <select
-                                value={lead.status || 'Fresh'}
-                                onChange={(e) => {
-                                  handleDropLeadOnStage(lead.id, e.target.value);
-                                }}
-                                className="text-[10px] font-semibold bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-slate-700 focus:outline-none cursor-pointer"
-                              >
-                                {localStages.map((s) => (
-                                  <option key={s.id} value={s.name}>{s.name}</option>
-                                ))}
-                              </select>
+                            <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between gap-1" onClick={(e) => e.stopPropagation()}>
+                              {/* Quick Stage Mover Pill Dropdown */}
+                              {(() => {
+                                const currentStatus = lead.status || 'Fresh';
+                                const stageConfig = localStages.find(s => s.name.toLowerCase() === currentStatus.toLowerCase());
+                                const rawColor = stageConfig?.color;
+                                const color = (rawColor && rawColor.startsWith('#')) ? rawColor : '#6366F1';
+                                const stageOptions: DropdownOption<string>[] = localStages.map(s => ({
+                                  value: s.name,
+                                  label: s.name
+                                }));
+                                return (
+                                  <CustomDropdown<string>
+                                    value={currentStatus}
+                                    onChange={(newStatus) => {
+                                      handleDropLeadOnStage(lead.id, newStatus);
+                                    }}
+                                    options={stageOptions}
+                                    align="left"
+                                    wrapperClassName="inline-block max-w-[140px]"
+                                    className="font-semibold py-0.5 px-2.5 rounded-full text-[11px] tracking-tight border transition-all shadow-none"
+                                    style={{
+                                      backgroundColor: `${color}1A`,
+                                      color: color,
+                                      borderColor: `${color}40`
+                                    }}
+                                  />
+                                );
+                              })()}
 
                               <div className="flex items-center space-x-1">
                                 <a
@@ -937,6 +978,60 @@ export const PipelinePage: React.FC<PipelineViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Reusable MODAL: Schedule Lead as Follow-Up */}
+      <ScheduleFollowUpModal
+        isOpen={Boolean(followUpLead)}
+        onClose={() => setFollowUpLead(null)}
+        lead={followUpLead}
+        targetStage={followUpTargetStage}
+        onConfirm={({ lead: confirmedLead, targetStage, combinedDate, remarks }) => {
+          const updates: Partial<Lead> = {
+            status: targetStage as any,
+            pipelineStageId: targetStage,
+            followUpAt: combinedDate,
+            notes: remarks
+              ? `${confirmedLead.notes ? confirmedLead.notes + '\n' : ''}[Follow-up Remark]: ${remarks}`
+              : confirmedLead.notes,
+            updatedAt: new Date().toISOString()
+          };
+
+          // 1. Trigger parent / global CRM state update
+          if (onUpdateLeadStage) {
+            onUpdateLeadStage(confirmedLead.id, targetStage);
+          }
+          if (onUpdateLead) {
+            onUpdateLead({ ...confirmedLead, ...updates } as Lead);
+          }
+
+          // 2. Direct database persistence
+          const token = typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('pixbe_auth_token') || '') : '';
+          fetch('/api/leads', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+              'x-tenant-id': activeTenantId || activeAgent?.tenantId || 'company_kite_aviation'
+            },
+            body: JSON.stringify({
+              id: confirmedLead.id,
+              ...updates
+            })
+          })
+            .then((res) => {
+              if (!res.ok) {
+                res.json().then(data => {
+                  if (data?.error) toast.error(data.error, 'Database Validation');
+                }).catch(() => {});
+              }
+            })
+            .catch((err) => console.warn('Direct database lead update error:', err));
+
+          const formattedDisplay = new Date(combinedDate).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+          toast.success(`Moved "${confirmedLead.name}" to ${targetStage} & scheduled follow-up (${formattedDisplay})`);
+          setFollowUpLead(null);
+        }}
+      />
     </div>
   );
 };
