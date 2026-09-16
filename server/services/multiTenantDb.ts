@@ -607,6 +607,7 @@ export class MultiTenantDatabase {
         updatedAt: now
       };
       this.store.leads[targetTenantId].unshift(savedLead);
+      console.log(`\n📥 [CRM LEAD SAVED] -> Name: "${savedLead.name}" | Phone: ${savedLead.phone} | Source: "${savedLead.source}" | Tenant: ${targetTenantId}`);
     }
 
     this.saveStore();

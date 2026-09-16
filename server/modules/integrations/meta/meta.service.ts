@@ -61,6 +61,16 @@ export class MetaService {
    * Get active page access token by Page ID
    */
   public async getPageToken(pageId: string) {
+    // 1. Instant check from .env for development
+    if (process.env.META_PAGE_ACCESS_TOKEN && (!process.env.META_PAGE_ID || process.env.META_PAGE_ID === pageId)) {
+      return {
+        client_id: process.env.DEFAULT_TENANT_ID || 'company_kite_aviation',
+        page_access_token: process.env.META_PAGE_ACCESS_TOKEN,
+        page_name: process.env.META_PAGE_NAME || 'Pixbee Page'
+      };
+    }
+
+    // 2. Database lookup
     try {
       const pageRow = await executeAwsQuery(
         `SELECT client_id, page_access_token, page_name FROM meta_connected_pages WHERE page_id = $1 AND is_active = true LIMIT 1`,
@@ -73,12 +83,11 @@ export class MetaService {
       logger.warn('[Meta Service] Database lookup notice:', dbErr?.message || dbErr);
     }
 
-    // Fallback for local development if token is set in .env
     if (process.env.META_PAGE_ACCESS_TOKEN) {
       return {
-        client_id: process.env.DEFAULT_TENANT_ID || 'default_admin',
+        client_id: process.env.DEFAULT_TENANT_ID || 'company_kite_aviation',
         page_access_token: process.env.META_PAGE_ACCESS_TOKEN,
-        page_name: process.env.META_PAGE_NAME || 'Meta Test Page'
+        page_name: process.env.META_PAGE_NAME || 'Pixbee Page'
       };
     }
 

@@ -85,10 +85,14 @@ export class MetaController {
    * POST /api/webhooks/meta (Event Ingest)
    */
   public async handleWebhookEvent(req: Request, res: Response) {
+    logger.info(`[Meta Webhook] 📥 Received webhook event: ${JSON.stringify(req.body)}`);
     res.status(200).send('EVENT_RECEIVED');
 
     const { object, entry } = req.body || {};
-    if (object !== 'page' || !Array.isArray(entry)) return;
+    if (object !== 'page' || !Array.isArray(entry)) {
+      logger.warn(`[Meta Webhook] Ignored non-page event or empty entry: ${object}`);
+      return;
+    }
 
     for (const item of entry) {
       for (const change of item.changes || []) {
@@ -96,6 +100,8 @@ export class MetaController {
           metaWorker.processLeadgenChange(change).catch((err) => {
             logger.error('[Meta Controller] Background worker error:', err);
           });
+        } else {
+          logger.info(`[Meta Webhook] Received unhandled field change: ${change.field}`);
         }
       }
     }
