@@ -6,26 +6,77 @@ import { verifyMetaSignature } from '../../../middleware/webhookVerify';
 
 const router = Router();
 
-// OAuth Callback (Public - Meta browser redirect)
-router.get('/auth/meta/callback', tenantContextMiddleware, (req, res) =>
-  metaController.handleOAuthCallback(req, res)
+// =========================================================================
+// 1. SELF-SERVE FACEBOOK OAUTH INTEGRATION ENDPOINTS
+// =========================================================================
+
+// GET /api/integrations/facebook/connect - Generates CSRF state & redirects to Meta OAuth dialog
+router.get(
+  ['/integrations/facebook/connect', '/auth/meta/connect', '/facebook/connect'],
+  tenantContextMiddleware,
+  (req, res) => metaController.handleConnect(req, res)
 );
+
+// GET /api/integrations/facebook/callback - Public Meta OAuth Redirect Handler
+router.get(
+  ['/integrations/facebook/callback', '/auth/meta/callback', '/facebook/callback'],
+  tenantContextMiddleware,
+  (req, res) => metaController.handleOAuthCallback(req, res)
+);
+
+// GET /api/integrations/facebook/pages - List user's connected Facebook Pages & active status
+router.get(
+  ['/integrations/facebook/pages', '/facebook/pages', '/meta/pages', '/meta/status'],
+  authMiddleware,
+  tenantContextMiddleware,
+  (req, res) => metaController.getConnectedPages(req, res)
+);
+
+// DELETE /api/integrations/facebook/pages/:pageId - Unsubscribe from Meta & mark disconnected
+router.delete(
+  ['/integrations/facebook/pages/:pageId', '/facebook/pages/:pageId'],
+  authMiddleware,
+  tenantContextMiddleware,
+  (req, res) => metaController.deleteConnectedPage(req, res)
+);
+
+// Legacy Disconnect route
+router.post(
+  ['/meta/disconnect', '/integrations/facebook/disconnect'],
+  authMiddleware,
+  tenantContextMiddleware,
+  (req, res) => metaController.disconnect(req, res)
+);
+
+// =========================================================================
+// 2. META LEAD ADS WEBHOOK ENDPOINTS
+// =========================================================================
 
 // Meta Webhook Handshake (GET)
-router.get('/webhooks/meta', (req, res) => metaController.handleWebhookHandshake(req, res));
-
-// Meta Real-Time Lead Event Receiver (POST)
-router.post('/webhooks/meta', verifyMetaSignature, (req, res) =>
-  metaController.handleWebhookEvent(req, res)
+router.get(
+  ['/webhooks/meta', '/webhooks/facebook'],
+  (req, res) => metaController.handleWebhookHandshake(req, res)
 );
 
-// Meta Connection Status & Disconnect
-router.get('/meta/status', authMiddleware, tenantContextMiddleware, (req, res) =>
-  metaController.getStatus(req, res)
+// Meta Real-Time Lead Event Receiver (POST with HMAC signature validation)
+router.post(
+  ['/webhooks/meta', '/webhooks/facebook'],
+  verifyMetaSignature,
+  (req, res) => metaController.handleWebhookEvent(req, res)
 );
 
-router.post('/meta/disconnect', authMiddleware, tenantContextMiddleware, (req, res) =>
-  metaController.disconnect(req, res)
-);
+// =========================================================================
+// 3. ON-DEMAND MANUAL LEAD SYNC
+// =========================================================================
+router.post('/meta/sync', async (req: any, res) => {
+  const { metaSyncEngine } = await import('./meta.sync');
+  const tenantId =
+    req.tenantId ||
+    req.headers['x-tenant-id'] ||
+    process.env.DEFAULT_TENANT_ID ||
+    'company_kite_aviation';
+  const result = await metaSyncEngine.syncAllMetaLeads(String(tenantId));
+  res.json({ success: true, ...result });
+});
 
 export default router;

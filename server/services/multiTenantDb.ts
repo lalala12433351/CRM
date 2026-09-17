@@ -223,6 +223,17 @@ export interface TenantAction {
   updatedAt: string;
 }
 
+export interface FacebookPageIntegration {
+  id: string;
+  clientId: string;
+  pageId: string;
+  pageName: string;
+  accessToken: string;
+  status: 'active' | 'disconnected' | 'revoked' | string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface LocalStoreSchema {
   tenants: Record<string, ClientTenant>;
   agents: Record<string, TenantAgent[]>;
@@ -232,6 +243,7 @@ interface LocalStoreSchema {
   tasks: Record<string, TenantTask[]>;
   calls: Record<string, TenantCall[]>;
   integrations: Record<string, TenantIntegration[]>;
+  facebookPages: Record<string, FacebookPageIntegration[]>;
   activities: Record<string, TenantActivity[]>;
   lostReasons: Record<string, string[]>;
   workflows: Record<string, TenantWorkflow[]>;
@@ -292,6 +304,7 @@ export class MultiTenantDatabase {
     fields: {},
     tasks: {},
     integrations: {},
+    facebookPages: {},
     activities: {},
     lostReasons: {},
     calls: {},
@@ -321,6 +334,7 @@ export class MultiTenantDatabase {
           fields: parsed.fields || {},
           tasks: parsed.tasks || {},
           integrations: parsed.integrations || {},
+          facebookPages: parsed.facebookPages || {},
           activities: parsed.activities || {},
           lostReasons: parsed.lostReasons || {},
           calls: parsed.calls || {},
@@ -487,7 +501,15 @@ export class MultiTenantDatabase {
   // 2. LEADS CRUD (STRICTLY SCOPED TO tenantId)
   // =========================================================================
   public async getLeads(tenantId: string, agentId?: string, isAdmin?: boolean): Promise<TenantLead[]> {
-    const tenantLeads = this.store.leads[tenantId] || [];
+    const tenantLeads = [...(this.store.leads[tenantId] || [])];
+    
+    // Strictly sort newest created first (latest timestamp on top)
+    tenantLeads.sort((a, b) => {
+      const timeA = new Date(a.createdAt || a.updatedAt || 0).getTime();
+      const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime();
+      return timeB - timeA;
+    });
+
     if (!isAdmin && agentId) {
       return tenantLeads.filter(
         (l) => l.ownerAgentId === agentId || l.ownerAgentName?.toLowerCase().includes(agentId.toLowerCase())
@@ -524,6 +546,46 @@ export class MultiTenantDatabase {
           existingIndex = idx;
           break;
         }
+      }
+    }
+
+    // 2. Intelligent Duplicate Authentication (by Meta leadgen ID, normalized phone, or email)
+    const normalizePhone = (p?: string) => (p || '').replace(/\D/g, '').slice(-10);
+    const cleanLeadPhone = normalizePhone(leadData.phone);
+    const cleanLeadEmail = (leadData.email || '').trim().toLowerCase();
+    const metaLeadgenId = leadData.customFields?.meta_leadgen_id || (leadData.id?.startsWith('meta-lead-') ? leadData.id.replace('meta-lead-', '') : null);
+
+    if (existingIndex === -1 && this.store.leads[targetTenantId]) {
+      const dupIndex = this.store.leads[targetTenantId].findIndex((l) => {
+        // A. Match by meta_leadgen_id
+        if (metaLeadgenId && (l.customFields?.meta_leadgen_id === metaLeadgenId || l.id === `meta-lead-${metaLeadgenId}`)) {
+          return true;
+        }
+        // B. Match by normalized 10-digit phone number (skip dummy numbers)
+        if (cleanLeadPhone && cleanLeadPhone.length >= 10 && cleanLeadPhone !== '0000000000' && !cleanLeadPhone.includes('9876500000')) {
+          const existingPhone = normalizePhone(l.phone);
+          if (existingPhone && existingPhone === cleanLeadPhone) {
+            return true;
+          }
+        }
+        // C. Match by email (skip dummy placeholders)
+        if (
+          cleanLeadEmail &&
+          cleanLeadEmail.includes('@') &&
+          !cleanLeadEmail.includes('test_lead@') &&
+          !cleanLeadEmail.includes('@meta.com') &&
+          !cleanLeadEmail.includes('example.com')
+        ) {
+          const existingEmail = (l.email || '').trim().toLowerCase();
+          if (existingEmail && existingEmail === cleanLeadEmail) {
+            return true;
+          }
+        }
+        return false;
+      });
+
+      if (dupIndex >= 0) {
+        existingIndex = dupIndex;
       }
     }
 
@@ -567,18 +629,41 @@ export class MultiTenantDatabase {
         ? existing.createdAt
         : resolvedCreatedAt;
 
+      // Merge tags
+      const mergedTags = Array.from(new Set([...(existing.tags || []), ...(leadData.tags || []), 'Meta Re-submission']));
+
+      // Add re-submission activity record
+      const existingActivities = existing.activities || [];
+      const newActivity = {
+        id: `act-${Date.now()}`,
+        leadId: existing.id,
+        agentId: existing.ownerAgentId || 'agent-admin',
+        agentName: existing.ownerAgentName || 'System',
+        type: 'note' as const,
+        title: 'Meta Lead Form Re-submission',
+        description: `Lead re-submitted form on ${new Date().toLocaleString()}`,
+        timestamp: now
+      };
+
       savedLead = {
         ...existing,
         ...leadData,
+        id: existing.id, // Preserve existing ID
+        name: leadData.name && leadData.name !== 'Meta Test Lead' && !leadData.name.includes('<test lead') ? leadData.name : existing.name,
+        phone: leadData.phone && !leadData.phone.includes('98765 00000') ? leadData.phone : existing.phone,
+        email: leadData.email && !leadData.email.includes('test_lead@') ? leadData.email : existing.email,
         customFields: {
           ...(existing.customFields || {}),
           ...(leadData.customFields || {})
         },
+        tags: mergedTags,
+        activities: [newActivity, ...existingActivities],
         tenantId: targetTenantId,
         createdAt: preservedCreatedAt,
         updatedAt: now
       };
       this.store.leads[targetTenantId][existingIndex] = savedLead;
+      console.log(`\n🔄 [META DUPLICATE MERGED] -> Name: "${savedLead.name}" | Existing ID: ${savedLead.id} | Phone: ${savedLead.phone}`);
     } else {
       savedLead = {
         id: leadData.id || `lead-${Date.now()}`,
@@ -607,7 +692,16 @@ export class MultiTenantDatabase {
         updatedAt: now
       };
       this.store.leads[targetTenantId].unshift(savedLead);
-      console.log(`\n📥 [CRM LEAD SAVED] -> Name: "${savedLead.name}" | Phone: ${savedLead.phone} | Source: "${savedLead.source}" | Tenant: ${targetTenantId}`);
+      console.log(`\n📥 [CRM NEW LEAD SAVED] -> Name: "${savedLead.name}" | Phone: ${savedLead.phone} | Source: "${savedLead.source}" | Tenant: ${targetTenantId}`);
+    }
+
+    // Keep store strictly sorted newest created first
+    if (this.store.leads[targetTenantId]) {
+      this.store.leads[targetTenantId].sort((a, b) => {
+        const timeA = new Date(a.createdAt || a.updatedAt || 0).getTime();
+        const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime();
+        return timeB - timeA;
+      });
     }
 
     this.saveStore();
@@ -1640,6 +1734,103 @@ export class MultiTenantDatabase {
     }
     return deleted;
   }
+
+  // =========================================================================
+  // FACEBOOK PAGE INTEGRATIONS (MULTI-TENANT STORE)
+  // =========================================================================
+  public async getFacebookPages(tenantId: string): Promise<FacebookPageIntegration[]> {
+    const list = this.store.facebookPages?.[tenantId] || [];
+    return [...list];
+  }
+
+  public async getFacebookPageByPageId(pageId: string): Promise<FacebookPageIntegration | null> {
+    if (!this.store.facebookPages) return null;
+    for (const tenantId of Object.keys(this.store.facebookPages)) {
+      const pages = this.store.facebookPages[tenantId] || [];
+      const found = pages.find((p) => p.pageId === pageId && p.status === 'active');
+      if (found) return found;
+    }
+    return null;
+  }
+
+  public async saveFacebookPage(
+    tenantId: string,
+    pageData: Partial<FacebookPageIntegration>
+  ): Promise<FacebookPageIntegration> {
+    if (!this.store.facebookPages) this.store.facebookPages = {};
+    if (!this.store.facebookPages[tenantId]) this.store.facebookPages[tenantId] = [];
+
+    const now = new Date().toISOString();
+    const existingIndex = this.store.facebookPages[tenantId].findIndex(
+      (p) => p.pageId === pageData.pageId || (pageData.id && p.id === pageData.id)
+    );
+
+    let page: FacebookPageIntegration;
+    if (existingIndex >= 0) {
+      page = {
+        ...this.store.facebookPages[tenantId][existingIndex],
+        ...pageData,
+        updatedAt: now
+      } as FacebookPageIntegration;
+      this.store.facebookPages[tenantId][existingIndex] = page;
+    } else {
+      page = {
+        id: pageData.id || `fb_page_${pageData.pageId || Date.now()}`,
+        clientId: tenantId,
+        pageId: pageData.pageId || '',
+        pageName: pageData.pageName || 'Facebook Page',
+        accessToken: pageData.accessToken || '',
+        status: pageData.status || 'active',
+        createdAt: pageData.createdAt || now,
+        updatedAt: now
+      };
+      this.store.facebookPages[tenantId].unshift(page);
+    }
+
+    this.saveStore();
+    logger.info(`[MultiTenantDb] Saved Facebook Page '${page.pageName}' (${page.pageId}) for tenant ${tenantId}`);
+    return page;
+  }
+
+  public async updateFacebookPageStatus(pageId: string, status: string, tenantId?: string): Promise<void> {
+    if (!this.store.facebookPages) return;
+    const targets = tenantId ? [tenantId] : Object.keys(this.store.facebookPages);
+    let updated = false;
+
+    for (const tId of targets) {
+      const list = this.store.facebookPages[tId] || [];
+      for (const p of list) {
+        if (p.pageId === pageId) {
+          p.status = status;
+          p.updatedAt = new Date().toISOString();
+          updated = true;
+        }
+      }
+    }
+
+    if (updated) {
+      this.saveStore();
+    }
+  }
+
+  public async deleteFacebookPage(tenantId: string, pageId: string): Promise<boolean> {
+    if (!this.store.facebookPages || !this.store.facebookPages[tenantId]) {
+      return false;
+    }
+    let found = false;
+    for (const p of this.store.facebookPages[tenantId]) {
+      if (p.pageId === pageId) {
+        p.status = 'disconnected';
+        p.updatedAt = new Date().toISOString();
+        found = true;
+      }
+    }
+    if (found) {
+      this.saveStore();
+    }
+    return found;
+  }
+
 
   // =========================================================================
   // ASYNC RDS SYNC HELPERS (WHEN DB IS ACCESSIBLE)

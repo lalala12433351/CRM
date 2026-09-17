@@ -53,6 +53,56 @@ router.post(['/integrations/save', '/api/integrations/save'], async (req: Reques
   }
 });
 
+// POST /api/integrations/disconnect or DELETE /api/integrations/:id
+router.post(['/integrations/disconnect', '/api/integrations/disconnect'], async (req: Request, res: Response) => {
+  try {
+    const tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string) || req.body?.tenantId || process.env.DEFAULT_TENANT_ID || 'default_tenant';
+    const { id, name } = req.body;
+    if (!id) {
+      return res.status(400).json({ success: false, error: 'Integration ID is required.' });
+    }
+
+    await multiTenantDb.saveIntegration(tenantId, {
+      id,
+      integrationName: name || id,
+      isConnected: false,
+      credentials: {},
+      syncFrequency: 'Disabled'
+    });
+
+    res.json({
+      success: true,
+      tenantId,
+      message: `Successfully disconnected ${name || id} integration!`
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.delete(['/integrations/:id', '/api/integrations/:id'], async (req: Request, res: Response) => {
+  try {
+    const tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string) || process.env.DEFAULT_TENANT_ID || 'default_tenant';
+    const { id } = req.params;
+
+    await multiTenantDb.saveIntegration(tenantId, {
+      id,
+      integrationName: id,
+      isConnected: false,
+      credentials: {},
+      syncFrequency: 'Disabled'
+    });
+
+    res.json({
+      success: true,
+      tenantId,
+      message: `Successfully disconnected ${id} integration!`
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // POST /api/integrations/test
 router.post('/integrations/test', async (req: Request, res: Response) => {
   try {

@@ -25,6 +25,10 @@ export async function startServer() {
 
   app.listen(serverPort, '0.0.0.0', () => {
     logger.info(`🚀 Server running on http://0.0.0.0:${serverPort}`);
+    // Start automated Meta real-time sync engine
+    import('./modules/integrations/meta/meta.sync').then(({ metaSyncEngine }) => {
+      metaSyncEngine.startPeriodicSync(15000); // Polls every 15s
+    }).catch((err) => logger.warn('[Meta Sync Start Notice]:', err?.message));
   });
 
   return app;

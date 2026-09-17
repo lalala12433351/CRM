@@ -28,25 +28,26 @@ export function verifyMetaWebhookHandshake(req: Request, res: Response): boolean
 }
 
 /**
- * Middleware to optionally check X-Hub-Signature-256 from Meta
+ * Middleware to check X-Hub-Signature-256 from Meta using the exact raw request buffer
  */
 export function verifyMetaSignature(req: Request, res: Response, next: NextFunction) {
-  const signature = req.headers['x-hub-signature-256'] as string;
+  const signature = (req.headers['x-hub-signature-256'] as string)?.trim();
   if (!signature || !metaConfig.appSecret) {
-    // If signature header is omitted in test environments, allow through
+    // If signature header is omitted in development / test environments, allow through
     return next();
   }
 
   try {
-    const rawBody = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-    const signatureHash = signature.replace('sha256=', '');
-    const isValid = verifyHmacSha256(rawBody, signatureHash, metaConfig.appSecret);
+    const rawPayload = (req as any).rawBody || (typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
+    const signatureHash = signature.startsWith('sha256=') ? signature.replace('sha256=', '') : signature;
+    const isValid = verifyHmacSha256(rawPayload, signatureHash, metaConfig.appSecret);
 
     if (!isValid) {
-      console.warn('⚠️ [Meta Webhook] Invalid X-Hub-Signature-256 signature');
+      console.warn('⚠️ [Meta Webhook] Invalid X-Hub-Signature-256 signature against app secret');
+      return res.status(403).json({ error: 'Invalid webhook signature' });
     }
-  } catch (err) {
-    console.warn('⚠️ [Meta Webhook] Signature verification notice:', err);
+  } catch (err: any) {
+    console.warn('⚠️ [Meta Webhook] Signature verification notice:', err.message);
   }
 
   next();

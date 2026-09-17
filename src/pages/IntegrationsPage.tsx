@@ -308,61 +308,148 @@ export const IntegrationsPage: React.FC<IntegrationsViewProps> = ({
   const [fbStatusMessage, setFbStatusMessage] = useState<string | null>(null);
 
   // Fetch Meta status on mount & listen for Meta OAuth Login popup postMessage callback
-  React.useEffect(() => {
-    fetch('/api/meta/status')
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          if (data.metaAppId) setFbAppId(data.metaAppId);
-          const cfg = data.config;
-          if (cfg) {
-            if (cfg.pageId) setFbPageId(cfg.pageId);
-            if (cfg.pageName) setFbPageName(cfg.pageName);
-            if (cfg.accessToken) setFbPageToken(cfg.accessToken);
-            if (cfg.userAccount) setFbUser(cfg.userAccount);
-            if (Array.isArray(cfg.pages) && cfg.pages.length > 0) {
-              setFbAvailablePages(cfg.pages);
-              setSelectedPageId(cfg.pages[0].id);
-            }
-            if (cfg.isConnected && cfg.pageName) {
-              setFbStep('connected');
-              setIntegrations(prev => prev.map(item => item.id === 'facebook' ? { ...item, isActive: true, lastSync: `Connected: ${cfg.pageName}` } : item));
-            } else {
-              setFbStep('overview');
-            }
-          }
-        }
-      })
-      .catch(() => {});
-
-    const handleFbAuthMessage = (event: MessageEvent) => {
-      if (event.data && (event.data.type === 'META_AUTH_PAGES' || event.data.type === 'FB_AUTH_SUCCESS')) {
-        const pages = event.data.pages || [];
-        const user = event.data.user || event.data.config?.userAccount;
-        if (user) setFbUser(user);
-        if (Array.isArray(pages) && pages.length > 0) {
-          setFbAvailablePages(pages);
-          setSelectedPageId(pages[0].id);
-          setFbStep('select_page');
-          setModalStatusMsg(`⚡ Found ${pages.length} Facebook Page(s). Select your page to sync leads.`);
-        } else if (event.data.config?.pageId) {
-          setFbPageId(event.data.config.pageId);
+  const fetchConnectedFacebookPages = React.useCallback(async () => {
+    try {
+      const res = await fetch('/api/integrations/facebook/pages');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.pages)) {
+        const activePages = data.pages.filter((p: any) => p.status === 'active');
+        setFbAvailablePages(data.pages);
+        if (activePages.length > 0) {
+          setFbPageId(activePages[0].page_id);
+          setFbPageName(activePages[0].page_name);
           setFbStep('connected');
+          setIntegrations(prev =>
+            prev.map(item =>
+              item.id === 'facebook'
+                ? {
+                    ...item,
+                    isActive: true,
+                    lastSync: `Connected (${activePages.length} Page${activePages.length > 1 ? 's' : ''})`
+                  }
+                : item
+            )
+          );
+        } else {
+          setIntegrations(prev =>
+            prev.map(item =>
+              item.id === 'facebook'
+                ? { ...item, isActive: false, lastSync: 'Disconnected' }
+                : item
+            )
+          );
         }
-        setIsFbConnectModalOpen(true);
       }
-    };
-    window.addEventListener('message', handleFbAuthMessage);
-    return () => window.removeEventListener('message', handleFbAuthMessage);
+    } catch {
+      // Fallback
+    }
   }, []);
 
-  const handleConnectMeta = () => {
-    const appId = "1785911265462186";
-    // Use current origin so it works both locally (ngrok) and on CloudFront
-    const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/meta/callback`);
-    const scope = "leads_retrieval,pages_show_list,pages_read_engagement,pages_manage_ads";
+  React.useEffect(() => {
+    fetchConnectedFacebookPages();
 
-    window.location.href = `https://www.facebook.com/v22.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
+    const handleFbAuthMessage = async (event: MessageEvent) => {
+      if (event.data && (event.data.type === 'META_AUTH_SUCCESS' || event.data.type === 'FB_AUTH_SUCCESS')) {
+        toast.success('Successfully connected Facebook Page(s) & registered webhooks!', 'Meta Integration');
+        await fetchConnectedFacebookPages();
+        setSelectedManageIntegration((prev) => prev?.id === 'facebook' ? prev : null);
+      } else if (event.data && event.data.type === 'META_AUTH_ERROR') {
+        toast.error(event.data.error || 'Facebook connection failed', 'Meta Integration');
+      }
+    };
+
+    window.addEventListener('message', handleFbAuthMessage);
+    return () => window.removeEventListener('message', handleFbAuthMessage);
+  }, [fetchConnectedFacebookPages]);
+
+  const handleConnectMeta = async () => {
+    setIsLoggingInFb(true);
+    try {
+      const res = await fetch('/api/integrations/facebook/connect?format=json');
+      const data = await res.json();
+      if (data.success && data.url) {
+        const width = 650;
+        const height = 750;
+        const left = window.screenX + (window.outerWidth - width) / 2;
+        const top = window.screenY + (window.outerHeight - height) / 2.5;
+        window.open(
+          data.url,
+          'Facebook OAuth',
+          `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,status=yes`
+        );
+      } else {
+        window.location.href = '/api/integrations/facebook/connect';
+      }
+    } catch {
+      window.location.href = '/api/integrations/facebook/connect';
+    } finally {
+      setIsLoggingInFb(false);
+    }
+  };
+
+  const handleDisconnectFacebookPage = async (pageId: string) => {
+    try {
+      const res = await fetch(`/api/integrations/facebook/pages/${pageId}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Disconnected page ${pageId}`, 'Meta Integration');
+        setFbAvailablePages(prev =>
+          prev.map(p => ((p.page_id || p.id) === pageId ? { ...p, status: 'disconnected' } : p))
+        );
+        await fetchConnectedFacebookPages();
+      } else {
+        toast.error(data.error || 'Failed to disconnect page', 'Meta Integration');
+      }
+    } catch (err: any) {
+      toast.error(err.message, 'Meta Integration');
+    }
+  };
+
+  const handleRemoveFacebookPage = async (pageId: string) => {
+    try {
+      const res = await fetch(`/api/integrations/facebook/pages/${pageId}?hard=true`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Removed page ${pageId}`, 'Meta Integration');
+        setFbAvailablePages(prev => prev.filter(p => (p.page_id || p.id) !== pageId));
+        await fetchConnectedFacebookPages();
+      } else {
+        toast.error(data.error || 'Failed to remove page', 'Meta Integration');
+      }
+    } catch (err: any) {
+      toast.error(err.message, 'Meta Integration');
+    }
+  };
+
+  const handleDisconnectIntegration = async (integration: IntegrationItem) => {
+    if (integration.id === 'facebook') {
+      await handleFacebookLogout();
+      return;
+    }
+    try {
+      await fetch('/api/integrations/disconnect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: integration.id, name: integration.name })
+      });
+      setIntegrations(prev =>
+        prev.map(item =>
+          item.id === integration.id
+            ? { ...item, isActive: false, lastSync: undefined }
+            : item
+        )
+      );
+      toast.success(`Disconnected ${integration.name}`, 'Integrations');
+      if (selectedIntegration?.id === integration.id) {
+        setIsModalOpen(false);
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to disconnect integration', 'Integrations');
+    }
   };
 
   const handleOfficialFacebookLogin = () => {
@@ -370,7 +457,7 @@ export const IntegrationsPage: React.FC<IntegrationsViewProps> = ({
   };
 
   const handleSyncSelectedPage = async () => {
-    const page = fbAvailablePages.find(p => p.id === selectedPageId);
+    const page = fbAvailablePages.find(p => p.id === selectedPageId || (p as any).page_id === selectedPageId);
     if (!page) {
       setModalStatusMsg("Please select a Facebook Page from the dropdown.");
       return;
@@ -525,14 +612,18 @@ export const IntegrationsPage: React.FC<IntegrationsViewProps> = ({
 
   const handleFacebookLogout = async () => {
     try {
+      await fetch('/api/integrations/facebook/disconnect', { method: 'POST' });
       await fetch('/api/meta/disconnect', { method: 'POST' });
     } catch (e) {}
     setFbUser(null);
     setFbPageToken('');
     setFbPageId('');
+    setFbAvailablePages([]);
     setFbStep('overview');
     setIntegrations(prev => prev.map(item => item.id === 'facebook' ? { ...item, isActive: false, lastSync: 'Disconnected' } : item));
     setModalStatusMsg('Disconnected from Meta account.');
+    toast.success('Disconnected from Meta account', 'Meta Integration');
+    await fetchConnectedFacebookPages();
   };
 
   const handleSyncFacebookLeads = async () => {
@@ -903,108 +994,120 @@ export const IntegrationsPage: React.FC<IntegrationsViewProps> = ({
           </div>
         </div>
 
-        {/* MAIN 2-COLUMN SECTION CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-          
-          {/* CARD 1: 1. FACEBOOK SYNC & OAUTH */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-4 text-left">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center space-x-2">
-                <span className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold">1</span>
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  Facebook Account & Sync
-                </h3>
-              </div>
-              {fbAvailablePages.length > 0 ? (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse" />
-                  Connected ({fbAvailablePages.length} Page{fbAvailablePages.length > 1 ? 's' : ''})
-                </span>
-              ) : (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                  Not Connected
-                </span>
-              )}
+        {/* SINGLE CLEAN CARD: FACEBOOK ACCOUNT & SYNC */}
+        <div className="max-w-2xl bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-4 text-left">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center space-x-2">
+              <span className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold">1</span>
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                Facebook Account & Sync
+              </h3>
             </div>
-
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Click below to authenticate your Facebook account. The system will automatically subscribe your Facebook pages to the CRM real-time lead webhook.
-            </p>
-
-            {/* THE SINGLE BUTTON */}
-            <button
-              onClick={handleConnectMeta}
-              className="w-full py-3.5 px-4 rounded-xl bg-[#1877F2] hover:bg-[#166FE5] text-white text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center space-x-2.5 cursor-pointer"
-            >
-              <span className="w-6 h-6 rounded-full bg-white text-[#1877F2] font-black text-sm flex items-center justify-center shadow-xs">
-                f
+            {fbAvailablePages.filter((p: any) => p.status === 'active').length > 0 ? (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse" />
+                Connected ({fbAvailablePages.filter((p: any) => p.status === 'active').length} Page{fbAvailablePages.filter((p: any) => p.status === 'active').length > 1 ? 's' : ''})
               </span>
-              <span>Connect Facebook</span>
-            </button>
-
-            {fbAvailablePages.length > 0 && (
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs text-slate-500 font-medium">
-                  Active Page: <strong className="text-slate-900">{fbPageName || fbAvailablePages[0]?.name}</strong>
-                </span>
-                <button
-                  onClick={handleFacebookLogout}
-                  className="text-xs text-rose-600 hover:text-rose-800 font-bold hover:underline cursor-pointer"
-                >
-                  Disconnect
-                </button>
-              </div>
+            ) : (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                Not Connected
+              </span>
             )}
           </div>
 
-          {/* CARD 2: 2. REAL-TIME WEBHOOK DETAILS */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-4 text-left">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center space-x-2">
-                <span className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold">2</span>
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  Live Webhook Endpoint
-                </h3>
-              </div>
-              <span className="text-[10px] font-bold text-slate-500 uppercase font-mono">
-                Graph API v22.0
-              </span>
-            </div>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Click below to authenticate your Facebook account. The system will automatically subscribe your Facebook pages to the CRM real-time lead webhook.
+          </p>
 
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-700 block">
-                Callback URL (CloudFront HTTPS)
-              </label>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="text"
-                  readOnly
-                  value="https://d3pcv3wpcxqhl2.cloudfront.net/api/webhooks/meta"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-800 select-all"
-                />
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText("https://d3pcv3wpcxqhl2.cloudfront.net/api/webhooks/meta");
-                    setCopiedUrl(true);
-                    setTimeout(() => setCopiedUrl(false), 2000);
-                  }}
-                  className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors shrink-0 cursor-pointer"
-                >
-                  {copiedUrl ? 'Copied!' : 'Copy'}
-                </button>
-              </div>
-            </div>
-
-            <div className="p-3 bg-blue-50/60 border border-blue-100 rounded-xl text-xs text-blue-900 leading-relaxed space-y-1">
-              <div className="font-bold flex items-center space-x-1.5 text-blue-950">
-                <span>⚡ Automatic Page Subscription</span>
-              </div>
-              <p className="text-[11px] text-blue-800">
-                When you click <strong>Connect Facebook</strong>, your selected Facebook Pages are automatically registered with the Lead Ads webhook. Any new form submissions will instantly flow into your CRM.
-              </p>
-            </div>
+          {/* COMPACT, SLEEK FACEBOOK CONNECT BUTTON */}
+          <div className="flex items-center space-x-3 pt-1">
+            <button
+              onClick={handleConnectMeta}
+              disabled={isLoggingInFb}
+              className="inline-flex items-center space-x-2 px-4 py-2 rounded-lg bg-[#0866FF] hover:bg-[#0052CC] active:bg-[#0041A8] text-white text-xs font-semibold shadow-xs hover:shadow transition-all cursor-pointer disabled:opacity-60"
+            >
+              <svg className="w-3.5 h-3.5 fill-current shrink-0" viewBox="0 0 24 24">
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+              </svg>
+              <span>{isLoggingInFb ? 'Connecting...' : 'Connect Facebook'}</span>
+            </button>
+            {isLoggingInFb && (
+              <span className="text-xs text-slate-500 animate-pulse">Opening Meta authorization dialog...</span>
+            )}
           </div>
 
+          {fbAvailablePages.length > 0 && (
+            <div className="pt-3 border-t border-slate-100 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-700">Connected Pages ({fbAvailablePages.length})</span>
+                <button
+                  onClick={handleFacebookLogout}
+                  className="text-[11px] text-rose-600 hover:text-rose-800 font-bold hover:underline cursor-pointer"
+                >
+                  Disconnect All
+                </button>
+              </div>
+              <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                {fbAvailablePages.map((page: any) => {
+                  const pageId = page.page_id || page.id;
+                  const pageName = page.page_name || page.name;
+                  const isRevoked = page.status === 'revoked';
+                  const isDisconnected = page.status === 'disconnected';
+                  return (
+                    <div
+                      key={pageId}
+                      className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs"
+                    >
+                      <div className="space-y-0.5">
+                        <div className="font-bold text-slate-900 flex items-center space-x-1.5">
+                          <span>{pageName}</span>
+                          {isRevoked ? (
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-rose-50 text-rose-600 border border-rose-200">
+                              Revoked
+                            </span>
+                          ) : isDisconnected ? (
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                              Disconnected
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              Active
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-slate-500 font-mono">Page ID: {pageId}</p>
+                      </div>
+                      <div className="flex items-center space-x-1.5">
+                        {isDisconnected || isRevoked ? (
+                          <>
+                            <button
+                              onClick={handleConnectMeta}
+                              className="px-2.5 py-1 rounded text-[11px] font-semibold text-[#0866FF] hover:bg-blue-50 border border-blue-200 transition-colors cursor-pointer"
+                            >
+                              Reconnect
+                            </button>
+                            <button
+                              onClick={() => handleRemoveFacebookPage(pageId)}
+                              className="px-2.5 py-1 rounded text-[11px] font-semibold text-rose-600 hover:bg-rose-50 border border-rose-200/60 transition-colors cursor-pointer"
+                            >
+                              Remove
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => handleDisconnectFacebookPage(pageId)}
+                            className="px-2.5 py-1 rounded text-[11px] font-semibold text-rose-600 hover:bg-rose-50 border border-rose-200/60 transition-colors cursor-pointer"
+                          >
+                            Disconnect
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
       </div>
@@ -1129,6 +1232,13 @@ export const IntegrationsPage: React.FC<IntegrationsViewProps> = ({
                       className="px-3 py-0.5 rounded-full border border-indigo-600 text-indigo-600 hover:bg-indigo-50 text-xs font-semibold transition-all cursor-pointer shadow-2xs shrink-0"
                     >
                       Manage
+                    </button>
+
+                    <button
+                      onClick={() => handleDisconnectIntegration(item)}
+                      className="px-2.5 py-0.5 rounded-full border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-semibold transition-all cursor-pointer shadow-2xs shrink-0"
+                    >
+                      Disconnect
                     </button>
                   </div>
                 </div>
@@ -1469,6 +1579,201 @@ export const IntegrationsPage: React.FC<IntegrationsViewProps> = ({
                     <div>
                       <label className="text-[10px] font-bold text-slate-600 block mb-1">API Key / Access Token</label>
                       <input
+                              onChange={(e) => {
+                                const pId = e.target.value;
+                                setFbPageId(pId);
+                                const matched = fbAvailablePages.find(p => p.id === pId);
+                                if (matched) {
+                                  handleSelectAndSubscribePage(matched);
+                                }
+                              }}
+                              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#1877F2]"
+                            >
+                              {fbAvailablePages.map(p => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name} (ID: {p.id})
+                                </option>
+                              ))}
+                            </select>
+                          ) : fbPageName ? (
+                            <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-xs font-semibold text-emerald-900">
+                              {fbPageName} {fbPageId ? `(ID: ${fbPageId})` : ''}
+                            </div>
+                          ) : (
+                            <div className="text-[11px] text-slate-500 italic p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                              No Facebook page connected yet.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-white border border-slate-200 rounded-xl p-4 text-center space-y-3">
+                        <div className="w-12 h-12 rounded-2xl bg-[#1877F2]/10 border border-[#1877F2]/20 text-[#1877F2] flex items-center justify-center font-bold text-2xl mx-auto shadow-2xs">
+                          f
+                        </div>
+                        <div className="space-y-1">
+                          <h4 className="font-bold text-slate-900 text-xs">Connect your Facebook Account</h4>
+                          <p className="text-[11px] text-slate-500 leading-relaxed max-w-xs mx-auto">
+                            Log in with Facebook to automatically grant access to your Meta Ad Accounts, Facebook Pages, and Instant Lead Forms. No manual access tokens required.
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={handleOfficialFacebookLogin}
+                          disabled={isLoggingInFb}
+                          className="w-full py-2.5 px-4 rounded-xl bg-[#1877F2] hover:bg-[#166FE5] text-white text-xs font-bold shadow-md cursor-pointer transition-all flex items-center justify-center space-x-2"
+                        >
+                          <span className="w-5 h-5 rounded-full bg-white text-[#1877F2] font-black text-xs flex items-center justify-center shadow-xs">
+                            f
+                          </span>
+                          <span>{isLoggingInFb ? 'Connecting to Facebook...' : 'Log in with Facebook'}</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : selectedIntegration.id === 'google_ads' || selectedIntegration.id === 'google_meet' ? (
+                  <>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">Google Ads Webhook Secret Key</label>
+                      <input
+                        type="text"
+                        value={integrationCreds['webhookKey'] || 'pixbe_google_ads_key'}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, webhookKey: e.target.value })}
+                        placeholder="e.g. pixbe_google_ads_key"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">Google Ads Customer Account ID</label>
+                      <input
+                        type="text"
+                        value={integrationCreds['customerId'] || ''}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, customerId: e.target.value })}
+                        placeholder="e.g. 892-102-3391"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                  </>
+                ) : selectedIntegration.id === 'indiamart' ? (
+                  <>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">IndiaMart Registered Mobile Number</label>
+                      <input
+                        type="text"
+                        value={integrationCreds['mobile'] || ''}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, mobile: e.target.value })}
+                        placeholder="+91 98765 43210"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">IndiaMart CRM API Key</label>
+                      <input
+                        type="password"
+                        value={integrationCreds['apiKey'] || ''}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, apiKey: e.target.value })}
+                        placeholder="im_live_..."
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                  </>
+                ) : selectedIntegration.id === 'justdial' ? (
+                  <>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">JustDial Account Phone Number</label>
+                      <input
+                        type="text"
+                        value={integrationCreds['mobile'] || ''}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, mobile: e.target.value })}
+                        placeholder="+91 98450 11223"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">JustDial Portal Access Key</label>
+                      <input
+                        type="password"
+                        value={integrationCreds['apiKey'] || ''}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, apiKey: e.target.value })}
+                        placeholder="jd_key_4482"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                  </>
+                ) : selectedIntegration.id === 'shopify' || selectedIntegration.id === 'woocommerce' ? (
+                  <>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">Store Domain URL</label>
+                      <input
+                        type="text"
+                        value={integrationCreds['storeUrl'] || ''}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, storeUrl: e.target.value })}
+                        placeholder="my-store.myshopify.com"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">Admin Access Token</label>
+                      <input
+                        type="password"
+                        value={integrationCreds['accessToken'] || ''}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, accessToken: e.target.value })}
+                        placeholder="shpat_..."
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                  </>
+                ) : selectedIntegration.id === 'razorpay' ? (
+                  <>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">Razorpay Key ID</label>
+                      <input
+                        type="text"
+                        value={integrationCreds['keyId'] || ''}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, keyId: e.target.value })}
+                        placeholder="rzp_live_..."
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">Razorpay Key Secret</label>
+                      <input
+                        type="password"
+                        value={integrationCreds['keySecret'] || ''}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, keySecret: e.target.value })}
+                        placeholder="Enter Key Secret"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                  </>
+                ) : selectedIntegration.id.includes('whatsapp') ? (
+                  <>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">WhatsApp Phone Number ID</label>
+                      <input
+                        type="text"
+                        value={integrationCreds['phoneId'] || ''}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, phoneId: e.target.value })}
+                        placeholder="100982374981"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">Permanent System Access Token (EAAG...)</label>
+                      <input
+                        type="password"
+                        value={integrationCreds['accessToken'] || ''}
+                        onChange={(e) => setIntegrationCreds({ ...integrationCreds, accessToken: e.target.value })}
+                        placeholder="EAAG..."
+                        className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">API Key / Access Token</label>
+                      <input
                         type="password"
                         value={integrationCreds['apiKey'] || ''}
                         onChange={(e) => setIntegrationCreds({ ...integrationCreds, apiKey: e.target.value })}
@@ -1521,14 +1826,25 @@ export const IntegrationsPage: React.FC<IntegrationsViewProps> = ({
 
             {/* Modal Actions */}
             <div className="p-4 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-              <button
-                onClick={handleTestIntegration}
-                disabled={isTestingConn}
-                className="px-3.5 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer transition-all flex items-center space-x-1"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isTestingConn ? 'animate-spin' : ''}`} />
-                <span>Test Connection</span>
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handleTestIntegration}
+                  disabled={isTestingConn}
+                  className="px-3.5 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer transition-all flex items-center space-x-1"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isTestingConn ? 'animate-spin' : ''}`} />
+                  <span>Test Connection</span>
+                </button>
+
+                {selectedIntegration.isActive && (
+                  <button
+                    onClick={() => handleDisconnectIntegration(selectedIntegration)}
+                    className="px-3 py-1.5 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-bold cursor-pointer transition-all flex items-center space-x-1"
+                  >
+                    <span>Disconnect</span>
+                  </button>
+                )}
+              </div>
 
               <div className="flex items-center space-x-2">
                 <button

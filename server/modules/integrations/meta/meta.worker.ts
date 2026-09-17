@@ -11,21 +11,24 @@ export class MetaWorker {
     }
 
     try {
-      const pageInfo = await metaService.getPageToken(page_id);
-      if (!pageInfo) {
+      const allActivePages = await metaService.getAllPageTokens(page_id);
+      if (!allActivePages || allActivePages.length === 0) {
         logger.warn(`[Meta Webhook] No active token found for page ${page_id}`);
         return;
       }
 
-      const { client_id, page_access_token, page_name } = pageInfo;
+      const primaryPage = allActivePages[0];
+      const { page_access_token, page_name } = primaryPage;
       let fieldMap: Record<string, any> = {};
+      let rawLead: any = null;
 
       try {
-        const rawLead = await metaService.fetchLeadDetails(leadgen_id, page_access_token);
-        for (const field of rawLead.field_data || []) {
+        rawLead = await metaService.fetchLeadDetails(leadgen_id, page_access_token);
+        for (const field of rawLead?.field_data || []) {
           fieldMap[field.name] = field.values?.[0] || null;
         }
       } catch (fetchErr: any) {
+        await metaService.handleAuthError(page_id, fetchErr);
         logger.warn(
           `[Meta Worker] Graph API lead fetch notice (using test lead fallback): ${fetchErr?.response?.data?.error?.message || fetchErr.message}`
         );
@@ -68,9 +71,8 @@ export class MetaWorker {
           meta_leadgen_id: leadgen_id,
           meta_page_id: page_id,
           meta_page_name: page_name,
-          meta_form_id: form_id
         },
-        createdAt: new Date().toISOString()
+        createdAt: rawLead?.created_time ? new Date(rawLead.created_time).toISOString() : new Date().toISOString()
       };
 
       // Save to AWS RDS if available
@@ -85,17 +87,21 @@ export class MetaWorker {
         logger.warn(`[Meta Worker] AWS RDS save notice (proceeding to local store): ${awsErr?.message}`);
       }
 
-      // Save to local multi-tenant store & trigger workflows
+      // Save to local multi-tenant store & trigger workflows for all active subscribed tenants
       try {
         const { multiTenantDb } = await import('../../../services/multiTenantDb');
         const { workflowEngine } = await import('../../../services/workflowEngine');
-        await multiTenantDb.saveLead(client_id || 'company_kite_aviation', newLead);
-        await workflowEngine.triggerWorkflowsForEvent(client_id || 'company_kite_aviation', 'on_facebook_lead', { lead: newLead });
+
+        for (const subscriber of allActivePages) {
+          const tenantId = subscriber.client_id || process.env.DEFAULT_TENANT_ID || 'company_kite_aviation';
+          await multiTenantDb.saveLead(tenantId, { ...newLead, tenantId });
+          await workflowEngine.triggerWorkflowsForEvent(tenantId, 'on_facebook_lead', { lead: newLead });
+        }
       } catch (storeErr: any) {
         logger.error('[Meta Worker] Store/Workflow error:', storeErr);
       }
 
-      logger.info(`[Meta Worker] ✅ Lead successfully ingested: ${newLead.name} (${newLead.phone}) [ID: ${leadId}]`);
+      logger.info(`[Meta Worker] ✅ Lead successfully ingested: ${newLead.name} (${newLead.phone}) [ID: ${leadId}] across ${allActivePages.length} tenant(s)`);
       
       console.log(`
 ======================================================================

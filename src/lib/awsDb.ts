@@ -620,8 +620,22 @@ export async function initializeAwsDbTables() {
       );
     `);
 
-    // 22. Meta (Facebook & Instagram) Connected Pages (Multi-Tenant Architecture)
+    // 22. Facebook Page Integrations (Multi-Tenant Self-Serve OAuth Layer)
     await client.query(`
+      CREATE TABLE IF NOT EXISTS facebook_page_integrations (
+        id VARCHAR(255) PRIMARY KEY,
+        client_id VARCHAR(255) NOT NULL,
+        page_id VARCHAR(255) NOT NULL,
+        page_name VARCHAR(255) NOT NULL,
+        access_token TEXT NOT NULL,
+        status VARCHAR(50) DEFAULT 'active',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_fb_page_integrations_page_id ON facebook_page_integrations(page_id);
+      CREATE INDEX IF NOT EXISTS idx_fb_page_integrations_client_id ON facebook_page_integrations(client_id);
+      CREATE INDEX IF NOT EXISTS idx_fb_page_integrations_status ON facebook_page_integrations(status);
+
       CREATE TABLE IF NOT EXISTS meta_connected_pages (
         client_id VARCHAR(100) DEFAULT 'default_admin',
         page_id VARCHAR(100) PRIMARY KEY,
@@ -1288,3 +1302,121 @@ export async function saveAwsDbAllFieldSettings(fields: any[]) {
   }
   return { success: true, count: fields.length };
 }
+
+/**
+ * Facebook Page Integrations (RDS Helpers with Safe Migration & Fallbacks)
+ */
+let fbTableInitialized = false;
+export async function ensureFacebookPagesTableExists() {
+  if (fbTableInitialized) return;
+  try {
+    await executeAwsQuery(`
+      CREATE TABLE IF NOT EXISTS facebook_page_integrations (
+        id VARCHAR(255) PRIMARY KEY,
+        client_id VARCHAR(255) NOT NULL,
+        page_id VARCHAR(255) NOT NULL,
+        page_name VARCHAR(255) NOT NULL,
+        access_token TEXT NOT NULL,
+        status VARCHAR(50) DEFAULT 'active',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_fb_page_integrations_page_id ON facebook_page_integrations(page_id);
+      CREATE INDEX IF NOT EXISTS idx_fb_page_integrations_client_id ON facebook_page_integrations(client_id);
+      CREATE INDEX IF NOT EXISTS idx_fb_page_integrations_status ON facebook_page_integrations(status);
+    `);
+    fbTableInitialized = true;
+  } catch (err: any) {
+    // If RDS is offline, local JSON fallback in multiTenantDb handles it
+  }
+}
+
+export async function saveFacebookPageIntegration(data: {
+  id?: string;
+  clientId: string;
+  pageId: string;
+  pageName: string;
+  accessToken: string;
+  status?: string;
+}) {
+  await ensureFacebookPagesTableExists();
+  const id = data.id || `fb_page_${data.pageId}_${Date.now()}`;
+  const status = data.status || 'active';
+  
+  try {
+    await executeAwsQuery(
+      `INSERT INTO facebook_page_integrations (id, client_id, page_id, page_name, access_token, status, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW())
+       ON CONFLICT (id) DO UPDATE SET
+         page_name = EXCLUDED.page_name,
+         access_token = EXCLUDED.access_token,
+         status = EXCLUDED.status,
+         updated_at = NOW()`,
+      [id, data.clientId, data.pageId, data.pageName, data.accessToken, status]
+    );
+  } catch (err: any) {
+    // RDS notice handled by caller/fallback
+  }
+  return { id, ...data, status };
+}
+
+export async function getFacebookPageIntegrationByPageId(pageId: string) {
+  await ensureFacebookPagesTableExists();
+  try {
+    const result = await executeAwsQuery(
+      `SELECT id, client_id, page_id, page_name, access_token, status, created_at, updated_at
+       FROM facebook_page_integrations
+       WHERE page_id = $1 AND status = 'active'
+       ORDER BY updated_at DESC LIMIT 1`,
+      [pageId]
+    );
+    return result?.rows?.[0] || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function getFacebookPageIntegrationsByClientId(clientId: string) {
+  await ensureFacebookPagesTableExists();
+  try {
+    const result = await executeAwsQuery(
+      `SELECT id, client_id, page_id, page_name, access_token, status, created_at, updated_at
+       FROM facebook_page_integrations
+       WHERE client_id = $1
+       ORDER BY updated_at DESC`,
+      [clientId]
+    );
+    return result?.rows || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function updateFacebookPageStatus(pageId: string, status: string, clientId?: string) {
+  await ensureFacebookPagesTableExists();
+  try {
+    if (clientId) {
+      await executeAwsQuery(
+        `UPDATE facebook_page_integrations SET status = $1, updated_at = NOW() WHERE page_id = $2 AND client_id = $3`,
+        [status, pageId, clientId]
+      );
+    } else {
+      await executeAwsQuery(
+        `UPDATE facebook_page_integrations SET status = $1, updated_at = NOW() WHERE page_id = $2`,
+        [status, pageId]
+      );
+    }
+  } catch {}
+}
+
+export async function deleteFacebookPageIntegration(clientId: string, pageId: string) {
+  await ensureFacebookPagesTableExists();
+  try {
+    await executeAwsQuery(
+      `UPDATE facebook_page_integrations SET status = 'disconnected', updated_at = NOW() WHERE client_id = $1 AND page_id = $2`,
+      [clientId, pageId]
+    );
+  } catch {}
+}
+
+

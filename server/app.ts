@@ -26,8 +26,23 @@ import { tenantContextMiddleware } from './middleware/tenantContext';
 
 export async function createApp() {
   const app = express();
-  app.use(express.json({ limit: '50mb' }));
-  app.use(express.urlencoded({ limit: '50mb', extended: true }));
+  app.use(
+    express.json({
+      limit: '50mb',
+      verify: (req: any, res, buf) => {
+        req.rawBody = buf;
+      }
+    })
+  );
+  app.use(
+    express.urlencoded({
+      limit: '50mb',
+      extended: true,
+      verify: (req: any, res, buf) => {
+        req.rawBody = buf;
+      }
+    })
+  );
 
   // Health check endpoints
   app.get(['/health', '/api/health'], (req, res) => {
