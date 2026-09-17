@@ -102,7 +102,21 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
   onShowToast
 }) => {
   const stages = useContext(StagesContext);
-  const [customCampaigns, setCustomCampaigns] = useState<string[]>([]);
+  const [customCampaigns, setCustomCampaigns] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('pixbe_custom_campaigns');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('pixbe_custom_campaigns', JSON.stringify(customCampaigns));
+    } catch {}
+  }, [customCampaigns]);
+
   const [campaignSearchQuery, setCampaignSearchQuery] = useState('');
   const [isAddingCampaign, setIsAddingCampaign] = useState(false);
   const [newCampaignInput, setNewCampaignInput] = useState('');
@@ -330,12 +344,116 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
   const [activeRightTab, setActiveRightTab] = useState<'Activity History' | 'Task'>('Activity History');
   const [actionFilter, setActionFilter] = useState('All Actions');
   const [showActionDropdown, setShowActionDropdown] = useState(false);
-  const [activitiesList, setActivitiesList] = useState<Array<{ id: string; text: string; time: string; type: string }>>([
-    { id: 'act-1', text: 'Lead Source : empty → Facebook-Meta-01', time: '5h', type: 'source' },
-    { id: 'act-2', text: 'Facebook page : empty → 506000535940727', time: '5h', type: 'fb' },
-    { id: 'act-3', text: 'Call Outgoing: 6s CONNECTED by Ummema Sufiya BM', time: '1d ago', type: 'call' },
-    { id: 'act-4', text: 'Automated WhatsApp Intro Message Delivered', time: '1d ago', type: 'whatsapp' },
-  ]);
+  const [activitiesList, setActivitiesList] = useState<Array<{ id: string; text: string; time: string; type: string }>>([]);
+
+  // Dynamic Calling Report Calculation
+  const callingReportData = useMemo(() => {
+    const total = campaignLeads.length || 1;
+    let connected = 0;
+    let attempted = 0;
+    let pending = 0;
+    let skipped = 0;
+
+    campaignLeads.forEach(lead => {
+      const callsForLead = callRecords.filter(c => c.leadId === lead.id || (lead.phone && c.phone === lead.phone));
+      if (callsForLead.length > 0) {
+        if (callsForLead.some(c => c.status === 'CONNECTED' || c.status === 'Answered')) {
+          connected++;
+        } else {
+          attempted++;
+        }
+      } else if (lead.status === 'Lost' || lead.status === 'Disqualified' || lead.status === 'RNR') {
+        skipped++;
+      } else {
+        pending++;
+      }
+    });
+
+    const cPct = Math.round((connected / total) * 100);
+    const aPct = Math.round((attempted / total) * 100);
+    const sPct = Math.round((skipped / total) * 100);
+    const pPct = Math.max(0, 100 - cPct - aPct - sPct);
+
+    return [
+      { name: 'connected', percentage: cPct, color: '#9BD3BA' },
+      { name: 'attempted', percentage: aPct, color: '#F8CF48' },
+      { name: 'pending', percentage: pPct, color: '#F87171' },
+      { name: 'skipped', percentage: sPct, color: '#B08246' }
+    ];
+  }, [campaignLeads, callRecords]);
+
+  // Dynamic Leads Status Report Calculation
+  const leadsStatusReportData = useMemo(() => {
+    const total = campaignLeads.length || 1;
+    const counts: Record<string, number> = {};
+    campaignLeads.forEach(l => {
+      const st = l.status || 'Fresh';
+      counts[st] = (counts[st] || 0) + 1;
+    });
+
+    const colors = ['#6366F1', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#3B82F6', '#EC4899', '#14B8A6'];
+    const entries = Object.entries(counts);
+    if (entries.length === 0) {
+      return [{ name: 'No Leads Yet', percentage: 100, color: '#CBD5E1' }];
+    }
+    return entries.map(([statusName, count], idx) => ({
+      name: statusName,
+      percentage: Math.round((count / total) * 100),
+      color: colors[idx % colors.length]
+    }));
+  }, [campaignLeads]);
+
+  // Dynamic Lost Reasons Report Calculation
+  const lostReasonReportData = useMemo(() => {
+    const lostLeads = campaignLeads.filter(l => l.status === 'Lost' || l.status === 'Disqualified');
+    const total = lostLeads.length || 1;
+    const counts: Record<string, number> = {};
+    lostLeads.forEach(l => {
+      const reason = l.lostReason || l.customFields?.lost_reason || 'Other Reason';
+      counts[reason] = (counts[reason] || 0) + 1;
+    });
+
+    const colors = ['#818CF8', '#F87171', '#FBBF24', '#34D399', '#A78BFA'];
+    const entries = Object.entries(counts);
+    if (entries.length === 0) {
+      return [{ name: 'No Lost Leads', percentage: 100, color: '#CBD5E1' }];
+    }
+    return entries.map(([reason, count], idx) => ({
+      name: reason,
+      percentage: Math.round((count / total) * 100),
+      color: colors[idx % colors.length]
+    }));
+  }, [campaignLeads]);
+
+  // Dynamic Calls Status Report Calculation
+  const callsStatusReportData = useMemo(() => {
+    const campaignLeadIds = new Set(campaignLeads.map(l => l.id));
+    const campaignPhones = new Set(campaignLeads.filter(l => l.phone).map(l => l.phone));
+    const relevantCalls = callRecords.filter(c => campaignLeadIds.has(c.leadId) || campaignPhones.has(c.phone));
+    
+    const total = relevantCalls.length || 1;
+    const counts: Record<string, number> = {};
+    relevantCalls.forEach(c => {
+      const st = c.status || 'Connected';
+      counts[st] = (counts[st] || 0) + 1;
+    });
+
+    if (relevantCalls.length === 0) {
+      return [{ name: 'No Call Logs Yet', percentage: 100, color: '#CBD5E1' }];
+    }
+
+    const colors = ['#10B981', '#F87171', '#64748B', '#F59E0B', '#8B5CF6'];
+    return Object.entries(counts).map(([st, count], idx) => ({
+      name: st,
+      percentage: Math.round((count / total) * 100),
+      color: colors[idx % colors.length]
+    }));
+  }, [campaignLeads, callRecords]);
+
+  // Dynamic Campaign Errors Count
+  const campaignErrorsCount = useMemo(() => {
+    return campaignLeads.filter(l => !l.phone || l.phone.trim().length < 5).length;
+  }, [campaignLeads]);
 
   // Status Distribution Calculation
   const statusCounts = useMemo(() => {
@@ -628,6 +746,8 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
                     onClick={() => {
                       setShowCampaignSettingsMenu(false);
                       if (confirm(`Are you sure you want to delete campaign "${activeCampaign.name}"?`)) {
+                        const targetHandle = activeCampaign.handle.toLowerCase();
+                        setCustomCampaigns(prev => prev.filter(c => formatCampaignHandle(c).toLowerCase() !== targetHandle));
                         if (onShowToast) onShowToast(`🗑️ Campaign "${activeCampaign.name}" deleted.`);
                       }
                     }}
@@ -700,10 +820,16 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
                         <button
                           onClick={() => {
                             if (newCampaignInput.trim()) {
-                              setCustomCampaigns(prev => [...prev, newCampaignInput.trim()]);
+                              const clean = newCampaignInput.trim();
+                              setCustomCampaigns(prev => prev.includes(clean) ? prev : [...prev, clean]);
+                              fetch('/api/integrations/facebook/campaign-mappings', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ campaignName: clean, campaignHandle: formatCampaignHandle(clean) })
+                              }).catch(() => {});
                               setNewCampaignInput('');
                               setIsAddingCampaign(false);
-                              if (onShowToast) onShowToast(`Created campaign "${newCampaignInput.trim()}"`);
+                              if (onShowToast) onShowToast(`Created campaign "${clean}"`);
                             }
                           }}
                           className="px-2.5 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-semibold"
@@ -726,431 +852,6 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
                           }}
                           className={`w-full text-left px-2.5 py-2 rounded-xl text-xs font-medium transition-all flex items-center justify-between cursor-pointer ${
                             activeCampaign.id === camp.id ? 'bg-indigo-50 text-indigo-900 font-bold border border-indigo-200' : 'hover:bg-slate-50 text-slate-700'
-                          }`}
-                        >
-                          <div className="flex items-center space-x-2 truncate">
-                            <Phone className={`w-3.5 h-3.5 ${activeCampaign.id === camp.id ? 'text-indigo-600' : 'text-slate-400'} shrink-0`} />
-                            <div className="truncate">
-                              <div className="font-mono text-[11px] font-bold truncate">{camp.handle.replace('@', '')}</div>
-                            </div>
-                          </div>
-                          <span className="text-[10px] font-mono font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded shrink-0 ml-1">
-                            {camp.totalLeads}
-                          </span>
-                        </button>
-                      ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Campaign Quick Badges (Exact match to screenshot: 7d, 9, 1, NONE) */}
-            <div className="flex items-center space-x-1.5 text-[11px] font-mono">
-              <span className="bg-slate-50 text-slate-700 font-bold px-2 py-0.5 rounded border border-slate-200 flex items-center space-x-1">
-                <Calendar className="w-3 h-3 text-slate-500" />
-                <span>7d</span>
-              </span>
-              <span className="bg-slate-50 text-slate-700 font-bold px-2 py-0.5 rounded border border-slate-200 flex items-center space-x-1">
-                <User className="w-3 h-3 text-slate-500" />
-                <span>{activeCampaign.totalLeads || 9}</span>
-              </span>
-              <span className="bg-slate-50 text-slate-700 font-bold px-2 py-0.5 rounded border border-slate-200 flex items-center space-x-1">
-                <Filter className="w-3 h-3 text-slate-500" />
-                <span>1</span>
-              </span>
-              <span className="bg-slate-50 text-slate-500 font-semibold px-2 py-0.5 rounded border border-slate-200">
-                NONE
-              </span>
-            </div>
-
-            {/* Members + Circular Progress Ring (33%) + Purple Dialer Launcher (Exact match to screenshot) */}
-            <div className="flex items-center justify-between pt-1 border-t border-slate-100">
-              {/* Single or Multi Avatar: [ P ] */}
-              <div className="flex items-center -space-x-1.5">
-                <span className="w-6 h-6 rounded-full bg-indigo-100 border-2 border-white text-indigo-800 text-[10px] font-bold flex items-center justify-center">
-                  P
-                </span>
-              </div>
-
-              {/* Progress 33% Circular Ring */}
-              <div className="relative w-9 h-9 flex items-center justify-center">
-                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                  <path
-                    className="text-slate-100"
-                    strokeWidth="3.5"
-                    stroke="currentColor"
-                    fill="none"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                  />
-                  <path
-                    className="text-emerald-500 transition-all duration-500"
-                    strokeDasharray={`${activeCampaign.progress || 33}, 100`}
-                    strokeWidth="3.5"
-                    strokeLinecap="round"
-                    stroke="currentColor"
-                    fill="none"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                  />
-                </svg>
-                <span className="absolute text-[9px] font-bold text-slate-800 font-mono">
-                  {activeCampaign.progress || 33}%
-                </span>
-              </div>
-
-              {/* Solid Purple TeleCRM Call Button [ 📞 > ] */}
-              <button 
-                onClick={() => {
-                  if (onShowToast) onShowToast(`Launching power dialer for ${activeCampaign.handle}`);
-                }}
-                className="bg-[#3a2088] hover:bg-[#2c186b] text-white px-3.5 py-1.5 rounded-xl flex items-center space-x-1.5 text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95"
-                title="Launch Campaign Dialer"
-              >
-                <Phone className="w-3.5 h-3.5 fill-current" />
-                <span className="font-mono text-sm leading-none">›</span>
-              </button>
-            </div>
-          </div>
-
-          {/* ACCORDION REPORTS (All with Identical Font & Only Pie Charts) */}
-          <div className="space-y-2">
-            
-            {/* 1. Campaign Assignees Report */}
-            <div className="bg-white rounded-xl border border-slate-200/90 overflow-hidden shadow-2xs">
-              <button 
-                onClick={() => setOpenAccordion(openAccordion === 'assignees' ? null : 'assignees')}
-                className="w-full p-3.5 flex items-center justify-between text-xs md:text-sm font-bold text-slate-800 hover:bg-slate-50 transition-all cursor-pointer text-left"
-              >
-                <span className="text-slate-800 font-bold">Campaign Assignees Report</span>
-                <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${openAccordion === 'assignees' ? 'rotate-180' : ''}`} />
-              </button>
-
-              {openAccordion === 'assignees' && (
-                <div className="p-3.5 pt-1 border-t border-slate-100 space-y-3 bg-white">
-                  <div className="flex justify-end">
-                    <button 
-                      onClick={() => toast.info('Viewing campaign assignment diagnostics: 5 leads require phone validation before auto-dispatch.', 'Campaign Diagnostics')}
-                      className="text-xs font-semibold text-[#DC2626] hover:underline flex items-center space-x-1 cursor-pointer"
-                    >
-                      <AlertCircle className="w-3.5 h-3.5 text-[#DC2626]" />
-                      <span className="underline">5 Errors</span>
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-12 gap-3 items-center">
-                    <div className="col-span-5 flex items-center justify-center">
-                      <svg className="w-32 h-32" viewBox="0 0 140 140">
-                        {renderSvgPie(dynamicAssignees.map(a => ({ percentage: a.percentage, color: a.color })), 140)}
-                      </svg>
-                    </div>
-
-                    <div className="col-span-7 space-y-1.5 text-xs">
-                      {dynamicAssignees.length === 0 ? (
-                        <p className="text-slate-400 text-[11px]">No assigned leads yet.</p>
-                      ) : (
-                        dynamicAssignees.map((item, idx) => (
-                          <div 
-                            key={idx} 
-                            onClick={() => setSelectedAssigneeFilter(item.name)}
-                            className={`flex items-start space-x-2 text-[11px] leading-tight p-1 rounded-md cursor-pointer transition-colors ${
-                              selectedAssigneeFilter === item.name ? 'bg-indigo-50 font-bold' : 'hover:bg-slate-50'
-                            }`}
-                          >
-                            <span 
-                              className="w-2.5 h-2.5 rounded-full shrink-0 mt-0.5" 
-                              style={{ backgroundColor: item.color }} 
-                            />
-                            <div className="text-slate-800">
-                              <span>{formatProperName(item.name)}</span>{' '}
-                              <span className="text-slate-600 font-medium">({item.percentage}%)</span>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 2. Campaign Calling Report */}
-            <div className="bg-white rounded-xl border border-slate-200/90 overflow-hidden shadow-2xs">
-              <button 
-                onClick={() => setOpenAccordion(openAccordion === 'calling' ? null : 'calling')}
-                className="w-full p-3.5 flex items-center justify-between text-xs md:text-sm font-bold text-slate-800 hover:bg-slate-50 transition-all cursor-pointer text-left"
-              >
-                <span className="text-slate-800 font-bold">Campaign Calling Report</span>
-                <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${openAccordion === 'calling' ? 'rotate-180' : ''}`} />
-              </button>
-
-              {openAccordion === 'calling' && (
-                <div className="p-3.5 pt-1 border-t border-slate-100 space-y-3 bg-white">
-                  <div className="grid grid-cols-12 gap-3 items-center py-2">
-                    <div className="col-span-5 flex items-center justify-center">
-                      <svg className="w-28 h-28" viewBox="0 0 100 100">
-                        {renderSvgPie([
-                          { percentage: 0, color: '#9BD3BA' },
-                          { percentage: 0, color: '#F8CF48' },
-                          { percentage: 100, color: '#F87171' },
-                          { percentage: 0, color: '#B08246' }
-                        ], 100)}
-                      </svg>
-                    </div>
-
-                    <div className="col-span-7 space-y-2 text-xs">
-                      <div className="flex items-center space-x-2 text-[11px]">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#9BD3BA] shrink-0" />
-                        <span className="text-slate-700">connected (0%)</span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-[11px]">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#F8CF48] shrink-0" />
-                        <span className="text-slate-700">attempted (0%)</span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-[11px]">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#F87171] shrink-0" />
-                        <span className="text-slate-800 font-semibold">pending (100%)</span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-[11px]">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#B08246] shrink-0" />
-                        <span className="text-slate-700">skipped (0%)</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 3. Leads Status Report (Only Pie Chart & Consistent Font) */}
-            <div className="bg-white rounded-xl border border-slate-200/90 overflow-hidden shadow-2xs">
-              <button 
-                onClick={() => setOpenAccordion(openAccordion === 'status' ? null : 'status')}
-                className="w-full p-3.5 flex items-center justify-between text-xs md:text-sm font-bold text-slate-800 hover:bg-slate-50 transition-all cursor-pointer text-left"
-              >
-                <span className="text-slate-800 font-bold">Leads Status Report</span>
-                <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${openAccordion === 'status' ? 'rotate-180' : ''}`} />
-              </button>
-              {openAccordion === 'status' && (
-                <div className="p-3.5 pt-1 border-t border-slate-100 space-y-3 bg-white">
-                  <div className="grid grid-cols-12 gap-3 items-center py-2">
-                    <div className="col-span-5 flex items-center justify-center">
-                      <svg className="w-28 h-28" viewBox="0 0 100 100">
-                        {renderSvgPie([
-                          { percentage: 60, color: '#6366F1' },
-                          { percentage: 20, color: '#10B981' },
-                          { percentage: 20, color: '#F59E0B' }
-                        ], 100)}
-                      </svg>
-                    </div>
-
-                    <div className="col-span-7 space-y-2 text-xs">
-                      <div className="flex items-center space-x-2 text-[11px]">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#6366F1] shrink-0" />
-                        <span className="text-slate-800 font-semibold">Job enquiry (60%)</span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-[11px]">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#10B981] shrink-0" />
-                        <span className="text-slate-700">Open (20%)</span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-[11px]">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B] shrink-0" />
-                        <span className="text-slate-700">RNR (20%)</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 4. Leads Lost Reason Report (Only Pie Chart & Consistent Font) */}
-            <div className="bg-white rounded-xl border border-slate-200/90 overflow-hidden shadow-2xs">
-              <button 
-                onClick={() => setOpenAccordion(openAccordion === 'lost' ? null : 'lost')}
-                className="w-full p-3.5 flex items-center justify-between text-xs md:text-sm font-bold text-slate-800 hover:bg-slate-50 transition-all cursor-pointer text-left"
-              >
-                <span className="text-slate-800 font-bold">Leads Lost Reason Report</span>
-                <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${openAccordion === 'lost' ? 'rotate-180' : ''}`} />
-              </button>
-              {openAccordion === 'lost' && (
-                <div className="p-3.5 pt-1 border-t border-slate-100 space-y-3 bg-white">
-                  <div className="grid grid-cols-12 gap-3 items-center py-2">
-                    <div className="col-span-5 flex items-center justify-center">
-                      <svg className="w-28 h-28" viewBox="0 0 100 100">
-                        {renderSvgPie([
-                          { percentage: 45, color: '#818CF8' },
-                          { percentage: 30, color: '#F87171' },
-                          { percentage: 25, color: '#FBBF24' }
-                        ], 100)}
-                      </svg>
-                    </div>
-
-                    <div className="col-span-7 space-y-2 text-xs">
-                      <div className="flex items-center space-x-2 text-[11px]">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#818CF8] shrink-0" />
-                        <span className="text-slate-800 font-semibold">Joined Another Institute (45%)</span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-[11px]">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#F87171] shrink-0" />
-                        <span className="text-slate-700">High Course Fees (30%)</span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-[11px]">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#FBBF24] shrink-0" />
-                        <span className="text-slate-700">Location / Relocation Issue (25%)</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 5. Calls Status Report (Only Pie Chart & Consistent Font) */}
-            <div className="bg-white rounded-xl border border-slate-200/90 overflow-hidden shadow-2xs">
-              <button 
-                onClick={() => setOpenAccordion(openAccordion === 'calls_status' ? null : 'calls_status')}
-                className="w-full p-3.5 flex items-center justify-between text-xs md:text-sm font-bold text-slate-800 hover:bg-slate-50 transition-all cursor-pointer text-left"
-              >
-                <span className="text-slate-800 font-bold">Calls Status Report</span>
-                <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${openAccordion === 'calls_status' ? 'rotate-180' : ''}`} />
-              </button>
-              {openAccordion === 'calls_status' && (
-                <div className="p-3.5 pt-1 border-t border-slate-100 space-y-3 bg-white">
-                  <div className="grid grid-cols-12 gap-3 items-center py-2">
-                    <div className="col-span-5 flex items-center justify-center">
-                      <svg className="w-28 h-28" viewBox="0 0 100 100">
-                        {renderSvgPie([
-                          { percentage: 52, color: '#10B981' },
-                          { percentage: 24, color: '#F87171' },
-                          { percentage: 14, color: '#64748B' },
-                          { percentage: 10, color: '#F59E0B' }
-                        ], 100)}
-                      </svg>
-                    </div>
-
-                    <div className="col-span-7 space-y-2 text-xs">
-                      <div className="flex items-center space-x-2 text-[11px]">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#10B981] shrink-0" />
-                        <span className="text-slate-800 font-semibold">Connected (52%)</span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-[11px]">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#F87171] shrink-0" />
-                        <span className="text-slate-700">RNR / No Answer (24%)</span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-[11px]">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#64748B] shrink-0" />
-                        <span className="text-slate-700">Switched Off (14%)</span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-[11px]">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B] shrink-0" />
-                        <span className="text-slate-700">Busy / Call Later (10%)</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-          </div>
-        </div>
-
-        {/* ========================================================================= */}
-        {/* MIDDLE COLUMN: CAMPAIGN LEADS QUEUE (4 Cols)                              */}
-        {/* ========================================================================= */}
-        <div className="lg:col-span-4 xl:col-span-4 bg-white rounded-xl border border-slate-200/90 p-3.5 shadow-2xs space-y-3">
-          
-          {/* Header & Tabs (@master-form-iata-cargo › ACTIVE | NEW) */}
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <div className="flex items-center space-x-1.5 min-w-0">
-              <span className="font-mono text-xs font-bold text-slate-800 truncate">
-                {activeCampaign.handle} ›
-              </span>
-            </div>
-
-            <div className="flex items-center space-x-1 text-xs font-bold shrink-0">
-              <button
-                onClick={() => setCampaignTab('ACTIVE')}
-                className={`px-2 py-1 rounded-md text-[11px] transition-all cursor-pointer ${
-                  campaignTab === 'ACTIVE' ? 'text-slate-900 border-b-2 border-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                ACTIVE
-              </button>
-              <button
-                onClick={() => setCampaignTab('NEW')}
-                className={`px-2 py-1 rounded-md text-[11px] transition-all cursor-pointer ${
-                  campaignTab === 'NEW' ? 'text-indigo-700 border-b-2 border-indigo-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                NEW ({filteredLeads.length})
-              </button>
-            </div>
-          </div>
-
-          {/* Search Input */}
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search campaign leads..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 transition-all font-sans"
-            />
-          </div>
-
-          {/* Leads Queue List with COLOR CODED STATUSES */}
-          <div className="space-y-2 max-h-[640px] overflow-y-auto pr-1">
-            {filteredLeads.map((lead) => {
-              const isSelected = selectedLead.id === lead.id;
-              const isConnectedCall = lead.createdAt && lead.createdAt.includes('CONNECTED');
-              const isDatedNote = lead.createdAt && lead.createdAt.includes('Fri, 14 Aug');
-
-              return (
-                <div
-                  key={lead.id}
-                  onClick={() => handleSelectLead(lead)}
-                  className={`p-3 rounded-xl border transition-all cursor-pointer text-left space-y-1.5 ${
-                    isSelected
-                      ? 'bg-indigo-50/70 border-indigo-400 shadow-2xs'
-                      : 'bg-white border-slate-200/90 hover:border-indigo-300 hover:bg-slate-50/60'
-                  }`}
-                >
-                  {/* Row 1: Name & Status Badge */}
-                  <div className="flex items-start justify-between">
-                    <div className="min-w-0 pr-2">
-                      <h4 
-                        className="text-xs font-bold text-slate-900 leading-tight truncate"
-                        title={lead.name}
-                      >
-                        {formatProperName(lead.name)}
-                      </h4>
-                      <p className="text-[11px] font-mono text-slate-600 mt-0.5">
-                        {lead.phone}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center space-x-1.5 shrink-0">
-                      <span className="text-[11px] text-slate-500 font-medium">Status:</span>
-                      {/* DYNAMIC COLOR STATUS BADGE */}
-                      <StatusBadge status={lead.status || 'Fresh'} size="xs" />
-                      <Star className="w-3.5 h-3.5 text-slate-300 hover:text-amber-400 cursor-pointer ml-0.5" />
-                    </div>
-                  </div>
-
-                  {/* Row 2: Sub Activity Row (MATCHES SCREENSHOT) */}
-                  {(lead.createdAt || lead.ownerAgentName) && (
-                    <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono pt-1 border-t border-slate-100">
-                      <div className="flex items-center space-x-1 truncate min-w-0">
-                        {isConnectedCall ? (
-                          <div className="flex items-center space-x-1 text-emerald-600 font-semibold italic truncate">
-                            <Phone className="w-3 h-3 text-emerald-600 shrink-0 fill-current" />
-                            <span className="font-bold text-slate-800 not-italic">{lead.createdAt.split(' ')[0]}</span>
-                            <span className="text-slate-500 font-normal">{lead.createdAt.replace(lead.createdAt.split(' ')[0], '')}</span>
-                          </div>
-                        ) : isDatedNote ? (
-                          <div className="flex items-center space-x-1 text-slate-500 truncate">
-                            <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
-                            <span className="truncate">{lead.createdAt}</span>
-                          </div>
-                        ) : (
-                          <span className="text-slate-400 text-[10px] truncate">{lead.createdAt || 'Assigned'}</span>
                         )}
                       </div>
 
