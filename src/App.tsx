@@ -1554,7 +1554,10 @@ export function App() {
           {currentView === 'integrations' && (
             isAdmin ? (
               <IntegrationsView 
+                agents={agents}
+                customFields={activeCustomFields}
                 onNavigateToCampaign={(handle) => {
+                  loadTenantDomainData(activeTenantId);
                   setSelectedCampaignHandle(handle);
                   setCurrentView('campaigns');
                 }}

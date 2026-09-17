@@ -35,9 +35,36 @@ router.get(
 // DELETE /api/integrations/facebook/pages/:pageId - Unsubscribe from Meta & mark disconnected
 router.delete(
   ['/integrations/facebook/pages/:pageId', '/facebook/pages/:pageId'],
-  authMiddleware,
   tenantContextMiddleware,
   (req, res) => metaController.deleteConnectedPage(req, res)
+);
+
+// GET /api/integrations/facebook/pages/:pageId/forms - Fetch forms for page
+router.get(
+  ['/integrations/facebook/pages/:pageId/forms', '/facebook/pages/:pageId/forms'],
+  tenantContextMiddleware,
+  (req, res) => metaController.getPageForms(req, res)
+);
+
+// GET /api/integrations/facebook/pages/:pageId/forms/:formId/questions - Fetch questions for form
+router.get(
+  ['/integrations/facebook/pages/:pageId/forms/:formId/questions', '/facebook/pages/:pageId/forms/:formId/questions'],
+  tenantContextMiddleware,
+  (req, res) => metaController.getFormQuestions(req, res)
+);
+
+// POST /api/integrations/facebook/campaign-mapping - Save field map, campaign handle, & lead distribution
+router.post(
+  ['/integrations/facebook/campaign-mapping', '/facebook/campaign-mapping'],
+  tenantContextMiddleware,
+  (req, res) => metaController.saveCampaignMapping(req, res)
+);
+
+// GET /api/integrations/facebook/campaign-mappings - Fetch all saved campaign mappings
+router.get(
+  ['/integrations/facebook/campaign-mappings', '/facebook/campaign-mappings'],
+  tenantContextMiddleware,
+  (req, res) => metaController.getCampaignMappings(req, res)
 );
 
 // Legacy Disconnect route

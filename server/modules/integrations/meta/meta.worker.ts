@@ -40,12 +40,59 @@ export class MetaWorker {
         };
       }
 
+      let formName = change.value?.form_name || change.value?.form_title;
+      if (!formName && form_id) {
+        try {
+          const formMeta = await metaService.fetchFormDetails(form_id, page_access_token);
+          if (formMeta?.name) {
+            formName = formMeta.name;
+          }
+        } catch {}
+      }
+      if (!formName) {
+        formName = form_id ? `Meta Form (${form_id})` : (page_name ? `${page_name} Form` : 'Facebook Lead Form');
+      }
+
+      // Check for saved campaign mapping for this form_id
+      let savedMapping: any = null;
+      try {
+        const { multiTenantDb } = await import('../../../services/multiTenantDb');
+        const firstTenant = primaryPage.client_id || process.env.DEFAULT_TENANT_ID || 'company_kite_aviation';
+        const allIntegrations = await multiTenantDb.getIntegrations(firstTenant);
+        const integrationObj = allIntegrations.find((i: any) => i.id === 'facebook');
+        if (integrationObj?.credentials?.campaignMappings?.[form_id]) {
+          savedMapping = integrationObj.credentials.campaignMappings[form_id];
+        }
+      } catch {}
+
+      const campaignName = savedMapping?.campaignName || formName;
+      const campaignHandle = savedMapping?.campaignHandle || `@${formName.toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-')}`;
+
+      // Apply field mappings if present
+      const customMappedFields: Record<string, any> = { ...fieldMap };
+      if (savedMapping?.fieldMapping && Array.isArray(savedMapping.fieldMapping)) {
+        savedMapping.fieldMapping.forEach((m: any) => {
+          if (m.fbQuestion && m.telecrmField && fieldMap[m.fbQuestion] !== undefined) {
+            customMappedFields[m.telecrmField] = fieldMap[m.fbQuestion];
+          }
+        });
+      }
+
       const fullName =
+        customMappedFields['Name'] ||
+        customMappedFields['Full name'] ||
         fieldMap.full_name ||
         `${fieldMap.first_name || ''} ${fieldMap.last_name || ''}`.trim() ||
         'Meta Test Lead';
-      const email = fieldMap.email || 'test_lead@facebook.com';
-      const phone = fieldMap.phone_number || fieldMap.phone || '+91 98765 00000';
+      const email = customMappedFields['Email'] || fieldMap.email || 'test_lead@facebook.com';
+      const phone = customMappedFields['Number'] || customMappedFields['Phone number'] || fieldMap.phone_number || fieldMap.phone || '+91 98765 00000';
+
+      // Pick assigned agent from distribution list if configured
+      let assignedOwner = 'Rahul Varma (Auto)';
+      if (savedMapping?.leadDistribution && Array.isArray(savedMapping.leadDistribution) && savedMapping.leadDistribution.length > 0) {
+        const pickIndex = Math.floor(Math.random() * savedMapping.leadDistribution.length);
+        assignedOwner = savedMapping.leadDistribution[pickIndex].name || assignedOwner;
+      }
 
       const leadId = `meta-lead-${leadgen_id || Date.now()}`;
       const newLead = {
@@ -54,8 +101,11 @@ export class MetaWorker {
         phone,
         email,
         company: page_name || 'Meta Lead Ads',
-        city: fieldMap.city || 'Hyderabad',
-        state: 'Telangana',
+        formName,
+        formId: form_id || '',
+        campaignName,
+        city: customMappedFields['City'] || fieldMap.city || fieldMap.location || 'Bangalore',
+        state: customMappedFields['State'] || fieldMap.state || 'Karnataka',
         source: 'Meta (Facebook & Instagram) Lead Ads',
         status: 'Fresh',
         pipelineStageId: 'stage-1',
@@ -63,14 +113,21 @@ export class MetaWorker {
         aiScore: 96,
         score: 96,
         priority: 'High',
-        assignedTo: 'Rahul Varma (Auto)',
-        tags: ['Meta Ads', 'Instant Form', page_name || 'Social'],
-        notes: `Captured via Facebook Lead Ads (Form ID: ${form_id || 'N/A'}, Ad ID: ${ad_id || 'N/A'}, Leadgen ID: ${leadgen_id})`,
+        assignedTo: assignedOwner,
+        ownerAgentName: assignedOwner,
+        tags: Array.from(new Set(['Meta Lead Ads', campaignName, campaignHandle, page_name || 'Social'])),
+        notes: `Captured via Facebook Lead Ads (Campaign: ${campaignName} [${campaignHandle}], Form: ${formName}, Form ID: ${form_id || 'N/A'}, Leadgen ID: ${leadgen_id})`,
         customFields: {
-          ...fieldMap,
+          ...customMappedFields,
+          form_name: formName,
+          form_id: form_id || '',
+          campaign_name: campaignName,
+          campaign_handle: campaignHandle,
           meta_leadgen_id: leadgen_id,
           meta_page_id: page_id,
           meta_page_name: page_name,
+          meta_form_id: form_id || '',
+          meta_form_name: formName,
         },
         createdAt: rawLead?.created_time ? new Date(rawLead.created_time).toISOString() : new Date().toISOString()
       };
@@ -111,7 +168,7 @@ export class MetaWorker {
 📞 Phone:        ${newLead.phone}
 📧 Email:        ${newLead.email}
 🏢 Source:       ${newLead.source}
-📋 Form ID:      ${newLead.customFields?.meta_form_id || 'N/A'}
+📋 Form ID:      ${(newLead.customFields as any)?.meta_form_id || 'N/A'}
 💰 Deal/Budget:  ${newLead.customFields?.['what_budget_range_are_you_comfortable_considering?'] || newLead.dealValue || 'N/A'}
 🆔 Lead ID:      ${leadId}
 🕒 Ingest Time:  ${new Date().toLocaleString()}

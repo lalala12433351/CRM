@@ -713,7 +713,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <p className="text-[11px] text-slate-500 truncate font-sans">{activeAgent.email || 'user@workspace.io'}</p>
                     <div className="flex items-center space-x-1.5 mt-1">
                       <span className="inline-block px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 border border-slate-200 text-slate-600 font-sans">
-                        {isAgentAdmin(activeAgent) ? 'Master Admin' : activeAgent.role || 'Employee'}
+                        {isAgentAdmin(activeAgent) ? 'Admin' : activeAgent.role || 'Employee'}
                       </span>
                       <span className="text-[10px] text-slate-400 font-mono">ID: {activeAgent.id}</span>
                     </div>

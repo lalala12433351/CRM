@@ -47,6 +47,8 @@ router.post('/webhooks/google-ads', async (req: Request, res: Response) => {
       phone: leadPhone || '+91 98450 00000',
       email: leadEmail,
       company: leadCompany,
+      formName: payload.form_name || payload.form_title || 'Google Lead Form',
+      campaignName: payload.campaign_name || payload.campaign_id || 'Google Search Campaign',
       city: leadCity,
       state: payload.state || 'Maharashtra',
       source: 'Google Ads Lead Form',
@@ -60,8 +62,12 @@ router.post('/webhooks/google-ads', async (req: Request, res: Response) => {
       updatedAt: new Date().toISOString(),
       ownerAgentId: 'agent-us',
       ownerAgentName: 'Ummema Sufiya BM',
-      customFields: { gclid: payload.gclid || 'gclid-demo-123', campaign_id: payload.campaign_id || 'g-camp-101' },
-      tags: ['Google Ads', 'Search Lead Form'],
+      customFields: { 
+        form_name: payload.form_name || payload.form_title || 'Google Lead Form',
+        gclid: payload.gclid || 'gclid-demo-123', 
+        campaign_id: payload.campaign_id || 'g-camp-101' 
+      },
+      tags: Array.from(new Set(['Google Ads', payload.form_name || 'Google Lead Form', 'Search Lead Form'])),
       notes: `Google Campaign ID: ${payload.campaign_id || 'N/A'}, Form ID: ${payload.form_id || 'N/A'}`,
       gclid: payload.gclid || 'gclid-demo-123'
     };
@@ -93,7 +99,9 @@ router.post('/webhooks/lead', async (req: Request, res: Response) => {
     const leadEmail = payload.email || payload.email_address || '';
     const leadCity = payload.city || payload.location || payload.branch || 'Kerala';
     const leadCompany = payload.company || payload.company_name || 'Individual';
-    const leadSource = payload.source || payload.lead_source || 'Meta Facebook Lead Ads';
+    const leadSource = payload.source || payload.lead_source || 'Inbound Webhook';
+    const formName = payload.form_name || payload.formName || payload.form || payload.campaign_name || payload.campaign || 'Web Form';
+    const formHandle = `@${formName.toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-')}`;
 
     const newLead = {
       id: leadId,
@@ -101,22 +109,28 @@ router.post('/webhooks/lead', async (req: Request, res: Response) => {
       phone: leadPhone,
       email: leadEmail,
       company: leadCompany,
+      formName,
+      campaignName: formName,
       city: leadCity,
-      state: payload.state || 'Kerala',
+      state: payload.state || 'Karnataka',
       source: leadSource,
       status: 'Fresh',
       pipelineStageId: payload.pipelineStageId || 'stage-1',
       dealValue: payload.dealValue || 0,
       aiScore: Math.floor(Math.random() * 20) + 80,
       aiRating: 'Hot',
-      aiReasoning: 'Live Meta Lead captured via Zapier Webhook integration.',
+      aiReasoning: 'Live inbound lead captured via Webhook integration.',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       ownerAgentId: payload.ownerAgentId || 'agent-admin',
       ownerAgentName: payload.ownerAgentName || 'Unassigned',
-      customFields: payload.customFields || { form_name: payload.form_name || 'Facebook Lead Form' },
-      tags: ['Meta Ads', 'Zapier Live'],
-      notes: payload.notes || payload.ad_name || 'Live inbound lead from Meta Facebook Ads via Zapier.',
+      customFields: {
+        ...payload.customFields,
+        form_name: formName,
+        meta_form_name: formName,
+      },
+      tags: Array.from(new Set([leadSource, formName, formHandle, 'Webhook Live'])),
+      notes: payload.notes || payload.ad_name || `Live inbound lead captured via ${leadSource} (${formName}).`,
       gclid: payload.gclid || null,
       fbclid: payload.fbclid || null
     };

@@ -342,6 +342,16 @@ export class MultiTenantDatabase {
           templates: parsed.templates || {},
           actions: parsed.actions || {}
         };
+        // Normalize any legacy 'Master Admin' roles in stored agents to 'Admin'
+        for (const tid in this.store.agents) {
+          if (Array.isArray(this.store.agents[tid])) {
+            this.store.agents[tid].forEach((ag) => {
+              if (ag.role === 'Master Admin') {
+                ag.role = 'Admin';
+              }
+            });
+          }
+        }
       } else {
         this.saveStore();
       }
@@ -384,7 +394,7 @@ export class MultiTenantDatabase {
           name: 'System Administrator',
           email: 'admin@company.com',
           phone: '+91 98000 00000',
-          role: 'Master Admin',
+          role: 'Admin',
           companyName: 'Default Workspace',
           isAdmin: true,
           status: 'online',
@@ -448,7 +458,7 @@ export class MultiTenantDatabase {
       name: data.adminName,
       email: data.ownerEmail,
       phone: data.ownerPhone || '+91 98000 00000',
-      role: 'Master Admin',
+      role: 'Admin',
       companyName: data.companyName,
       isAdmin: true,
       status: 'online',
@@ -902,7 +912,7 @@ export class MultiTenantDatabase {
         name: data.name,
         email: data.email || '',
         phone: data.phone || '',
-        role: 'Master Admin',
+        role: 'Admin',
         companyName: this.store.tenants[tenantId]?.companyName || 'Company',
         isAdmin: true,
         status: 'online',
@@ -1813,22 +1823,31 @@ export class MultiTenantDatabase {
     }
   }
 
-  public async deleteFacebookPage(tenantId: string, pageId: string): Promise<boolean> {
+  public async deleteFacebookPage(tenantId: string, pageId: string, hard = false): Promise<boolean> {
     if (!this.store.facebookPages || !this.store.facebookPages[tenantId]) {
       return false;
     }
-    let found = false;
-    for (const p of this.store.facebookPages[tenantId]) {
-      if (p.pageId === pageId) {
-        p.status = 'disconnected';
-        p.updatedAt = new Date().toISOString();
-        found = true;
-      }
-    }
-    if (found) {
+    if (hard) {
+      const beforeCount = this.store.facebookPages[tenantId].length;
+      this.store.facebookPages[tenantId] = this.store.facebookPages[tenantId].filter(
+        (p) => p.pageId !== pageId && p.id !== pageId
+      );
       this.saveStore();
+      return this.store.facebookPages[tenantId].length < beforeCount;
+    } else {
+      let found = false;
+      for (const p of this.store.facebookPages[tenantId]) {
+        if (p.pageId === pageId || p.id === pageId) {
+          p.status = 'disconnected';
+          p.updatedAt = new Date().toISOString();
+          found = true;
+        }
+      }
+      if (found) {
+        this.saveStore();
+      }
+      return found;
     }
-    return found;
   }
 
 

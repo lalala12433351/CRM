@@ -131,11 +131,22 @@ export class MetaController {
 
     try {
       const pages = await metaService.getClientPages(clientId);
+      const { multiTenantDb } = await import('../../../services/multiTenantDb');
+      const tenant = await multiTenantDb.getTenant(clientId);
+      const integrations = await multiTenantDb.getIntegrations(clientId);
+      const fbIntegration = integrations.find((i: any) => i.id === 'facebook');
+
+      const account = {
+        name: (fbIntegration?.credentials as any)?.accountName || tenant?.companyName || (pages.length > 0 ? pages[0].page_name : 'Facebook Account'),
+        email: (fbIntegration?.credentials as any)?.accountEmail || tenant?.ownerEmail || (pages.length > 0 ? `${pages[0].page_name.toLowerCase().replace(/[^a-z0-9]/g, '')}@facebook.com` : 'user@facebook.com')
+      };
+
       return res.json({
         success: true,
         tenantId: clientId,
         count: pages.length,
-        pages
+        pages,
+        account
       });
     } catch (err: any) {
       logger.error('[Meta Controller] Error retrieving connected pages:', err);
@@ -242,9 +253,215 @@ export class MetaController {
   }
 
   /**
+   * GET /api/integrations/facebook/pages/:pageId/forms
+   * Returns lead forms for a given Facebook Page
+   */
+  public async getPageForms(req: any, res: Response) {
+    const { pageId } = req.params;
+    if (!pageId) {
+      return res.status(400).json({ success: false, error: 'pageId parameter is required' });
+    }
+    try {
+      const forms = await metaService.getPageForms(pageId);
+      return res.json({ success: true, pageId, forms, count: forms.length });
+    } catch (err: any) {
+      logger.error(`[Meta Controller] Error fetching forms for page ${pageId}:`, err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  /**
+   * GET /api/integrations/facebook/pages/:pageId/forms/:formId/questions
+   * Returns questions/fields for a specific lead form
+   */
+  public async getFormQuestions(req: any, res: Response) {
+    const { pageId, formId } = req.params;
+    if (!pageId || !formId) {
+      return res.status(400).json({ success: false, error: 'pageId and formId parameters are required' });
+    }
+    try {
+      const questions = await metaService.getFormQuestions(pageId, formId);
+      return res.json({ success: true, pageId, formId, questions });
+    } catch (err: any) {
+      logger.error(`[Meta Controller] Error fetching questions for form ${formId}:`, err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  /**
+   * POST /api/integrations/facebook/campaign-mapping
+   * Saves field mapping, campaign handle, and lead distribution rules
+   */
+  public async saveCampaignMapping(req: any, res: Response) {
+    const clientId =
+      req.tenantId ||
+      req.user?.tenantId ||
+      req.user?.id ||
+      (req.headers['x-tenant-id'] as string) ||
+      process.env.DEFAULT_TENANT_ID ||
+      'company_kite_aviation';
+
+    const {
+      pageId,
+      pageName,
+      formId,
+      formName,
+      campaignName,
+      campaignHandle,
+      fieldMapping,
+      leadDistribution,
+      importOption
+    } = req.body;
+
+    if (!pageId || !formId || !campaignHandle) {
+      return res.status(400).json({ success: false, error: 'pageId, formId, and campaignHandle are required.' });
+    }
+
+    try {
+      const { multiTenantDb } = await import('../../../services/multiTenantDb');
+      const allIntegrations = await multiTenantDb.getIntegrations(clientId);
+      const existing = allIntegrations.find((i: any) => i.id === 'facebook') || { credentials: {} };
+
+      const campaignMappings = (existing.credentials as any)?.campaignMappings || {};
+      campaignMappings[formId] = {
+        pageId,
+        pageName: pageName || 'Facebook Page',
+        formId,
+        formName: formName || 'Meta Form',
+        campaignName: campaignName || campaignHandle.replace(/^@/, ''),
+        campaignHandle: campaignHandle.startsWith('@') ? campaignHandle : `@${campaignHandle}`,
+        fieldMapping: fieldMapping || [],
+        leadDistribution: leadDistribution || [],
+        importOption: importOption || 'future_only',
+        updatedAt: new Date().toISOString()
+      };
+
+      await multiTenantDb.saveIntegration(clientId, {
+        id: 'facebook',
+        tenantId: clientId,
+        integrationName: 'Meta',
+        isConnected: true,
+        credentials: {
+          ...existing.credentials,
+          campaignMappings
+        }
+      });
+
+      // 2. Mark and update all matching leads in the database with campaign name & distribution
+      const targetCampName = campaignName || campaignHandle.replace(/^@/, '');
+      const targetCampHandle = campaignHandle.startsWith('@') ? campaignHandle : `@${campaignHandle}`;
+      let updatedLeadCount = 0;
+
+      try {
+        const allLeads = await multiTenantDb.getLeads(clientId);
+        const distMembers = Array.isArray(leadDistribution) && leadDistribution.length > 0 ? leadDistribution : [];
+        let dIdx = 0;
+
+        for (const lead of allLeads) {
+          const lFormId = lead.formId || lead.customFields?.meta_form_id || lead.customFields?.form_id;
+          const lFormName = lead.formName || lead.customFields?.meta_form_name || lead.customFields?.form_name;
+          const isMatch =
+            (lFormId && String(lFormId) === String(formId)) ||
+            (lFormName && formName && lFormName.toLowerCase().trim() === formName.toLowerCase().trim()) ||
+            (lead.notes && typeof lead.notes === 'string' && lead.notes.includes(String(formId)));
+
+          if (isMatch) {
+            lead.campaign = targetCampName;
+            lead.campaignName = targetCampName;
+            lead.campaign_name = targetCampName;
+            lead.campaignHandle = targetCampHandle;
+            lead.campaign_handle = targetCampHandle;
+            lead.formId = formId;
+            lead.formName = formName || lead.formName;
+            lead.pageName = pageName || lead.pageName;
+            lead.tags = Array.from(new Set([...(lead.tags || []), targetCampName, targetCampHandle, 'Meta Lead Ads']));
+            lead.customFields = {
+              ...(lead.customFields || {}),
+              campaign_name: targetCampName,
+              campaign_handle: targetCampHandle,
+              campaignName: targetCampName,
+              form_id: formId,
+              form_name: formName || lead.formName,
+              page_name: pageName || lead.pageName
+            };
+
+            // Distribute among selected team members in the database
+            if (distMembers.length > 0) {
+              const assignedUser = distMembers[dIdx % distMembers.length];
+              dIdx++;
+              lead.ownerAgentName = assignedUser.name;
+              lead.ownerAgentId = assignedUser.id;
+              lead.assignedTo = assignedUser.name;
+            }
+
+            await multiTenantDb.saveLead(clientId, lead);
+            updatedLeadCount++;
+          }
+        }
+      } catch (leadErr) {
+        logger.warn('[Meta Controller] Error updating existing leads for campaign:', leadErr);
+      }
+
+      // 3. Mark in RDS database if available
+      try {
+        const { executeAwsQuery } = await import('../../../config/database');
+        await executeAwsQuery(
+          `UPDATE leads 
+           SET campaign_name = $1, form_name = $2, updated_at = NOW() 
+           WHERE client_id = $3 AND (form_id = $4 OR custom_fields->>'form_id' = $4)`,
+          [targetCampName, formName, clientId, String(formId)]
+        ).catch(() => {});
+      } catch {}
+
+      // 4. Trigger immediate sync if leads exist on Meta Graph API
+      try {
+        const { metaSyncEngine } = await import('./meta.sync');
+        metaSyncEngine.syncAllMetaLeads(clientId).catch(() => {});
+      } catch {}
+
+      logger.info(`[Meta Controller] Configured campaign '${targetCampName}' (${targetCampHandle}) for form ${formId}. Updated ${updatedLeadCount} lead(s) in database.`);
+
+      return res.json({
+        success: true,
+        message: `Successfully configured campaign '${targetCampHandle}' for lead form ${formName || formId}! Updated ${updatedLeadCount} lead(s) in the database.`,
+        mapping: campaignMappings[formId],
+        updatedLeadCount
+      });
+    } catch (err: any) {
+      logger.error('[Meta Controller] Error saving campaign mapping:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  /**
+   * GET /api/integrations/facebook/campaign-mappings
+   * Returns all active campaign mappings for the current tenant
+   */
+  public async getCampaignMappings(req: any, res: Response) {
+    const clientId =
+      req.tenantId ||
+      req.user?.tenantId ||
+      req.user?.id ||
+      (req.headers['x-tenant-id'] as string) ||
+      process.env.DEFAULT_TENANT_ID ||
+      'company_kite_aviation';
+
+    try {
+      const { multiTenantDb } = await import('../../../services/multiTenantDb');
+      const allIntegrations = await multiTenantDb.getIntegrations(clientId);
+      const existing = allIntegrations.find((i: any) => i.id === 'facebook');
+      const campaignMappings = (existing?.credentials as any)?.campaignMappings || {};
+      return res.json({ success: true, mappings: Object.values(campaignMappings) });
+    } catch (err: any) {
+      return res.json({ success: false, mappings: [] });
+    }
+  }
+
+  /**
    * Helper to render seamless popup window bridge & redirect fallback
    */
   private renderPopupResponse(
+
     res: Response,
     success: boolean,
     data: { pages?: any[]; count?: number; clientId?: string; message?: string }
@@ -274,16 +491,17 @@ export class MetaController {
               pages: ${JSON.stringify(data.pages || [])},
               clientId: ${JSON.stringify(data.clientId || '')}
             };
-            if (window.opener && !window.opener.closed) {
-              window.opener.postMessage(payload, '*');
-              setTimeout(() => {
-                try { window.close(); } catch (e) {}
-              }, 1200);
-            } else {
-              setTimeout(() => {
-                window.location.href = '/integrations?meta=connected';
-              }, 1200);
-            }
+            try {
+              if (window.opener && !window.opener.closed) {
+                window.opener.postMessage(payload, '*');
+              }
+              if (window.parent && window.parent !== window) {
+                window.parent.postMessage(payload, '*');
+              }
+            } catch (e) {}
+            setTimeout(() => {
+              try { window.close(); } catch (e) {}
+            }, 800);
           </script>
         </body>
         </html>

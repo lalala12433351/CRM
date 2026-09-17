@@ -19,65 +19,86 @@ class MetaSyncEngine {
     const errors: any[] = [];
 
     try {
-      const pageId = process.env.META_PAGE_ID || '1354212834436427';
-      const token = process.env.META_PAGE_ACCESS_TOKEN;
+      const { metaService } = await import('./meta.service');
+      const activePages = await metaService.getActiveConnectedPages(tenantId);
 
-      if (!token) {
-        this.isSyncing = false;
-        return { syncedCount: 0, errors: ['Missing META_PAGE_ACCESS_TOKEN'] };
+      // Fallback: If no database pages, check env variables
+      if (activePages.length === 0 && process.env.META_PAGE_ACCESS_TOKEN) {
+        activePages.push({
+          client_id: tenantId,
+          page_id: process.env.META_PAGE_ID || '1354212834436427',
+          page_name: process.env.META_PAGE_NAME || 'Meta Page',
+          page_access_token: process.env.META_PAGE_ACCESS_TOKEN
+        });
       }
 
-      // 1. Fetch all Leadgen Forms on Page
-      const formsRes = await axios.get(`https://graph.facebook.com/${metaConfig.graphVersion}/${pageId}/leadgen_forms`, {
-        params: { access_token: token }
-      });
+      if (activePages.length === 0) {
+        this.isSyncing = false;
+        return { syncedCount: 0, errors: ['No active connected Facebook Pages found for tenant.'] };
+      }
 
-      const forms = formsRes.data.data || [];
       const existingLeads = await multiTenantDb.getLeads(tenantId, undefined, true);
       const existingLeadIds = new Set(
         existingLeads.map((l) => l.customFields?.meta_leadgen_id || l.id.replace('meta-lead-', ''))
       );
 
-      // 2. Iterate through each form
-      for (const form of forms) {
+      for (const page of activePages) {
         try {
-          const leadsRes = await axios.get(
-            `https://graph.facebook.com/${metaConfig.graphVersion}/${form.id}/leads`,
-            {
-              params: {
-                access_token: token,
-                limit: 25
-              }
-            }
-          );
+          const { page_id, page_access_token, page_name } = page;
 
-          const leads = leadsRes.data.data || [];
+          // 1. Fetch all Leadgen Forms on Page via Meta Graph API v22.0
+          const formsRes = await axios.get(`https://graph.facebook.com/${metaConfig.graphVersion}/${page_id}/leadgen_forms`, {
+            params: { access_token: page_access_token }
+          });
 
-          for (const rawLead of leads) {
-            if (!existingLeadIds.has(rawLead.id)) {
-              // Ingest new lead through worker pipeline
-              await metaWorker.processLeadgenChange({
-                value: {
-                  leadgen_id: rawLead.id,
-                  page_id: pageId,
-                  form_id: form.id
+          const forms = formsRes.data?.data || [];
+
+          // 2. Iterate through each form on Page
+          for (const form of forms) {
+            try {
+              const leadsRes = await axios.get(
+                `https://graph.facebook.com/${metaConfig.graphVersion}/${form.id}/leads`,
+                {
+                  params: {
+                    access_token: page_access_token,
+                    limit: 50
+                  }
                 }
-              });
+              );
 
-              existingLeadIds.add(rawLead.id);
-              syncedCount++;
+              const leads = leadsRes.data?.data || [];
+
+              for (const rawLead of leads) {
+                if (!existingLeadIds.has(rawLead.id)) {
+                  // Ingest live lead through worker pipeline
+                  await metaWorker.processLeadgenChange({
+                    value: {
+                      leadgen_id: rawLead.id,
+                      page_id: page_id,
+                      form_id: form.id,
+                      form_name: form.name || form.id,
+                      page_name: page_name
+                    }
+                  });
+
+                  existingLeadIds.add(rawLead.id);
+                  syncedCount++;
+                }
+              }
+            } catch (formErr: any) {
+              errors.push({ form: form.name || form.id, page: page_name, error: formErr?.response?.data || formErr.message });
             }
           }
-        } catch (formErr: any) {
-          errors.push({ form: form.name, error: formErr?.response?.data || formErr.message });
+        } catch (pageErr: any) {
+          errors.push({ page: page.page_name, error: pageErr?.response?.data || pageErr.message });
         }
       }
 
       if (syncedCount > 0) {
-        logger.info(`[Meta Sync] 🚀 Successfully synced ${syncedCount} new lead(s) from Meta forms.`);
+        logger.info(`[Meta Sync Engine] 🚀 Successfully synced ${syncedCount} live lead(s) from Meta Graph API.`);
       }
     } catch (err: any) {
-      logger.warn('[Meta Sync Notice]:', err?.response?.data?.error?.message || err?.message);
+      logger.warn('[Meta Sync Engine Notice]:', err?.response?.data?.error?.message || err?.message);
       errors.push(err?.message);
     } finally {
       this.isSyncing = false;

@@ -1137,7 +1137,7 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
                     <p className="text-xs text-slate-500">{profileEmail || activeAgent?.email || 'admin@kiteaviation.com'}</p>
                     <div className="flex items-center space-x-2 mt-1.5">
                       <span className="px-2.5 py-0.5 rounded-md bg-indigo-100 text-indigo-700 font-bold text-[10px]">
-                        {activeAgent?.role || 'Master Admin'}
+                        {activeAgent?.role || 'Admin'}
                       </span>
                     </div>
                   </div>

@@ -448,15 +448,10 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                 filteredAgents.map((ag) => {
                   const isSelected = selectedAgentIds.includes(ag.id);
                   const agIsAdmin = isAgentAdmin(ag);
-                  const isMasterOwner = ag.role === 'Master Admin' || ag.role === 'Owner';
+                  const isMasterOwner = ag.role === 'Admin' || ag.role === 'Master Admin' || ag.role === 'Owner';
                   
-                  // Format role nicely (Manager, Marketing, Caller)
-                  let roleDisplay = ag.role || 'Caller';
-                  const rLow = roleDisplay.toLowerCase();
-                  if (rLow.includes('manager')) roleDisplay = 'Manager';
-                  else if (rLow.includes('market')) roleDisplay = 'Marketing';
-                  else if (rLow.includes('root') || rLow.includes('admin')) roleDisplay = 'Root';
-                  else roleDisplay = 'Caller';
+                  // Directly display the actual stored database role
+                  const roleDisplay = ag.role || (agIsAdmin ? 'Admin' : 'Caller');
 
                   // Format permission nicely (Admin, Manager, Marketer, Caller)
                   let permDisplay = ag.permission;
