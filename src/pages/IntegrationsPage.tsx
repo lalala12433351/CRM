@@ -370,7 +370,7 @@ export const IntegrationsPage: React.FC<IntegrationsViewProps> = ({
   const [pageForms, setPageForms] = useState<Array<{ id: string; name: string; questions?: any[] }>>([]);
   const [formQuestions, setFormQuestions] = useState<Array<{ label: string; key: string; type?: string }>>([]);
   const [fieldMapping, setFieldMapping] = useState<Array<{ fbQuestion: string; telecrmField: string; replaceRule: string }>>([]);
-const [wizardCampaignName, setWizardCampaignName] = useState<string>('@no-otp-form---andra');
+  const [wizardCampaignName, setWizardCampaignName] = useState<string>('');
 const [teamMemberRoleFilter, setTeamMemberRoleFilter] = useState<string>('All');
 const [teamMemberSearch, setTeamMemberSearch] = useState<string>('');
 const [selectedDistributionUsers, setSelectedDistributionUsers] = useState<string[]>([]);
@@ -1587,7 +1587,7 @@ if (selectedManageIntegration?.id === 'facebook') {
                       type="text"
                       value={wizardCampaignName}
                       onChange={(e) => setWizardCampaignName(e.target.value)}
-                      placeholder="@no-otp-form---andra"
+                      placeholder="Enter campaign name (e.g. @summer-ads)"
                       className="w-full bg-white border border-slate-300 rounded-lg pl-3 pr-4 py-2 text-xs font-mono font-medium text-slate-900 focus:outline-none focus:border-[#6342E8] shadow-2xs transition-all"
                     />
                   </div>

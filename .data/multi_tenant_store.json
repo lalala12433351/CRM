@@ -490,11 +490,651 @@
         "priority": "High",
         "assignedTo": "Risvana Rahim",
         "createdAt": "2026-09-16T07:33:48.189Z",
-        "updatedAt": "2026-09-17T11:59:11.585Z",
+        "updatedAt": "2026-09-17T12:07:11.581Z",
         "formName": "Masterform Karnataka",
         "formId": "1771666150629320",
         "campaignName": "no-otp-form---andra",
         "activities": [
+          {
+            "id": "act-1789646831581",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:37:11 pm",
+            "timestamp": "2026-09-17T12:07:11.581Z"
+          },
+          {
+            "id": "act-1789646828573",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:37:08 pm",
+            "timestamp": "2026-09-17T12:07:08.573Z"
+          },
+          {
+            "id": "act-1789646817130",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:36:57 pm",
+            "timestamp": "2026-09-17T12:06:57.130Z"
+          },
+          {
+            "id": "act-1789646813831",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Akhitha Rameshan",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:36:53 pm",
+            "timestamp": "2026-09-17T12:06:53.831Z"
+          },
+          {
+            "id": "act-1789646801745",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:36:41 pm",
+            "timestamp": "2026-09-17T12:06:41.745Z"
+          },
+          {
+            "id": "act-1789646799053",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:36:39 pm",
+            "timestamp": "2026-09-17T12:06:39.052Z"
+          },
+          {
+            "id": "act-1789646787809",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:36:27 pm",
+            "timestamp": "2026-09-17T12:06:27.809Z"
+          },
+          {
+            "id": "act-1789646784213",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Akhitha Rameshan",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:36:24 pm",
+            "timestamp": "2026-09-17T12:06:24.213Z"
+          },
+          {
+            "id": "act-1789646771860",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:36:11 pm",
+            "timestamp": "2026-09-17T12:06:11.860Z"
+          },
+          {
+            "id": "act-1789646768692",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:36:08 pm",
+            "timestamp": "2026-09-17T12:06:08.692Z"
+          },
+          {
+            "id": "act-1789646756952",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:35:56 pm",
+            "timestamp": "2026-09-17T12:05:56.952Z"
+          },
+          {
+            "id": "act-1789646753743",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Akhitha Rameshan",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:35:53 pm",
+            "timestamp": "2026-09-17T12:05:53.743Z"
+          },
+          {
+            "id": "act-1789646741711",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:35:41 pm",
+            "timestamp": "2026-09-17T12:05:41.711Z"
+          },
+          {
+            "id": "act-1789646738880",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:35:38 pm",
+            "timestamp": "2026-09-17T12:05:38.880Z"
+          },
+          {
+            "id": "act-1789646726990",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:35:26 pm",
+            "timestamp": "2026-09-17T12:05:26.990Z"
+          },
+          {
+            "id": "act-1789646723807",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Akhitha Rameshan",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:35:23 pm",
+            "timestamp": "2026-09-17T12:05:23.807Z"
+          },
+          {
+            "id": "act-1789646711758",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:35:11 pm",
+            "timestamp": "2026-09-17T12:05:11.758Z"
+          },
+          {
+            "id": "act-1789646708928",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:35:08 pm",
+            "timestamp": "2026-09-17T12:05:08.928Z"
+          },
+          {
+            "id": "act-1789646697243",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:34:57 pm",
+            "timestamp": "2026-09-17T12:04:57.243Z"
+          },
+          {
+            "id": "act-1789646693804",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Risvana Rahim",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:34:53 pm",
+            "timestamp": "2026-09-17T12:04:53.804Z"
+          },
+          {
+            "id": "act-1789646681623",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:34:41 pm",
+            "timestamp": "2026-09-17T12:04:41.623Z"
+          },
+          {
+            "id": "act-1789646678854",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:34:38 pm",
+            "timestamp": "2026-09-17T12:04:38.854Z"
+          },
+          {
+            "id": "act-1789646667072",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:34:27 pm",
+            "timestamp": "2026-09-17T12:04:27.072Z"
+          },
+          {
+            "id": "act-1789646663576",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Akhitha Rameshan",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:34:23 pm",
+            "timestamp": "2026-09-17T12:04:23.576Z"
+          },
+          {
+            "id": "act-1789646651537",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:34:11 pm",
+            "timestamp": "2026-09-17T12:04:11.537Z"
+          },
+          {
+            "id": "act-1789646648628",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:34:08 pm",
+            "timestamp": "2026-09-17T12:04:08.628Z"
+          },
+          {
+            "id": "act-1789646636968",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:33:56 pm",
+            "timestamp": "2026-09-17T12:03:56.968Z"
+          },
+          {
+            "id": "act-1789646633391",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Akhitha Rameshan",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:33:53 pm",
+            "timestamp": "2026-09-17T12:03:53.391Z"
+          },
+          {
+            "id": "act-1789646621105",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:33:41 pm",
+            "timestamp": "2026-09-17T12:03:41.105Z"
+          },
+          {
+            "id": "act-1789646618405",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:33:38 pm",
+            "timestamp": "2026-09-17T12:03:38.405Z"
+          },
+          {
+            "id": "act-1789646606865",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:33:26 pm",
+            "timestamp": "2026-09-17T12:03:26.865Z"
+          },
+          {
+            "id": "act-1789646603637",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Akhitha Rameshan",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:33:23 pm",
+            "timestamp": "2026-09-17T12:03:23.637Z"
+          },
+          {
+            "id": "act-1789646591948",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:33:11 pm",
+            "timestamp": "2026-09-17T12:03:11.948Z"
+          },
+          {
+            "id": "act-1789646589055",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:33:09 pm",
+            "timestamp": "2026-09-17T12:03:09.055Z"
+          },
+          {
+            "id": "act-1789646576628",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:32:56 pm",
+            "timestamp": "2026-09-17T12:02:56.628Z"
+          },
+          {
+            "id": "act-1789646573452",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Akhitha Rameshan",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:32:53 pm",
+            "timestamp": "2026-09-17T12:02:53.452Z"
+          },
+          {
+            "id": "act-1789646561585",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:32:41 pm",
+            "timestamp": "2026-09-17T12:02:41.585Z"
+          },
+          {
+            "id": "act-1789646558818",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:32:38 pm",
+            "timestamp": "2026-09-17T12:02:38.818Z"
+          },
+          {
+            "id": "act-1789646547081",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:32:27 pm",
+            "timestamp": "2026-09-17T12:02:27.081Z"
+          },
+          {
+            "id": "act-1789646543609",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Akhitha Rameshan",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:32:23 pm",
+            "timestamp": "2026-09-17T12:02:23.609Z"
+          },
+          {
+            "id": "act-1789646531655",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:32:11 pm",
+            "timestamp": "2026-09-17T12:02:11.655Z"
+          },
+          {
+            "id": "act-1789646528842",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:32:08 pm",
+            "timestamp": "2026-09-17T12:02:08.842Z"
+          },
+          {
+            "id": "act-1789646519403",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:31:59 pm",
+            "timestamp": "2026-09-17T12:01:59.403Z"
+          },
+          {
+            "id": "act-1789646514153",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Akhitha Rameshan",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:31:54 pm",
+            "timestamp": "2026-09-17T12:01:54.153Z"
+          },
+          {
+            "id": "act-1789646501781",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:31:41 pm",
+            "timestamp": "2026-09-17T12:01:41.781Z"
+          },
+          {
+            "id": "act-1789646498475",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:31:38 pm",
+            "timestamp": "2026-09-17T12:01:38.475Z"
+          },
+          {
+            "id": "act-1789646487250",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:31:27 pm",
+            "timestamp": "2026-09-17T12:01:27.250Z"
+          },
+          {
+            "id": "act-1789646483826",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Akhitha Rameshan",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:31:23 pm",
+            "timestamp": "2026-09-17T12:01:23.826Z"
+          },
+          {
+            "id": "act-1789646472717",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:31:12 pm",
+            "timestamp": "2026-09-17T12:01:12.717Z"
+          },
+          {
+            "id": "act-1789646469945",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:31:09 pm",
+            "timestamp": "2026-09-17T12:01:09.945Z"
+          },
+          {
+            "id": "act-1789646457652",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:30:57 pm",
+            "timestamp": "2026-09-17T12:00:57.652Z"
+          },
+          {
+            "id": "act-1789646453554",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Risvana Rahim",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:30:53 pm",
+            "timestamp": "2026-09-17T12:00:53.554Z"
+          },
+          {
+            "id": "act-1789646442250",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:30:42 pm",
+            "timestamp": "2026-09-17T12:00:42.250Z"
+          },
+          {
+            "id": "act-1789646439164",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:30:39 pm",
+            "timestamp": "2026-09-17T12:00:39.164Z"
+          },
+          {
+            "id": "act-1789646427159",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:30:27 pm",
+            "timestamp": "2026-09-17T12:00:27.159Z"
+          },
+          {
+            "id": "act-1789646423658",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Risvana Rahim",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:30:23 pm",
+            "timestamp": "2026-09-17T12:00:23.658Z"
+          },
+          {
+            "id": "act-1789646411557",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:30:11 pm",
+            "timestamp": "2026-09-17T12:00:11.557Z"
+          },
+          {
+            "id": "act-1789646408646",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:30:08 pm",
+            "timestamp": "2026-09-17T12:00:08.646Z"
+          },
+          {
+            "id": "act-1789646397474",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:29:57 pm",
+            "timestamp": "2026-09-17T11:59:57.474Z"
+          },
+          {
+            "id": "act-1789646393800",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Risvana Rahim",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:29:53 pm",
+            "timestamp": "2026-09-17T11:59:53.800Z"
+          },
+          {
+            "id": "act-1789646383052",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:29:43 pm",
+            "timestamp": "2026-09-17T11:59:43.052Z"
+          },
+          {
+            "id": "act-1789646379739",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:29:39 pm",
+            "timestamp": "2026-09-17T11:59:39.739Z"
+          },
+          {
+            "id": "act-1789646367273",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:29:27 pm",
+            "timestamp": "2026-09-17T11:59:27.273Z"
+          },
+          {
+            "id": "act-1789646363777",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent-admin",
+            "agentName": "Risvana Rahim",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:29:23 pm",
+            "timestamp": "2026-09-17T11:59:23.777Z"
+          },
           {
             "id": "act-1789646351585",
             "leadId": "meta-lead-1079207984665498",
@@ -10856,11 +11496,331 @@
         "priority": "High",
         "assignedTo": "Rahul Varma (Auto)",
         "createdAt": "2026-09-16T07:33:21.367Z",
-        "updatedAt": "2026-09-17T11:59:10.172Z",
+        "updatedAt": "2026-09-17T12:07:10.188Z",
         "formName": "Masterform North India",
         "formId": "1563717635493396",
         "campaignName": "Masterform North India",
         "activities": [
+          {
+            "id": "act-1789646830188",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Risvana Rahim",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:37:10 pm",
+            "timestamp": "2026-09-17T12:07:10.188Z"
+          },
+          {
+            "id": "act-1789646815764",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:36:55 pm",
+            "timestamp": "2026-09-17T12:06:55.764Z"
+          },
+          {
+            "id": "act-1789646800331",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Akhitha Rameshan",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:36:40 pm",
+            "timestamp": "2026-09-17T12:06:40.331Z"
+          },
+          {
+            "id": "act-1789646786466",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:36:26 pm",
+            "timestamp": "2026-09-17T12:06:26.466Z"
+          },
+          {
+            "id": "act-1789646770057",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Akhitha Rameshan",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:36:10 pm",
+            "timestamp": "2026-09-17T12:06:10.057Z"
+          },
+          {
+            "id": "act-1789646755573",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:35:55 pm",
+            "timestamp": "2026-09-17T12:05:55.573Z"
+          },
+          {
+            "id": "act-1789646740244",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Risvana Rahim",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:35:40 pm",
+            "timestamp": "2026-09-17T12:05:40.244Z"
+          },
+          {
+            "id": "act-1789646725713",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:35:25 pm",
+            "timestamp": "2026-09-17T12:05:25.713Z"
+          },
+          {
+            "id": "act-1789646710378",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Risvana Rahim",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:35:10 pm",
+            "timestamp": "2026-09-17T12:05:10.378Z"
+          },
+          {
+            "id": "act-1789646695847",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:34:55 pm",
+            "timestamp": "2026-09-17T12:04:55.847Z"
+          },
+          {
+            "id": "act-1789646680239",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Risvana Rahim",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:34:40 pm",
+            "timestamp": "2026-09-17T12:04:40.239Z"
+          },
+          {
+            "id": "act-1789646665821",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:34:25 pm",
+            "timestamp": "2026-09-17T12:04:25.821Z"
+          },
+          {
+            "id": "act-1789646650093",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Akhitha Rameshan",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:34:10 pm",
+            "timestamp": "2026-09-17T12:04:10.093Z"
+          },
+          {
+            "id": "act-1789646635535",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:33:55 pm",
+            "timestamp": "2026-09-17T12:03:55.535Z"
+          },
+          {
+            "id": "act-1789646619743",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Akhitha Rameshan",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:33:39 pm",
+            "timestamp": "2026-09-17T12:03:39.743Z"
+          },
+          {
+            "id": "act-1789646605606",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:33:25 pm",
+            "timestamp": "2026-09-17T12:03:25.606Z"
+          },
+          {
+            "id": "act-1789646590402",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Risvana Rahim",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:33:10 pm",
+            "timestamp": "2026-09-17T12:03:10.402Z"
+          },
+          {
+            "id": "act-1789646575312",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:32:55 pm",
+            "timestamp": "2026-09-17T12:02:55.312Z"
+          },
+          {
+            "id": "act-1789646560191",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Akhitha Rameshan",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:32:40 pm",
+            "timestamp": "2026-09-17T12:02:40.191Z"
+          },
+          {
+            "id": "act-1789646545673",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:32:25 pm",
+            "timestamp": "2026-09-17T12:02:25.673Z"
+          },
+          {
+            "id": "act-1789646530166",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Risvana Rahim",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:32:10 pm",
+            "timestamp": "2026-09-17T12:02:10.166Z"
+          },
+          {
+            "id": "act-1789646517762",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:31:57 pm",
+            "timestamp": "2026-09-17T12:01:57.762Z"
+          },
+          {
+            "id": "act-1789646499802",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Akhitha Rameshan",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:31:39 pm",
+            "timestamp": "2026-09-17T12:01:39.802Z"
+          },
+          {
+            "id": "act-1789646485978",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:31:25 pm",
+            "timestamp": "2026-09-17T12:01:25.978Z"
+          },
+          {
+            "id": "act-1789646471297",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Akhitha Rameshan",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:31:11 pm",
+            "timestamp": "2026-09-17T12:01:11.297Z"
+          },
+          {
+            "id": "act-1789646455800",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:30:55 pm",
+            "timestamp": "2026-09-17T12:00:55.800Z"
+          },
+          {
+            "id": "act-1789646440761",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Akhitha Rameshan",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:30:40 pm",
+            "timestamp": "2026-09-17T12:00:40.761Z"
+          },
+          {
+            "id": "act-1789646425708",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:30:25 pm",
+            "timestamp": "2026-09-17T12:00:25.708Z"
+          },
+          {
+            "id": "act-1789646410032",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Akhitha Rameshan",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:30:10 pm",
+            "timestamp": "2026-09-17T12:00:10.032Z"
+          },
+          {
+            "id": "act-1789646396122",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:29:56 pm",
+            "timestamp": "2026-09-17T11:59:56.122Z"
+          },
+          {
+            "id": "act-1789646381275",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Akhitha Rameshan",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:29:41 pm",
+            "timestamp": "2026-09-17T11:59:41.275Z"
+          },
+          {
+            "id": "act-1789646365767",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-admin",
+            "agentName": "Rahul Varma (Auto)",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 17/9/2026, 5:29:25 pm",
+            "timestamp": "2026-09-17T11:59:25.766Z"
+          },
           {
             "id": "act-1789646350172",
             "leadId": "meta-lead-1602427667592570",

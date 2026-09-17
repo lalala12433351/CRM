@@ -122,104 +122,93 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
 
   // Dynamic Campaign list derived strictly from live leads prop & form metadata
   const campaignsList = useMemo(() => {
-    const rawCampaigns = new Set<string>();
-    
-    // Always include 'All Inbound Leads' at top
-    rawCampaigns.add('All Inbound Leads');
+    const handleMap = new Map<string, { handle: string; name: string; leads: Lead[] }>();
+    handleMap.set('all-inbound-leads', { handle: '@all-inbound-leads', name: 'All Inbound Leads', leads: [] });
 
-    // Add all registered campaigns from database mappings
+    const addCampaignName = (rawName: string) => {
+      if (!rawName || !rawName.trim()) return;
+      const cleanName = rawName.trim();
+      const h = formatCampaignHandle(cleanName).toLowerCase().replace(/^@/, '');
+      if (!h || h === 'empty' || h === 'all-inbound-leads') return;
+
+      if (!handleMap.has(h)) {
+        const displayHandle = formatCampaignHandle(cleanName);
+        handleMap.set(h, { handle: displayHandle, name: displayHandle.replace(/^@/, ''), leads: [] });
+      }
+    };
+
+    // Add registered campaigns from database mappings
     dbCampaignMappings.forEach(m => {
-      if (m.campaignName) rawCampaigns.add(m.campaignName);
-      if (m.campaignHandle) rawCampaigns.add(m.campaignHandle.replace(/^@/, ''));
+      if (m.campaignName) addCampaignName(m.campaignName);
+      if (m.campaignHandle) addCampaignName(m.campaignHandle);
     });
 
+    // Add campaigns from live leads
     if (leads && leads.length > 0) {
       leads.forEach((l) => {
-        if (l.campaignName && l.campaignName.trim()) rawCampaigns.add(l.campaignName.trim());
-        if (l.campaign && l.campaign.trim()) rawCampaigns.add(l.campaign.trim());
-        if (l.campaign_name && l.campaign_name.trim()) rawCampaigns.add(l.campaign_name.trim());
-        if (l.customFields?.campaign_name && l.customFields.campaign_name.trim()) {
-          rawCampaigns.add(l.customFields.campaign_name.trim());
-        }
-
+        if (l.campaignName) addCampaignName(l.campaignName);
+        if (l.campaign) addCampaignName(l.campaign);
+        if (l.campaign_name) addCampaignName(l.campaign_name);
+        if (l.customFields?.campaign_name) addCampaignName(l.customFields.campaign_name);
         const key = getLeadFormOrCampaignName(l);
-        if (key && key !== 'Empty') rawCampaigns.add(key);
-
-        // Scan tags for form/@handle or region tags (e.g., karnataka-22-08-2025, master-form--bangalore--hindi)
-        if (Array.isArray(l.tags)) {
-          l.tags.forEach((t) => {
-            if (t.startsWith('@') || t.toLowerCase().includes('form') || t.toLowerCase().includes('karnataka')) {
-              rawCampaigns.add(t.replace(/^@/, ''));
-            }
-          });
-        }
+        if (key && key !== 'Empty') addCampaignName(key);
       });
     }
 
-    customCampaigns.forEach((c) => rawCampaigns.add(c));
+    customCampaigns.forEach((c) => addCampaignName(c));
 
-    const groupedMap = new Map<string, Lead[]>();
-    Array.from(rawCampaigns).forEach((cName) => groupedMap.set(cName, []));
-
+    // Group leads into deduplicated campaign entries
     if (leads && leads.length > 0) {
       leads.forEach((l) => {
-        const leadFormName = getLeadFormOrCampaignName(l);
-        const lFormId = l.formId || l.customFields?.meta_form_id || l.customFields?.form_id;
-        
         // Add lead to 'All Inbound Leads'
-        if (groupedMap.has('All Inbound Leads')) {
-          groupedMap.get('All Inbound Leads')!.push(l);
+        if (handleMap.has('all-inbound-leads')) {
+          handleMap.get('all-inbound-leads')!.leads.push(l);
         }
 
-        // Add lead to each matching campaign/form entry
-        Array.from(rawCampaigns).forEach((cName) => {
-          if (cName === 'All Inbound Leads') return;
-          const cNameLower = cName.toLowerCase();
-          const cHandle = formatCampaignHandle(cName).toLowerCase().replace(/^@/, '');
+        const leadFormName = getLeadFormOrCampaignName(l);
+        const lFormId = l.formId || l.customFields?.meta_form_id || l.customFields?.form_id;
 
-          // Check if this campaign is linked to the lead's form ID in the database
-          const mappingForCamp = dbCampaignMappings.find(m => 
-            (m.campaignName && m.campaignName.toLowerCase() === cNameLower) ||
-            (m.campaignHandle && m.campaignHandle.toLowerCase().replace(/^@/, '') === cHandle)
-          );
+        handleMap.forEach((entry, hKey) => {
+          if (hKey === 'all-inbound-leads') return;
+
+          const mappingForCamp = dbCampaignMappings.find(m => {
+            const mH = formatCampaignHandle(m.campaignHandle || m.campaignName || '').toLowerCase().replace(/^@/, '');
+            return mH === hKey;
+          });
           const isFormIdMatch = mappingForCamp && lFormId && String(mappingForCamp.formId) === String(lFormId);
 
           const matches =
             isFormIdMatch ||
-            (l.campaignName && (l.campaignName.toLowerCase() === cNameLower || l.campaignName.toLowerCase().includes(cHandle))) ||
-            (l.campaign && (l.campaign.toLowerCase() === cNameLower || l.campaign.toLowerCase().includes(cHandle))) ||
-            (l.campaignHandle && l.campaignHandle.toLowerCase().replace(/^@/, '') === cHandle) ||
-            (l.customFields?.campaign_name && l.customFields.campaign_name.toLowerCase() === cNameLower) ||
-            (l.customFields?.campaign_handle && l.customFields.campaign_handle.toLowerCase().replace(/^@/, '') === cHandle) ||
-            leadFormName.toLowerCase() === cNameLower ||
-            (l.tags && l.tags.some((t) => t.toLowerCase().includes(cNameLower) || cNameLower.includes(t.toLowerCase().replace(/^@/, '')))) ||
-            (l.customFields?.form_name && l.customFields.form_name.toLowerCase() === cNameLower) ||
-            (l.customFields?.meta_form_name && l.customFields.meta_form_name.toLowerCase() === cNameLower) ||
-            (l.source && l.source.toLowerCase().includes(cNameLower));
+            (l.campaignName && formatCampaignHandle(l.campaignName).toLowerCase().replace(/^@/, '') === hKey) ||
+            (l.campaign && formatCampaignHandle(l.campaign).toLowerCase().replace(/^@/, '') === hKey) ||
+            (l.campaignHandle && formatCampaignHandle(l.campaignHandle).toLowerCase().replace(/^@/, '') === hKey) ||
+            (l.customFields?.campaign_name && formatCampaignHandle(l.customFields.campaign_name).toLowerCase().replace(/^@/, '') === hKey) ||
+            (l.customFields?.campaign_handle && formatCampaignHandle(l.customFields.campaign_handle).toLowerCase().replace(/^@/, '') === hKey) ||
+            formatCampaignHandle(leadFormName).toLowerCase().replace(/^@/, '') === hKey;
 
           if (matches) {
-            groupedMap.get(cName)!.push(l);
+            entry.leads.push(l);
           }
         });
       });
     }
 
-    return Array.from(groupedMap.entries()).map(([campName, leadList], idx) => {
-      const freshCount = leadList.filter((l) => l.status === 'Fresh' || l.status === 'Open').length;
+    return Array.from(handleMap.values()).map((entry, idx) => {
+      const freshCount = entry.leads.filter((l) => l.status === 'Fresh' || l.status === 'Open').length;
       return {
         id: `camp-dyn-${idx}`,
-        handle: formatCampaignHandle(campName),
-        name: campName,
-        totalLeads: leadList.length,
+        handle: entry.handle,
+        name: entry.name,
+        totalLeads: entry.leads.length,
         newLeads: freshCount,
-        progress: leadList.length > 0 ? Math.round(((leadList.length - freshCount) / leadList.length) * 100) : 0,
-        members: Array.from(new Set(leadList.map((l) => l.ownerAgentName || 'Admin'))).map((n) =>
+        progress: entry.leads.length > 0 ? Math.round(((entry.leads.length - freshCount) / entry.leads.length) * 100) : 0,
+        members: Array.from(new Set(entry.leads.map((l) => l.ownerAgentName || 'Admin'))).map((n) =>
           n.split(' ').map((x) => x[0]).join('').toUpperCase()
         ),
         errors: 0
       };
     });
-  }, [leads, agents, customCampaigns]);
+  }, [leads, agents, customCampaigns, dbCampaignMappings]);
 
   // Campaign Selection State
   const [activeCampaign, setActiveCampaign] = useState<CampaignDef>(campaignsList[0]);
