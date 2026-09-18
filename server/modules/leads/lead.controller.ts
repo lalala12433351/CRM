@@ -18,12 +18,19 @@ function isFollowUpStatus(status?: string): boolean {
 export class LeadController {
   public async getLeads(req: Request, res: Response) {
     try {
-      const tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string) || process.env.DEFAULT_TENANT_ID || 'default_tenant';
-      const { agentId, isAdmin } = req.query;
+      const authReq = req as any; // Using any for AuthenticatedRequest fields
+      const tenantId = authReq.tenantId || (req.headers['x-tenant-id'] as string) || process.env.DEFAULT_TENANT_ID || 'default_tenant';
+      
+      const userRole = authReq.user?.role || 'Telecaller';
+      const isSystemAdmin = authReq.user?.isAdmin || userRole === 'Admin' || userRole === 'Manager';
+      
+      // If user is a Telecaller, force agentId to their own ID, overriding any query params
+      const agentId = isSystemAdmin && req.query.agentId ? String(req.query.agentId) : (isSystemAdmin ? undefined : authReq.user?.id);
+      
       const leads = await leadService.getLeads(
         tenantId,
-        agentId ? String(agentId) : undefined,
-        isAdmin === 'true'
+        agentId,
+        isSystemAdmin
       );
       return res.json({ success: true, tenantId, leads });
     } catch (err: any) {

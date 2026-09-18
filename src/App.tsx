@@ -92,7 +92,18 @@ export const StagesContext = React.createContext<PipelineStage[]>(INITIAL_STAGES
 export function App() {
   // Navigation & Active View State (synchronized with browser URL and history)
   const [currentView, setCurrentView] = useState<string>(() => {
-    return getInitialViewFromUrl('dashboard');
+    let fallback = 'dashboard';
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        const u = sessionStorage.getItem('pixbe_auth_user');
+        if (u) {
+          const user = JSON.parse(u);
+          if (user?.role === 'Telecaller') fallback = 'leads';
+          else if (user?.role === 'Manager') fallback = 'team';
+        }
+      }
+    } catch (e) {}
+    return getInitialViewFromUrl(fallback);
   });
   const [previousView, setPreviousView] = useState<string>('dashboard');
 
@@ -575,6 +586,27 @@ export function App() {
   const isAdmin = isAgentAdmin(activeAgent);
   const activeSupportEmail = workspaceEmail?.[0]?.email || activeAgent?.email || currentUser?.email || 'admin@company.com';
   const activeCurrency = workspaceCurrency?.[0]?.code || 'INR';
+
+  // RBAC Frontend Route Guards
+  useEffect(() => {
+    if (!isAuthenticated || !activeAgent) return;
+    
+    const role = activeAgent.role || 'Telecaller';
+    const adminRoutes = ['settings', 'campaigns', 'workflows', 'integrations', 'fields', 'call_feedback'];
+    const managerRoutes = ['team', 'reports', 'analytics', 'pipeline'];
+    
+    if (role === 'Telecaller') {
+      if (adminRoutes.includes(currentView) || managerRoutes.includes(currentView)) {
+        setCurrentView('leads');
+        showToast('Access Denied: Redirected to Leads');
+      }
+    } else if (role === 'Manager') {
+      if (adminRoutes.includes(currentView)) {
+        setCurrentView('team');
+        showToast('Access Denied: Redirected to Team Dashboard');
+      }
+    }
+  }, [currentView, activeAgent, isAuthenticated]);
 
   // Strict Database Agents Scoping: Use live agents from database (or active logged in admin user)
   const visibleAgents = activeAgentsList;
@@ -1214,6 +1246,7 @@ export function App() {
           activeFilterId={activeFilterId}
           setActiveFilterId={setActiveFilterId}
           isAdmin={isAdmin}
+          activeAgentRole={activeAgent?.role}
         />
 
         {/* View Router */}

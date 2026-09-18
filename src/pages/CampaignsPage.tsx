@@ -328,8 +328,13 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
   // Dynamic Telecaller Lead Allocation computation
   const telecallerAllocation = useMemo(() => {
     const counts: Record<string, number> = {};
+    const validAgentNames = new Set(agents.map(a => a.name.toLowerCase()));
+    
     campaignLeads.forEach((lead) => {
-      const assignee = lead.ownerAgentName || 'Unassigned';
+      let assignee = lead.ownerAgentName || 'Unassigned';
+      if (assignee !== 'Unassigned' && !validAgentNames.has(assignee.toLowerCase())) {
+        assignee = 'Unassigned';
+      }
       counts[assignee] = (counts[assignee] || 0) + 1;
     });
 

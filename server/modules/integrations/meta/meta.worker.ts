@@ -107,7 +107,7 @@ export class MetaWorker {
 
       // Pick assigned agent from distribution list if configured
       let assignedOwnerId = 'agent-admin';
-      let assignedOwnerName = 'Rahul Varma (Auto)';
+      let assignedOwnerName = 'Admin';
       
       if (savedMapping?.leadDistribution && Array.isArray(savedMapping.leadDistribution) && savedMapping.leadDistribution.length > 0) {
         const pickIndex = Math.floor(Math.random() * savedMapping.leadDistribution.length);

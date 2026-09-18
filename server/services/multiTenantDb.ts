@@ -33,6 +33,7 @@ export interface TenantLead {
   dealValue: number;
   ownerAgentId: string;
   ownerAgentName: string;
+  managerId?: string;
   aiScore?: number;
   aiRating?: string;
   aiReasoning?: string;
@@ -47,13 +48,15 @@ export interface TenantLead {
   [key: string]: any;
 }
 
+export type UserRole = 'Admin' | 'Manager' | 'Telecaller';
+
 export interface TenantAgent {
   id: string;
   tenantId: string;
   name: string;
   email: string;
   phone: string;
-  role: string;
+  role: UserRole | string; // Keep string to support legacy roles temporarily
   permission?: string;
   companyName: string;
   isAdmin: boolean;

@@ -59,6 +59,7 @@ interface SidebarProps {
   activeFilterId?: string;
   setActiveFilterId?: (id: string) => void;
   isAdmin?: boolean;
+  activeAgentRole?: string;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
@@ -72,7 +73,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   globalSavedFilters = [],
   activeFilterId = '',
   setActiveFilterId,
-  isAdmin = false
+  isAdmin = false,
+  activeAgentRole = 'Telecaller'
 }) => {
   const [isReportsOpen, setIsReportsOpen] = useState(activeTab === 'reports');
   const [isAutomationsOpen, setIsAutomationsOpen] = useState(activeTab === 'workflows');
@@ -88,12 +90,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }, [activeTab]);
 
   // Grouped Navigation matching reference layout (MAIN MENU, TOOLS, WORKSPACE)
+  const isManager = isAdmin || activeAgentRole === 'Manager';
+  const isTelecaller = !isAdmin && !isManager;
+
   const menuSections = [
     {
       title: 'MAIN MENU',
       items: [
-        { id: 'dashboard' as TabType, label: 'Dashboard', icon: LayoutDashboard },
-        { id: 'pipeline' as TabType, label: 'Pipeline & Deals', icon: Kanban },
+        ...(isTelecaller ? [] : [{ id: 'dashboard' as TabType, label: 'Dashboard', icon: LayoutDashboard }]),
+        ...(isTelecaller ? [] : [{ id: 'pipeline' as TabType, label: 'Pipeline & Deals', icon: Kanban }]),
         { id: 'leads' as TabType, label: 'Leads Database', icon: Users },
         { 
           id: 'followups' as TabType, 
@@ -114,27 +119,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'TOOLS',
       items: [
         { id: 'whatsapp' as TabType, label: 'WhatsApp CRM', icon: MessageSquare },
-        { 
+        ...(isTelecaller ? [] : [{ 
           id: 'workflows' as TabType, 
           label: 'AI Automations', 
           icon: Bot, 
           hasSubmenu: true,
           submenuType: 'workflows'
-        },
-        { 
+        }]),
+        ...(isTelecaller ? [] : [{ 
           id: 'reports' as TabType, 
           label: 'Performance Reports', 
           icon: TrendingUp, 
           hasSubmenu: true,
           submenuType: 'reports'
-        },
+        }]),
         ...(isAdmin ? [{ id: 'integrations' as TabType, label: 'Integrations', icon: Link2 }] : []),
       ]
     },
     {
       title: 'WORKSPACE',
       items: [
-        { id: 'campaigns' as TabType, label: 'Campaigns & Tags', icon: Tag },
+        ...(isTelecaller ? [] : [{ id: 'campaigns' as TabType, label: 'Campaigns & Tags', icon: Tag }]),
         { id: 'filters' as any, label: 'Saved Filters', icon: Filter, isFilterAction: true },
         { id: 'calls' as TabType, label: 'My Calls', icon: PhoneCall },
       ]
