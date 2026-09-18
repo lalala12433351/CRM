@@ -95,15 +95,32 @@ router.post(
 // =========================================================================
 // 3. ON-DEMAND MANUAL LEAD SYNC
 // =========================================================================
-router.post('/meta/sync', async (req: any, res) => {
-  const { metaSyncEngine } = await import('./meta.sync');
-  const tenantId =
-    req.tenantId ||
-    req.headers['x-tenant-id'] ||
-    process.env.DEFAULT_TENANT_ID ||
-    'company_kite_aviation';
-  const result = await metaSyncEngine.syncAllMetaLeads(String(tenantId));
-  res.json({ success: true, ...result });
-});
+async function runMetaLeadSync(req: any, res: any) {
+  try {
+    const { metaSyncEngine } = await import('./meta.sync');
+    const tenantId = String(
+      req.tenantId ||
+      req.user?.tenantId ||
+      req.headers['x-tenant-id'] ||
+      req.body?.tenantId ||
+      process.env.DEFAULT_TENANT_ID ||
+      'company_kite_aviation'
+    );
+    const result = await metaSyncEngine.syncAllMetaLeads(tenantId);
+    res.json({
+      success: true,
+      tenantId,
+      message: `Synced ${result.syncedCount} Facebook lead(s) into the CRM database.`,
+      syncedCount: result.syncedCount,
+      newLeadsSaved: result.syncedCount,
+      formsSynced: result.formsSynced || 0,
+      errors: result.errors || []
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Meta sync failed' });
+  }
+}
+
+router.post(['/meta/sync', '/facebook/sync-leads', '/integrations/facebook/sync-leads'], authMiddleware, tenantContextMiddleware, runMetaLeadSync);
 
 export default router;

@@ -1360,7 +1360,7 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
         const fallbackUser = config.fallbackAssignee || '';
 
         // Dynamic roles from agents
-        const baseRoles = ['Root', 'Admin', 'Manager', 'Caller', 'Marketing_user'];
+        const baseRoles = ['Admin', 'Manager', 'Telecaller'];
         const dynamicRoles = Array.from(new Set(agentsList.map((a) => a.role).filter(Boolean))) as string[];
         const availableRoles = Array.from(new Set([...baseRoles, ...dynamicRoles]));
 

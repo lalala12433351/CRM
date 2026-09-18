@@ -26,7 +26,7 @@ router.post('/calls', async (req: Request, res: Response) => {
     // Trigger active workflows for Call Log
     try {
       const { workflowEngine } = await import('../../services/workflowEngine');
-      const leads = await multiTenantDb.getLeads(tenantId);
+      const leads = await multiTenantDb.getLeads(tenantId, [], true);
       const matchedLead = leads.find((l) => l.id === callData.leadId || l.phone === callData.phoneNumber || l.name === callData.leadName);
       await workflowEngine.triggerWorkflowsForEvent(tenantId, 'call_logged', { call: saved, lead: matchedLead });
     } catch (wfErr: any) {

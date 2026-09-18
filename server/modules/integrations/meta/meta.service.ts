@@ -240,8 +240,11 @@ export class MetaService {
       const targetTenant = clientId || process.env.DEFAULT_TENANT_ID || 'company_kite_aviation';
       const localPages = await multiTenantDb.getFacebookPages(targetTenant);
       for (const p of localPages) {
-        if (p.status === 'active' && p.accessToken) {
+        if (p.status === 'active' && p.accessToken && !String(p.pageId || '').startsWith('test_page_')) {
           const decrypted = decryptText(p.accessToken);
+          // Skip tokens that failed decrypt (still iv:tag:cipher) — reconnect required
+          const looksEncrypted = String(decrypted).split(':').length === 3 && !String(decrypted).startsWith('EAA');
+          if (!decrypted || looksEncrypted) continue;
           results.push({
             client_id: p.clientId || targetTenant,
             page_id: p.pageId,

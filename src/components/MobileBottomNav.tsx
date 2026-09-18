@@ -74,7 +74,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         { id: 'leads' as TabType, label: 'Lead Database', icon: Users, desc: 'All incoming customer leads' },
         { id: 'add_lead' as TabType, label: 'Add Lead Page', icon: UserPlus, desc: 'Quick lead capture form' },
         { id: 'followups' as TabType, label: 'Follow-Ups Queue', icon: BellRing, desc: 'Due phone calls & alarms' },
-        { id: 'campaigns' as TabType, label: 'Campaigns', icon: Megaphone, desc: 'WhatsApp & Meta ad campaigns' }
+        { id: 'campaigns' as TabType, label: 'Campaigns', icon: Megaphone, desc: 'WhatsApp & Meta ad campaigns' },
+        { id: 'team' as TabType, label: 'Users & Team', icon: Users, desc: 'Team members and reporting structure' }
       ]
     },
     {
@@ -99,11 +100,16 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   ];
 
   const isAdmin = isAgentAdmin(activeAgent);
+  const activeRole = (activeAgent.role || '').toLowerCase();
+  const isManager = activeRole === 'manager' || activeRole.includes('manager');
+  const isTelecaller = !isAdmin && !isManager;
 
   const filteredCategories = navigationCategories.map(cat => ({
     ...cat,
     items: cat.items.filter(item => {
-      if (item.id === 'integrations' && !isAdmin) return false;
+      if (['workflows', 'integrations', 'settings'].includes(item.id) && !isAdmin) return false;
+      if (item.id === 'team' && !isAdmin) return false;
+      if (isTelecaller && ['pipeline', 'reports', 'analytics', 'campaigns', 'marketing'].includes(item.id)) return false;
       return (
         item.label.toLowerCase().includes(mobileSearchQuery.toLowerCase()) ||
         item.desc.toLowerCase().includes(mobileSearchQuery.toLowerCase())
@@ -332,7 +338,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               )}
 
               {/* Active Telecaller Switcher Strip */}
-              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+              {isAdmin && <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Active Telecaller</span>
                   <span className="text-[9px] text-indigo-600 font-semibold">{activeAgent.name}</span>
@@ -353,7 +359,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                     </button>
                   ))}
                 </div>
-              </div>
+              </div>}
 
               {/* iOS PWA Install Badge */}
               <div className="p-2.5 bg-indigo-50/80 border border-indigo-200 rounded-xl flex items-center justify-between">

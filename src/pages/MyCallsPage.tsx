@@ -55,7 +55,7 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
   onDeleteCallRecord,
   onShowToast
 }) => {
-  const isAdmin = activeAgent?.role === 'Master Admin' || activeAgent?.role === 'Admin' || activeAgent?.role === 'Sales Manager' || activeAgent?.isAdmin;
+  const isAdmin = Boolean(activeAgent?.isAdmin) || ['admin', 'owner'].some((r) => String(activeAgent?.role || '').toLowerCase().includes(r));
 
   // Search & Filter States
   const [searchTerm, setSearchTerm] = useState('');

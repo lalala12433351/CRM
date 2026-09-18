@@ -1,8 +1,8 @@
 import { leadRepository } from './lead.repository';
 
 export class LeadService {
-  public async getLeads(tenantId: string, agentId?: string, isAdmin?: boolean) {
-    return await leadRepository.getLeads(tenantId, agentId, isAdmin);
+  public async getLeads(tenantId: string, agentIds?: string[], isAdmin?: boolean) {
+    return await leadRepository.getLeads(tenantId, agentIds, isAdmin);
   }
 
   public async saveLead(tenantId: string, leadData: any) {

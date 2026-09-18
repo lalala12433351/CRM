@@ -10,6 +10,7 @@ export interface AuthenticatedRequest extends Request {
     isAdmin?: boolean;
     companyName?: string;
     tenantId?: string;
+    managerId?: string;
   };
   tenantId?: string;
 }
@@ -28,25 +29,18 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
         name: sessionUser.name,
         isAdmin: sessionUser.isAdmin,
         companyName: sessionUser.companyName,
-        tenantId: sessionUser.tenantId
+        tenantId: sessionUser.tenantId,
+        managerId: sessionUser.managerId
       };
       req.tenantId = sessionUser.tenantId || (req.headers['x-tenant-id'] as string) || process.env.DEFAULT_TENANT_ID || 'default_tenant';
       return next();
     }
   }
 
-  // Fallback to x-tenant-id header if provided
+  // A tenant header scopes anonymous/public requests, but never grants a role.
   const headerTenantId = (req.headers['x-tenant-id'] as string)?.trim();
   if (headerTenantId) {
     req.tenantId = headerTenantId;
-    req.user = {
-      id: `anon_${headerTenantId}`,
-      email: `${headerTenantId}@crm.local`,
-      role: 'Admin',
-      name: headerTenantId,
-      isAdmin: true,
-      tenantId: headerTenantId
-    };
     return next();
   }
 

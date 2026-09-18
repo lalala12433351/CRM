@@ -1,8 +1,8 @@
 import { multiTenantDb } from '../../services/multiTenantDb';
 
 export class LeadRepository {
-  public async getLeads(tenantId: string, agentId?: string, isAdmin?: boolean) {
-    return await multiTenantDb.getLeads(tenantId, agentId, isAdmin);
+  public async getLeads(tenantId: string, agentIds?: string[], isAdmin?: boolean) {
+    return await multiTenantDb.getLeads(tenantId, agentIds, isAdmin);
   }
 
   public async saveLead(tenantId: string, leadData: any) {

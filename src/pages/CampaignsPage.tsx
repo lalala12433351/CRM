@@ -48,6 +48,7 @@ import { getStatusStyle, getStatusBadgeClasses } from '../utils/statusStyles';
 import { StagesContext } from '../App';
 import { LeadDetailModal } from '../components/LeadDetailModal';
 import { toast } from '../context/ToastContext';
+import { fetchWithTenantAuth } from '../lib/auth';
 import { formatProperName } from '../utils/formatUtils';
 import { getLeadFormOrCampaignName, formatCampaignHandle } from '../utils/leadFormUtils';
 
@@ -69,6 +70,7 @@ interface CampaignsViewProps {
   lostReasons?: string[];
   onNavigateToTab?: (tab: string, subTab?: string) => void;
   onShowToast?: (msg: string) => void;
+  activeTenantId?: string;
 }
 
 interface CampaignDef {
@@ -100,7 +102,8 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
   onUpdateCallRecord,
   lostReasons,
   onNavigateToTab,
-  onShowToast
+  onShowToast,
+  activeTenantId
 }) => {
   const stages = useContext(StagesContext);
   const [customCampaigns, setCustomCampaigns] = useState<string[]>([]);
@@ -111,9 +114,12 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
 
   // Fetch registered campaigns from database (/api/campaigns and Meta mappings)
   const fetchDbCampaigns = () => {
+    const tenantId = activeTenantId || (typeof sessionStorage !== 'undefined'
+      ? (() => { try { return JSON.parse(sessionStorage.getItem('pixbe_auth_user') || '{}')?.tenantId; } catch { return null; } })()
+      : null) || 'default_tenant';
     Promise.all([
-      fetch('/api/campaigns', { headers: { 'x-tenant-id': 'company_kite_aviation' } }).then(r => r.json()).catch(() => ({ success: false })),
-      fetch('/api/integrations/facebook/campaign-mappings', { headers: { 'x-tenant-id': 'company_kite_aviation' } }).then(r => r.json()).catch(() => ({ success: false }))
+      fetchWithTenantAuth('/api/campaigns', { headers: { 'x-tenant-id': tenantId } }).then(r => r.json()).catch(() => ({ success: false })),
+      fetchWithTenantAuth('/api/integrations/facebook/campaign-mappings', { headers: { 'x-tenant-id': tenantId } }).then(r => r.json()).catch(() => ({ success: false }))
     ]).then(([campRes, mapRes]) => {
       const combined: any[] = [];
       if (campRes && campRes.success && Array.isArray(campRes.campaigns)) {
@@ -585,7 +591,7 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
                       setShowCampaignSettingsMenu(false);
                       if (onShowToast) onShowToast(`⚡ Restarting campaign "${activeCampaign.name}"... Fetching live leads.`);
                       try {
-                        const res = await fetch('/api/meta/sync', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-tenant-id': 'company_kite_aviation' } });
+                        const res = await fetchWithTenantAuth('/api/meta/sync', { method: 'POST', body: JSON.stringify({}) });
                         const data = await res.json();
                         if (onShowToast) onShowToast(`⚡ Campaign restarted! ${data.newLeadsSaved || 0} new leads synced.`);
                       } catch (e) {
@@ -623,7 +629,7 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
                         const targetHandle = activeCampaign.handle.toLowerCase();
                         setCustomCampaigns(prev => prev.filter(c => formatCampaignHandle(c).toLowerCase() !== targetHandle));
                         try {
-                          await fetch(`/api/campaigns/${encodeURIComponent(activeCampaign.id || targetHandle)}`, { method: 'DELETE', headers: { 'x-tenant-id': 'company_kite_aviation' } });
+                          await fetchWithTenantAuth(`/api/campaigns/${encodeURIComponent(activeCampaign.id || targetHandle)}`, { method: 'DELETE' });
                         } catch {}
                         fetchDbCampaigns();
                         if (onShowToast) onShowToast(`🗑️ Campaign "${activeCampaign.name}" removed from workspace.`);
@@ -694,9 +700,9 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
                               const cleanName = newCampaignInput.trim();
                               const cleanHandle = formatCampaignHandle(cleanName);
                               setCustomCampaigns(prev => [...prev, cleanName]);
-                              fetch('/api/campaigns', {
+                              fetchWithTenantAuth('/api/campaigns', {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'x-tenant-id': 'company_kite_aviation' },
+                                headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ name: cleanName, handle: cleanHandle })
                               }).then(() => fetchDbCampaigns()).catch(() => {});
                               setNewCampaignInput('');
@@ -719,9 +725,9 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
                               const cleanName = newCampaignInput.trim();
                               const cleanHandle = formatCampaignHandle(cleanName);
                               setCustomCampaigns(prev => [...prev, cleanName]);
-                              fetch('/api/campaigns', {
+                              fetchWithTenantAuth('/api/campaigns', {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'x-tenant-id': 'company_kite_aviation' },
+                                headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ name: cleanName, handle: cleanHandle })
                               }).then(() => fetchDbCampaigns()).catch(() => {});
                               setNewCampaignInput('');

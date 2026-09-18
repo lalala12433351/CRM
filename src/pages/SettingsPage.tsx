@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from '../context/ToastContext';
+import { fetchWithTenantAuth } from '../lib/auth';
 import {
   Settings,
   Building2,
@@ -117,7 +118,7 @@ const ColorPickerDropdown: React.FC<ColorPickerDropdownProps> = ({ color, onChan
   );
 };
 import { PipelineStage, Agent, CustomFieldDef, PermissionTemplate } from '../types';
-import { INITIAL_STAGES, INITIAL_AGENTS, INITIAL_CUSTOM_FIELDS, INITIAL_PERMISSION_TEMPLATES } from '../constants/initialState';
+
 import { FieldsSettingsView } from './FieldsSettingsPage';
 import { PermissionsSettingsView } from './PermissionsSettingsPage';
 
@@ -387,8 +388,8 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
       setIsUpdatingProfile(false);
     }
   };
-  const [localCustomFields, setLocalCustomFields] = useState<CustomFieldDef[]>(customFields || INITIAL_CUSTOM_FIELDS);
-  const [localTemplates, setLocalTemplates] = useState<PermissionTemplate[]>(permissionTemplates || INITIAL_PERMISSION_TEMPLATES);
+  const [localCustomFields, setLocalCustomFields] = useState<CustomFieldDef[]>(customFields || []);
+  const [localTemplates, setLocalTemplates] = useState<PermissionTemplate[]>(permissionTemplates || []);
 
   React.useEffect(() => {
     if (initialTab) {
@@ -425,7 +426,7 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   // Assignees / Team Members State
-  const [localAgents, setLocalAgents] = useState<Agent[]>(agents || INITIAL_AGENTS);
+  const [localAgents, setLocalAgents] = useState<Agent[]>(agents || []);
   const [showAddAssigneeModal, setShowAddAssigneeModal] = useState(false);
   const [newAssigneeName, setNewAssigneeName] = useState('');
   const [newAssigneeEmail, setNewAssigneeEmail] = useState('');
@@ -498,7 +499,7 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
 
   // Pipeline Stages Customization State
   const [localStages, setLocalStages] = useState<PipelineStage[]>(
-    stages && stages.length > 0 ? stages : INITIAL_STAGES
+    stages || []
   );
 
   useEffect(() => {
@@ -535,16 +536,6 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
     if (onUpdateLostReasons) {
       onUpdateLostReasons(updatedReasons);
     }
-    const token = typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('pixbe_auth_token') || '') : '';
-    fetch('/api/pipelines/lost-reasons', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'x-tenant-id': activeAgent?.tenantId || 'company_kite_aviation'
-      },
-      body: JSON.stringify(updatedReasons)
-    }).catch(console.warn);
   };
 
   // Form State - General Settings
@@ -609,11 +600,27 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
     };
   });
 
+  const persistWorkspacePatch = (patch: Record<string, any>, toastMsg?: string) => {
+    fetchWithTenantAuth('/api/workspace/settings', {
+      method: 'PUT',
+      body: JSON.stringify(patch)
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.success) {
+          toast.error(data?.error || 'Failed to save settings', 'Settings');
+          return;
+        }
+        if (toastMsg) toast.success(toastMsg, 'Settings');
+      })
+      .catch(() => toast.error('Failed to save settings', 'Settings'));
+  };
+
   const toggleWorkspaceFeature = (key: keyof typeof workspaceFeatures) => {
     setWorkspaceFeatures(prev => {
       const next = { ...prev, [key]: !prev[key] };
       localStorage.setItem('pixbe_workspace_features', JSON.stringify(next));
-      if (onShowToast) onShowToast('Workspace feature preference updated.');
+      persistWorkspacePatch({ workspaceFeatures: next }, 'Workspace feature saved');
       return next;
     });
   };
@@ -624,6 +631,43 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
   const [autoRecordCalls, setAutoRecordCalls] = useState(true);
   const [autoNextDial, setAutoNextDial] = useState(true);
   const [sttLanguage, setSttLanguage] = useState('en-IN');
+
+  // Load workspace settings from database
+  React.useEffect(() => {
+    fetchWithTenantAuth('/api/workspace/settings')
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data?.success || !data.settings) return;
+        const ws = data.settings;
+        if (ws.workspaceFeatures) {
+          setWorkspaceFeatures((prev) => ({ ...prev, ...ws.workspaceFeatures }));
+        }
+        const g = ws.general || {};
+        if (g.timezone) setTimezone(g.timezone);
+        if (g.defaultCountryCode) setDefaultCountryCode(g.defaultCountryCode);
+        if (g.powerDialerDelay) setPowerDialerDelay(String(g.powerDialerDelay));
+        if (g.autoRecordCalls !== undefined) setAutoRecordCalls(Boolean(g.autoRecordCalls));
+        if (g.autoNextDial !== undefined) setAutoNextDial(Boolean(g.autoNextDial));
+        if (g.sttLanguage) setSttLanguage(g.sttLanguage);
+        if (g.aiSensitivity) setAiSensitivity(g.aiSensitivity);
+        if (g.hotLeadThreshold !== undefined) setHotLeadThreshold(Number(g.hotLeadThreshold));
+        if (g.warmLeadThreshold !== undefined) setWarmLeadThreshold(Number(g.warmLeadThreshold));
+        if (g.autoAssignHotLeads !== undefined) setAutoAssignHotLeads(Boolean(g.autoAssignHotLeads));
+        if (g.summaryFormat) setSummaryFormat(g.summaryFormat);
+        if (g.waSenderNumber) setWaSenderNumber(g.waSenderNumber);
+        if (g.autoGreetingEnabled !== undefined) setAutoGreetingEnabled(Boolean(g.autoGreetingEnabled));
+        if (g.greetingMessage) setGreetingMessage(g.greetingMessage);
+        if (g.webhookRetryCount) setWebhookRetryCount(String(g.webhookRetryCount));
+        if (g.desktopPush !== undefined) setDesktopPush(Boolean(g.desktopPush));
+        if (g.hotLeadSoundAlert !== undefined) setHotLeadSoundAlert(Boolean(g.hotLeadSoundAlert));
+        if (g.dailyDigestEmail !== undefined) setDailyDigestEmail(Boolean(g.dailyDigestEmail));
+        if (g.unassignedAlarmMinutes) setUnassignedAlarmMinutes(String(g.unassignedAlarmMinutes));
+        if (g.enforceTwoFactor !== undefined) setEnforceTwoFactor(Boolean(g.enforceTwoFactor));
+        if (g.exportPermission) setExportPermission(g.exportPermission);
+        if (g.sessionTimeoutHours) setSessionTimeoutHours(String(g.sessionTimeoutHours));
+      })
+      .catch(() => {});
+  }, []);
 
   // Form State - AI & Scoring Engine
   const [aiSensitivity, setAiSensitivity] = useState('balanced');
@@ -825,9 +869,19 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
   };
 
   const handleResetStagesToDefault = () => {
-    setLocalStages(INITIAL_STAGES);
+    // Empty array would wipe DB; let the server/client reseed by reloading defaults from current prop or built-in names
+    const defaults: PipelineStage[] = [
+      { id: 'stage-1', name: 'Fresh', color: '#3B82F6', order: 1, category: 'initial', winProbability: 10 },
+      { id: 'stage-2', name: 'Contacted', color: '#8B5CF6', order: 2, category: 'active', winProbability: 25 },
+      { id: 'stage-3', name: 'Follow Up', color: '#F59E0B', order: 3, category: 'active', winProbability: 40 },
+      { id: 'stage-4', name: 'Demo Scheduled', color: '#06B6D4', order: 4, category: 'active', winProbability: 60 },
+      { id: 'stage-5', name: 'Proposal Sent', color: '#10B981', order: 5, category: 'active', winProbability: 80 },
+      { id: 'stage-6', name: 'Converted', color: '#059669', order: 6, category: 'closed', winProbability: 100 },
+      { id: 'stage-7', name: 'Lost', color: '#EF4444', order: 7, category: 'closed', winProbability: 0 },
+    ];
+    setLocalStages(defaults);
     if (onUpdateStages) {
-      onUpdateStages(INITIAL_STAGES);
+      onUpdateStages(defaults);
     }
     if (onShowToast) {
       onShowToast('Reset pipeline stages & colors to default configuration');
@@ -838,17 +892,48 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
     setIsSaving(true);
     setSavedSuccess(false);
 
+    if (onUpdateStages) onUpdateStages(localStages);
+    if (onUpdateCompanyName) onUpdateCompanyName(companyName);
+    if (onUpdateSupportEmail) onUpdateSupportEmail(supportEmail);
+    if (onUpdateCurrency) onUpdateCurrency(currency);
+
+    persistWorkspacePatch({
+      companyName,
+      supportEmail,
+      currency,
+      workspaceFeatures,
+      general: {
+        timezone,
+        defaultCountryCode,
+        powerDialerDelay,
+        autoRecordCalls,
+        autoNextDial,
+        sttLanguage,
+        aiSensitivity,
+        hotLeadThreshold,
+        warmLeadThreshold,
+        autoAssignHotLeads,
+        summaryFormat,
+        waSenderNumber,
+        autoGreetingEnabled,
+        greetingMessage,
+        webhookRetryCount,
+        desktopPush,
+        hotLeadSoundAlert,
+        dailyDigestEmail,
+        unassignedAlarmMinutes,
+        enforceTwoFactor,
+        exportPermission,
+        sessionTimeoutHours
+      }
+    });
+
     setTimeout(() => {
       setIsSaving(false);
       setSavedSuccess(true);
-      if (onUpdateStages) {
-        onUpdateStages(localStages);
-      }
-      if (onShowToast) {
-        onShowToast('CRM Settings & Pipeline stages saved successfully!');
-      }
+      if (onShowToast) onShowToast('CRM Settings & Pipeline stages saved to database!');
       setTimeout(() => setSavedSuccess(false), 3000);
-    }, 600);
+    }, 400);
   };
 
   const handleResetDefaults = () => {
@@ -864,10 +949,7 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
     setAutoGreetingEnabled(true);
     setDesktopPush(true);
     setHotLeadSoundAlert(true);
-    setLocalStages(INITIAL_STAGES);
-    if (onUpdateStages) {
-      onUpdateStages(INITIAL_STAGES);
-    }
+    handleResetStagesToDefault();
     if (onShowToast) {
       onShowToast('All CRM settings reset to system defaults');
     }

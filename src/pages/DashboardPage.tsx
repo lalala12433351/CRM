@@ -21,6 +21,7 @@ import {
   ChevronsRight
 } from 'lucide-react';
 import { Lead, Agent, PipelineStage, HourlyMetric, isAgentAdmin, CustomFieldDef, formatDealValue } from '../types';
+import { getCrmRole } from '../utils/roleUtils';
 import { CustomDropdown, DropdownOption } from '../components/CustomDropdown';
 import { UserAvatar } from '../components/UserAvatar';
 import { toast } from '../context/ToastContext';
@@ -50,6 +51,8 @@ interface DashboardViewProps {
   activeAgent?: Agent;
   customFields?: CustomFieldDef[];
   currency?: string;
+  /** Hide the Lead by stages widget (e.g. for Telecaller). */
+  showLeadByStages?: boolean;
   onOpenLeadDetail: (lead: Lead) => void;
   onOpenPowerDialerForLead?: (lead: Lead) => void;
   onNavigateToTab: (tab: string) => void;
@@ -65,6 +68,7 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
   activeAgent,
   customFields = [],
   currency = 'INR',
+  showLeadByStages,
   onOpenLeadDetail,
   onOpenPowerDialerForLead,
   onNavigateToTab,
@@ -112,6 +116,7 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
   const assigneeDropdownRef = React.useRef<HTMLDivElement>(null);
 
   const isAdmin = isAgentAdmin(activeAgent);
+  const showStagesWidget = showLeadByStages ?? getCrmRole(activeAgent) !== 'Telecaller';
 
   const openFollowUpModal = (lead: Lead) => {
     const defaultDate = new Date(Date.now() + 3600000);
@@ -592,8 +597,9 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* ========================================================================= */}
-      {/* LEAD BY STAGES WIDGET (BELOW FOLLOW UP QUEUE MATCHING SCREENSHOT)          */}
+      {/* LEAD BY STAGES WIDGET — hidden for Telecaller                              */}
       {/* ========================================================================= */}
+      {showStagesWidget && (
       <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-4 sm:p-5 font-sans space-y-4">
         {/* Header Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
@@ -813,6 +819,7 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
           </table>
         </div>
       </div>
+      )}
 
       {/* Main Section: Directory & Assignees' Leads */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4">

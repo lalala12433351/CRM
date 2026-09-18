@@ -13,6 +13,7 @@ import {
   PhoneCall
 } from 'lucide-react';
 import { Agent } from '../types';
+import { fetchWithTenantAuth } from '../lib/auth';
 
 export interface CallFeedbackStatus {
   id: string;
@@ -74,13 +75,38 @@ export const CallFeedbackSettingsPage: React.FC<CallFeedbackSettingsViewProps> =
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
-  // Save to localStorage whenever statuses change
+  // Hydrate from workspace database, then keep localStorage as cache
+  useEffect(() => {
+    let cancelled = false;
+    fetchWithTenantAuth('/api/workspace/settings')
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled || !data?.success) return;
+        const list = data.settings?.callFeedbackStatuses;
+        if (Array.isArray(list) && list.length > 0) {
+          setStatuses(list);
+          try { localStorage.setItem('pixbe_call_feedback_statuses', JSON.stringify(list)); } catch {}
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
   useEffect(() => {
     try {
       localStorage.setItem('pixbe_call_feedback_statuses', JSON.stringify(statuses));
     } catch (e) {
-      console.warn('Failed to save call feedback statuses:', e);
+      console.warn('Failed to cache call feedback statuses:', e);
     }
+    // Debounced DB persist (skip first mount flash of defaults by requiring non-empty)
+    if (!statuses.length) return;
+    const t = setTimeout(() => {
+      fetchWithTenantAuth('/api/workspace/settings', {
+        method: 'PUT',
+        body: JSON.stringify({ callFeedbackStatuses: statuses })
+      }).catch(() => {});
+    }, 400);
+    return () => clearTimeout(t);
   }, [statuses]);
 
   const availableStatuses = statuses

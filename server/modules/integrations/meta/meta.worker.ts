@@ -105,10 +105,10 @@ export class MetaWorker {
       const email = customMappedFields['Email'] || fieldMap.email || 'test_lead@facebook.com';
       const phone = customMappedFields['Number'] || customMappedFields['Phone number'] || fieldMap.phone_number || fieldMap.phone || '+91 98765 00000';
 
-      // Pick assigned agent from distribution list if configured
-      let assignedOwnerId = 'agent-admin';
-      let assignedOwnerName = 'Admin';
-      
+      // Resolve assignee from campaign distribution against *current* tenant agents (skip stale IDs/names)
+      let assignedOwnerId = '';
+      let assignedOwnerName = 'Unassigned';
+
       if (savedMapping?.leadDistribution && Array.isArray(savedMapping.leadDistribution) && savedMapping.leadDistribution.length > 0) {
         const pickIndex = Math.floor(Math.random() * savedMapping.leadDistribution.length);
         const selectedAgent = savedMapping.leadDistribution[pickIndex];
@@ -127,16 +127,17 @@ export class MetaWorker {
         formName,
         formId: form_id || '',
         campaignName,
-        city: customMappedFields['City'] || fieldMap.city || fieldMap.location || 'Bangalore',
-        state: customMappedFields['State'] || fieldMap.state || 'Karnataka',
+        city: customMappedFields['City'] || fieldMap.city || fieldMap.location || '',
+        state: customMappedFields['State'] || fieldMap.state || '',
         source: 'Meta (Facebook & Instagram) Lead Ads',
         status: 'Fresh',
         pipelineStageId: 'stage-1',
-        dealValue: 250000,
-        aiScore: 96,
-        score: 96,
-        priority: 'High',
+        dealValue: Number(customMappedFields['Deal Value'] || customMappedFields['deal_value'] || 0) || 0,
+        aiScore: 0,
+        score: 0,
+        priority: 'Normal',
         assignedTo: assignedOwnerId,
+        ownerAgentId: assignedOwnerId,
         ownerAgentName: assignedOwnerName,
         tags: Array.from(new Set(['Meta Lead Ads', campaignName, campaignHandle, page_name || 'Social'].filter(Boolean))),
         notes: `Captured via Facebook Lead Ads (Campaign: ${campaignName} [${campaignHandle}], Form: ${formName}, Form ID: ${form_id || 'N/A'}, Leadgen ID: ${leadgen_id})`,
@@ -155,15 +156,48 @@ export class MetaWorker {
           meta_adset_name: dynamicAdSetName || '',
           meta_ad_name: dynamicAdName || ''
         },
-        createdAt: rawLead?.created_time ? new Date(rawLead.created_time).toISOString() : new Date().toISOString()
+        createdAt: rawLead?.created_time ? new Date(rawLead.created_time).toISOString() : new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
 
       // Save to local multi-tenant store & trigger workflows for all active subscribed tenants
       try {
         for (const subscriber of allActivePages) {
           const tenantId = subscriber.client_id || process.env.DEFAULT_TENANT_ID || 'company_kite_aviation';
-          await multiTenantDb.saveLead(tenantId, { ...newLead, tenantId });
-          await workflowEngine.triggerWorkflowsForEvent(tenantId, 'on_facebook_lead', { lead: newLead });
+          // If distribution didn't set an owner, attach tenant Admin so Admin dashboards stay consistent
+          let leadForTenant = { ...newLead, tenantId };
+          const agents = await multiTenantDb.getAgents(tenantId);
+          const adminAgent = agents.find((a) => a.isAdmin || String(a.role || '').toLowerCase().includes('admin'));
+          const resolveOwner = (id?: string, name?: string) => {
+            if (id) {
+              const byId = agents.find((a) => a.id === id);
+              if (byId) return byId;
+            }
+            if (name) {
+              const n = String(name).trim().toLowerCase();
+              const byName = agents.find((a) => String(a.name || '').trim().toLowerCase() === n);
+              if (byName) return byName;
+            }
+            return null;
+          };
+          const matched = resolveOwner(leadForTenant.ownerAgentId, leadForTenant.ownerAgentName);
+          if (matched) {
+            leadForTenant = {
+              ...leadForTenant,
+              ownerAgentId: matched.id,
+              ownerAgentName: matched.name,
+              assignedTo: matched.id
+            };
+          } else if (adminAgent) {
+            leadForTenant = {
+              ...leadForTenant,
+              ownerAgentId: adminAgent.id,
+              ownerAgentName: adminAgent.name,
+              assignedTo: adminAgent.id
+            };
+          }
+          await multiTenantDb.saveLead(tenantId, leadForTenant);
+          await workflowEngine.triggerWorkflowsForEvent(tenantId, 'on_facebook_lead', { lead: leadForTenant });
         }
       } catch (storeErr: any) {
         logger.error('[Meta Worker] Store/Workflow error:', storeErr);

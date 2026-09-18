@@ -1,15 +1,26 @@
 import { Router, Request, Response } from 'express';
 import { multiTenantDb } from '../../services/multiTenantDb';
 import { logger } from '../../utils/logger';
+import { AuthenticatedRequest } from '../../middleware/auth';
+import { requireAdmin, requireAuthenticated } from '../../middleware/rbac';
+import { hashPassword } from '../auth/auth.service';
 
 const router = Router();
 
 // GET /api/agents - Get all agents for current tenant
-router.get('/agents', async (req: Request, res: Response) => {
+router.get('/agents', requireAuthenticated, async (req: Request, res: Response) => {
   try {
+    const authReq = req as AuthenticatedRequest;
     const tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string) || process.env.DEFAULT_TENANT_ID || 'default_tenant';
     const agents = await multiTenantDb.getAgents(tenantId);
-    res.json({ success: true, tenantId, agents });
+    const role = (authReq.user?.role || '').toLowerCase();
+    const visibleAgents = authReq.user?.isAdmin || role === 'admin'
+      ? agents
+      : role === 'manager'
+        ? agents.filter((agent) => agent.id === authReq.user?.id || agent.managerId === authReq.user?.id)
+        : agents.filter((agent) => agent.id === authReq.user?.id);
+    const safeAgents = visibleAgents.map(({ passwordHash, ...agent }) => agent);
+    res.json({ success: true, tenantId, agents: safeAgents });
   } catch (err: any) {
     logger.error('Error fetching agents:', err);
     res.status(500).json({ success: false, error: err.message });
@@ -17,12 +28,26 @@ router.get('/agents', async (req: Request, res: Response) => {
 });
 
 // POST /api/agents - Create a new agent for current tenant
-router.post('/agents', async (req: Request, res: Response) => {
+router.post('/agents', requireAdmin, async (req: Request, res: Response) => {
   try {
     const tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string) || req.body?.tenantId || process.env.DEFAULT_TENANT_ID || 'default_tenant';
-    const agentData = { ...req.body, tenantId };
+    const { password, ...body } = req.body || {};
+    if (!password || String(password).length < 8) {
+      return res.status(400).json({ success: false, error: 'A temporary password of at least 8 characters is required.' });
+    }
+    if (String(body.role || '').toLowerCase().includes('caller') || String(body.role || '').toLowerCase() === 'telecaller') {
+      const managers = await multiTenantDb.getAgents(tenantId);
+      let manager = managers.find((agent) => agent.id === body.managerId && (agent.role || '').toLowerCase() === 'manager');
+      if (!manager) {
+        manager = managers.find((agent) => agent.isAdmin || String(agent.role || '').toLowerCase().includes('admin') || String(agent.role || '').toLowerCase() === 'manager');
+      }
+      if (!manager) return res.status(400).json({ success: false, error: 'Select a valid reporting manager for this telecaller.' });
+      body.managerId = manager.id;
+    }
+    const agentData = { ...body, passwordHash: hashPassword(String(password)), tenantId };
     const saved = await multiTenantDb.saveAgent(tenantId, agentData);
-    res.status(201).json({ success: true, tenantId, agent: saved });
+    const { passwordHash, ...safeAgent } = saved;
+    res.status(201).json({ success: true, tenantId, agent: safeAgent });
   } catch (err: any) {
     logger.error('Error creating agent:', err);
     res.status(500).json({ success: false, error: err.message });
@@ -30,12 +55,31 @@ router.post('/agents', async (req: Request, res: Response) => {
 });
 
 // PUT /api/agents/:id - Update an existing agent for current tenant
-router.put('/agents/:id', async (req: Request, res: Response) => {
+router.put('/agents/:id', requireAdmin, async (req: Request, res: Response) => {
   try {
     const tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string) || process.env.DEFAULT_TENANT_ID || 'default_tenant';
-    const agentData = { ...req.body, id: req.params.id, tenantId };
+    const { password, ...body } = req.body || {};
+    const roleName = String(body.role || '').toLowerCase();
+    const isTelecaller = roleName.includes('caller') || roleName === 'telecaller';
+    if (isTelecaller) {
+      const managers = await multiTenantDb.getAgents(tenantId);
+      let manager = managers.find((agent) => agent.id === body.managerId && (agent.role || '').toLowerCase() === 'manager');
+      if (!manager) {
+        manager = managers.find((agent) => agent.isAdmin || String(agent.role || '').toLowerCase().includes('admin') || String(agent.role || '').toLowerCase() === 'manager');
+      }
+      if (!manager) return res.status(400).json({ success: false, error: 'Select a valid reporting manager for this telecaller.' });
+      body.managerId = manager.id;
+    }
+    const agentData = {
+      ...body,
+      ...(password ? { passwordHash: hashPassword(String(password)) } : {}),
+      id: req.params.id,
+      tenantId,
+      ...(isTelecaller ? {} : { managerId: undefined })
+    };
     const saved = await multiTenantDb.saveAgent(tenantId, agentData);
-    res.json({ success: true, tenantId, agent: saved });
+    const { passwordHash, ...safeAgent } = saved;
+    res.json({ success: true, tenantId, agent: safeAgent });
   } catch (err: any) {
     logger.error('Error updating agent:', err);
     res.status(500).json({ success: false, error: err.message });
@@ -43,7 +87,7 @@ router.put('/agents/:id', async (req: Request, res: Response) => {
 });
 
 // DELETE /api/agents/:id - Remove an agent from current tenant
-router.delete('/agents/:id', async (req: Request, res: Response) => {
+router.delete('/agents/:id', requireAdmin, async (req: Request, res: Response) => {
   try {
     const tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string) || process.env.DEFAULT_TENANT_ID || 'default_tenant';
     const success = await multiTenantDb.deleteAgent(tenantId, req.params.id);

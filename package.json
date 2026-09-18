@@ -6,10 +6,10 @@
   "scripts": {
     "dev": "tsx server.ts",
     "build": "node -e \"console.log('Prebuilt bundle ready')\"",
-    "build:local": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --sourcemap --outfile=dist/server.cjs --external:pg-native",
-    "build:docker": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --sourcemap --outfile=dist/server.cjs --external:pg-native",
+    "build:local": "vite build --configLoader runner && vite build --ssr server.ts --configLoader runner --outDir dist --emptyOutDir false",
+    "build:docker": "vite build --configLoader runner && vite build --ssr server.ts --configLoader runner --outDir dist --emptyOutDir false",
     "bundle": "npm run build:local && python create_deploy_zip.py",
-    "start": "node dist/server.cjs",
+    "start": "node dist/server.js",
     "start:meta": "node server.js",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",

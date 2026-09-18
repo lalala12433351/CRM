@@ -11,11 +11,12 @@ class MetaSyncEngine {
   /**
    * Sync all recent leads from all connected Meta forms
    */
-  public async syncAllMetaLeads(tenantId = 'company_kite_aviation'): Promise<{ syncedCount: number; errors: any[] }> {
-    if (this.isSyncing) return { syncedCount: 0, errors: [] };
+  public async syncAllMetaLeads(tenantId = 'company_kite_aviation'): Promise<{ syncedCount: number; formsSynced: number; errors: any[] }> {
+    if (this.isSyncing) return { syncedCount: 0, formsSynced: 0, errors: [] };
     this.isSyncing = true;
 
     let syncedCount = 0;
+    let formsSynced = 0;
     const errors: any[] = [];
 
     try {
@@ -34,7 +35,7 @@ class MetaSyncEngine {
 
       if (activePages.length === 0) {
         this.isSyncing = false;
-        return { syncedCount: 0, errors: ['No active connected Facebook Pages found for tenant.'] };
+        return { syncedCount: 0, formsSynced: 0, errors: ['No active connected Facebook Pages found for tenant. Connect a Page under Integrations → Meta first.'] };
       }
 
       const existingLeads = await multiTenantDb.getLeads(tenantId, undefined, true);
@@ -45,6 +46,9 @@ class MetaSyncEngine {
       for (const page of activePages) {
         try {
           const { page_id, page_access_token, page_name } = page;
+          if (!page_id || String(page_id).startsWith('test_page_') || !page_access_token) {
+            continue;
+          }
 
           // 1. Fetch all Leadgen Forms on Page via Meta Graph API v22.0
           const formsRes = await axios.get(`https://graph.facebook.com/${metaConfig.graphVersion}/${page_id}/leadgen_forms`, {
@@ -52,6 +56,7 @@ class MetaSyncEngine {
           });
 
           const forms = formsRes.data?.data || [];
+          formsSynced += forms.length;
 
           // 2. Iterate through each form on Page
           for (const form of forms) {
@@ -104,23 +109,40 @@ class MetaSyncEngine {
       this.isSyncing = false;
     }
 
-    return { syncedCount, errors };
+    return { syncedCount, formsSynced, errors };
   }
 
   /**
    * Start periodic background sync every N seconds
    */
+  public async syncAllConnectedTenants(): Promise<void> {
+    try {
+      const { multiTenantDb } = await import('../../../services/multiTenantDb');
+      const storeTenants = Object.keys((multiTenantDb as any).store?.facebookPages || {});
+      const targets = storeTenants.length > 0
+        ? storeTenants
+        : [process.env.DEFAULT_TENANT_ID || 'company_kite_aviation'];
+      for (const tenantId of targets) {
+        await this.syncAllMetaLeads(tenantId).catch((e) =>
+          logger.warn(`[Meta Sync ${tenantId}]:`, e?.message || e)
+        );
+      }
+    } catch (e: any) {
+      logger.warn('[Meta Sync All Tenants Notice]:', e?.message || e);
+    }
+  }
+
   public startPeriodicSync(intervalMs = 20000) {
     if (this.syncInterval) clearInterval(this.syncInterval);
 
-    // Run initial sync after 5s
+    // Run initial sync after 5s across all tenants with connected pages
     setTimeout(() => {
-      this.syncAllMetaLeads().catch((e) => logger.warn('[Meta Initial Sync Notice]:', e?.message));
+      this.syncAllConnectedTenants().catch((e) => logger.warn('[Meta Initial Sync Notice]:', e?.message));
     }, 5000);
 
     // Recurring sync
     this.syncInterval = setInterval(() => {
-      this.syncAllMetaLeads().catch((e) => logger.warn('[Meta Periodic Sync Notice]:', e?.message));
+      this.syncAllConnectedTenants().catch((e) => logger.warn('[Meta Periodic Sync Notice]:', e?.message));
     }, intervalMs);
 
     logger.info(`[Meta Sync Engine] ⚡ Background lead poller started (every ${intervalMs / 1000}s)`);

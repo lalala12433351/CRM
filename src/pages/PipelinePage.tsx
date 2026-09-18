@@ -23,7 +23,7 @@ import {
   UserCheck
 } from 'lucide-react';
 import { PipelineStage, Lead, Agent, formatDealValue } from '../types';
-import { INITIAL_STAGES } from '../constants/initialState';
+
 import { toast } from '../context/ToastContext';
 import { ScheduleFollowUpModal } from '../components/ScheduleFollowUpModal';
 import { CustomDropdown, DropdownOption } from '../components/CustomDropdown';
@@ -86,7 +86,7 @@ export const PipelinePage: React.FC<PipelineViewProps> = ({
 
   // Master Synchronized Pipeline Stages
   const [localStages, setLocalStages] = useState<PipelineStage[]>(
-    propStages && propStages.length > 0 ? propStages : INITIAL_STAGES
+    propStages && propStages.length > 0 ? propStages : []
   );
 
   useEffect(() => {
@@ -151,40 +151,20 @@ export const PipelinePage: React.FC<PipelineViewProps> = ({
   const [editingLost, setEditingLost] = useState(false);
   const [lostStageName, setLostStageName] = useState(lostStage.name);
 
-  // Database Save Helper for Stages
+  // Database Save Helper for Stages (persists via App onUpdateStages → /api/pipelines)
   const persistStagesToDb = (updatedStages: PipelineStage[]) => {
     setLocalStages(updatedStages);
     if (onUpdateStages) {
       onUpdateStages(updatedStages);
     }
-    const token = typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('pixbe_auth_token') || '') : '';
-    fetch('/api/pipelines', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'x-tenant-id': activeTenantId || activeAgent?.tenantId || 'company_kite_aviation'
-      },
-      body: JSON.stringify(updatedStages)
-    }).catch(console.warn);
   };
 
-  // Database Save Helper for Lost Reasons
+  // Database Save Helper for Lost Reasons (persists via App onUpdateLostReasons → API)
   const persistLostReasonsToDb = (updatedReasons: string[]) => {
     setLostReasonsList(updatedReasons);
     if (onUpdateLostReasons) {
       onUpdateLostReasons(updatedReasons);
     }
-    const token = typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('pixbe_auth_token') || '') : '';
-    fetch('/api/pipelines/lost-reasons', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'x-tenant-id': activeTenantId || activeAgent?.tenantId || 'company_kite_aviation'
-      },
-      body: JSON.stringify(updatedReasons)
-    }).catch(console.warn);
   };
 
   // Active Stages (excluding Initial, Won, Lost)

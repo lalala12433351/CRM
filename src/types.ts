@@ -390,6 +390,8 @@ export interface Agent {
   twoFactorEnabled?: boolean;
   licenseExpiry?: string;
   licenseType?: string;
+  managerId?: string;
+  password?: string;
 }
 
 export function isAgentAdmin(agent?: Agent | null): boolean {
@@ -400,10 +402,20 @@ export function isAgentAdmin(agent?: Agent | null): boolean {
   return (
     agent.isAdmin === true ||
     permName === 'admin' ||
+    roleName === 'admin' ||
     roleName.includes('admin') ||
     roleName.includes('owner') ||
     emailName.includes('admin')
   );
+}
+
+/** Display label for badges — never show Super Admin / Master Admin / Root. */
+export function getAdminDisplayRole(agent?: Agent | null): string {
+  if (!agent) return 'Telecaller';
+  if (isAgentAdmin(agent)) return 'Admin';
+  const role = (agent.role || '').toLowerCase();
+  if (role === 'manager') return 'Manager';
+  return 'Telecaller';
 }
 
 export interface Lead {

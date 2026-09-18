@@ -1,8 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { multiTenantDb } from '../../services/multiTenantDb';
 import { logger } from '../../utils/logger';
+import { requireAdmin } from '../../middleware/rbac';
 
 const router = Router();
+router.use('/workflows', requireAdmin);
 
 // GET /api/workflows - Get all workflows for current tenant from multi_tenant_store.json
 router.get('/workflows', async (req: Request, res: Response) => {

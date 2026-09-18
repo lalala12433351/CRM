@@ -17,6 +17,8 @@ import workflowsRoutes from './modules/workflows/workflows.routes';
 import templatesRoutes from './modules/templates/templates.routes';
 import actionsRoutes from './modules/actions/actions.routes';
 import campaignsRoutes from './modules/campaigns/campaigns.routes';
+import messagesRoutes from './modules/messages/messages.routes';
+import workspaceRoutes from './modules/workspace/workspace.routes';
 import { authMiddleware } from './middleware/auth';
 import { tenantContextMiddleware } from './middleware/tenantContext';
 
@@ -64,6 +66,8 @@ export async function createApp() {
   app.use('/api', templatesRoutes);
   app.use('/api', actionsRoutes);
   app.use('/api', campaignsRoutes);
+  app.use('/api', messagesRoutes);
+  app.use('/api', workspaceRoutes);
 
   // Serve static files in production or Vite middleware in development
   const distPath = path.join(process.cwd(), 'dist');

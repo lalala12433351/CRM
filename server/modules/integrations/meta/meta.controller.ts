@@ -353,7 +353,7 @@ export class MetaController {
       let updatedLeadCount = 0;
 
       try {
-        const allLeads = await multiTenantDb.getLeads(clientId);
+        const allLeads = await multiTenantDb.getLeads(clientId, [], true);
         const distMembers = Array.isArray(leadDistribution) && leadDistribution.length > 0 ? leadDistribution : [];
         let dIdx = 0;
 

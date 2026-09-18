@@ -240,10 +240,54 @@ export function getAuthHeaders(): Record<string, string> {
   };
 }
 
+/** Re-bind browser token to server after restart so creates/fetches keep working. */
+export async function ensureServerSession(): Promise<boolean> {
+  if (typeof sessionStorage === 'undefined') return false;
+  const token = sessionStorage.getItem(TOKEN_KEY) || '';
+  const rawUser = sessionStorage.getItem(USER_KEY);
+  if (!token || !rawUser) return false;
+
+  try {
+    const me = await fetch('/api/auth/me', {
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+    });
+    if (me.ok) return true;
+
+    const user = JSON.parse(rawUser);
+    const restored = await fetch('/api/auth/restore', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        'x-tenant-id': user.tenantId || ''
+      },
+      body: JSON.stringify({ token, user })
+    });
+    if (!restored.ok) return false;
+    const data = await restored.json();
+    if (data?.token) sessionStorage.setItem(TOKEN_KEY, data.token);
+    if (data?.user) sessionStorage.setItem(USER_KEY, JSON.stringify(data.user));
+    return Boolean(data?.success);
+  } catch {
+    return false;
+  }
+}
+
 export async function fetchWithTenantAuth(url: string, options?: RequestInit): Promise<Response> {
   const headers = {
     ...getAuthHeaders(),
     ...(options?.headers || {})
   };
-  return fetch(url, { ...options, headers });
+  let response = await fetch(url, { ...options, headers });
+  if (response.status === 401) {
+    const ok = await ensureServerSession();
+    if (ok) {
+      const retryHeaders = {
+        ...getAuthHeaders(),
+        ...(options?.headers || {})
+      };
+      response = await fetch(url, { ...options, headers: retryHeaders });
+    }
+  }
+  return response;
 }

@@ -28,6 +28,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { Agent, CustomFieldDef } from '../types';
+import { fetchWithTenantAuth } from '../lib/auth';
 
 export interface IntegrationItem {
   id: string;
@@ -57,6 +58,8 @@ export interface IntegrationsViewProps {
   customFields?: CustomFieldDef[];
   onNavigateToCampaign?: (campaignHandle: string) => void;
   onOpenGoogleSheets?: () => void;
+  /** Called after Meta/Facebook leads are synced into multi_tenant_store */
+  onLeadsSynced?: () => void;
 }
 
 const INITIAL_CONNECTED_FORMS: ConnectedForm[] = [];
@@ -268,7 +271,8 @@ export const IntegrationsPage: React.FC<IntegrationsViewProps> = ({
   agents = [],
   customFields = [],
   onNavigateToCampaign,
-  onOpenGoogleSheets
+  onOpenGoogleSheets,
+  onLeadsSynced
 }) => {
   const [integrations, setIntegrations] = useState<IntegrationItem[]>(INITIAL_INTEGRATIONS);
   const [searchTerm, setSearchTerm] = useState('');
@@ -383,7 +387,7 @@ const fetchPageForms = async (pageId: string) => {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
-    const res = await fetch(`/api/integrations/facebook/pages/${pageId}/forms`, { signal: controller.signal });
+    const res = await fetchWithTenantAuth(`/api/integrations/facebook/pages/${pageId}/forms`, { signal: controller.signal });
     clearTimeout(timeoutId);
     const data = await res.json();
     if (data.success && Array.isArray(data.forms) && data.forms.length > 0) {
@@ -406,7 +410,7 @@ const fetchPageForms = async (pageId: string) => {
 
 const fetchFormQuestions = async (pageId: string, formId: string) => {
   try {
-    const res = await fetch(`/api/integrations/facebook/pages/${pageId}/forms/${formId}/questions`);
+    const res = await fetchWithTenantAuth(`/api/integrations/facebook/pages/${pageId}/forms/${formId}/questions`);
     const data = await res.json();
     if (data.success && Array.isArray(data.questions)) {
       setFormQuestions(data.questions);
@@ -459,7 +463,7 @@ const fetchFormQuestions = async (pageId: string, formId: string) => {
 // Fetch Meta status on mount & listen for Meta OAuth Login popup postMessage callback
 const fetchConnectedFacebookPages = React.useCallback(async () => {
   try {
-    const res = await fetch('/api/integrations/facebook/pages');
+    const res = await fetchWithTenantAuth('/api/integrations/facebook/pages');
     const data = await res.json();
     if (data.success && Array.isArray(data.pages)) {
       const pageMap = new Map<string, any>();
@@ -533,7 +537,7 @@ React.useEffect(() => {
 const handleConnectMeta = async () => {
   setIsLoggingInFb(true);
   try {
-    const res = await fetch('/api/integrations/facebook/connect?format=json');
+    const res = await fetchWithTenantAuth('/api/integrations/facebook/connect?format=json');
     const data = await res.json();
     if (data.success && data.url) {
       const width = 650;
@@ -557,7 +561,7 @@ const handleConnectMeta = async () => {
 
 const handleDisconnectFacebookPage = async (pageId: string) => {
   try {
-    const res = await fetch(`/api/integrations/facebook/pages/${pageId}`, {
+    const res = await fetchWithTenantAuth(`/api/integrations/facebook/pages/${pageId}`, {
       method: 'DELETE'
     });
     const data = await res.json();
@@ -577,7 +581,7 @@ const handleDisconnectFacebookPage = async (pageId: string) => {
 
 const handleRemoveFacebookPage = async (pageId: string) => {
   try {
-    const res = await fetch(`/api/integrations/facebook/pages/${pageId}?hard=true`, {
+    const res = await fetchWithTenantAuth(`/api/integrations/facebook/pages/${pageId}?hard=true`, {
       method: 'DELETE'
     });
     const data = await res.json();
@@ -599,7 +603,7 @@ const handleDisconnectIntegration = async (integration: IntegrationItem) => {
     return;
   }
   try {
-    await fetch('/api/integrations/disconnect', {
+    await fetchWithTenantAuth('/api/integrations/disconnect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: integration.id, name: integration.name })
@@ -637,7 +641,7 @@ const handleSelectAndSubscribePage = async (page: { id: string; name: string; ac
   setIsSubscribingPage(true);
   setModalStatusMsg(null);
   try {
-    const res = await fetch('/api/meta/subscribe-page', {
+    const res = await fetchWithTenantAuth('/api/meta/subscribe-page', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -682,7 +686,7 @@ const handleSendTestLead = async () => {
   setIsSendingTestLead(true);
   setFbStatusMessage(null);
   try {
-    const res = await fetch('/api/meta/test-lead', {
+    const res = await fetchWithTenantAuth('/api/meta/test-lead', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -723,7 +727,7 @@ const handleFacebookLoginSubmit = async (e?: React.FormEvent) => {
   try {
     // 1. If App Secret provided, save config first
     if (fbAppSecret.trim() || fbAppId.trim()) {
-      await fetch('/api/meta/config', {
+      await fetchWithTenantAuth('/api/meta/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -736,7 +740,7 @@ const handleFacebookLoginSubmit = async (e?: React.FormEvent) => {
 
     // 2. If Page Token provided, verify real Facebook Page via Graph API
     if (fbPageToken.trim()) {
-      const res = await fetch('/api/meta/verify-real-page', {
+      const res = await fetchWithTenantAuth('/api/meta/verify-real-page', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -780,8 +784,8 @@ const handleFacebookLoginSubmit = async (e?: React.FormEvent) => {
 
 const handleFacebookLogout = async () => {
   try {
-    await fetch('/api/integrations/facebook/disconnect', { method: 'POST' });
-    await fetch('/api/meta/disconnect', { method: 'POST' });
+    await fetchWithTenantAuth('/api/integrations/facebook/disconnect', { method: 'POST' });
+    await fetchWithTenantAuth('/api/meta/disconnect', { method: 'POST' });
   } catch (e) { }
   setFbUser(null);
   setFbPageToken('');
@@ -798,19 +802,22 @@ const handleSyncFacebookLeads = async () => {
   setIsSyncingFb(true);
   setFbStatusMessage(null);
   try {
-    const res = await fetch('/api/facebook/sync-leads', {
+    const res = await fetchWithTenantAuth('/api/meta/sync', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pageId: fbPageId, accessToken: fbPageToken, userAccount: fbUser })
+      body: JSON.stringify({ pageId: fbPageId })
     });
     const data = await res.json();
     if (data.success) {
-      setFbStatusMessage(`⚡ ${data.message} (${data.formsSynced} Forms Scanned, ${data.newLeadsSaved} New Lead Saved into AWS Aurora RDS!)`);
+      const saved = data.syncedCount ?? data.newLeadsSaved ?? 0;
+      const forms = data.formsSynced ?? 0;
+      setFbStatusMessage(`Synced Facebook leads into CRM database (${saved} new lead(s)${forms ? `, ${forms} form(s) scanned` : ''}).`);
+      toast.success(`Imported ${saved} Facebook lead(s)`, 'Meta Sync');
+      onLeadsSynced?.();
     } else {
-      setFbStatusMessage(`⚠️ ${data.error || 'Failed to sync Facebook Page leads'}`);
+      setFbStatusMessage(`${data.error || 'Failed to sync Facebook Page leads'}`);
     }
   } catch (e: any) {
-    setFbStatusMessage(`⚠️ Sync Notice: ${e.message || 'Server connection error'}`);
+    setFbStatusMessage(`Sync notice: ${e.message || 'Server connection error'}`);
   } finally {
     setIsSyncingFb(false);
   }
@@ -842,7 +849,7 @@ const handleTestIntegration = async () => {
   setIsTestingConn(true);
   setModalStatusMsg(null);
   try {
-    const res = await fetch('/api/integrations/test', {
+    const res = await fetchWithTenantAuth('/api/integrations/test', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -865,7 +872,7 @@ const handleSaveIntegration = async () => {
   setIsSaving(true);
   setModalStatusMsg(null);
   try {
-    const res = await fetch('/api/integrations/save', {
+    const res = await fetchWithTenantAuth('/api/integrations/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -894,23 +901,31 @@ const handleSyncIntegrationLeads = async () => {
   setIsSyncingLeads(true);
   setModalStatusMsg(null);
   try {
-    const res = await fetch('/api/integrations/sync', {
+    const isMeta = selectedIntegration.id === 'facebook' || selectedIntegration.id === 'meta';
+    const res = await fetchWithTenantAuth(isMeta ? '/api/meta/sync' : '/api/integrations/sync', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         id: selectedIntegration.id,
         name: selectedIntegration.name,
-        credentials: integrationCreds
+        credentials: integrationCreds,
+        pageId: fbPageId
       })
     });
     const data = await res.json();
     if (data.success) {
-      setModalStatusMsg(`⚡ ${data.message} (${data.leadSample?.name} ingested into AWS Aurora RDS!)`);
+      if (isMeta) {
+        const saved = data.syncedCount ?? data.newLeadsSaved ?? 0;
+        setModalStatusMsg(`Synced ${saved} Facebook lead(s) into the CRM database.`);
+        toast.success(`Imported ${saved} Facebook lead(s)`, 'Meta Sync');
+        onLeadsSynced?.();
+      } else {
+        setModalStatusMsg(`${data.message}`);
+      }
     } else {
-      setModalStatusMsg(`⚠️ Sync Error: ${data.error}`);
+      setModalStatusMsg(`Sync Error: ${data.error}`);
     }
   } catch (e: any) {
-    setModalStatusMsg(`⚠️ Sync notice: ${e.message}`);
+    setModalStatusMsg(`Sync notice: ${e.message}`);
   } finally {
     setIsSyncingLeads(false);
   }
@@ -1163,7 +1178,7 @@ if (selectedManageIntegration?.id === 'facebook') {
         importOption
       };
 
-      const res = await fetch('/api/integrations/facebook/campaign-mapping', {
+      const res = await fetchWithTenantAuth('/api/integrations/facebook/campaign-mapping', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -1649,7 +1664,7 @@ if (selectedManageIntegration?.id === 'facebook') {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    {['Root', 'Admin', 'Manager', 'Caller', 'Marketing_user'].map((role) => (
+                    {['Admin', 'Manager', 'Telecaller'].map((role) => (
                       <button
                         key={role}
                         onClick={() => setTeamMemberRoleFilter(teamMemberRoleFilter === role ? 'All' : role)}

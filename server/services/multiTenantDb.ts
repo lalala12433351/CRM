@@ -67,6 +67,8 @@ export interface TenantAgent {
   convertedLeadsCount?: number;
   revenueGenerated?: number;
   responseTimeMinutes?: number;
+  managerId?: string;
+  passwordHash?: string;
 }
 
 export interface TenantStage {
@@ -255,6 +257,22 @@ export interface TenantCampaign {
   updatedAt?: string;
 }
 
+export interface TenantMessage {
+  id: string;
+  tenantId: string;
+  leadId: string;
+  direction: 'inbound' | 'outbound' | string;
+  channel: string;
+  content: string;
+  mediaUrl?: string;
+  status?: string;
+  timestamp: string;
+  templateId?: string;
+  isBot?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 interface LocalStoreSchema {
   tenants: Record<string, ClientTenant>;
   agents: Record<string, TenantAgent[]>;
@@ -271,10 +289,35 @@ interface LocalStoreSchema {
   templates: Record<string, TenantApiTemplate[]>;
   actions: Record<string, TenantAction[]>;
   campaigns: Record<string, TenantCampaign[]>;
+  messages: Record<string, TenantMessage[]>;
+  whatsappTemplates: Record<string, any[]>;
+  whatsappCampaigns: Record<string, any[]>;
 }
 
-const DATA_DIR = path.join(process.cwd(), '.data');
+function resolvePrimaryDataDir(): string {
+  if (process.env.PIXBE_DATA_DIR) return process.env.PIXBE_DATA_DIR;
+  // Prefer LocalAppData on Windows — Desktop/OneDrive locks cause silent write failures (FB leads lost).
+  const localApp = process.env.LOCALAPPDATA || process.env.HOME || process.env.USERPROFILE;
+  if (localApp) return path.join(localApp, 'PixbeCrm', 'data');
+  return path.join(process.cwd(), '.data');
+}
+
+const LEGACY_DATA_DIR = path.join(process.cwd(), '.data');
+const LEGACY_STORE_PATH = path.join(LEGACY_DATA_DIR, 'multi_tenant_store.json');
+const DATA_DIR = resolvePrimaryDataDir();
 const STORE_PATH = path.join(DATA_DIR, 'multi_tenant_store.json');
+const MIRROR_STORE_PATH = LEGACY_STORE_PATH;
+
+/**
+ * Local JSON multi-tenant store (Aurora-ready shape).
+ *
+ * Each top-level key maps 1:1 to a future Postgres/Aurora table, keyed by tenant_id:
+ *   tenants, agents, leads, stages, fields, tasks, calls, integrations,
+ *   facebookPages, activities, lostReasons, workflows, templates, actions, campaigns
+ *
+ * Persistence today: `.data/multi_tenant_store.json`
+ * Future Aurora: swap MultiTenantDatabase method bodies to SQL while keeping the same public API.
+ */
 
 const DEFAULT_WORKFLOWS: Omit<TenantWorkflow, 'tenantId'>[] = [];
 
@@ -333,7 +376,10 @@ export class MultiTenantDatabase {
     workflows: {},
     templates: {},
     actions: {},
-    campaigns: {}
+    campaigns: {},
+    messages: {},
+    whatsappTemplates: {},
+    whatsappCampaigns: {}
   };
 
   constructor() {
@@ -341,105 +387,200 @@ export class MultiTenantDatabase {
     this.seedDefaultTenantIfNeeded();
   }
 
+  private saveTimer: NodeJS.Timeout | null = null;
+  private dirty = false;
+
+  private hydrateStoreFromParsed(parsed: any) {
+    this.store = {
+      tenants: parsed.tenants || {},
+      agents: parsed.agents || {},
+      leads: parsed.leads || {},
+      stages: parsed.stages || {},
+      fields: parsed.fields || {},
+      tasks: parsed.tasks || {},
+      integrations: parsed.integrations || {},
+      facebookPages: parsed.facebookPages || {},
+      activities: parsed.activities || {},
+      lostReasons: parsed.lostReasons || {},
+      calls: parsed.calls || {},
+      workflows: parsed.workflows || {},
+      templates: parsed.templates || {},
+      actions: parsed.actions || {},
+      campaigns: parsed.campaigns || {},
+      messages: parsed.messages || {},
+      whatsappTemplates: parsed.whatsappTemplates || {},
+      whatsappCampaigns: parsed.whatsappCampaigns || {}
+    };
+    for (const tid in this.store.agents) {
+      if (Array.isArray(this.store.agents[tid])) {
+        this.store.agents[tid].forEach((ag) => {
+          const role = String(ag.role || '');
+          if (
+            role === 'Master Admin' ||
+            role === 'Super Admin' ||
+            role === 'Root' ||
+            role.toLowerCase() === 'super admin' ||
+            role.toLowerCase() === 'master admin'
+          ) {
+            ag.role = 'Admin';
+            ag.isAdmin = true;
+          }
+        });
+      }
+    }
+  }
+
+  private pickNewestStorePath(): string | null {
+    // Always prefer LocalAppData primary path when present (OneDrive Desktop mirrors can be newer but unwritable).
+    try {
+      if (fs.existsSync(STORE_PATH)) return STORE_PATH;
+    } catch {}
+    for (const p of [MIRROR_STORE_PATH, LEGACY_STORE_PATH]) {
+      try {
+        if (p !== STORE_PATH && fs.existsSync(p)) return p;
+      } catch {}
+    }
+    return null;
+  }
+
   private initLocalStore() {
     try {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
       }
-      if (fs.existsSync(STORE_PATH)) {
-        const raw = fs.readFileSync(STORE_PATH, 'utf-8');
-        const parsed = JSON.parse(raw);
-        this.store = {
-          tenants: parsed.tenants || {},
-          agents: parsed.agents || {},
-          leads: parsed.leads || {},
-          stages: parsed.stages || {},
-          fields: parsed.fields || {},
-          tasks: parsed.tasks || {},
-          integrations: parsed.integrations || {},
-          facebookPages: parsed.facebookPages || {},
-          activities: parsed.activities || {},
-          lostReasons: parsed.lostReasons || {},
-          calls: parsed.calls || {},
-          workflows: parsed.workflows || {},
-          templates: parsed.templates || {},
-          actions: parsed.actions || {},
-          campaigns: parsed.campaigns || {}
-        };
-        // Normalize any legacy 'Master Admin' roles in stored agents to 'Admin'
-        for (const tid in this.store.agents) {
-          if (Array.isArray(this.store.agents[tid])) {
-            this.store.agents[tid].forEach((ag) => {
-              if (ag.role === 'Master Admin') {
-                ag.role = 'Admin';
-              }
-            });
-          }
+      // One-time migrate from project .data (OneDrive) → LocalAppData primary
+      if (!fs.existsSync(STORE_PATH) && fs.existsSync(LEGACY_STORE_PATH)) {
+        try {
+          fs.copyFileSync(LEGACY_STORE_PATH, STORE_PATH);
+          logger.info('[MultiTenantDB] Migrated store from project .data to LocalAppData (avoids OneDrive locks)');
+        } catch (migErr: any) {
+          logger.warn('[MultiTenantDB] Legacy store migrate notice:', migErr?.message || migErr);
         }
-      } else {
-        this.saveStore();
       }
+      const loadPath = this.pickNewestStorePath();
+      if (loadPath) {
+        const raw = fs.readFileSync(loadPath, 'utf-8');
+        this.hydrateStoreFromParsed(JSON.parse(raw));
+        if (loadPath !== STORE_PATH) {
+          logger.info('[MultiTenantDB] Loaded store from ' + loadPath);
+        }
+        this.healOrphanLeadOwners();
+      } else {
+        this.saveStoreImmediate();
+      }
+      process.once('exit', () => {
+        try { this.saveStoreImmediate(); } catch {}
+      });
+      process.once('SIGINT', () => {
+        try { this.saveStoreImmediate(); } catch {}
+        process.exit(0);
+      });
     } catch (e) {
       logger.warn('Failed to load local tenant store, initializing in-memory store:', e);
     }
   }
 
-  private saveStore() {
-    try {
-      if (!fs.existsSync(DATA_DIR)) {
-        fs.mkdirSync(DATA_DIR, { recursive: true });
+  private healOrphanLeadOwners() {
+    let repaired = 0;
+    for (const tenantId of Object.keys(this.store.leads || {})) {
+      const agents = this.store.agents[tenantId] || [];
+      if (!agents.length) continue;
+      const agentIds = new Set(agents.map((a) => a.id));
+      const admin =
+        agents.find((a) => a.isAdmin || String(a.role || '').toLowerCase().includes('admin')) || agents[0];
+      const leads = this.store.leads[tenantId] || [];
+      for (let i = 0; i < leads.length; i++) {
+        const lead = leads[i];
+        const ownerId = lead.ownerAgentId || (lead.assignedTo && agentIds.has(String(lead.assignedTo)) ? String(lead.assignedTo) : '');
+        if (ownerId && agentIds.has(ownerId)) {
+          if (!lead.ownerAgentId) {
+            leads[i] = { ...lead, ownerAgentId: ownerId };
+            repaired++;
+          }
+          continue;
+        }
+        // Stale Meta distribution targets (deleted agents) → reassign to Admin so leads stay visible
+        leads[i] = {
+          ...lead,
+          ownerAgentId: admin.id,
+          ownerAgentName: admin.name,
+          assignedTo: admin.id
+        };
+        repaired++;
       }
-      fs.writeFileSync(STORE_PATH, JSON.stringify(this.store, null, 2), 'utf-8');
-    } catch (e) {
-      logger.warn('Failed to write local tenant store:', e);
+    }
+    if (repaired > 0) {
+      logger.info(`[MultiTenantDB] Reassigned ${repaired} lead(s) with missing/stale owners to current Admin`);
+      this.saveStoreImmediate();
+    }
+  }
+
+  private writeStoreFile(targetPath: string, payload: string): boolean {
+    const dir = path.dirname(targetPath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const tmp = targetPath + '.tmp-' + process.pid + '-' + Date.now();
+    for (let attempt = 0; attempt < 8; attempt++) {
+      try {
+        fs.writeFileSync(tmp, payload, 'utf-8');
+        try {
+          fs.renameSync(tmp, targetPath);
+        } catch {
+          fs.copyFileSync(tmp, targetPath);
+          try { fs.unlinkSync(tmp); } catch {}
+        }
+        return true;
+      } catch (e: any) {
+        try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch {}
+        const start = Date.now();
+        while (Date.now() - start < 40 * (attempt + 1)) { /* brief backoff for OneDrive locks */ }
+        if (attempt === 7) {
+          logger.warn('[MultiTenantDB] Write failed for ' + targetPath + ':', e?.message || e);
+        }
+      }
+    }
+    return false;
+  }
+
+  private saveStoreImmediate() {
+    const payload = JSON.stringify(this.store, null, 2);
+    const okPrimary = this.writeStoreFile(STORE_PATH, payload);
+    // Best-effort mirror into project .data for visibility / backup
+    if (MIRROR_STORE_PATH !== STORE_PATH) {
+      this.writeStoreFile(MIRROR_STORE_PATH, payload);
+    }
+    this.dirty = false;
+    if (!okPrimary) {
+      logger.warn('[MultiTenantDB] Primary store write failed — data kept in memory; will retry on next save');
+    }
+  }
+
+  private saveStore() {
+    this.dirty = true;
+    if (this.saveTimer) clearTimeout(this.saveTimer);
+    // Persist immediately — debounce only coalesces bursts within the same tick
+    this.saveTimer = setTimeout(() => {
+      this.saveTimer = null;
+      this.saveStoreImmediate();
+    }, 0);
+  }
+
+  /** Ensure every collection bucket exists for a tenant (empty arrays — never invent demo rows). */
+  private ensureTenantBuckets(tenantId: string) {
+    const arrayKeys: Array<keyof LocalStoreSchema> = [
+      'agents', 'leads', 'stages', 'fields', 'tasks', 'calls', 'integrations',
+      'facebookPages', 'activities', 'lostReasons', 'workflows', 'templates', 'actions', 'campaigns', 'messages', 'whatsappTemplates', 'whatsappCampaigns'
+    ];
+    for (const key of arrayKeys) {
+      const bucket = (this.store as any)[key] || ((this.store as any)[key] = {});
+      if (bucket[tenantId] === undefined) {
+        bucket[tenantId] = [];
+      }
     }
   }
 
   private seedDefaultTenantIfNeeded() {
-    const defaultTenantId = process.env.DEFAULT_TENANT_ID || 'default_tenant';
-    if (!this.store.tenants[defaultTenantId] && Object.keys(this.store.tenants).length === 0) {
-      this.store.tenants[defaultTenantId] = {
-        tenantId: defaultTenantId,
-        companyName: 'Default Workspace',
-        ownerEmail: 'admin@company.com',
-        ownerPhone: '+91 98000 00000',
-        companyDescription: 'Enterprise CRM Workspace',
-        businessType: 'General Business',
-        status: 'ACTIVE',
-        settings: { currency: 'INR', autoDialer: true, whatsappCrm: true },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      this.store.agents[defaultTenantId] = [
-        {
-          id: 'agent-admin',
-          tenantId: defaultTenantId,
-          name: 'System Administrator',
-          email: 'admin@company.com',
-          phone: '+91 98000 00000',
-          role: 'Admin',
-          companyName: 'Default Workspace',
-          isAdmin: true,
-          status: 'online',
-          avatar: '',
-          totalCallsToday: 0,
-          talkTimeMinutes: 0,
-          convertedLeadsCount: 0,
-          revenueGenerated: 0,
-          responseTimeMinutes: 1.0
-        }
-      ];
-
-      this.store.stages[defaultTenantId] = DEFAULT_STAGES.map((s) => ({ ...s, tenantId: defaultTenantId }));
-      this.store.fields[defaultTenantId] = DEFAULT_FIELDS.map((f) => ({ ...f, tenantId: defaultTenantId }));
-      this.store.leads[defaultTenantId] = [];
-      this.store.tasks[defaultTenantId] = [];
-      this.store.integrations[defaultTenantId] = [];
-      this.store.activities[defaultTenantId] = [];
-
-      this.saveStore();
-    }
+    // Intentionally empty: no mock tenants/agents/leads.
+    // Workspaces are provisioned only via auth register → createTenant().
   }
 
   // =========================================================================
@@ -474,6 +615,7 @@ export class MultiTenantDatabase {
     };
 
     this.store.tenants[data.tenantId] = tenant;
+    this.ensureTenantBuckets(data.tenantId);
 
     // Seed tenant admin user
     const adminAgent: TenantAgent = {
@@ -531,25 +673,35 @@ export class MultiTenantDatabase {
   // =========================================================================
   // 2. LEADS CRUD (STRICTLY SCOPED TO tenantId)
   // =========================================================================
-  public async getLeads(tenantId: string, agentId?: string, isAdmin?: boolean): Promise<TenantLead[]> {
-    const tenantLeads = [...(this.store.leads[tenantId] || [])];
-    
-    // Strictly sort newest created first (latest timestamp on top)
+  public async getLeads(tenantId: string, agentIds?: string[], isAdmin?: boolean): Promise<TenantLead[]> {
+    this.ensureTenantBuckets(tenantId);
+    const tenantLeads = [...(this.store.leads[tenantId] || [])].map((lead) => {
+      // Backfill ownerAgentId from assignedTo for older Meta / Facebook leads
+      if (!lead.ownerAgentId && lead.assignedTo) {
+        return { ...lead, ownerAgentId: String(lead.assignedTo) };
+      }
+      return lead;
+    });
+
     tenantLeads.sort((a, b) => {
       const timeA = new Date(a.createdAt || a.updatedAt || 0).getTime();
       const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime();
       return timeB - timeA;
     });
 
-    if (!isAdmin && agentId) {
+    if (!isAdmin) {
+      const allowedAgentIds = new Set((agentIds || []).filter(Boolean));
       return tenantLeads.filter(
-        (l) => l.ownerAgentId === agentId || l.ownerAgentName?.toLowerCase().includes(agentId.toLowerCase())
+        (l) =>
+          allowedAgentIds.has(l.ownerAgentId) ||
+          (l.assignedTo ? allowedAgentIds.has(String(l.assignedTo)) : false)
       );
     }
     return tenantLeads;
   }
 
   public async saveLead(tenantId: string, leadData: Partial<TenantLead>): Promise<TenantLead> {
+    this.ensureTenantBuckets(tenantId);
     if (!this.store.leads) {
       this.store.leads = {};
     }
@@ -752,98 +904,17 @@ export class MultiTenantDatabase {
   // 3. TEAM MEMBERS / AGENTS (STRICTLY SCOPED TO tenantId)
   // =========================================================================
   public async getAgents(tenantId: string): Promise<TenantAgent[]> {
-    if (!this.store.agents[tenantId] || this.store.agents[tenantId].length === 0) {
-      const defaultAgents: TenantAgent[] = [
-        {
-          id: 'agent-root',
-          tenantId,
-          name: 'Super Admin (Root)',
-          email: 'root@company.com',
-          phone: '+91 99000 00001',
-          role: 'Root',
-          companyName: 'Default Workspace',
-          isAdmin: true,
-          status: 'online',
-          avatar: '',
-          totalCallsToday: 0,
-          talkTimeMinutes: 0,
-          convertedLeadsCount: 0,
-          revenueGenerated: 0,
-          responseTimeMinutes: 1.0
-        },
-        {
-          id: 'agent-admin',
-          tenantId,
-          name: 'System Administrator',
-          email: 'admin@company.com',
-          phone: '+91 98000 00000',
-          role: 'Admin',
-          companyName: 'Default Workspace',
-          isAdmin: true,
-          status: 'online',
-          avatar: '',
-          totalCallsToday: 0,
-          talkTimeMinutes: 0,
-          convertedLeadsCount: 0,
-          revenueGenerated: 0,
-          responseTimeMinutes: 1.0
-        },
-        {
-          id: 'agent-mgr',
-          tenantId,
-          name: 'Vikram Singh',
-          email: 'vikram.manager@company.com',
-          phone: '+91 98111 22334',
-          role: 'Manager',
-          companyName: 'Default Workspace',
-          isAdmin: false,
-          status: 'online',
-          avatar: '',
-          totalCallsToday: 12,
-          talkTimeMinutes: 45,
-          convertedLeadsCount: 5,
-          revenueGenerated: 120000,
-          responseTimeMinutes: 2.0
-        },
-        {
-          id: 'agent-caller',
-          tenantId,
-          name: 'Rahul Sharma',
-          email: 'rahul.caller@company.com',
-          phone: '+91 98222 33445',
-          role: 'Caller',
-          companyName: 'Default Workspace',
-          isAdmin: false,
-          status: 'online',
-          avatar: '',
-          totalCallsToday: 28,
-          talkTimeMinutes: 110,
-          convertedLeadsCount: 8,
-          revenueGenerated: 85000,
-          responseTimeMinutes: 1.5
-        },
-        {
-          id: 'agent-marketing',
-          tenantId,
-          name: 'Priya Patel',
-          email: 'priya.marketing@company.com',
-          phone: '+91 98333 44556',
-          role: 'Marketing_user',
-          companyName: 'Default Workspace',
-          isAdmin: false,
-          status: 'online',
-          avatar: '',
-          totalCallsToday: 5,
-          talkTimeMinutes: 18,
-          convertedLeadsCount: 2,
-          revenueGenerated: 35000,
-          responseTimeMinutes: 2.5
-        }
-      ];
-      this.store.agents[tenantId] = defaultAgents;
-      this.saveStore();
+    this.ensureTenantBuckets(tenantId);
+    return [...(this.store.agents[tenantId] || [])];
+  }
+
+  public async findAgentByEmail(email: string): Promise<TenantAgent | null> {
+    const targetEmail = email.trim().toLowerCase();
+    for (const agents of Object.values(this.store.agents || {})) {
+      const match = agents.find((agent) => agent.email?.trim().toLowerCase() === targetEmail);
+      if (match) return match;
     }
-    return this.store.agents[tenantId] || [];
+    return null;
   }
 
   public async saveAgent(tenantId: string, agentData: Partial<TenantAgent>): Promise<TenantAgent> {
@@ -854,8 +925,13 @@ export class MultiTenantDatabase {
     const index = this.store.agents[tenantId].findIndex((a) => a.id === agentData.id);
     let agent: TenantAgent;
 
-    const defaultRole = agentData.role || 'Caller';
-    const defaultPermission = agentData.permission || (agentData.isAdmin ? 'Admin' : (defaultRole === 'Marketing' ? 'Marketer' : defaultRole));
+    const defaultRole = agentData.role || 'Telecaller';
+    const roleLower = String(defaultRole).toLowerCase();
+    const isTelecaller = roleLower.includes('caller') || roleLower === 'telecaller';
+    const defaultPermission = agentData.permission || (agentData.isAdmin ? 'Admin' : defaultRole);
+    const resolvedManagerId = isTelecaller
+      ? (agentData.managerId !== undefined ? agentData.managerId : (index >= 0 ? this.store.agents[tenantId][index].managerId : undefined))
+      : undefined;
 
     if (index >= 0) {
       agent = {
@@ -863,7 +939,8 @@ export class MultiTenantDatabase {
         ...agentData,
         role: defaultRole,
         permission: defaultPermission,
-        isAdmin: agentData.isAdmin !== undefined ? Boolean(agentData.isAdmin) : (defaultPermission.toLowerCase() === 'admin'),
+        isAdmin: agentData.isAdmin !== undefined ? Boolean(agentData.isAdmin) : (String(defaultPermission).toLowerCase() === 'admin'),
+        managerId: resolvedManagerId,
         tenantId
       };
       this.store.agents[tenantId][index] = agent;
@@ -877,9 +954,11 @@ export class MultiTenantDatabase {
         role: defaultRole,
         permission: defaultPermission,
         companyName: agentData.companyName || this.store.tenants[tenantId]?.companyName || 'Company',
-        isAdmin: Boolean(agentData.isAdmin) || defaultPermission.toLowerCase() === 'admin',
+        isAdmin: Boolean(agentData.isAdmin) || String(defaultPermission).toLowerCase() === 'admin',
         status: agentData.status || 'online',
         avatar: agentData.avatar || '',
+        managerId: resolvedManagerId,
+        passwordHash: agentData.passwordHash,
         totalCallsToday: 0,
         talkTimeMinutes: 0,
         convertedLeadsCount: 0,
@@ -974,7 +1053,12 @@ export class MultiTenantDatabase {
   // 4. PIPELINE STAGES (STRICTLY SCOPED TO tenantId)
   // =========================================================================
   public async getPipelines(tenantId: string): Promise<TenantStage[]> {
-    if (!this.store.stages[tenantId] || this.store.stages[tenantId].length === 0) {
+    this.ensureTenantBuckets(tenantId);
+    // Only seed defaults when the tenant has never had stages (undefined), not when intentionally empty
+    if (this.store.stages[tenantId] === undefined) {
+      this.store.stages[tenantId] = DEFAULT_STAGES.map((s) => ({ ...s, tenantId }));
+      this.saveStore();
+    } else if (!this.store.stages[tenantId] || this.store.stages[tenantId].length === 0) {
       this.store.stages[tenantId] = DEFAULT_STAGES.map((s) => ({ ...s, tenantId }));
       this.saveStore();
     }
@@ -1125,10 +1209,10 @@ export class MultiTenantDatabase {
         agentId: callData.agentId,
         agentName: callData.agentName,
         assigneeName: callData.assigneeName || callData.agentName || 'Agent',
-        callType: callData.callType || 'outgoing',
+        callType: callData.callType || (callData as any).type || 'outgoing',
         disposition: callData.disposition || 'Connected',
         recordingUrl: callData.recordingUrl,
-        callNotes: callData.callNotes,
+        callNotes: callData.callNotes || (callData as any).notes,
         assigneeRemarks: callData.assigneeRemarks,
         createdAt: now.toISOString(),
         updatedAt: now.toISOString()
@@ -1739,6 +1823,151 @@ export class MultiTenantDatabase {
     }
     return deleted;
   }
+
+  // =========================================================================
+  // MESSAGES / WHATSAPP TEMPLATES / WHATSAPP CAMPAIGNS
+  // =========================================================================
+  public async getMessages(tenantId: string): Promise<TenantMessage[]> {
+    this.ensureTenantBuckets(tenantId);
+    return [...(this.store.messages[tenantId] || [])];
+  }
+
+  public async saveMessage(tenantId: string, messageData: Partial<TenantMessage>): Promise<TenantMessage> {
+    this.ensureTenantBuckets(tenantId);
+    const list = this.store.messages[tenantId];
+    const idx = list.findIndex((m) => m.id === messageData.id);
+    const now = new Date().toISOString();
+    let saved: TenantMessage;
+    if (idx >= 0) {
+      saved = { ...list[idx], ...messageData, tenantId, updatedAt: now } as TenantMessage;
+      list[idx] = saved;
+    } else {
+      saved = {
+        id: messageData.id || `msg-${Date.now()}`,
+        tenantId,
+        leadId: messageData.leadId || '',
+        direction: messageData.direction || 'outbound',
+        channel: messageData.channel || 'whatsapp',
+        content: messageData.content || '',
+        mediaUrl: messageData.mediaUrl,
+        status: messageData.status || 'delivered',
+        timestamp: messageData.timestamp || now,
+        templateId: messageData.templateId,
+        isBot: messageData.isBot,
+        createdAt: now,
+        updatedAt: now
+      };
+      list.unshift(saved);
+    }
+    this.saveStore();
+    return saved;
+  }
+
+  public async getWhatsappTemplates(tenantId: string): Promise<any[]> {
+    this.ensureTenantBuckets(tenantId);
+    return [...(this.store.whatsappTemplates[tenantId] || [])];
+  }
+
+  public async saveWhatsappTemplate(tenantId: string, data: any): Promise<any> {
+    this.ensureTenantBuckets(tenantId);
+    const list = this.store.whatsappTemplates[tenantId];
+    const idx = list.findIndex((t: any) => t.id === data.id);
+    const saved = { ...data, id: data.id || `wa-tmpl-${Date.now()}`, tenantId, updatedAt: new Date().toISOString() };
+    if (idx >= 0) list[idx] = { ...list[idx], ...saved };
+    else list.unshift(saved);
+    this.saveStore();
+    return saved;
+  }
+
+  public async getWhatsappCampaigns(tenantId: string): Promise<any[]> {
+    this.ensureTenantBuckets(tenantId);
+    return [...(this.store.whatsappCampaigns[tenantId] || [])];
+  }
+
+  public async saveWhatsappCampaign(tenantId: string, data: any): Promise<any> {
+    this.ensureTenantBuckets(tenantId);
+    const list = this.store.whatsappCampaigns[tenantId];
+    const idx = list.findIndex((c: any) => c.id === data.id);
+    const saved = { ...data, id: data.id || `wa-camp-${Date.now()}`, tenantId, updatedAt: new Date().toISOString() };
+    if (idx >= 0) list[idx] = { ...list[idx], ...saved };
+    else list.unshift(saved);
+    this.saveStore();
+    return saved;
+  }
+
+  // =========================================================================
+  // WORKSPACE SETTINGS (stored on tenants[tenantId].settings)
+  // =========================================================================
+  public async getWorkspaceSettings(tenantId: string): Promise<Record<string, any>> {
+    this.ensureTenantBuckets(tenantId);
+    const tenant = this.store.tenants[tenantId];
+    if (!tenant) {
+      return {
+        companyName: '',
+        supportEmail: '',
+        currency: 'INR',
+        workspaceFeatures: {},
+        callFeedbackStatuses: [],
+        permissionTemplates: [],
+        general: {}
+      };
+    }
+    const settings = tenant.settings || {};
+    return {
+      companyName: tenant.companyName || settings.companyName || '',
+      supportEmail: settings.supportEmail || tenant.ownerEmail || '',
+      currency: settings.currency || 'INR',
+      workspaceFeatures: settings.workspaceFeatures || {},
+      callFeedbackStatuses: settings.callFeedbackStatuses || [],
+      permissionTemplates: settings.permissionTemplates || [],
+      general: settings.general || {},
+      ...settings
+    };
+  }
+
+  public async saveWorkspaceSettings(tenantId: string, patch: Record<string, any>): Promise<Record<string, any>> {
+    this.ensureTenantBuckets(tenantId);
+    if (!this.store.tenants[tenantId]) {
+      this.store.tenants[tenantId] = {
+        tenantId,
+        companyName: patch.companyName || tenantId,
+        ownerEmail: patch.supportEmail || '',
+        status: 'ACTIVE',
+        settings: {},
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+    }
+    const tenant = this.store.tenants[tenantId];
+    const prev = tenant.settings || {};
+    const next = {
+      ...prev,
+      ...patch,
+      workspaceFeatures: patch.workspaceFeatures !== undefined
+        ? { ...(prev.workspaceFeatures || {}), ...patch.workspaceFeatures }
+        : prev.workspaceFeatures,
+      general: patch.general !== undefined
+        ? { ...(prev.general || {}), ...patch.general }
+        : prev.general,
+      callFeedbackStatuses: patch.callFeedbackStatuses !== undefined
+        ? patch.callFeedbackStatuses
+        : prev.callFeedbackStatuses,
+      permissionTemplates: patch.permissionTemplates !== undefined
+        ? patch.permissionTemplates
+        : prev.permissionTemplates
+    };
+    if (patch.companyName) {
+      tenant.companyName = String(patch.companyName);
+      next.companyName = tenant.companyName;
+    }
+    if (patch.currency) next.currency = patch.currency;
+    if (patch.supportEmail) next.supportEmail = patch.supportEmail;
+    tenant.settings = next;
+    tenant.updatedAt = new Date().toISOString();
+    this.saveStore();
+    return this.getWorkspaceSettings(tenantId);
+  }
+
 }
 
 export const multiTenantDb = new MultiTenantDatabase();

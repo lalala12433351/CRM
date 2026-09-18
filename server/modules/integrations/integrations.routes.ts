@@ -1,8 +1,10 @@
 import { Router, Request, Response } from 'express';
+import { requireAdmin } from '../../middleware/rbac';
 import { logger } from '../../utils/logger';
 import { multiTenantDb } from '../../services/multiTenantDb';
 
 const router = Router();
+router.use(['/integrations', '/api/integrations', '/facebook/status'], requireAdmin);
 
 // GET /api/integrations/config
 router.get('/integrations/config', async (req: Request, res: Response) => {
@@ -121,6 +123,21 @@ router.post('/integrations/sync', async (req: Request, res: Response) => {
     const tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string) || process.env.DEFAULT_TENANT_ID || 'default_tenant';
     const { id, name } = req.body;
     const platformName = name || id || 'Integration';
+
+    // Facebook / Meta: pull real leads from Graph API into multi_tenant_store
+    if (String(id || '').toLowerCase() === 'facebook' || String(id || '').toLowerCase() === 'meta') {
+      const { metaSyncEngine } = await import('./meta/meta.sync');
+      const result = await metaSyncEngine.syncAllMetaLeads(String(tenantId));
+      return res.json({
+        success: true,
+        tenantId,
+        message: `Synced ${result.syncedCount} Facebook lead(s) into the CRM database.`,
+        syncedCount: result.syncedCount,
+        newLeadsSaved: result.syncedCount,
+        formsSynced: result.formsSynced || 0,
+        errors: result.errors || []
+      });
+    }
 
     const sampleLeadId = `sync-lead-${id}-${Date.now()}`;
     const sampleLead = {

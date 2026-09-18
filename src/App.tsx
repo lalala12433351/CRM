@@ -46,23 +46,18 @@ import { WorkflowBuilderPage } from './features/workflow-builder';
 import { saveWorkflowToDb, getWorkflowsFromDb, fetchWorkflowsFromApi } from './utils/workflowStorage';
 import { executeWorkflowTriggers } from './utils/workflowEngine';
 import { PhoneCall, X, Users } from 'lucide-react';
-import { verifyCurrentSession, logoutWithApi, fetchWithTenantAuth, clearLocalStorageAuth } from './lib/auth';
+import { verifyCurrentSession, logoutWithApi, fetchWithTenantAuth, clearLocalStorageAuth, ensureServerSession } from './lib/auth';
 import { formatArcleName } from './utils/brandUtils';
 import { toast, useToast, ToastType } from './context/ToastContext';
 
 import { 
-  INITIAL_LEADS, 
-  INITIAL_AGENTS, 
   INITIAL_ACTIVITIES, 
   INITIAL_MESSAGES, 
   INITIAL_CALL_RECORDS, 
   INITIAL_TEMPLATES, 
   INITIAL_CAMPAIGNS, 
   INITIAL_WORKFLOWS, 
-  INITIAL_CUSTOM_FIELDS, 
-  INITIAL_STAGES, 
   HOURLY_METRICS,
-  INITIAL_PERMISSION_TEMPLATES 
 } from './constants/initialState';
 
 import { 
@@ -85,9 +80,10 @@ import {
 
 import { getAgentPermissionRights } from './utils/permissionUtils';
 import { getInitialViewFromUrl, syncUrlWithView, pathToView } from './utils/navigation';
+import { canAccessView, getCrmRole, getDefaultViewForRole, formatRoleBadge } from './utils/roleUtils';
 import { ShieldCheck } from 'lucide-react';
 
-export const StagesContext = React.createContext<PipelineStage[]>(INITIAL_STAGES);
+export const StagesContext = React.createContext<PipelineStage[]>([]);
 
 export function App() {
   // Navigation & Active View State (synchronized with browser URL and history)
@@ -98,8 +94,9 @@ export function App() {
         const u = sessionStorage.getItem('pixbe_auth_user');
         if (u) {
           const user = JSON.parse(u);
-          if (user?.role === 'Telecaller') fallback = 'leads';
-          else if (user?.role === 'Manager') fallback = 'team';
+          const role = (user?.role || '').toLowerCase();
+          if (role.includes('caller') || role === 'telecaller') fallback = 'dashboard';
+          else if (role === 'manager') fallback = 'dashboard';
         }
       }
     } catch (e) {}
@@ -382,9 +379,9 @@ export function App() {
     });
   };
 
-  const activeTemplates = permissionTemplates.length > 0 ? permissionTemplates : INITIAL_PERMISSION_TEMPLATES;
-  const activeStages = stages && stages.length > 0 ? stages : INITIAL_STAGES;
-  const activeCustomFields = customFields && customFields.length > 0 ? customFields : INITIAL_CUSTOM_FIELDS;
+  const activeTemplates = permissionTemplates;
+  const activeStages = stages || [];
+  const activeCustomFields = customFields || [];
 
   // Dynamic Browser Tab / Document Title containing ARCLE, view name & the given company name
   useEffect(() => {
@@ -422,6 +419,7 @@ export function App() {
 
   // Fetch all domain data from database when authenticated and activeTenantId is ready
   const loadTenantDomainData = React.useCallback(async (tenantId?: string) => {
+    await ensureServerSession();
     let activeId = tenantId || currentUser?.tenantId;
     if (!activeId) {
       try {
@@ -436,7 +434,7 @@ export function App() {
     try {
       const headers = { 'x-tenant-id': activeId };
       // Parallel high-performance multi-collection hydration with explicit tenant header
-      const [leadsRes, agentsRes, pipelinesRes, fieldsRes, tasksRes, lostReasonsRes, activitiesRes] = await Promise.all([
+      const [leadsRes, agentsRes, pipelinesRes, fieldsRes, tasksRes, lostReasonsRes, activitiesRes, callsRes, campaignsRes, messagesRes, waTemplatesRes, waCampaignsRes, workflowsRes, workspaceRes] = await Promise.all([
         fetchWithTenantAuth('/api/leads', { headers }).then((r) => r.json()).catch(() => ({ success: false })),
         fetchWithTenantAuth('/api/agents', { headers }).then((r) => r.json()).catch(() => ({ success: false })),
         fetchWithTenantAuth('/api/pipelines', { headers }).then((r) => r.json()).catch(() => ({ success: false })),
@@ -444,18 +442,27 @@ export function App() {
         fetchWithTenantAuth('/api/tasks', { headers }).then((r) => r.json()).catch(() => ({ success: false })),
         fetchWithTenantAuth('/api/pipelines/lost-reasons', { headers }).then((r) => r.json()).catch(() => ({ success: false })),
         fetchWithTenantAuth('/api/activities', { headers }).then((r) => r.json()).catch(() => ({ success: false })),
+        fetchWithTenantAuth('/api/calls', { headers }).then((r) => r.json()).catch(() => ({ success: false })),
+        fetchWithTenantAuth('/api/campaigns', { headers }).then((r) => r.json()).catch(() => ({ success: false })),
+        fetchWithTenantAuth('/api/messages', { headers }).then((r) => r.json()).catch(() => ({ success: false })),
+        fetchWithTenantAuth('/api/whatsapp-templates', { headers }).then((r) => r.json()).catch(() => ({ success: false })),
+        fetchWithTenantAuth('/api/whatsapp-campaigns', { headers }).then((r) => r.json()).catch(() => ({ success: false })),
+        fetchWorkflowsFromApi(activeId).catch(() => []),
+        fetchWithTenantAuth('/api/workspace/settings', { headers }).then((r) => r.json()).catch(() => ({ success: false })),
       ]);
 
       if (leadsRes?.success && Array.isArray(leadsRes.leads)) {
         setLeads(leadsRes.leads);
+      } else if (leadsRes?.success) {
+        setLeads([]);
       }
-      if (agentsRes?.success && Array.isArray(agentsRes.agents) && agentsRes.agents.length > 0) {
+      if (agentsRes?.success && Array.isArray(agentsRes.agents)) {
         setAgents(agentsRes.agents);
       }
-      if (pipelinesRes?.success && Array.isArray(pipelinesRes.stages) && pipelinesRes.stages.length > 0) {
+      if (pipelinesRes?.success && Array.isArray(pipelinesRes.stages)) {
         setStages(pipelinesRes.stages);
       }
-      if (fieldsRes?.success && Array.isArray(fieldsRes.fields) && fieldsRes.fields.length > 0) {
+      if (fieldsRes?.success && Array.isArray(fieldsRes.fields)) {
         setCustomFields(fieldsRes.fields);
       }
       if (tasksRes?.success && Array.isArray(tasksRes.tasks)) {
@@ -466,6 +473,61 @@ export function App() {
       }
       if (activitiesRes?.success && Array.isArray(activitiesRes.activities)) {
         setActivities(activitiesRes.activities);
+      }
+      if (callsRes?.success && Array.isArray(callsRes.calls)) {
+        setCallRecords(callsRes.calls.map((c: any) => ({
+          id: c.id,
+          leadId: c.leadId || '',
+          leadName: c.leadName || 'Contact',
+          leadPhone: c.leadPhone || '',
+          agentId: c.agentId || '',
+          agentName: c.agentName || c.assigneeName || '',
+          assigneeName: c.assigneeName,
+          type: c.type || c.callType || 'outgoing',
+          durationSeconds: c.durationSeconds || 0,
+          callStartTime: c.callStart || c.callStartTime,
+          callEndTime: c.callEnd || c.callEndTime,
+          recordingUrl: c.recordingUrl,
+          disposition: c.disposition || 'Connected',
+          notes: c.notes || c.callNotes,
+          callNotes: c.callNotes || c.notes,
+          assigneeRemarks: c.assigneeRemarks,
+          timestamp: c.timestamp || c.callStart || c.createdAt || new Date().toISOString(),
+          transcript: c.transcript,
+          aiSummary: c.aiSummary,
+          sentiment: c.sentiment,
+          tags: c.tags
+        })));
+      }
+      if (messagesRes?.success && Array.isArray(messagesRes.messages)) {
+        setMessages(messagesRes.messages);
+      }
+      if (waTemplatesRes?.success && Array.isArray(waTemplatesRes.templates)) {
+        setTemplates(waTemplatesRes.templates);
+      }
+      if (waCampaignsRes?.success && Array.isArray(waCampaignsRes.campaigns)) {
+        setCampaigns(waCampaignsRes.campaigns);
+      }
+      if (Array.isArray(workflowsRes) && workflowsRes.length >= 0) {
+        // Keep builder cache warm; WorkflowsView reads via workflowStorage
+      }
+      void campaignsRes;
+      if (workspaceRes?.success && workspaceRes.settings) {
+        const ws = workspaceRes.settings;
+        if (ws.companyName) setWorkspaceProfile([{ id: 'default_workspace', name: ws.companyName }]);
+        if (ws.supportEmail) setWorkspaceEmail([{ id: 'default_email', email: ws.supportEmail }]);
+        if (ws.currency) setWorkspaceCurrency([{ id: 'default_currency', code: ws.currency }]);
+        if (Array.isArray(ws.permissionTemplates) && ws.permissionTemplates.length > 0) {
+          setPermissionTemplates(ws.permissionTemplates);
+        }
+        try {
+          if (ws.workspaceFeatures && typeof window !== 'undefined') {
+            localStorage.setItem('pixbe_workspace_features', JSON.stringify(ws.workspaceFeatures));
+          }
+          if (Array.isArray(ws.callFeedbackStatuses) && typeof window !== 'undefined') {
+            localStorage.setItem('pixbe_call_feedback_statuses', JSON.stringify(ws.callFeedbackStatuses));
+          }
+        } catch {}
       }
     } catch (err) {
       console.warn('Tenant data loading notice:', err);
@@ -480,16 +542,7 @@ export function App() {
     }
   }, [isAuthenticated, activeTenantId, loadTenantDomainData]);
 
-  const [lostReasons, setLostReasons] = useState<string[]>([
-    'No Need',
-    'Unable to Connect',
-    'Budget Issues',
-    'Product does not fit need',
-    'Lost to competitor',
-    'Unknown Reason',
-    'Not eligible',
-    'Junk'
-  ]);
+  const [lostReasons, setLostReasons] = useState<string[]>([]);
 
   const handleUpdateLostReasons = (updatedReasons: string[]) => {
     setLostReasons(updatedReasons);
@@ -504,7 +557,36 @@ export function App() {
     fetchWithTenantAuth('/api/field-settings', {
       method: 'POST',
       body: JSON.stringify(updatedFields)
-    }).catch((err) => console.warn('Field settings DB save notice:', err));
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.success) {
+          showToast(data?.error || 'Failed to save fields to database');
+          return;
+        }
+        if (Array.isArray(data.result)) setCustomFields(data.result);
+      })
+      .catch(() => showToast('Failed to save fields to database'));
+  };
+
+  const saveWorkspaceSettings = (patch: Record<string, any>, toastMsg?: string) => {
+    fetchWithTenantAuth('/api/workspace/settings', {
+      method: 'PUT',
+      body: JSON.stringify(patch)
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.success) {
+          showToast(data?.error || 'Failed to save workspace settings');
+          return;
+        }
+        const ws = data.settings || {};
+        if (ws.companyName) setWorkspaceProfile([{ id: 'default_workspace', name: ws.companyName }]);
+        if (ws.supportEmail) setWorkspaceEmail([{ id: 'default_email', email: ws.supportEmail }]);
+        if (ws.currency) setWorkspaceCurrency([{ id: 'default_currency', code: ws.currency }]);
+        if (toastMsg) showToast(toastMsg);
+      })
+      .catch(() => showToast('Failed to save workspace settings'));
   };
 
   const handleLoginSuccess = async (agent: Agent) => {
@@ -550,19 +632,60 @@ export function App() {
   };
 
   const handleSelectAgent = (agentId: string) => {
-    const targetAgent = agents.find((a) => a.id === agentId) || INITIAL_AGENTS.find((a) => a.id === agentId);
+    let targetAgent = agents.find((a) => a.id === agentId);
+
+    // Role-preview personas (Switch Account): Admin / Manager / Telecaller
+    if (!targetAgent && String(agentId).startsWith('role-preview-')) {
+      const roleKey = agentId.replace('role-preview-', '');
+      const role = roleKey === 'admin' ? 'Admin' : roleKey === 'manager' ? 'Manager' : 'Telecaller';
+      const brand = companyName || currentUser?.companyName || 'Workspace';
+      targetAgent = {
+        id: agentId,
+        name: `${brand} ${role}`,
+        email: `${role.toLowerCase()}@preview.local`,
+        phone: '',
+        role,
+        permission: role,
+        isAdmin: role === 'Admin',
+        status: 'online',
+        avatar: '',
+        totalCallsToday: 0,
+        talkTimeMinutes: 0,
+        convertedLeadsCount: 0,
+        revenueGenerated: 0,
+        responseTimeMinutes: 0,
+        tenantId: activeTenantId,
+        companyName: brand,
+        managerId: role === 'Telecaller'
+          ? (agents || []).find((a) => getCrmRole(a) === 'Manager')?.id
+          : undefined,
+      };
+    }
+
     if (targetAgent) {
-      setCurrentUser(targetAgent);
-      setActiveAgentId(targetAgent.id);
+      const crmRole = getCrmRole(targetAgent);
+      const withTenant: Agent = {
+        ...targetAgent,
+        tenantId: targetAgent.tenantId || currentUser?.tenantId || activeTenantId,
+        companyName: targetAgent.companyName || currentUser?.companyName || companyName || targetAgent.companyName,
+        role: crmRole,
+        isAdmin: crmRole === 'Admin',
+      };
+      setCurrentUser(withTenant);
+      setActiveAgentId(withTenant.id);
       if (typeof sessionStorage !== 'undefined') {
-        sessionStorage.setItem('pixbe_auth_user', JSON.stringify(targetAgent));
+        sessionStorage.setItem('pixbe_auth_user', JSON.stringify(withTenant));
       }
-      showToast(`Switched active user to ${targetAgent.name} (${isAgentAdmin(targetAgent) ? 'Admin' : 'Employee'})`);
+      const homeView = getDefaultViewForRole(withTenant);
+      setCurrentView(homeView);
+      showToast(`Switched to ${formatRoleBadge(withTenant)} account: ${withTenant.name}`);
+      loadTenantDomainData(withTenant.tenantId || activeTenantId);
     } else {
       setActiveAgentId(agentId);
     }
   };
 
+  
   // Modals & Overlay Drawers State
   const [detailLead, setDetailLead] = useState<Lead | null>(null);
   const [voiceBotLead, setVoiceBotLead] = useState<Lead | null>(null);
@@ -575,7 +698,7 @@ export function App() {
     toast.show(msg, type, title);
   };
 
-  const activeAgentsList = agents && agents.length > 0 ? agents : (currentUser ? [currentUser] : INITIAL_AGENTS);
+  const activeAgentsList = agents && agents.length > 0 ? agents : (currentUser ? [currentUser] : []);
   const matchedDbAgent = currentUser
     ? activeAgentsList.find((a) => a.id === currentUser.id || (a.email && currentUser.email && a.email.toLowerCase() === currentUser.email.toLowerCase()) || (a.name && currentUser.name && a.name.toLowerCase() === currentUser.name.toLowerCase()))
     : null;
@@ -590,60 +713,45 @@ export function App() {
   // RBAC Frontend Route Guards
   useEffect(() => {
     if (!isAuthenticated || !activeAgent) return;
-    
-    const role = activeAgent.role || 'Telecaller';
-    const adminRoutes = ['settings', 'campaigns', 'workflows', 'integrations', 'fields', 'call_feedback'];
-    const managerRoutes = ['team', 'reports', 'analytics', 'pipeline'];
-    
-    if (role === 'Telecaller') {
-      if (adminRoutes.includes(currentView) || managerRoutes.includes(currentView)) {
-        setCurrentView('leads');
-        showToast('Access Denied: Redirected to Leads');
-      }
-    } else if (role === 'Manager') {
-      if (adminRoutes.includes(currentView)) {
-        setCurrentView('team');
-        showToast('Access Denied: Redirected to Team Dashboard');
-      }
+    if (!canAccessView(activeAgent, currentView)) {
+      const homeView = getDefaultViewForRole(activeAgent);
+      setCurrentView(homeView);
+      showToast(`Access denied for ${formatRoleBadge(activeAgent)}. Redirected.`);
     }
   }, [currentView, activeAgent, isAuthenticated]);
 
   // Strict Database Agents Scoping: Use live agents from database (or active logged in admin user)
-  const visibleAgents = activeAgentsList;
+  const crmRole = getCrmRole(activeAgent);
+  const isManager = crmRole === 'Manager';
+  const visibleAgents = isAdmin
+    ? activeAgentsList
+    : isManager
+      ? activeAgentsList.filter((agent) => agent.id === activeAgent.id || agent.managerId === activeAgent.id)
+      : activeAgentsList.filter((agent) => agent.id === activeAgent.id);
 
-  const defaultOwnerId = activeAgent?.id || visibleAgents[0]?.id || 'agent-admin';
-  const defaultOwnerName = activeAgent?.name || visibleAgents[0]?.name || 'System Administrator';
+  const defaultOwnerId = activeAgent?.id || 'agent-admin';
+  const defaultOwnerName = activeAgent?.name || 'System Administrator';
 
-  // Automatically assign any unassigned leads to the active logged in user that created them & guarantee default status is Fresh
+  // Normalize tenant + default Fresh status only — do NOT reassign ownership on read
+  // (otherwise telecallers would incorrectly "own" unassigned leads in the UI).
   const sanitizedLeads = useMemo(() => {
     const curTenant = currentUser?.tenantId || activeTenantId;
     return (leads || []).map((l) => {
       let updated = { ...l, tenantId: l.tenantId || curTenant };
-      const hasOwnerName = l.ownerAgentName && l.ownerAgentName !== 'Unassigned';
-      const hasOwnerId = !!l.ownerAgentId;
-      if (!hasOwnerName || !hasOwnerId) {
-        updated = {
-          ...updated,
-          ownerAgentId: l.ownerAgentId || defaultOwnerId,
-          ownerAgentName: hasOwnerName ? l.ownerAgentName : defaultOwnerName,
-        };
-      }
       if (!updated.status) {
-        updated = {
-          ...updated,
-          status: 'Fresh',
-        };
+        updated = { ...updated, status: 'Fresh' };
       }
       return updated;
     });
-  }, [leads, defaultOwnerId, defaultOwnerName, currentUser?.tenantId, activeTenantId]);
+  }, [leads, currentUser?.tenantId, activeTenantId]);
 
   const companyLeads = sanitizedLeads;
 
-  // Scoped Lead list based on role: Admins see ALL company leads, Employees see ONLY assigned leads
+  // Scoped Lead list: Admin = all, Manager = self + telecallers under them, Telecaller = assigned only
+  const scopedOwnerIds = new Set(visibleAgents.map((agent) => agent.id));
   const visibleLeads = isAdmin
     ? companyLeads
-    : companyLeads.filter((l) => l.ownerAgentId === activeAgent.id || l.ownerAgentName === activeAgent.name || (activeAgent.email && l.email === activeAgent.email));
+    : companyLeads.filter((lead) => lead.ownerAgentId && scopedOwnerIds.has(lead.ownerAgentId));
 
   const handleAddAgent = (newAgent: Agent) => {
     const activeCompanyName = companyName || currentUser?.companyName || 'ARCLE Real Estate & Sales';
@@ -652,12 +760,28 @@ export function App() {
       tenantId: activeTenantId,
       companyName: activeCompanyName,
     };
-    setAgents((prev) => [agentWithTenant, ...(prev || [])]);
+    const { password, ...safeAgent } = agentWithTenant;
+    setAgents((prev) => [safeAgent, ...(prev || [])]);
     fetchWithTenantAuth('/api/agents', {
       method: 'POST',
       body: JSON.stringify(agentWithTenant)
-    }).catch(console.warn);
-    showToast(`User account created for ${activeCompanyName}: ${newAgent.name} (${newAgent.role})`);
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.success) {
+          setAgents((prev) => (prev || []).filter((a) => a.id !== safeAgent.id));
+          showToast(data?.error || 'Failed to save user to database');
+          return;
+        }
+        if (data.agent) {
+          setAgents((prev) => [data.agent, ...(prev || []).filter((a) => a.id !== data.agent.id && a.id !== safeAgent.id)]);
+        }
+        showToast('User account saved: ' + newAgent.name + ' (' + newAgent.role + ')');
+      })
+      .catch(() => {
+        setAgents((prev) => (prev || []).filter((a) => a.id !== safeAgent.id));
+        showToast('Failed to save user to database');
+      });
   };
 
   const handleRemoveAgent = (agentId: string) => {
@@ -706,8 +830,9 @@ export function App() {
   };
 
   const handleUpdateAgent = (updatedAgent: Agent) => {
+    const { password, ...safeAgent } = updatedAgent;
     setAgents((prev) =>
-      prev.map((a) => (a.id === updatedAgent.id ? { ...a, ...updatedAgent } : a))
+      prev.map((a) => (a.id === updatedAgent.id ? { ...a, ...safeAgent } : a))
     );
     fetchWithTenantAuth(`/api/agents/${updatedAgent.id}`, {
       method: 'PUT',
@@ -734,69 +859,48 @@ export function App() {
     </div>
   );
 
-  // 1. Handlers for Leads
+  // Open the Add Lead form (all new leads are persisted via /api/leads from AddLeadPage)
   const handleAddNewLead = () => {
-    const newLead: Lead = {
-      id: `lead-${Date.now()}`,
-      name: 'Ananya Deshmukh',
-      phone: '+91 98765 00112',
-      email: 'ananya@puneventures.in',
-      company: 'Pune Ventures Pvt Ltd',
-      city: 'Pune',
-      state: 'Maharashtra',
-      source: 'Facebook Ads',
-      status: 'New Lead',
-      pipelineStageId: 'stage-1',
-      dealValue: 0,
-      aiScore: 88,
-      aiRating: 'Hot',
-      aiReasoning: 'High engagement on Facebook ad for 3BHK penthouse. Immediate buy intent.',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      ownerAgentId: activeAgent.id,
-      ownerAgentName: activeAgent.name,
-      tenantId: currentUser?.tenantId,
-      customFields: {},
-      tags: ['Facebook Ads', 'High Value'],
-      notes: ''
-    };
-
-    setLeads((prev) => [newLead, ...prev]);
-    fetchWithTenantAuth('/api/leads', {
-      method: 'POST',
-      body: JSON.stringify(newLead)
-    }).catch(console.warn);
-    executeWorkflowTriggers('Lead Creation', { lead: newLead }, activeTenantId).catch(() => {});
-    showToast(`New Lead Captured: ${newLead.name} via ${newLead.source}`);
+    handleOpenAddLead();
   };
 
   const handleImportCsv = (importedLeads: Partial<Lead>[]) => {
+    const tenantId = currentUser?.tenantId || activeTenantId;
     const formatted: Lead[] = importedLeads.map((imp, idx) => ({
       id: `imported-${Date.now()}-${idx}`,
       name: imp.name || 'Bulk Lead',
-      phone: imp.phone || '+91 90000 00000',
+      phone: imp.phone || '',
       email: imp.email || '',
-      company: imp.company || 'Inbound Company',
-      city: imp.city || 'Mumbai',
-      state: 'Maharashtra',
-      source: imp.source || 'Manual / Bulk CSV',
-      status: 'New Lead',
-      pipelineStageId: 'stage-1',
+      company: imp.company || '',
+      city: imp.city || '',
+      state: imp.state || '',
+      source: (imp.source as any) || 'Manual / Bulk CSV',
+      status: 'Fresh' as any,
+      pipelineStageId: activeStages[0]?.id || 'stage-1',
       dealValue: imp.dealValue || 0,
-      aiScore: 75,
-      aiRating: 'Warm',
-      aiReasoning: 'Bulk CSV imported lead file.',
+      aiScore: 0,
+      aiRating: 'Cold' as any,
+      aiReasoning: '',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       ownerAgentId: activeAgent.id,
       ownerAgentName: activeAgent.name,
+      tenantId,
       customFields: {},
       tags: ['Bulk CSV'],
       notes: ''
     }));
 
     setLeads((prev) => [...formatted, ...prev]);
-    showToast(`Successfully imported ${formatted.length} contacts from CSV!`);
+    Promise.all(
+      formatted.map((lead) =>
+        fetchWithTenantAuth('/api/leads', {
+          method: 'POST',
+          body: JSON.stringify(lead)
+        }).catch(console.warn)
+      )
+    ).then(() => loadTenantDomainData(tenantId));
+    showToast(`Imported ${formatted.length} contacts into the database`);
   };
 
   const handleMergeLeads = (primaryId: string, duplicateId: string) => {
@@ -804,12 +908,14 @@ export function App() {
     if (!primary) return;
 
     setLeads((prev) => prev.filter((l) => l.id !== duplicateId));
+    fetchWithTenantAuth(`/api/leads/${duplicateId}`, { method: 'DELETE' }).catch(console.warn);
     showToast(`Merged duplicate lead into ${primary.name}`);
   };
 
   const handleAddCustomField = (field: CustomFieldDef) => {
-    setCustomFields((prev) => [...prev, field]);
-    showToast(`Custom lead field '${field.label}' saved!`);
+    const updated = [...(customFields || []), field];
+    handleSaveFieldsToDb(updated);
+    showToast(`Custom lead field '${field.label}' saved to database`);
   };
 
   // Automatic Offline Conversion Dispatch Helper
@@ -848,7 +954,12 @@ export function App() {
     fetchWithTenantAuth('/api/leads', {
       method: 'POST',
       body: JSON.stringify(updated)
-    }).catch((err) => console.warn('Lead DB update notice:', err));
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.success) showToast(data?.error || 'Failed to save lead to database');
+      })
+      .catch(() => showToast('Failed to save lead to database'));
     
     if (stageChanged) {
       triggerConversionDispatch(updated.id, updated.status, updated);
@@ -927,6 +1038,16 @@ export function App() {
     };
 
     setCallRecords((prev) => [newCall, ...prev]);
+    fetchWithTenantAuth('/api/calls', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...newCall,
+        callType: newCall.type,
+        callNotes: newCall.notes,
+        callStart: newCall.timestamp,
+        assigneeName: newCall.agentName
+      })
+    }).catch(console.warn);
 
     // Log activity
     const newAct: ActivityLog = {
@@ -940,6 +1061,10 @@ export function App() {
       timestamp: new Date().toISOString()
     };
     setActivities((prev) => [newAct, ...prev]);
+    fetchWithTenantAuth('/api/activities', {
+      method: 'POST',
+      body: JSON.stringify(newAct)
+    }).catch(console.warn);
 
     // Update agent stats
     setAgents((prev) => prev.map((a) => a.id === activeAgent.id ? { ...a, totalCallsToday: a.totalCallsToday + 1 } : a));
@@ -948,6 +1073,10 @@ export function App() {
 
   const handleUpdateCallRecord = (callId: string, updates: Partial<CallRecord>) => {
     setCallRecords((prev) => prev.map((c) => (c.id === callId ? { ...c, ...updates, assigneeUpdatedAt: new Date().toISOString() } : c)));
+    fetchWithTenantAuth('/api/calls/' + callId, {
+      method: 'PUT',
+      body: JSON.stringify({ id: callId, ...updates, callNotes: updates.notes || updates.callNotes })
+    }).catch(console.warn);
     showToast('Call log remarks saved!');
   };
 
@@ -963,6 +1092,10 @@ export function App() {
       status: 'delivered'
     };
     setMessages((prev) => [...prev, newMsg]);
+    fetchWithTenantAuth('/api/messages', {
+      method: 'POST',
+      body: JSON.stringify(newMsg)
+    }).catch(console.warn);
 
     const newAct: ActivityLog = {
       id: `act-${Date.now()}`,
@@ -975,6 +1108,10 @@ export function App() {
       timestamp: new Date().toISOString()
     };
     setActivities((prev) => [newAct, ...prev]);
+    fetchWithTenantAuth('/api/activities', {
+      method: 'POST',
+      body: JSON.stringify(newAct)
+    }).catch(console.warn);
     showToast('WhatsApp message delivered!');
   };
 
@@ -1105,7 +1242,7 @@ export function App() {
     }
     return (
       <LoginView
-        agents={agents.length > 0 ? agents : INITIAL_AGENTS}
+        agents={agents}
         onLogin={handleLoginSuccess}
         onSwitchToSignUp={() => {
           setAuthScreen('signup');
@@ -1118,22 +1255,27 @@ export function App() {
   }
 
   const pendingTasksCount = useMemo(() => {
+    // Admin does not use Tasks
+    if (isAdmin || crmRole === 'Telecaller') return 0;
+
     const pendingFromTasks = (crmTasks || []).filter(t => t.status === 'Pending' || !t.status);
-
-    if (isAgentAdmin(activeAgent)) {
-      return pendingFromTasks.length;
+    if (crmRole === 'Manager') {
+      const teamIds = new Set(visibleAgents.map((a) => a.id));
+      return pendingFromTasks.filter(
+        (t) => teamIds.has(t.assigneeAgentId) || t.assigneeAgentId === activeAgent?.id
+      ).length;
     }
-
-    return pendingFromTasks.filter(t => t.assigneeAgentId === activeAgent?.id || t.assigneeAgentName?.toLowerCase() === activeAgent?.name?.toLowerCase()).length;
-  }, [crmTasks, activeAgent]);
+    return pendingFromTasks.filter(
+      (t) => t.assigneeAgentId === activeAgent?.id || t.assigneeAgentName?.toLowerCase() === activeAgent?.name?.toLowerCase()
+    ).length;
+  }, [crmTasks, activeAgent, isAdmin, crmRole, visibleAgents]);
 
   const pendingFollowUpsCount = useMemo(() => {
-    const followups = (leads || []).filter(l => l.followUpAt || l.status === 'Follow Up');
-    if (isAgentAdmin(activeAgent)) {
-      return followups.length;
-    }
-    return followups.filter(l => l.ownerAgentId === activeAgent?.id || l.ownerAgentName?.toLowerCase() === activeAgent?.name?.toLowerCase()).length;
-  }, [leads, activeAgent]);
+    // Use role-scoped leads so Manager sees team follow-ups and Telecaller only their own
+    return (visibleLeads || []).filter(
+      (l) => l.followUpAt || l.status === 'Follow Up' || (l.status || '').toLowerCase().includes('follow')
+    ).length;
+  }, [visibleLeads]);
 
   if (currentView === 'workflow_builder') {
     return (
@@ -1192,13 +1334,50 @@ export function App() {
     );
   }
 
+  const roleSwitcherAgents = useMemo(() => {
+    // Always show Admin / Manager / Telecaller in Switch Account (prefer real users)
+    const roles = ['Admin', 'Manager', 'Telecaller'] as const;
+    const brand = companyName || currentUser?.companyName || 'Workspace';
+    const result: Agent[] = [];
+    for (const role of roles) {
+      const existing = (agents || []).find((a) => getCrmRole(a) === role);
+      if (existing) {
+        result.push({ ...existing, role, isAdmin: role === 'Admin' });
+        continue;
+      }
+      result.push({
+        id: `role-preview-${role.toLowerCase()}`,
+        name: `${brand} ${role}`,
+        email: `${role.toLowerCase()}@preview.local`,
+        phone: '',
+        role,
+        permission: role,
+        isAdmin: role === 'Admin',
+        status: 'online',
+        avatar: '',
+        totalCallsToday: 0,
+        talkTimeMinutes: 0,
+        convertedLeadsCount: 0,
+        revenueGenerated: 0,
+        responseTimeMinutes: 0,
+        tenantId: activeTenantId,
+        companyName: brand,
+        managerId: role === 'Telecaller'
+          ? (agents || []).find((a) => getCrmRole(a) === 'Manager')?.id
+          : undefined,
+      });
+    }
+    return result;
+  }, [agents, activeTenantId, companyName, currentUser?.companyName]);
+
+  
   return (
     <StagesContext.Provider value={activeStages}>
     <div className="h-screen h-[100dvh] max-w-[100vw] overflow-x-hidden glass-mesh-bg text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
       {/* Top Navbar */}
       <Navbar
         activeAgent={activeAgent}
-        agents={agents}
+        agents={roleSwitcherAgents}
         companyName={companyName || 'ARCLE Real Estate & Sales'}
         onSelectAgent={handleSelectAgent}
         onOpenLeadModal={handleOpenAddLead}
@@ -1344,12 +1523,13 @@ export function App() {
             activeAgentRights.dashboardView ? (
               <DashboardView
                 leads={visibleLeads}
-                agents={visibleAgents}
+                agents={isAdmin ? activeAgentsList : visibleAgents}
                 stages={activeStages}
                 hourlyMetrics={HOURLY_METRICS}
                 activeAgent={activeAgent}
                 customFields={activeCustomFields}
                 currency={activeCurrency}
+                showLeadByStages={crmRole !== 'Telecaller'}
                 onOpenLeadDetail={(lead) => setDetailLead(lead)}
                 onNavigateToTab={(tab) => setCurrentView(tab)}
                 onDeleteLead={handleDeleteLead}
@@ -1381,8 +1561,17 @@ export function App() {
                 fetchWithTenantAuth('/api/pipelines', {
                   method: 'POST',
                   body: JSON.stringify(updatedStages)
-                }).catch(console.warn);
-                showToast('Pipeline stages updated!');
+                })
+                  .then(async (res) => {
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok || !data?.success) {
+                      showToast(data?.error || 'Failed to save pipeline stages to database');
+                      return;
+                    }
+                    if (Array.isArray(data.stages)) setStages(data.stages);
+                    showToast('Pipeline stages saved to database');
+                  })
+                  .catch(() => showToast('Failed to save pipeline stages to database'));
               }}
               onUpdateLead={handlePartialUpdateLead}
               onShowToast={(msg) => showToast(msg)}
@@ -1430,6 +1619,9 @@ export function App() {
           )}
 
           {currentView === 'tasks' && (
+            isAdmin || crmRole === 'Telecaller' ? (
+              renderAccessRestricted('Tasks & Reminders')
+            ) : (
             <TasksView
               agents={visibleAgents}
               activeAgent={activeAgent}
@@ -1440,6 +1632,7 @@ export function App() {
               onUpdateTaskStatus={handleUpdateCrmTaskStatus}
               onUpdateTask={handleUpdateCrmTask}
             />
+            )
           )}
 
           {currentView === 'inbox' && (
@@ -1458,14 +1651,20 @@ export function App() {
                 templates={templates}
                 campaigns={campaigns}
                 leads={visibleLeads}
-                onAddTemplate={(tmpl) => setTemplates((prev) => [tmpl, ...prev])}
-                onCreateCampaign={(camp) => setCampaigns((prev) => [camp, ...prev])}
+                onAddTemplate={(tmpl) => {
+                  setTemplates((prev) => [tmpl, ...prev]);
+                  fetchWithTenantAuth('/api/whatsapp-templates', { method: 'POST', body: JSON.stringify(tmpl) }).catch(console.warn);
+                }}
+                onCreateCampaign={(camp) => {
+                  setCampaigns((prev) => [camp, ...prev]);
+                  fetchWithTenantAuth('/api/whatsapp-campaigns', { method: 'POST', body: JSON.stringify(camp) }).catch(console.warn);
+                }}
               />
             ) : renderAccessRestricted('WhatsApp CRM & Messaging Templates')
           )}
 
           {currentView === 'workflows' && (
-            activeAgentRights.automations ? (
+            isAdmin ? (
               <WorkflowsView
                 workflows={workflows}
                 initialSubTab={automationsSubTab}
@@ -1497,8 +1696,23 @@ export function App() {
               leads={visibleLeads}
               onOpenLeadDetail={(lead) => setDetailLead(lead)}
               onUpdateCallRecord={handleUpdateCallRecord}
-              onAddCallRecord={(newCall) => setCallRecords((prev) => [newCall, ...prev])}
-              onDeleteCallRecord={(callId) => setCallRecords((prev) => prev.filter((c) => c.id !== callId))}
+              onAddCallRecord={(newCall) => {
+                setCallRecords((prev) => [newCall, ...prev]);
+                fetchWithTenantAuth('/api/calls', {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    ...newCall,
+                    callType: newCall.type,
+                    callNotes: newCall.notes,
+                    callStart: newCall.timestamp,
+                    assigneeName: newCall.agentName
+                  })
+                }).catch(console.warn);
+              }}
+              onDeleteCallRecord={(callId) => {
+                setCallRecords((prev) => prev.filter((c) => c.id !== callId));
+                fetchWithTenantAuth('/api/calls/' + callId, { method: 'DELETE' }).catch(console.warn);
+              }}
               onShowToast={(msg) => showToast(msg)}
             />
           )}
@@ -1522,7 +1736,7 @@ export function App() {
           )}
 
           {currentView === 'team' && (
-            <TeamView
+            isAdmin ? <TeamView
               agents={agents}
               activeAgent={activeAgent}
               onToggleAgentStatus={(id, st) => setAgents((prev) => prev.map((a) => a.id === id ? { ...a, status: st } : a))}
@@ -1531,17 +1745,21 @@ export function App() {
               onToggleAdminPower={handleToggleAdminPower}
               onUpdateAgentRole={handleUpdateAgentRole}
               onUpdateAgent={handleUpdateAgent}
-            />
+            /> : renderAccessRestricted('Users & Team')
           )}
 
           {currentView === 'marketing' && (
-            <MarketingView onSimulateWebhookLead={(src) => handlePushTestLead(src)} />
+            isAdmin ? (
+              <MarketingView onSimulateWebhookLead={(src) => handlePushTestLead(src)} />
+            ) : renderAccessRestricted('Marketing Webhooks')
           )}
 
           {currentView === 'campaigns' && (
+            crmRole === 'Telecaller' ? renderAccessRestricted('Campaigns & Tags') : (
             <CampaignsView
+              activeTenantId={activeTenantId}
               leads={visibleLeads}
-              agents={agents}
+              agents={visibleAgents}
               activities={activities}
               messages={messages}
               callRecords={callRecords}
@@ -1575,6 +1793,7 @@ export function App() {
               }}
               onShowToast={(msg) => showToast(msg)}
             />
+            )
           )}
 
           {currentView === 'integrations' && (
@@ -1587,6 +1806,7 @@ export function App() {
                   setSelectedCampaignHandle(handle);
                   setCurrentView('campaigns');
                 }}
+                onLeadsSynced={() => loadTenantDomainData(activeTenantId)}
               />
             ) : renderAccessRestricted('Integrations & Webhook Connections (Admin Only)')
           )}
@@ -1596,7 +1816,7 @@ export function App() {
           )}
 
           {currentView === 'fields' && (
-            <FieldsSettingsView
+            isAdmin ? <FieldsSettingsView
               customFields={activeCustomFields}
               activeAgent={activeAgent}
               onUpdateFields={(updatedFields) => {
@@ -1604,18 +1824,18 @@ export function App() {
                 showToast('Custom fields database updated successfully!');
               }}
               onShowToast={(msg) => showToast(msg)}
-            />
+            /> : renderAccessRestricted('Lead Fields')
           )}
 
           {currentView === 'call_feedback' && (
-            <CallFeedbackSettingsView
+            isAdmin ? <CallFeedbackSettingsView
               activeAgent={activeAgent}
               onShowToast={(msg) => showToast(msg)}
-            />
+            /> : renderAccessRestricted('Call Feedback Settings')
           )}
 
           {currentView === 'settings' && (
-            <SettingsView 
+            isAdmin ? <SettingsView
               companyName={rawCompanyName || 'ARCLE Real Estate & Sales'}
               onUpdateCompanyName={(newName) => {
                 setWorkspaceProfile([{ id: 'default_workspace', name: newName }]);
@@ -1626,24 +1846,52 @@ export function App() {
                     sessionStorage.setItem('pixbe_auth_user', JSON.stringify(updated));
                   }
                 }
+                saveWorkspaceSettings({ companyName: newName });
               }}
               supportEmail={activeSupportEmail}
               onUpdateSupportEmail={(newEmail) => {
                 setWorkspaceEmail([{ id: 'default_email', email: newEmail }]);
+                saveWorkspaceSettings({ supportEmail: newEmail });
               }}
               currency={activeCurrency}
               onUpdateCurrency={(newCurrency) => {
                 setWorkspaceCurrency([{ id: 'default_currency', code: newCurrency }]);
-                showToast(`Workspace currency updated to ${newCurrency}`);
+                saveWorkspaceSettings({ currency: newCurrency }, `Workspace currency updated to ${newCurrency}`);
               }}
               activeAgent={activeAgent}
               stages={activeStages}
               onUpdateStages={(updatedStages) => {
                 setStages(updatedStages);
+                fetchWithTenantAuth('/api/pipelines', {
+                  method: 'POST',
+                  body: JSON.stringify(updatedStages)
+                })
+                  .then(async (res) => {
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok || !data?.success) {
+                      showToast(data?.error || 'Failed to save pipeline stages to database');
+                      return;
+                    }
+                    if (Array.isArray(data.stages)) setStages(data.stages);
+                    showToast('Pipeline stages saved to database');
+                  })
+                  .catch(() => showToast('Failed to save pipeline stages to database'));
               }}
               agents={agents}
               onUpdateAgents={(updatedAgents) => {
+                const prev = agents || [];
+                const prevIds = new Set(prev.map((a) => a.id));
+                const nextIds = new Set(updatedAgents.map((a) => a.id));
                 setAgents(updatedAgents);
+                updatedAgents.filter((a) => !prevIds.has(a.id)).forEach((a) => {
+                  fetchWithTenantAuth('/api/agents', {
+                    method: 'POST',
+                    body: JSON.stringify({ ...a, password: 'Welcome123', tenantId: activeTenantId })
+                  }).catch(console.warn);
+                });
+                prev.filter((a) => !nextIds.has(a.id)).forEach((a) => {
+                  fetchWithTenantAuth('/api/agents/' + a.id, { method: 'DELETE' }).catch(console.warn);
+                });
               }}
               onUpdateCurrentUser={(updatedUser) => {
                 setCurrentUser(updatedUser);
@@ -1660,13 +1908,13 @@ export function App() {
               permissionTemplates={activeTemplates}
               onUpdatePermissionTemplates={(updatedTemplates) => {
                 setPermissionTemplates(updatedTemplates);
-                showToast('Permission templates updated successfully!');
+                saveWorkspaceSettings({ permissionTemplates: updatedTemplates }, 'Permission templates saved to database');
               }}
               lostReasons={lostReasons}
               onUpdateLostReasons={handleUpdateLostReasons}
               initialTab={settingsSubTab}
               onShowToast={(msg) => showToast(msg)} 
-            />
+            /> : renderAccessRestricted('Workspace Settings')
           )}
 
           {![

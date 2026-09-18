@@ -17,8 +17,7 @@ import {
   Download,
   ShoppingCart,
   Users,
-  ChevronDown,
-  Briefcase
+  ChevronDown
 } from 'lucide-react';
 import { Agent, isAgentAdmin } from '../types';
 import { UserAvatar } from '../components/UserAvatar';
@@ -68,8 +67,10 @@ export const TeamPage: React.FC<TeamViewProps> = ({
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPhone, setNewPhone] = useState('');
-  const [newRole, setNewRole] = useState<'Manager' | 'Marketing' | 'Caller'>('Caller');
-  const [newPermission, setNewPermission] = useState<'Admin' | 'Manager' | 'Marketer' | 'Caller'>('Caller');
+  const [newPassword, setNewPassword] = useState('');
+  const [newManagerId, setNewManagerId] = useState('');
+  const [newRole, setNewRole] = useState<'Admin' | 'Manager' | 'Telecaller'>('Telecaller');
+  const [newPermission, setNewPermission] = useState<'Admin' | 'Manager' | 'Telecaller'>('Telecaller');
   const [newAvatar, setNewAvatar] = useState('');
   const [makeAdmin, setMakeAdmin] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -79,11 +80,17 @@ export const TeamPage: React.FC<TeamViewProps> = ({
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editPhone, setEditPhone] = useState('');
-  const [editRole, setEditRole] = useState<'Manager' | 'Marketing' | 'Caller'>('Caller');
-  const [editPermission, setEditPermission] = useState<'Admin' | 'Manager' | 'Marketer' | 'Caller'>('Caller');
+  const [editPassword, setEditPassword] = useState('');
+  const [editManagerId, setEditManagerId] = useState('');
+  const [editRole, setEditRole] = useState<'Admin' | 'Manager' | 'Telecaller'>('Telecaller');
+  const [editPermission, setEditPermission] = useState<'Admin' | 'Manager' | 'Telecaller'>('Telecaller');
   const [editAvatar, setEditAvatar] = useState('');
   const [editIsAdmin, setEditIsAdmin] = useState(false);
   const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({});
+  const managers = useMemo(
+    () => agents.filter((agent) => (agent.role || '').toLowerCase().includes('manager') && !isAgentAdmin(agent)),
+    [agents]
+  );
 
   // Role Filtering Logic
   const filteredAgents = useMemo(() => {
@@ -153,26 +160,25 @@ export const TeamPage: React.FC<TeamViewProps> = ({
     setEditName(agent.name);
     setEditEmail(agent.email);
     setEditPhone(agent.phone.replace(/\D/g, '').slice(-10));
+    setEditPassword('');
+    setEditManagerId(agent.managerId || '');
     
-    // Normalize role to one of the 3 allowed options (Manager, Marketing, Caller)
-    let initialRole: 'Manager' | 'Marketing' | 'Caller' = 'Caller';
+    // Normalize to Admin | Manager | Telecaller
+    let initialRole: 'Admin' | 'Manager' | 'Telecaller' = 'Telecaller';
     const rLower = (agent.role || '').toLowerCase();
-    if (rLower.includes('manager')) initialRole = 'Manager';
-    else if (rLower.includes('market')) initialRole = 'Marketing';
-    else initialRole = 'Caller';
+    if (isAgentAdmin(agent) || rLower.includes('admin') || rLower.includes('owner')) initialRole = 'Admin';
+    else if (rLower.includes('manager')) initialRole = 'Manager';
+    else initialRole = 'Telecaller';
     setEditRole(initialRole);
 
-    // Normalize permission to one of (Admin, Manager, Marketer, Caller)
-    let initialPerm: 'Admin' | 'Manager' | 'Marketer' | 'Caller' = 'Caller';
+    let initialPerm: 'Admin' | 'Manager' | 'Telecaller' = initialRole;
     const pLower = (agent.permission || '').toLowerCase();
     if (isAgentAdmin(agent) || pLower.includes('admin') || pLower.includes('root')) {
       initialPerm = 'Admin';
     } else if (pLower.includes('manager') || initialRole === 'Manager') {
       initialPerm = 'Manager';
-    } else if (pLower.includes('market') || initialRole === 'Marketing') {
-      initialPerm = 'Marketer';
     } else {
-      initialPerm = 'Caller';
+      initialPerm = 'Telecaller';
     }
 
     setEditPermission(initialPerm);
@@ -215,6 +221,12 @@ export const TeamPage: React.FC<TeamViewProps> = ({
     } else if (cleanPhone.length !== 10) {
       errs.phone = 'Phone number must contain at least 10 valid digits.';
     }
+    if (newPassword.length < 8) {
+      errs.password = 'Temporary password must contain at least 8 characters.';
+    }
+    if (newRole === 'Telecaller' && !newManagerId) {
+      errs.managerId = 'Select the manager responsible for this telecaller.';
+    }
 
     if (Object.keys(errs).length > 0) {
       setFormErrors(errs);
@@ -233,7 +245,7 @@ export const TeamPage: React.FC<TeamViewProps> = ({
       role: newRole,
       permission: newPermission,
       companyName: activeAgent?.companyName || 'Pixbe Organization',
-      isAdmin: newPermission === 'Admin' || makeAdmin,
+      isAdmin: newPermission === 'Admin' || newRole === 'Admin' || makeAdmin,
       status: 'online',
       avatar: newAvatar || '',
       totalCallsToday: 0,
@@ -241,6 +253,8 @@ export const TeamPage: React.FC<TeamViewProps> = ({
       convertedLeadsCount: 0,
       revenueGenerated: 0,
       responseTimeMinutes: 1.0,
+      managerId: newRole === 'Telecaller' ? newManagerId : undefined,
+      password: newPassword,
     };
 
     if (onAddAgent) {
@@ -251,6 +265,8 @@ export const TeamPage: React.FC<TeamViewProps> = ({
     setNewName('');
     setNewEmail('');
     setNewPhone('');
+    setNewPassword('');
+    setNewManagerId('');
     setNewRole('Caller');
     setNewPermission('Caller');
     setNewAvatar('');
@@ -378,11 +394,9 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                         />
                         <div className="absolute left-0 mt-2 w-52 bg-white rounded-2xl border border-slate-200 shadow-xl z-50 p-1.5 animate-in fade-in zoom-in-95 space-y-0.5 font-sans">
                           {[
-                            { key: 'Root', label: 'Root', icon: <Users className="w-3.5 h-3.5 text-slate-700" /> },
                             { key: 'Admin', label: 'Admin', icon: <Users className="w-3.5 h-3.5 text-slate-700" /> },
                             { key: 'Manager', label: 'Manager', icon: <User className="w-3.5 h-3.5 text-slate-800" /> },
-                            { key: 'Caller', label: 'Caller', icon: <User className="w-3.5 h-3.5 text-slate-600" /> },
-                            { key: 'Marketing User', label: 'Marketing User', icon: <Briefcase className="w-3.5 h-3.5 text-slate-700" /> }
+                            { key: 'Caller', label: 'Telecaller', icon: <User className="w-3.5 h-3.5 text-slate-600" /> },
                           ].map((item) => {
                             const isChecked = selectedRoleFilters.includes(item.key);
                             return (
@@ -424,6 +438,7 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                   </div>
                 </th>
 
+                <th className="py-3.5 px-4 font-medium text-slate-600">Reporting Manager</th>
                 <th className="py-3.5 px-4 font-medium text-slate-600">Permission Template</th>
                 <th className="py-3.5 px-4 font-medium text-slate-600">2FA</th>
                 <th className="py-3.5 px-4 font-medium text-slate-600">License Expiry</th>
@@ -434,7 +449,7 @@ export const TeamPage: React.FC<TeamViewProps> = ({
             <tbody className="divide-y divide-slate-100">
               {filteredAgents.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-4">
+                  <td colSpan={9} className="p-4">
                     <EmptyState
                       title="No Team Members Found"
                       description="No users or agents match your search filter. Click below to add a new team member."
@@ -448,10 +463,12 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                 filteredAgents.map((ag) => {
                   const isSelected = selectedAgentIds.includes(ag.id);
                   const agIsAdmin = isAgentAdmin(ag);
-                  const isMasterOwner = ag.role === 'Admin' || ag.role === 'Master Admin' || ag.role === 'Owner';
+                  const isMasterOwner = ag.isAdmin || ag.role === 'Admin' || ag.role === 'Owner';
                   
                   // Directly display the actual stored database role
-                  const roleDisplay = ag.role || (agIsAdmin ? 'Admin' : 'Caller');
+                  const roleDisplay = agIsAdmin ? 'Admin' : (ag.role === 'Caller' ? 'Telecaller' : (ag.role || 'Telecaller'));
+                  const normalizedRole = roleDisplay === 'Super Admin' || roleDisplay === 'Master Admin' || roleDisplay === 'Root' ? 'Admin' : roleDisplay;
+                  const reportingManager = ag.managerId ? agents.find((manager) => manager.id === ag.managerId) : undefined;
 
                   // Format permission nicely (Admin, Manager, Marketer, Caller)
                   let permDisplay = ag.permission;
@@ -500,8 +517,12 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                     <td className="py-3.5 px-4 whitespace-nowrap">
                       <div className="flex items-center space-x-1.5 text-slate-800 font-medium">
                         <User className="w-3.5 h-3.5 text-slate-700" />
-                        <span>{roleDisplay}</span>
+                        <span>{(normalizedRole === 'Super Admin' || normalizedRole === 'Master Admin' || normalizedRole === 'Root') ? 'Admin' : normalizedRole}</span>
                       </div>
+                    </td>
+
+                    <td className="py-3.5 px-4 whitespace-nowrap text-slate-600 font-medium">
+                      {reportingManager?.name || ((roleDisplay === 'Caller' || roleDisplay === 'Telecaller') ? 'Unassigned' : '—')}
                     </td>
 
                     {/* Permission Template */}
@@ -659,6 +680,23 @@ export const TeamPage: React.FC<TeamViewProps> = ({
 
               <div>
                 <label className="block text-slate-700 font-medium mb-1">
+                  Temporary Password <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => {
+                    setNewPassword(e.target.value);
+                    if (formErrors.password) setFormErrors((prev) => ({ ...prev, password: '' }));
+                  }}
+                  placeholder="At least 8 characters"
+                  className={`w-full px-3 py-2 rounded-xl border focus:outline-none ${formErrors.password ? 'border-rose-400 bg-rose-50/40' : 'border-slate-200 focus:border-indigo-600'}`}
+                />
+                {formErrors.password && <p className="text-[11px] text-rose-600 mt-1">{formErrors.password}</p>}
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-medium mb-1">
                   Phone Number (10 Digits) <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative flex items-center">
@@ -682,7 +720,7 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                 {formErrors.phone && <p className="text-[11px] text-rose-600 mt-1">{formErrors.phone}</p>}
               </div>
 
-              {/* 3 ROLE DROPDOWN: Manager, Marketing, Caller */}
+              {/* 3 ROLE DROPDOWN: Admin, Manager, Telecaller */}
               <div>
                 <label className="block text-slate-700 font-medium mb-1">
                   Assignee Role <span className="text-rose-500">*</span>
@@ -690,21 +728,44 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                 <select
                   value={newRole}
                   onChange={(e) => {
-                    const r = e.target.value as 'Manager' | 'Marketing' | 'Caller';
+                    const r = e.target.value as 'Admin' | 'Manager' | 'Telecaller';
                     setNewRole(r);
-                    if (newPermission !== 'Admin') {
-                      setNewPermission(r === 'Marketing' ? 'Marketer' : r);
-                    }
+                    setNewPermission(r);
+                    setMakeAdmin(r === 'Admin');
+                    if (r !== 'Telecaller') setNewManagerId('');
                   }}
                   className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white focus:bg-white focus:outline-none focus:border-indigo-600 font-medium text-xs text-slate-900 cursor-pointer transition-all shadow-2xs"
                 >
+                  <option value="Admin">Admin</option>
                   <option value="Manager">Manager</option>
-                  <option value="Marketing">Marketing</option>
-                  <option value="Caller">Caller</option>
+                  <option value="Telecaller">Telecaller</option>
                 </select>
               </div>
 
-              {/* PERMISSIONS AREA: Admin, Manager, Caller, Marketer */}
+              {newRole === 'Telecaller' && (
+                <div>
+                  <label className="block text-slate-700 font-medium mb-1">
+                    Reporting Manager <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={newManagerId}
+                    onChange={(e) => {
+                      setNewManagerId(e.target.value);
+                      if (formErrors.managerId) setFormErrors((prev) => ({ ...prev, managerId: '' }));
+                    }}
+                    className={`w-full px-3 py-2.5 rounded-xl border bg-white focus:outline-none ${formErrors.managerId ? 'border-rose-400' : 'border-slate-200 focus:border-indigo-600'}`}
+                  >
+                    <option value="">Select a manager</option>
+                    {managers.map((manager) => <option key={manager.id} value={manager.id}>{manager.name}</option>)}
+                  </select>
+                  {formErrors.managerId && <p className="text-[11px] text-rose-600 mt-1">{formErrors.managerId}</p>}
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Leads assigned to this telecaller will appear in the selected manager&apos;s queue.
+                  </p>
+                </div>
+              )}
+
+              {/* PERMISSIONS AREA: Admin, Manager, Telecaller */}
               <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
                 <label className="block text-slate-900 font-bold text-xs">
                   Permissions & Access Control <span className="text-rose-500">*</span>
@@ -712,16 +773,15 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                 <select
                   value={newPermission}
                   onChange={(e) => {
-                    const p = e.target.value as 'Admin' | 'Manager' | 'Marketer' | 'Caller';
+                    const p = e.target.value as 'Admin' | 'Manager' | 'Telecaller';
                     setNewPermission(p);
                     setMakeAdmin(p === 'Admin');
                   }}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-indigo-600 font-semibold text-xs text-slate-900 cursor-pointer shadow-2xs"
                 >
                   <option value="Admin">Admin (Full Control - Users, Integrations, Billing, System Config)</option>
-                  <option value="Manager">Manager (Team Management, Reports, Lead Assignment, Pipelines)</option>
-                  <option value="Marketer">Marketer (Campaigns, Ads Integration, Lead Ingestion & Attribution)</option>
-                  <option value="Caller">Caller (Dialer, Follow-ups, Call History & Assigned Leads)</option>
+                  <option value="Manager">Manager (Team Leads, Reports, Pipeline — no settings/automations/integrations)</option>
+                  <option value="Telecaller">Telecaller (Dialer, Follow-ups, Assigned Leads Only)</option>
                 </select>
                 <p className="text-[11px] text-slate-500 leading-relaxed">
                   Decides feature access and view permissions granted to this assignee in the CRM.
@@ -794,6 +854,12 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                 } else if (cleanPhone.length !== 10) {
                   errs.phone = 'Phone number must contain at least 10 valid digits.';
                 }
+                if (editPassword && editPassword.length < 8) {
+                  errs.password = 'New password must contain at least 8 characters.';
+                }
+                if (editRole === 'Telecaller' && !editManagerId) {
+                  errs.managerId = 'Select the manager responsible for this telecaller.';
+                }
 
                 if (Object.keys(errs).length > 0) {
                   setEditFormErrors(errs);
@@ -810,7 +876,9 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                   role: editRole,
                   permission: editPermission,
                   avatar: editAvatar || editingAgent.avatar,
-                  isAdmin: editPermission === 'Admin',
+                  isAdmin: editPermission === 'Admin' || editRole === 'Admin',
+                  managerId: editRole === 'Telecaller' ? editManagerId : undefined,
+                  ...(editPassword ? { password: editPassword } : {}),
                 };
 
                 if (onUpdateAgent) {
@@ -902,6 +970,21 @@ export const TeamPage: React.FC<TeamViewProps> = ({
               </div>
 
               <div>
+                <label className="block text-slate-700 font-medium mb-1">Reset Password</label>
+                <input
+                  type="password"
+                  value={editPassword}
+                  onChange={(e) => {
+                    setEditPassword(e.target.value);
+                    if (editFormErrors.password) setEditFormErrors((prev) => ({ ...prev, password: '' }));
+                  }}
+                  placeholder="Leave blank to keep current password"
+                  className={`w-full px-3 py-2 rounded-xl border focus:outline-none ${editFormErrors.password ? 'border-rose-400 bg-rose-50/40' : 'border-slate-200 focus:border-indigo-600'}`}
+                />
+                {editFormErrors.password && <p className="text-[11px] text-rose-600 mt-1">{editFormErrors.password}</p>}
+              </div>
+
+              <div>
                 <label className="block text-slate-700 font-medium mb-1">
                   Phone Number (10 Digits) <span className="text-rose-500">*</span>
                 </label>
@@ -925,7 +1008,7 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                 {editFormErrors.phone && <p className="text-[11px] text-rose-600 mt-1">{editFormErrors.phone}</p>}
               </div>
 
-              {/* 3 ROLE DROPDOWN: Manager, Marketing, Caller */}
+              {/* 3 ROLE DROPDOWN: Admin, Manager, Telecaller */}
               <div>
                 <label className="block text-slate-700 font-medium mb-1">
                   Assignee Role <span className="text-rose-500">*</span>
@@ -933,21 +1016,44 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                 <select
                   value={editRole}
                   onChange={(e) => {
-                    const r = e.target.value as 'Manager' | 'Marketing' | 'Caller';
+                    const r = e.target.value as 'Admin' | 'Manager' | 'Telecaller';
                     setEditRole(r);
-                    if (editPermission !== 'Admin') {
-                      setEditPermission(r === 'Marketing' ? 'Marketer' : r);
-                    }
+                    setEditPermission(r);
+                    setEditIsAdmin(r === 'Admin');
+                    if (r !== 'Telecaller') setEditManagerId('');
                   }}
                   className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white focus:bg-white focus:outline-none focus:border-indigo-600 font-medium text-xs text-slate-900 cursor-pointer transition-all shadow-2xs"
                 >
+                  <option value="Admin">Admin</option>
                   <option value="Manager">Manager</option>
-                  <option value="Marketing">Marketing</option>
-                  <option value="Caller">Caller</option>
+                  <option value="Telecaller">Telecaller</option>
                 </select>
               </div>
 
-              {/* PERMISSIONS AREA: Admin, Manager, Caller, Marketer */}
+              {editRole === 'Telecaller' && (
+                <div>
+                  <label className="block text-slate-700 font-medium mb-1">
+                    Reporting Manager <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={editManagerId}
+                    onChange={(e) => {
+                      setEditManagerId(e.target.value);
+                      if (editFormErrors.managerId) setEditFormErrors((prev) => ({ ...prev, managerId: '' }));
+                    }}
+                    className={`w-full px-3 py-2.5 rounded-xl border bg-white focus:outline-none ${editFormErrors.managerId ? 'border-rose-400' : 'border-slate-200 focus:border-indigo-600'}`}
+                  >
+                    <option value="">Select a manager</option>
+                    {managers.map((manager) => <option key={manager.id} value={manager.id}>{manager.name}</option>)}
+                  </select>
+                  {editFormErrors.managerId && <p className="text-[11px] text-rose-600 mt-1">{editFormErrors.managerId}</p>}
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Leads assigned to this telecaller will appear in the selected manager&apos;s queue.
+                  </p>
+                </div>
+              )}
+
+              {/* PERMISSIONS AREA: Admin, Manager, Telecaller */}
               <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
                 <label className="block text-slate-900 font-bold text-xs">
                   Permissions & Access Control <span className="text-rose-500">*</span>
@@ -955,16 +1061,15 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                 <select
                   value={editPermission}
                   onChange={(e) => {
-                    const p = e.target.value as 'Admin' | 'Manager' | 'Marketer' | 'Caller';
+                    const p = e.target.value as 'Admin' | 'Manager' | 'Telecaller';
                     setEditPermission(p);
                     setEditIsAdmin(p === 'Admin');
                   }}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-indigo-600 font-semibold text-xs text-slate-900 cursor-pointer shadow-2xs"
                 >
                   <option value="Admin">Admin (Full Control - Users, Integrations, Billing, System Config)</option>
-                  <option value="Manager">Manager (Team Management, Reports, Lead Assignment, Pipelines)</option>
-                  <option value="Marketer">Marketer (Campaigns, Ads Integration, Lead Ingestion & Attribution)</option>
-                  <option value="Caller">Caller (Dialer, Follow-ups, Call History & Assigned Leads)</option>
+                  <option value="Manager">Manager (Team Leads, Reports, Pipeline — no settings/automations/integrations)</option>
+                  <option value="Telecaller">Telecaller (Dialer, Follow-ups, Assigned Leads Only)</option>
                 </select>
                 <p className="text-[11px] text-slate-500 leading-relaxed">
                   Decides feature access and view permissions granted to this assignee in the CRM.
