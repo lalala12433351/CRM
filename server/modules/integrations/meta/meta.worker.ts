@@ -1,6 +1,7 @@
 import { metaService } from './meta.service';
-import { saveLeadToAwsDb, logWebhookToAwsDb } from '../../../../src/lib/awsDb';
 import { logger } from '../../../utils/logger';
+import { multiTenantDb } from '../../../services/multiTenantDb';
+import { workflowEngine } from '../../../services/workflowEngine';
 
 export class MetaWorker {
   public async processLeadgenChange(change: any) {
@@ -65,8 +66,25 @@ export class MetaWorker {
         }
       } catch {}
 
-      const campaignName = savedMapping?.campaignName || formName;
-      const campaignHandle = savedMapping?.campaignHandle || `@${formName.toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-')}`;
+      // Dynamic Ad Attribution from Graph API if ad_id is present
+      let dynamicCampaignName: string | null = null;
+      let dynamicAdSetName: string | null = null;
+      let dynamicAdName: string | null = null;
+
+      if (ad_id) {
+        logger.info(`[Meta Webhook] Fetching ad attribution for ad_id: ${ad_id}...`);
+        try {
+          const adDetails = await metaService.fetchAdDetails(ad_id, page_access_token);
+          dynamicCampaignName = adDetails?.campaign?.name || null;
+          dynamicAdSetName = adDetails?.adset?.name || null;
+          dynamicAdName = adDetails?.name || null;
+        } catch (adErr: any) {
+          logger.warn(`[Meta Worker] Failed to fetch ad attribution for ad_id ${ad_id}: ${adErr?.response?.data?.error?.message || adErr.message}`);
+        }
+      }
+
+      const campaignName = dynamicCampaignName || savedMapping?.campaignName || formName;
+      const campaignHandle = savedMapping?.campaignHandle || `@${campaignName.toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-')}`;
 
       // Apply field mappings if present
       const customMappedFields: Record<string, any> = { ...fieldMap };
@@ -88,10 +106,15 @@ export class MetaWorker {
       const phone = customMappedFields['Number'] || customMappedFields['Phone number'] || fieldMap.phone_number || fieldMap.phone || '+91 98765 00000';
 
       // Pick assigned agent from distribution list if configured
-      let assignedOwner = 'Rahul Varma (Auto)';
+      let assignedOwnerId = 'agent-admin';
+      let assignedOwnerName = 'Rahul Varma (Auto)';
+      
       if (savedMapping?.leadDistribution && Array.isArray(savedMapping.leadDistribution) && savedMapping.leadDistribution.length > 0) {
         const pickIndex = Math.floor(Math.random() * savedMapping.leadDistribution.length);
-        assignedOwner = savedMapping.leadDistribution[pickIndex].name || assignedOwner;
+        const selectedAgent = savedMapping.leadDistribution[pickIndex];
+        assignedOwnerId = selectedAgent.id || assignedOwnerId;
+        assignedOwnerName = selectedAgent.name || assignedOwnerName;
+        logger.info(`[Meta Webhook] Assigned lead to ${assignedOwnerName} (${assignedOwnerId})`);
       }
 
       const leadId = `meta-lead-${leadgen_id || Date.now()}`;
@@ -113,9 +136,9 @@ export class MetaWorker {
         aiScore: 96,
         score: 96,
         priority: 'High',
-        assignedTo: assignedOwner,
-        ownerAgentName: assignedOwner,
-        tags: Array.from(new Set(['Meta Lead Ads', campaignName, campaignHandle, page_name || 'Social'])),
+        assignedTo: assignedOwnerId,
+        ownerAgentName: assignedOwnerName,
+        tags: Array.from(new Set(['Meta Lead Ads', campaignName, campaignHandle, page_name || 'Social'].filter(Boolean))),
         notes: `Captured via Facebook Lead Ads (Campaign: ${campaignName} [${campaignHandle}], Form: ${formName}, Form ID: ${form_id || 'N/A'}, Leadgen ID: ${leadgen_id})`,
         customFields: {
           ...customMappedFields,
@@ -128,27 +151,15 @@ export class MetaWorker {
           meta_page_name: page_name,
           meta_form_id: form_id || '',
           meta_form_name: formName,
+          meta_ad_id: ad_id || '',
+          meta_adset_name: dynamicAdSetName || '',
+          meta_ad_name: dynamicAdName || ''
         },
         createdAt: rawLead?.created_time ? new Date(rawLead.created_time).toISOString() : new Date().toISOString()
       };
 
-      // Save to AWS RDS if available
-      try {
-        await saveLeadToAwsDb(newLead);
-        await logWebhookToAwsDb({
-          id: `wh-meta-${Date.now()}`,
-          name: 'Meta Lead Ads Webhook',
-          sourcePlatform: 'Meta Lead Ads'
-        });
-      } catch (awsErr: any) {
-        logger.warn(`[Meta Worker] AWS RDS save notice (proceeding to local store): ${awsErr?.message}`);
-      }
-
       // Save to local multi-tenant store & trigger workflows for all active subscribed tenants
       try {
-        const { multiTenantDb } = await import('../../../services/multiTenantDb');
-        const { workflowEngine } = await import('../../../services/workflowEngine');
-
         for (const subscriber of allActivePages) {
           const tenantId = subscriber.client_id || process.env.DEFAULT_TENANT_ID || 'company_kite_aviation';
           await multiTenantDb.saveLead(tenantId, { ...newLead, tenantId });

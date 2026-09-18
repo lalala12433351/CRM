@@ -1,14 +1,8 @@
 import { Router, Request, Response } from 'express';
-import {
-  getIntegrationsConfigFromAwsDb,
-  saveIntegrationConfigToAwsDb,
-  saveLeadToAwsDb
-} from '../../../src/lib/awsDb';
 import { logger } from '../../utils/logger';
+import { multiTenantDb } from '../../services/multiTenantDb';
 
 const router = Router();
-
-import { multiTenantDb } from '../../services/multiTenantDb';
 
 // GET /api/integrations/config
 router.get('/integrations/config', async (req: Request, res: Response) => {
@@ -124,6 +118,7 @@ router.post('/integrations/test', async (req: Request, res: Response) => {
 // POST /api/integrations/sync
 router.post('/integrations/sync', async (req: Request, res: Response) => {
   try {
+    const tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string) || process.env.DEFAULT_TENANT_ID || 'default_tenant';
     const { id, name } = req.body;
     const platformName = name || id || 'Integration';
 
@@ -152,11 +147,11 @@ router.post('/integrations/sync', async (req: Request, res: Response) => {
       notes: `In-App lead sync triggered for ${platformName}`
     };
 
-    await saveLeadToAwsDb(sampleLead);
+    await multiTenantDb.saveLead(tenantId, sampleLead as any);
 
     res.json({
       success: true,
-      message: `Successfully synced latest leads from ${platformName} into AWS Aurora RDS!`,
+      message: `Successfully synced latest leads from ${platformName}!`,
       leadsIngested: 1,
       leadSample: { id: sampleLeadId, name: sampleLead.name, phone: sampleLead.phone }
     });

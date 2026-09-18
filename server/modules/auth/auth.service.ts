@@ -1,4 +1,3 @@
-import { provisionClientTenantInAwsDb } from '../../../src/lib/awsDb';
 import { multiTenantDb } from '../../services/multiTenantDb';
 import { logger } from '../../utils/logger';
 
@@ -130,20 +129,6 @@ export class AuthService {
       referralSource: data.referralSource,
       referralSourceOther: data.referralSourceOther
     });
-
-    await provisionClientTenantInAwsDb(
-      companyCollectionName, 
-      targetCompany, 
-      targetEmail, 
-      newUser.phone,
-      {
-        companyDescription: data.companyDescription,
-        businessType: data.businessType,
-        businessTypeOther: data.businessTypeOther,
-        referralSource: data.referralSource,
-        referralSourceOther: data.referralSourceOther
-      }
-    ).catch(() => {});
 
     const token = `pixbe_token_${tenantId}_${Date.now()}`;
     activeSessions.set(token, newUser);

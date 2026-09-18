@@ -187,65 +187,7 @@ export class PipelineService {
   }
 
   public getCampaignQualityMetrics() {
-    return [
-      {
-        id: 'camp-google-cpl-search',
-        campaignName: 'Google Search - Commercial Pilot License',
-        platform: 'Google Ads',
-        adGroupOrSet: 'Keywords: [pilot cadet program, cpl admission 2026]',
-        totalLeads: 84,
-        qualifiedLeads: 58,
-        convertedLeads: 29,
-        invalidLeads: 2,
-        duplicateLeads: 1,
-        spend: 68000,
-        revenue: 5800000,
-        leadQualityRate: 69.04,
-        conversionRate: 34.52,
-        costPerLead: 809.52,
-        costPerQualifiedLead: 1172.41,
-        costPerConversion: 2344.82,
-        roas: 85.29
-      },
-      {
-        id: 'camp-meta-iata-cargo',
-        campaignName: 'Master Form IATA Cargo',
-        platform: 'Meta Ads',
-        adGroupOrSet: 'Lookalike_Students_Degree_Kerala_Bangalore',
-        totalLeads: 142,
-        qualifiedLeads: 42,
-        convertedLeads: 18,
-        invalidLeads: 11,
-        duplicateLeads: 6,
-        spend: 28000,
-        revenue: 2160000,
-        leadQualityRate: 29.57,
-        conversionRate: 12.67,
-        costPerLead: 197.18,
-        costPerQualifiedLead: 666.66,
-        costPerConversion: 1555.55,
-        roas: 77.14
-      },
-      {
-        id: 'camp-meta-broad-kerala',
-        campaignName: 'Master Form-Kerala-Vendor-Data',
-        platform: 'Meta Ads',
-        adGroupOrSet: 'Broad_Interest_Airhostess_SouthIndia',
-        totalLeads: 325,
-        qualifiedLeads: 48,
-        convertedLeads: 14,
-        invalidLeads: 52,
-        duplicateLeads: 28,
-        spend: 38000,
-        revenue: 1680000,
-        leadQualityRate: 14.76,
-        conversionRate: 4.3,
-        costPerLead: 116.92,
-        costPerQualifiedLead: 791.66,
-        costPerConversion: 2714.28,
-        roas: 44.21
-      }
-    ];
+    return [];
   }
 }
 

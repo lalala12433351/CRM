@@ -1,11 +1,6 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
-import {
-  testAwsDbConnection,
-  seedAwsDbMockData,
-  getAwsDbTablesSummary
-} from './config/database';
 
 import paymentRoutes from './modules/payments/payment.routes';
 import metaRoutes from './modules/integrations/meta/meta.routes';
@@ -21,6 +16,7 @@ import callsRoutes from './modules/calls/calls.routes';
 import workflowsRoutes from './modules/workflows/workflows.routes';
 import templatesRoutes from './modules/templates/templates.routes';
 import actionsRoutes from './modules/actions/actions.routes';
+import campaignsRoutes from './modules/campaigns/campaigns.routes';
 import { authMiddleware } from './middleware/auth';
 import { tenantContextMiddleware } from './middleware/tenantContext';
 
@@ -49,22 +45,6 @@ export async function createApp() {
     res.status(200).json({ status: 'ok', app: 'Pixbe CRM', timestamp: new Date().toISOString() });
   });
 
-  // Aurora RDS diagnostics & seeding endpoints
-  app.get('/api/db/test', async (req, res) => {
-    const dbStatus = await testAwsDbConnection();
-    res.json(dbStatus);
-  });
-
-  app.get('/api/db/seed', async (req, res) => {
-    const seedResult = await seedAwsDbMockData();
-    res.json(seedResult);
-  });
-
-  app.get('/api/db/tables', async (req, res) => {
-    const tablesSummary = await getAwsDbTablesSummary();
-    res.json(tablesSummary);
-  });
-
   // Global Tenant Authentication & Isolation Context for API
   app.use('/api', authMiddleware, tenantContextMiddleware);
 
@@ -83,6 +63,7 @@ export async function createApp() {
   app.use('/api', workflowsRoutes);
   app.use('/api', templatesRoutes);
   app.use('/api', actionsRoutes);
+  app.use('/api', campaignsRoutes);
 
   // Serve static files in production or Vite middleware in development
   const distPath = path.join(process.cwd(), 'dist');

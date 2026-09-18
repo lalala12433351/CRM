@@ -5790,36 +5790,6 @@ export const NodeConfigDrawer: React.FC<NodeConfigDrawerProps> = ({
         );
       }
 
-      // Extra: Meta CAPI
-      case 'capi':
-        return (
-          <div className="space-y-3.5">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Meta Conversions Event Name
-              </label>
-              <input
-                type="text"
-                value={config.capiEventName || 'Lead'}
-                onChange={(e) => handleConfigChange('capiEventName', e.target.value)}
-                className="w-full text-xs font-bold px-3 py-2 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 shadow-2xs"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Meta Pixel ID
-              </label>
-              <input
-                type="text"
-                value={config.pixelId || ''}
-                onChange={(e) => handleConfigChange('pixelId', e.target.value)}
-                placeholder="849204918239"
-                className="w-full text-xs font-mono px-3 py-2 rounded-md border border-slate-300/80 bg-slate-50 focus:bg-white text-slate-900 shadow-2xs"
-              />
-            </div>
-          </div>
-        );
-
       // 7. Check If Lead / Check If Whatsapp Message (Reusing CRM ConditionFilterChipsBar & AddConditionModal Component)
       case 'lead_condition': {
         const conditions: DynamicCondition[] = Array.isArray(config.conditions)

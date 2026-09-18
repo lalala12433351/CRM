@@ -1439,26 +1439,33 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                                 
                                 {/* Search Results */}
                                 <div className="max-h-32 overflow-y-auto space-y-1 pt-1 border-t border-slate-100">
-                                  {['meta-1-karnataka', 'google-search-blr', 'fb-retargeting-mar'].filter(c => c.includes(campaignSearch.toLowerCase()) && c !== lead.campaignName).map(camp => (
-                                    <div key={camp} className="flex justify-center mt-2">
-                                      <button 
-                                        onClick={() => { if(onUpdateLead) onUpdateLead({...lead, campaignName: camp}); setShowCampaignMenu(false); setIsAddingCampaign(false); }}
-                                        className="bg-slate-100 hover:bg-slate-200 rounded-full px-3 py-1 text-[11px] font-medium text-slate-700 cursor-pointer flex items-center space-x-2 transition-colors shadow-sm"
-                                      >
-                                        <span>@{camp}</span>
-                                        <span className="text-indigo-600 font-semibold">Assign</span>
-                                      </button>
-                                    </div>
-                                  ))}
-                                  {/* Add new campaign option if it doesn't exist */}
-                                  {campaignSearch.length > 0 && !['meta-1-karnataka', 'google-search-blr', 'fb-retargeting-mar'].some(c => c === campaignSearch.toLowerCase()) && (
+                                  {Array.from(new Set(allLeads.map(l => l.campaignName || l.campaign_name || l.campaign || l.customFields?.campaign_name).filter(Boolean)))
+                                    .filter(c => (c as string).toLowerCase().includes(campaignSearch.toLowerCase()) && c !== lead.campaignName)
+                                    .map(camp => (
+                                      <div key={camp as string} className="flex justify-center mt-2">
+                                        <button 
+                                          onClick={() => { if(onUpdateLead) onUpdateLead({...lead, campaignName: camp as string}); setShowCampaignMenu(false); setIsAddingCampaign(false); }}
+                                          className="bg-slate-100 hover:bg-slate-200 rounded-full px-3 py-1 text-[11px] font-medium text-slate-700 cursor-pointer flex items-center space-x-2 transition-colors shadow-sm"
+                                        >
+                                          <span>@{camp}</span>
+                                          <span className="text-indigo-600 font-semibold">Assign</span>
+                                        </button>
+                                      </div>
+                                    ))}
+                                  {/* Add new campaign option */}
+                                  {campaignSearch.trim().length > 0 && (
                                     <div className="flex justify-center mt-2">
                                       <button 
-                                        onClick={() => { if(onUpdateLead) onUpdateLead({...lead, campaignName: campaignSearch}); setShowCampaignMenu(false); setIsAddingCampaign(false); }}
+                                        onClick={() => { 
+                                          const cleanCamp = campaignSearch.trim();
+                                          if(onUpdateLead) onUpdateLead({...lead, campaignName: cleanCamp}); 
+                                          setShowCampaignMenu(false); 
+                                          setIsAddingCampaign(false); 
+                                        }}
                                         className="bg-indigo-50 hover:bg-indigo-100 rounded-full px-3 py-1 text-[11px] font-medium text-indigo-700 cursor-pointer flex items-center space-x-2 transition-colors border border-indigo-200 shadow-sm"
                                       >
                                         <Plus className="w-3 h-3" />
-                                        <span>Add "@{campaignSearch}"</span>
+                                        <span>Assign "@{campaignSearch.trim()}"</span>
                                       </button>
                                     </div>
                                   )}

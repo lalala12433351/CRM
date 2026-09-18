@@ -1,14 +1,6 @@
 import axios from 'axios';
 import crypto from 'crypto';
 import { metaConfig } from '../../../config/meta';
-import {
-  executeAwsQuery,
-  saveFacebookPageIntegration,
-  getFacebookPageIntegrationByPageId,
-  getFacebookPageIntegrationsByClientId,
-  updateFacebookPageStatus,
-  deleteFacebookPageIntegration
-} from '../../../config/database';
 import { multiTenantDb } from '../../../services/multiTenantDb';
 import { encryptText, decryptText } from '../../../utils/crypto';
 import { logger } from '../../../utils/logger';
@@ -206,38 +198,7 @@ export class MetaService {
     const encryptedToken = encryptText(page.access_token);
     const integrationId = `fb_page_${clientId}_${page.id}`;
 
-    // 1. Save to primary facebook_page_integrations RDS table
-    try {
-      await saveFacebookPageIntegration({
-        id: integrationId,
-        clientId,
-        pageId: page.id,
-        pageName: page.name,
-        accessToken: encryptedToken,
-        status: 'active'
-      });
-    } catch (rdsErr: any) {
-      logger.warn(`[Meta Service] RDS save notice: ${rdsErr.message}`);
-    }
-
-    // 2. Save to legacy meta_connected_pages for backwards compatibility
-    try {
-      await executeAwsQuery(
-        `INSERT INTO meta_connected_pages (client_id, page_id, page_name, page_access_token, is_active, tenant_id)
-         VALUES ($1, $2, $3, $4, true, $1)
-         ON CONFLICT (page_id) DO UPDATE SET
-           client_id = EXCLUDED.client_id,
-           page_name = EXCLUDED.page_name,
-           page_access_token = EXCLUDED.page_access_token,
-           is_active = true,
-           updated_at = NOW()`,
-        [clientId, page.id, page.name, encryptedToken]
-      );
-    } catch (legacyErr: any) {
-      logger.warn(`[Meta Service] Legacy table sync notice: ${legacyErr.message}`);
-    }
-
-    // 3. Save to MultiTenant JSON fallback store
+    // Save to MultiTenant store
     try {
       await multiTenantDb.saveFacebookPage(clientId, {
         id: integrationId,
@@ -248,7 +209,7 @@ export class MetaService {
         status: 'active'
       });
     } catch (storeErr: any) {
-      logger.error('[Meta Service] MultiTenant fallback store error:', storeErr);
+      logger.error('[Meta Service] MultiTenant store error:', storeErr);
     }
 
     logger.info(
@@ -285,27 +246,6 @@ export class MetaService {
             client_id: p.clientId || targetTenant,
             page_id: p.pageId,
             page_name: p.pageName,
-            page_access_token: decrypted
-          });
-        }
-      }
-    } catch {}
-
-    // 2. Check Primary RDS Table
-    try {
-      const pageRows = await executeAwsQuery(
-        `SELECT client_id, page_id, page_name, access_token
-         FROM facebook_page_integrations
-         WHERE status = 'active' ${clientId ? 'AND client_id = $1' : ''}`,
-        clientId ? [clientId] : []
-      );
-      if (pageRows?.rows) {
-        for (const row of pageRows.rows) {
-          const decrypted = decryptText(row.access_token);
-          results.push({
-            client_id: row.client_id,
-            page_id: row.page_id,
-            page_name: row.page_name,
             page_access_token: decrypted
           });
         }
@@ -373,53 +313,7 @@ export class MetaService {
       logger.warn(`[Meta Service] Local store lookup notice: ${storeErr.message}`);
     }
 
-    // 2. Secondary RDS table query
-    try {
-      const pageRows = await executeAwsQuery(
-        `SELECT client_id, page_id, page_name, access_token, status
-         FROM facebook_page_integrations
-         WHERE page_id = $1 AND status = 'active'
-         ORDER BY updated_at DESC`,
-        [pageId]
-      );
-      if (pageRows?.rows && pageRows.rows.length > 0) {
-        for (const row of pageRows.rows) {
-          const decrypted = decryptText(row.access_token);
-          results.push({
-            client_id: row.client_id,
-            page_id: row.page_id,
-            page_name: row.page_name,
-            page_access_token: decrypted,
-            status: row.status || 'active'
-          });
-        }
-        if (results.length > 0) return results;
-      }
-    } catch (rdsErr: any) {
-      logger.warn(`[Meta Service] Primary table lookup notice: ${rdsErr.message}`);
-    }
 
-    // 3. Fallback: Legacy meta_connected_pages lookup
-    try {
-      const legacyRow = await executeAwsQuery(
-        `SELECT client_id, page_access_token, page_name FROM meta_connected_pages WHERE page_id = $1 AND is_active = true LIMIT 1`,
-        [pageId]
-      );
-      if (legacyRow?.rows?.[0]) {
-        const row = legacyRow.rows[0];
-        const decryptedToken = decryptText(row.page_access_token);
-        results.push({
-          client_id: row.client_id || process.env.DEFAULT_TENANT_ID || 'company_kite_aviation',
-          page_id: pageId,
-          page_name: row.page_name || 'Facebook Page',
-          page_access_token: decryptedToken,
-          status: 'active'
-        });
-        return results;
-      }
-    } catch (legacyErr: any) {
-      logger.warn(`[Meta Service] Legacy lookup notice: ${legacyErr.message}`);
-    }
 
     // 4. Fallback: .env configured credentials for development
     if (
@@ -451,21 +345,7 @@ export class MetaService {
       updated_at: string;
     }>
   > {
-    try {
-      const rows = await getFacebookPageIntegrationsByClientId(clientId);
-      if (rows && rows.length > 0) {
-        return rows.map((r: any) => ({
-          id: r.id,
-          page_id: r.page_id,
-          page_name: r.page_name,
-          status: r.status || 'active',
-          created_at: r.created_at,
-          updated_at: r.updated_at
-        }));
-      }
-    } catch (rdsErr: any) {
-      logger.warn(`[Meta Service] RDS getClientPages notice: ${rdsErr.message}`);
-    }
+
 
     // Multi-tenant fallback
     const localPages = await multiTenantDb.getFacebookPages(clientId);
@@ -486,15 +366,7 @@ export class MetaService {
   public async disconnectPage(clientId: string, pageId: string): Promise<{ success: boolean; message: string }> {
     try {
       // 1. Mark disconnected for this specific client in database and local store
-      await updateFacebookPageStatus(pageId, 'disconnected', clientId);
       await multiTenantDb.deleteFacebookPage(clientId, pageId);
-
-      try {
-        await executeAwsQuery(
-          `UPDATE meta_connected_pages SET is_active = false, updated_at = NOW() WHERE client_id = $1 AND page_id = $2`,
-          [clientId, pageId]
-        );
-      } catch {}
 
       // 2. Multi-tenant Collision Safety Check:
       // Check if any other client still actively listens to this page_id
@@ -532,16 +404,6 @@ export class MetaService {
   public async removePage(clientId: string, pageId: string): Promise<{ success: boolean; message: string }> {
     try {
       await this.disconnectPage(clientId, pageId);
-      try {
-        await executeAwsQuery(
-          `DELETE FROM facebook_page_integrations WHERE client_id = $1 AND page_id = $2`,
-          [clientId, pageId]
-        );
-        await executeAwsQuery(
-          `DELETE FROM meta_connected_pages WHERE client_id = $1 AND page_id = $2`,
-          [clientId, pageId]
-        );
-      } catch {}
       await multiTenantDb.deleteFacebookPage(clientId, pageId, true);
       return { success: true, message: `Successfully removed Facebook Page ${pageId}` };
     } catch (err: any) {
@@ -570,12 +432,7 @@ export class MetaService {
         `⚠️ [Meta Service] OAuth token for Page ${pageId} has been revoked or invalidated (#190). Marking integration as 'revoked'.`
       );
       try {
-        await updateFacebookPageStatus(pageId, 'revoked');
         await multiTenantDb.updateFacebookPageStatus(pageId, 'revoked');
-        await executeAwsQuery(
-          `UPDATE meta_connected_pages SET is_active = false, updated_at = NOW() WHERE page_id = $1`,
-          [pageId]
-        );
       } catch (dbErr) {
         logger.error('[Meta Service] Error updating revoked status:', dbErr);
       }
@@ -584,12 +441,22 @@ export class MetaService {
     return false;
   }
 
-  /**
-   * Fetch raw lead payload from Graph API given leadgen_id
-   */
   public async fetchLeadDetails(leadgenId: string, pageAccessToken: string) {
     const res = await axios.get(`https://graph.facebook.com/${metaConfig.graphVersion}/${leadgenId}`, {
       params: { access_token: pageAccessToken }
+    });
+    return res.data;
+  }
+
+  /**
+   * Fetch ad attribution details (Campaign, AdSet, Ad) given ad_id
+   */
+  public async fetchAdDetails(adId: string, pageAccessToken: string) {
+    const res = await axios.get(`https://graph.facebook.com/${metaConfig.graphVersion}/${adId}`, {
+      params: { 
+        access_token: pageAccessToken,
+        fields: 'campaign{name},adset{name},name'
+      }
     });
     return res.data;
   }

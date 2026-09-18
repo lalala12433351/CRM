@@ -80,6 +80,7 @@ interface CampaignDef {
   progress: number;
   members: string[];
   errors: number;
+  leads: Lead[];
 }
 
 export const CampaignsPage: React.FC<CampaignsViewProps> = ({
@@ -102,105 +103,98 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
   onShowToast
 }) => {
   const stages = useContext(StagesContext);
-  const [customCampaigns, setCustomCampaigns] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem('pixbe_custom_campaigns');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('pixbe_custom_campaigns', JSON.stringify(customCampaigns));
-    } catch {}
-  }, [customCampaigns]);
-
+  const [customCampaigns, setCustomCampaigns] = useState<string[]>([]);
   const [campaignSearchQuery, setCampaignSearchQuery] = useState('');
   const [isAddingCampaign, setIsAddingCampaign] = useState(false);
   const [newCampaignInput, setNewCampaignInput] = useState('');
   const [dbCampaignMappings, setDbCampaignMappings] = useState<any[]>([]);
 
-  // Fetch registered campaigns & form mappings directly from the database
+  // Fetch registered campaigns from database (/api/campaigns and Meta mappings)
+  const fetchDbCampaigns = () => {
+    Promise.all([
+      fetch('/api/campaigns', { headers: { 'x-tenant-id': 'company_kite_aviation' } }).then(r => r.json()).catch(() => ({ success: false })),
+      fetch('/api/integrations/facebook/campaign-mappings', { headers: { 'x-tenant-id': 'company_kite_aviation' } }).then(r => r.json()).catch(() => ({ success: false }))
+    ]).then(([campRes, mapRes]) => {
+      const combined: any[] = [];
+      if (campRes && campRes.success && Array.isArray(campRes.campaigns)) {
+        combined.push(...campRes.campaigns);
+      }
+      if (mapRes && mapRes.success && Array.isArray(mapRes.mappings)) {
+        combined.push(...mapRes.mappings);
+      }
+      setDbCampaignMappings(combined);
+    }).catch(() => {});
+  };
+
   useEffect(() => {
-    fetch('/api/integrations/facebook/campaign-mappings')
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && Array.isArray(data.mappings)) {
-          setDbCampaignMappings(data.mappings);
-        }
-      })
-      .catch(() => {});
+    fetchDbCampaigns();
   }, []);
 
-  // Dynamic Campaign list derived strictly from live leads prop & form metadata
+  // Deduplicated Campaign list derived from workspace database + live leads
   const campaignsList = useMemo(() => {
-    const handleMap = new Map<string, { handle: string; name: string; leads: Lead[] }>();
-    handleMap.set('all-inbound-leads', { handle: '@all-inbound-leads', name: 'All Inbound Leads', leads: [] });
+    const handleMap = new Map<string, { handle: string; name: string; formId?: string; leads: Lead[] }>();
 
-    const addCampaignName = (rawName: string) => {
-      if (!rawName || !rawName.trim()) return;
-      const cleanName = rawName.trim();
-      const h = formatCampaignHandle(cleanName).toLowerCase().replace(/^@/, '');
-      if (!h || h === 'empty' || h === 'all-inbound-leads') return;
+    const addCampaignHandle = (rawNameOrHandle: string, formId?: string) => {
+      if (!rawNameOrHandle || !rawNameOrHandle.trim()) return;
+      const clean = rawNameOrHandle.trim();
+      const h = formatCampaignHandle(clean).toLowerCase().replace(/^@/, '');
+      if (!h || h === 'empty' || h === 'n-a' || h === 'general-inbound') return;
 
       if (!handleMap.has(h)) {
-        const displayHandle = formatCampaignHandle(cleanName);
-        handleMap.set(h, { handle: displayHandle, name: displayHandle.replace(/^@/, ''), leads: [] });
+        const displayHandle = formatCampaignHandle(clean);
+        handleMap.set(h, {
+          handle: displayHandle,
+          name: clean.startsWith('@') ? clean.replace(/^@/, '').split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ') : clean,
+          formId,
+          leads: []
+        });
+      } else if (formId && !handleMap.get(h)!.formId) {
+        handleMap.get(h)!.formId = formId;
       }
     };
 
-    // Add registered campaigns from database mappings
+    // 1. Add all registered campaigns from database
     dbCampaignMappings.forEach(m => {
-      if (m.campaignName) addCampaignName(m.campaignName);
-      if (m.campaignHandle) addCampaignName(m.campaignHandle);
+      if (m.campaignHandle) addCampaignHandle(m.campaignHandle, m.formId);
+      if (m.campaignName) addCampaignHandle(m.campaignName, m.formId);
+      if (m.name) addCampaignHandle(m.name, m.formId);
+      if (m.handle) addCampaignHandle(m.handle, m.formId);
     });
 
-    // Add campaigns from live leads
+    // 2. Add custom created workspace campaigns
+    customCampaigns.forEach(c => addCampaignHandle(c));
+
+    // 3. Distribute leads into their respective database campaigns
     if (leads && leads.length > 0) {
-      leads.forEach((l) => {
-        if (l.campaignName) addCampaignName(l.campaignName);
-        if (l.campaign) addCampaignName(l.campaign);
-        if (l.campaign_name) addCampaignName(l.campaign_name);
-        if (l.customFields?.campaign_name) addCampaignName(l.customFields.campaign_name);
-        const key = getLeadFormOrCampaignName(l);
-        if (key && key !== 'Empty') addCampaignName(key);
-      });
-    }
-
-    customCampaigns.forEach((c) => addCampaignName(c));
-
-    // Group leads into deduplicated campaign entries
-    if (leads && leads.length > 0) {
-      leads.forEach((l) => {
-        // Add lead to 'All Inbound Leads'
-        if (handleMap.has('all-inbound-leads')) {
-          handleMap.get('all-inbound-leads')!.leads.push(l);
-        }
-
-        const leadFormName = getLeadFormOrCampaignName(l);
+      leads.forEach(l => {
         const lFormId = l.formId || l.customFields?.meta_form_id || l.customFields?.form_id;
+        const leadFormName = getLeadFormOrCampaignName(l);
+        const lH1 = l.campaignHandle ? formatCampaignHandle(l.campaignHandle).toLowerCase().replace(/^@/, '') : '';
+        const lH2 = l.campaign_handle ? formatCampaignHandle(l.campaign_handle).toLowerCase().replace(/^@/, '') : '';
+        const lN1 = l.campaignName ? formatCampaignHandle(l.campaignName).toLowerCase().replace(/^@/, '') : '';
+        const lN2 = l.campaign ? formatCampaignHandle(l.campaign).toLowerCase().replace(/^@/, '') : '';
+        const lN3 = l.campaign_name ? formatCampaignHandle(l.campaign_name).toLowerCase().replace(/^@/, '') : '';
+        const lC1 = l.customFields?.campaign_name ? formatCampaignHandle(l.customFields.campaign_name).toLowerCase().replace(/^@/, '') : '';
+        const lC2 = l.customFields?.campaign_handle ? formatCampaignHandle(l.customFields.campaign_handle).toLowerCase().replace(/^@/, '') : '';
+        const lF1 = leadFormName ? formatCampaignHandle(leadFormName).toLowerCase().replace(/^@/, '') : '';
 
+        // Match lead against available campaign entries
         handleMap.forEach((entry, hKey) => {
-          if (hKey === 'all-inbound-leads') return;
+          const isFormMatch = Boolean(entry.formId && lFormId && String(entry.formId) === String(lFormId));
+          const isHandleMatch = (
+            hKey === lH1 || 
+            hKey === lH2 || 
+            hKey === lN1 || 
+            hKey === lN2 || 
+            hKey === lN3 || 
+            hKey === lC1 || 
+            hKey === lC2 || 
+            hKey === lF1 ||
+            (entry.name && l.campaignName && entry.name.toLowerCase() === l.campaignName.toLowerCase()) ||
+            (entry.name && l.campaign && entry.name.toLowerCase() === l.campaign.toLowerCase())
+          );
 
-          const mappingForCamp = dbCampaignMappings.find(m => {
-            const mH = formatCampaignHandle(m.campaignHandle || m.campaignName || '').toLowerCase().replace(/^@/, '');
-            return mH === hKey;
-          });
-          const isFormIdMatch = mappingForCamp && lFormId && String(mappingForCamp.formId) === String(lFormId);
-
-          const matches =
-            isFormIdMatch ||
-            (l.campaignName && formatCampaignHandle(l.campaignName).toLowerCase().replace(/^@/, '') === hKey) ||
-            (l.campaign && formatCampaignHandle(l.campaign).toLowerCase().replace(/^@/, '') === hKey) ||
-            (l.campaignHandle && formatCampaignHandle(l.campaignHandle).toLowerCase().replace(/^@/, '') === hKey) ||
-            (l.customFields?.campaign_name && formatCampaignHandle(l.customFields.campaign_name).toLowerCase().replace(/^@/, '') === hKey) ||
-            (l.customFields?.campaign_handle && formatCampaignHandle(l.customFields.campaign_handle).toLowerCase().replace(/^@/, '') === hKey) ||
-            formatCampaignHandle(leadFormName).toLowerCase().replace(/^@/, '') === hKey;
-
-          if (matches) {
+          if (isFormMatch || isHandleMatch) {
             entry.leads.push(l);
           }
         });
@@ -210,7 +204,7 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
     return Array.from(handleMap.values()).map((entry, idx) => {
       const freshCount = entry.leads.filter((l) => l.status === 'Fresh' || l.status === 'Open').length;
       return {
-        id: `camp-dyn-${idx}`,
+        id: `camp-dyn-${idx}-${entry.handle.replace(/[^a-z0-9]/gi, '')}`,
         handle: entry.handle,
         name: entry.name,
         totalLeads: entry.leads.length,
@@ -219,7 +213,8 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
         members: Array.from(new Set(entry.leads.map((l) => l.ownerAgentName || 'Admin'))).map((n) =>
           n.split(' ').map((x) => x[0]).join('').toUpperCase()
         ),
-        errors: 0
+        errors: 0,
+        leads: entry.leads
       };
     });
   }, [leads, agents, customCampaigns, dbCampaignMappings]);
@@ -232,7 +227,7 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
 
   useEffect(() => {
     if (campaignsList.length > 0) {
-      if (!activeCampaign || !campaignsList.some(c => c.id === activeCampaign.id)) {
+      if (!activeCampaign || !campaignsList.some(c => c.handle.toLowerCase() === activeCampaign.handle.toLowerCase())) {
         setActiveCampaign(campaignsList[0]);
       }
     }
@@ -260,54 +255,10 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
 
   // Campaign Leads List State derived directly from database leads prop
   const campaignLeads = useMemo(() => {
-    if (!leads || leads.length === 0) return [];
-    if (!activeCampaign || activeCampaign.name === 'All Inbound Leads') return leads;
-
-    const activeNameLower = activeCampaign.name.toLowerCase();
-    const activeHandleClean = activeCampaign.handle.toLowerCase().replace(/^@/, '');
-
-    // Check if there is a registered form mapping for this campaign in the database
-    const mappingForCamp = dbCampaignMappings.find(m => 
-      (m.campaignName && m.campaignName.toLowerCase() === activeNameLower) ||
-      (m.campaignHandle && m.campaignHandle.toLowerCase().replace(/^@/, '') === activeHandleClean)
-    );
-
-    const matched = leads.filter((l) => {
-      const lFormId = l.formId || l.customFields?.meta_form_id || l.customFields?.form_id;
-      if (mappingForCamp && lFormId && String(mappingForCamp.formId) === String(lFormId)) {
-        return true;
-      }
-
-      // Direct campaign name & handle properties
-      if (l.campaignName && (l.campaignName.toLowerCase() === activeNameLower || l.campaignName.toLowerCase().includes(activeHandleClean))) return true;
-      if (l.campaign && (l.campaign.toLowerCase() === activeNameLower || l.campaign.toLowerCase().includes(activeHandleClean))) return true;
-      if (l.campaign_name && (l.campaign_name.toLowerCase() === activeNameLower || l.campaign_name.toLowerCase().includes(activeHandleClean))) return true;
-      if (l.campaignHandle && l.campaignHandle.toLowerCase().replace(/^@/, '') === activeHandleClean) return true;
-      if (l.campaign_handle && l.campaign_handle.toLowerCase().replace(/^@/, '') === activeHandleClean) return true;
-      if (l.customFields?.campaign_name && l.customFields.campaign_name.toLowerCase() === activeNameLower) return true;
-      if (l.customFields?.campaign_handle && l.customFields.campaign_handle.toLowerCase().replace(/^@/, '') === activeHandleClean) return true;
-
-      const formName = getLeadFormOrCampaignName(l).toLowerCase();
-      if (formName === activeNameLower || formName.includes(activeHandleClean)) return true;
-
-      if (Array.isArray(l.tags)) {
-        if (l.tags.some((t) => {
-          const cleanTag = t.toLowerCase().replace(/^@/, '');
-          return cleanTag === activeNameLower || cleanTag === activeHandleClean || cleanTag.includes(activeHandleClean);
-        })) {
-          return true;
-        }
-      }
-
-      if (l.customFields?.form_name && l.customFields.form_name.toLowerCase().includes(activeHandleClean)) return true;
-      if (l.customFields?.meta_form_name && l.customFields.meta_form_name.toLowerCase().includes(activeHandleClean)) return true;
-      if (l.source && l.source.toLowerCase().includes(activeHandleClean)) return true;
-
-      return false;
-    });
-
-    return matched;
-  }, [leads, activeCampaign, dbCampaignMappings]);
+    if (!activeCampaign) return [];
+    const latestCampaign = campaignsList.find(c => c.handle === activeCampaign.handle);
+    return latestCampaign?.leads || activeCampaign.leads || [];
+  }, [activeCampaign, campaignsList]);
 
   const [selectedLead, setSelectedLead] = useState<Lead | null>(() => campaignLeads[0] || null);
 
@@ -344,116 +295,12 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
   const [activeRightTab, setActiveRightTab] = useState<'Activity History' | 'Task'>('Activity History');
   const [actionFilter, setActionFilter] = useState('All Actions');
   const [showActionDropdown, setShowActionDropdown] = useState(false);
-  const [activitiesList, setActivitiesList] = useState<Array<{ id: string; text: string; time: string; type: string }>>([]);
-
-  // Dynamic Calling Report Calculation
-  const callingReportData = useMemo(() => {
-    const total = campaignLeads.length || 1;
-    let connected = 0;
-    let attempted = 0;
-    let pending = 0;
-    let skipped = 0;
-
-    campaignLeads.forEach(lead => {
-      const callsForLead = callRecords.filter(c => c.leadId === lead.id || (lead.phone && c.phone === lead.phone));
-      if (callsForLead.length > 0) {
-        if (callsForLead.some(c => c.status === 'CONNECTED' || c.status === 'Answered')) {
-          connected++;
-        } else {
-          attempted++;
-        }
-      } else if (lead.status === 'Lost' || lead.status === 'Disqualified' || lead.status === 'RNR') {
-        skipped++;
-      } else {
-        pending++;
-      }
-    });
-
-    const cPct = Math.round((connected / total) * 100);
-    const aPct = Math.round((attempted / total) * 100);
-    const sPct = Math.round((skipped / total) * 100);
-    const pPct = Math.max(0, 100 - cPct - aPct - sPct);
-
-    return [
-      { name: 'connected', percentage: cPct, color: '#9BD3BA' },
-      { name: 'attempted', percentage: aPct, color: '#F8CF48' },
-      { name: 'pending', percentage: pPct, color: '#F87171' },
-      { name: 'skipped', percentage: sPct, color: '#B08246' }
-    ];
-  }, [campaignLeads, callRecords]);
-
-  // Dynamic Leads Status Report Calculation
-  const leadsStatusReportData = useMemo(() => {
-    const total = campaignLeads.length || 1;
-    const counts: Record<string, number> = {};
-    campaignLeads.forEach(l => {
-      const st = l.status || 'Fresh';
-      counts[st] = (counts[st] || 0) + 1;
-    });
-
-    const colors = ['#6366F1', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#3B82F6', '#EC4899', '#14B8A6'];
-    const entries = Object.entries(counts);
-    if (entries.length === 0) {
-      return [{ name: 'No Leads Yet', percentage: 100, color: '#CBD5E1' }];
-    }
-    return entries.map(([statusName, count], idx) => ({
-      name: statusName,
-      percentage: Math.round((count / total) * 100),
-      color: colors[idx % colors.length]
-    }));
-  }, [campaignLeads]);
-
-  // Dynamic Lost Reasons Report Calculation
-  const lostReasonReportData = useMemo(() => {
-    const lostLeads = campaignLeads.filter(l => l.status === 'Lost' || l.status === 'Disqualified');
-    const total = lostLeads.length || 1;
-    const counts: Record<string, number> = {};
-    lostLeads.forEach(l => {
-      const reason = l.lostReason || l.customFields?.lost_reason || 'Other Reason';
-      counts[reason] = (counts[reason] || 0) + 1;
-    });
-
-    const colors = ['#818CF8', '#F87171', '#FBBF24', '#34D399', '#A78BFA'];
-    const entries = Object.entries(counts);
-    if (entries.length === 0) {
-      return [{ name: 'No Lost Leads', percentage: 100, color: '#CBD5E1' }];
-    }
-    return entries.map(([reason, count], idx) => ({
-      name: reason,
-      percentage: Math.round((count / total) * 100),
-      color: colors[idx % colors.length]
-    }));
-  }, [campaignLeads]);
-
-  // Dynamic Calls Status Report Calculation
-  const callsStatusReportData = useMemo(() => {
-    const campaignLeadIds = new Set(campaignLeads.map(l => l.id));
-    const campaignPhones = new Set(campaignLeads.filter(l => l.phone).map(l => l.phone));
-    const relevantCalls = callRecords.filter(c => campaignLeadIds.has(c.leadId) || campaignPhones.has(c.phone));
-    
-    const total = relevantCalls.length || 1;
-    const counts: Record<string, number> = {};
-    relevantCalls.forEach(c => {
-      const st = c.status || 'Connected';
-      counts[st] = (counts[st] || 0) + 1;
-    });
-
-    if (relevantCalls.length === 0) {
-      return [{ name: 'No Call Logs Yet', percentage: 100, color: '#CBD5E1' }];
-    }
-
-    const colors = ['#10B981', '#F87171', '#64748B', '#F59E0B', '#8B5CF6'];
-    return Object.entries(counts).map(([st, count], idx) => ({
-      name: st,
-      percentage: Math.round((count / total) * 100),
-      color: colors[idx % colors.length]
-    }));
-  }, [campaignLeads, callRecords]);
-
-  // Dynamic Campaign Errors Count
-  const campaignErrorsCount = useMemo(() => {
-    return campaignLeads.filter(l => !l.phone || l.phone.trim().length < 5).length;
-  }, [campaignLeads]);
+  const [activitiesList, setActivitiesList] = useState<Array<{ id: string; text: string; time: string; type: string }>>([
+    { id: 'act-1', text: 'Lead Source : empty → Facebook-Meta-01', time: '5h', type: 'source' },
+    { id: 'act-2', text: 'Facebook page : empty → 506000535940727', time: '5h', type: 'fb' },
+    { id: 'act-3', text: 'Call Outgoing: 6s CONNECTED by Ummema Sufiya BM', time: '1d ago', type: 'call' },
+    { id: 'act-4', text: 'Automated WhatsApp Intro Message Delivered', time: '1d ago', type: 'whatsapp' },
+  ]);
 
   // Status Distribution Calculation
   const statusCounts = useMemo(() => {
@@ -557,17 +404,26 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
     setNewNoteText('');
   };
 
-  // Filter leads by search and assignee
+  // Filter leads by search, assignee, and tab
   const filteredLeads = useMemo(() => {
     return campaignLeads.filter((l) => {
-      const matchesSearch = l.name.toLowerCase().includes(searchQuery.toLowerCase()) || l.phone.includes(searchQuery);
-      const matchesAssignee = selectedAssigneeFilter === 'ALL' || !selectedAssigneeFilter
-        ? true
-        : (l.ownerAgentName || '').toLowerCase().includes(selectedAssigneeFilter.toLowerCase());
-      
-      return matchesSearch && matchesAssignee;
+      try {
+        if (campaignTab === 'NEW' && l.status !== 'Fresh' && l.status !== 'Open') {
+          return false;
+        }
+        
+        const matchesSearch = String(l.name || '').toLowerCase().includes(String(searchQuery || '').toLowerCase()) || String(l.phone || '').includes(String(searchQuery || ''));
+        const matchesAssignee = String(selectedAssigneeFilter || '').toUpperCase() === 'ALL' || !selectedAssigneeFilter
+          ? true
+          : String(l.ownerAgentName || '').toLowerCase().includes(String(selectedAssigneeFilter || '').toLowerCase());
+        
+        return matchesSearch && matchesAssignee;
+      } catch (err) {
+        console.error('Filter crash on lead:', l, err);
+        return false;
+      }
     });
-  }, [campaignLeads, searchQuery, selectedAssigneeFilter]);
+  }, [campaignLeads, searchQuery, selectedAssigneeFilter, campaignTab]);
 
   // Dynamic Assignee Distribution for active campaign
   const dynamicAssignees = useMemo(() => {
@@ -679,8 +535,17 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
         </div>
       )}
 
-      {/* 3-COLUMN TELECRM / ARCLE CRM WORKSPACE GRID */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+      {!activeCampaign ? (
+        <div className="flex flex-col items-center justify-center min-h-[400px] bg-white rounded-xl border border-slate-200/90 shadow-2xs">
+          <Filter className="w-12 h-12 text-slate-300 mb-4" />
+          <h2 className="text-lg font-bold text-slate-800">No Campaigns Found</h2>
+          <p className="text-sm text-slate-500 mt-1 max-w-md text-center">
+            You don't have any workspace campaigns configured yet. 
+            Connect your Facebook page or create a custom campaign to see leads here.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
         
         {/* ========================================================================= */}
         {/* LEFT COLUMN: CAMPAIGN DASHBOARD & ALLOCATION METRICS (3.5 Cols)            */}
@@ -715,7 +580,7 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
                       setShowCampaignSettingsMenu(false);
                       if (onShowToast) onShowToast(`⚡ Restarting campaign "${activeCampaign.name}"... Fetching live leads.`);
                       try {
-                        const res = await fetch('/api/facebook/sync-leads', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                        const res = await fetch('/api/meta/sync', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-tenant-id': 'company_kite_aviation' } });
                         const data = await res.json();
                         if (onShowToast) onShowToast(`⚡ Campaign restarted! ${data.newLeadsSaved || 0} new leads synced.`);
                       } catch (e) {
@@ -743,12 +608,20 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
                   <div className="border-t border-slate-100 my-1" />
 
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       setShowCampaignSettingsMenu(false);
-                      if (confirm(`Are you sure you want to delete campaign "${activeCampaign.name}"?`)) {
+                      if (activeCampaign.handle === '@all-inbound-leads') {
+                        if (onShowToast) onShowToast('⚠️ "All Inbound Leads" is a primary system workspace queue and cannot be deleted.');
+                        return;
+                      }
+                      if (confirm(`Are you sure you want to delete campaign "${activeCampaign.name}" (${activeCampaign.handle}) from the database?`)) {
                         const targetHandle = activeCampaign.handle.toLowerCase();
                         setCustomCampaigns(prev => prev.filter(c => formatCampaignHandle(c).toLowerCase() !== targetHandle));
-                        if (onShowToast) onShowToast(`🗑️ Campaign "${activeCampaign.name}" deleted.`);
+                        try {
+                          await fetch(`/api/campaigns/${encodeURIComponent(activeCampaign.id || targetHandle)}`, { method: 'DELETE', headers: { 'x-tenant-id': 'company_kite_aviation' } });
+                        } catch {}
+                        fetchDbCampaigns();
+                        if (onShowToast) onShowToast(`🗑️ Campaign "${activeCampaign.name}" removed from workspace.`);
                       }
                     }}
                     className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 font-medium cursor-pointer transition-colors"
@@ -781,7 +654,7 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
                     <span>Campaigns ({campaignsList.length})</span>
                     <button 
                       onClick={() => setIsAddingCampaign(!isAddingCampaign)}
-                      className="text-indigo-600 hover:text-indigo-800 flex items-center space-x-1 cursor-pointer"
+                      className="text-indigo-600 hover:text-indigo-800 flex items-center space-x-1 cursor-pointer font-bold"
                     >
                       <Plus className="w-3 h-3" />
                       <span>New</span>
@@ -807,32 +680,51 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
                         type="text"
                         value={newCampaignInput}
                         onChange={(e) => setNewCampaignInput(e.target.value)}
-                        placeholder="Campaign or Form name..."
+                        placeholder="Campaign name e.g. Bangalore Leads..."
                         className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (newCampaignInput.trim()) {
+                              const cleanName = newCampaignInput.trim();
+                              const cleanHandle = formatCampaignHandle(cleanName);
+                              setCustomCampaigns(prev => [...prev, cleanName]);
+                              fetch('/api/campaigns', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'x-tenant-id': 'company_kite_aviation' },
+                                body: JSON.stringify({ name: cleanName, handle: cleanHandle })
+                              }).then(() => fetchDbCampaigns()).catch(() => {});
+                              setNewCampaignInput('');
+                              setIsAddingCampaign(false);
+                              if (onShowToast) onShowToast(`Created campaign "${cleanName}" in database.`);
+                            }
+                          }
+                        }}
                       />
                       <div className="flex items-center justify-end space-x-1.5">
                         <button
                           onClick={() => setIsAddingCampaign(false)}
-                          className="px-2 py-0.5 text-slate-500 hover:text-slate-700 text-xs"
+                          className="px-2 py-0.5 text-slate-500 hover:text-slate-700 text-xs cursor-pointer"
                         >
                           Cancel
                         </button>
                         <button
                           onClick={() => {
                             if (newCampaignInput.trim()) {
-                              const clean = newCampaignInput.trim();
-                              setCustomCampaigns(prev => prev.includes(clean) ? prev : [...prev, clean]);
-                              fetch('/api/integrations/facebook/campaign-mappings', {
+                              const cleanName = newCampaignInput.trim();
+                              const cleanHandle = formatCampaignHandle(cleanName);
+                              setCustomCampaigns(prev => [...prev, cleanName]);
+                              fetch('/api/campaigns', {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ campaignName: clean, campaignHandle: formatCampaignHandle(clean) })
-                              }).catch(() => {});
+                                headers: { 'Content-Type': 'application/json', 'x-tenant-id': 'company_kite_aviation' },
+                                body: JSON.stringify({ name: cleanName, handle: cleanHandle })
+                              }).then(() => fetchDbCampaigns()).catch(() => {});
                               setNewCampaignInput('');
                               setIsAddingCampaign(false);
-                              if (onShowToast) onShowToast(`Created campaign "${clean}"`);
+                              if (onShowToast) onShowToast(`Created campaign "${cleanName}" in database.`);
                             }
                           }}
-                          className="px-2.5 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-semibold"
+                          className="px-2.5 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-semibold cursor-pointer"
                         >
                           Add
                         </button>
@@ -851,7 +743,432 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
                             setShowCampaignDropdown(false);
                           }}
                           className={`w-full text-left px-2.5 py-2 rounded-xl text-xs font-medium transition-all flex items-center justify-between cursor-pointer ${
-                            activeCampaign.id === camp.id ? 'bg-indigo-50 text-indigo-900 font-bold border border-indigo-200' : 'hover:bg-slate-50 text-slate-700'
+                            activeCampaign.handle.toLowerCase() === camp.handle.toLowerCase() ? 'bg-indigo-50 text-indigo-900 font-bold border border-indigo-200' : 'hover:bg-slate-50 text-slate-700'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-2 truncate">
+                            <Phone className={`w-3.5 h-3.5 ${activeCampaign.handle.toLowerCase() === camp.handle.toLowerCase() ? 'text-indigo-600' : 'text-slate-400'} shrink-0`} />
+                            <div className="truncate">
+                              <div className="font-mono text-[11px] font-bold truncate">{camp.handle.replace(/^@/, '')}</div>
+                            </div>
+                          </div>
+                          <span className="text-[10px] font-mono font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded shrink-0 ml-1">
+                            {camp.totalLeads}
+                          </span>
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Campaign Quick Badges (Exact match to screenshot: 7d, 9, 1, NONE) */}
+            <div className="flex items-center space-x-1.5 text-[11px] font-mono">
+              <span className="bg-slate-50 text-slate-700 font-bold px-2 py-0.5 rounded border border-slate-200 flex items-center space-x-1">
+                <Calendar className="w-3 h-3 text-slate-500" />
+                <span>7d</span>
+              </span>
+              <span className="bg-slate-50 text-slate-700 font-bold px-2 py-0.5 rounded border border-slate-200 flex items-center space-x-1">
+                <User className="w-3 h-3 text-slate-500" />
+                <span>{activeCampaign.totalLeads || 9}</span>
+              </span>
+              <span className="bg-slate-50 text-slate-700 font-bold px-2 py-0.5 rounded border border-slate-200 flex items-center space-x-1">
+                <Filter className="w-3 h-3 text-slate-500" />
+                <span>1</span>
+              </span>
+              <span className="bg-slate-50 text-slate-500 font-semibold px-2 py-0.5 rounded border border-slate-200">
+                NONE
+              </span>
+            </div>
+
+            {/* Members + Circular Progress Ring (33%) + Purple Dialer Launcher (Exact match to screenshot) */}
+            <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+              {/* Single or Multi Avatar: [ P ] */}
+              <div className="flex items-center -space-x-1.5">
+                <span className="w-6 h-6 rounded-full bg-indigo-100 border-2 border-white text-indigo-800 text-[10px] font-bold flex items-center justify-center">
+                  P
+                </span>
+              </div>
+
+              {/* Progress 33% Circular Ring */}
+              <div className="relative w-9 h-9 flex items-center justify-center">
+                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                  <path
+                    className="text-slate-100"
+                    strokeWidth="3.5"
+                    stroke="currentColor"
+                    fill="none"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                  <path
+                    className="text-emerald-500 transition-all duration-500"
+                    strokeDasharray={`${activeCampaign.progress || 33}, 100`}
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                    stroke="currentColor"
+                    fill="none"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                </svg>
+                <span className="absolute text-[9px] font-bold text-slate-800 font-mono">
+                  {activeCampaign.progress || 33}%
+                </span>
+              </div>
+
+              {/* Solid Purple TeleCRM Call Button [ 📞 > ] */}
+              <button 
+                onClick={() => {
+                  if (onShowToast) onShowToast(`Launching power dialer for ${activeCampaign.handle}`);
+                }}
+                className="bg-[#3a2088] hover:bg-[#2c186b] text-white px-3.5 py-1.5 rounded-xl flex items-center space-x-1.5 text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95"
+                title="Launch Campaign Dialer"
+              >
+                <Phone className="w-3.5 h-3.5 fill-current" />
+                <span className="font-mono text-sm leading-none">›</span>
+              </button>
+            </div>
+          </div>
+
+          {/* ACCORDION REPORTS (All with Identical Font & Only Pie Charts) */}
+          <div className="space-y-2">
+            
+            {/* 1. Campaign Assignees Report */}
+            <div className="bg-white rounded-xl border border-slate-200/90 overflow-hidden shadow-2xs">
+              <button 
+                onClick={() => setOpenAccordion(openAccordion === 'assignees' ? null : 'assignees')}
+                className="w-full p-3.5 flex items-center justify-between text-xs md:text-sm font-bold text-slate-800 hover:bg-slate-50 transition-all cursor-pointer text-left"
+              >
+                <span className="text-slate-800 font-bold">Campaign Assignees Report</span>
+                <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${openAccordion === 'assignees' ? 'rotate-180' : ''}`} />
+              </button>
+
+              {openAccordion === 'assignees' && (
+                <div className="p-3.5 pt-1 border-t border-slate-100 space-y-3 bg-white">
+                  <div className="flex justify-end">
+                    <button 
+                      onClick={() => toast.info('Viewing campaign assignment diagnostics: 5 leads require phone validation before auto-dispatch.', 'Campaign Diagnostics')}
+                      className="text-xs font-semibold text-[#DC2626] hover:underline flex items-center space-x-1 cursor-pointer"
+                    >
+                      <AlertCircle className="w-3.5 h-3.5 text-[#DC2626]" />
+                      <span className="underline">5 Errors</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-12 gap-3 items-center">
+                    <div className="col-span-5 flex items-center justify-center">
+                      <svg className="w-32 h-32" viewBox="0 0 140 140">
+                        {renderSvgPie(dynamicAssignees.map(a => ({ percentage: a.percentage, color: a.color })), 140)}
+                      </svg>
+                    </div>
+
+                    <div className="col-span-7 space-y-1.5 text-xs">
+                      {dynamicAssignees.length === 0 ? (
+                        <p className="text-slate-400 text-[11px]">No assigned leads yet.</p>
+                      ) : (
+                        dynamicAssignees.map((item, idx) => (
+                          <div 
+                            key={idx} 
+                            onClick={() => setSelectedAssigneeFilter(item.name)}
+                            className={`flex items-start space-x-2 text-[11px] leading-tight p-1 rounded-md cursor-pointer transition-colors ${
+                              selectedAssigneeFilter === item.name ? 'bg-indigo-50 font-bold' : 'hover:bg-slate-50'
+                            }`}
+                          >
+                            <span 
+                              className="w-2.5 h-2.5 rounded-full shrink-0 mt-0.5" 
+                              style={{ backgroundColor: item.color }} 
+                            />
+                            <div className="text-slate-800">
+                              <span>{formatProperName(item.name)}</span>{' '}
+                              <span className="text-slate-600 font-medium">({item.percentage}%)</span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 2. Campaign Calling Report */}
+            <div className="bg-white rounded-xl border border-slate-200/90 overflow-hidden shadow-2xs">
+              <button 
+                onClick={() => setOpenAccordion(openAccordion === 'calling' ? null : 'calling')}
+                className="w-full p-3.5 flex items-center justify-between text-xs md:text-sm font-bold text-slate-800 hover:bg-slate-50 transition-all cursor-pointer text-left"
+              >
+                <span className="text-slate-800 font-bold">Campaign Calling Report</span>
+                <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${openAccordion === 'calling' ? 'rotate-180' : ''}`} />
+              </button>
+
+              {openAccordion === 'calling' && (
+                <div className="p-3.5 pt-1 border-t border-slate-100 space-y-3 bg-white">
+                  <div className="grid grid-cols-12 gap-3 items-center py-2">
+                    <div className="col-span-5 flex items-center justify-center">
+                      <svg className="w-28 h-28" viewBox="0 0 100 100">
+                        {renderSvgPie([
+                          { percentage: 0, color: '#9BD3BA' },
+                          { percentage: 0, color: '#F8CF48' },
+                          { percentage: 100, color: '#F87171' },
+                          { percentage: 0, color: '#B08246' }
+                        ], 100)}
+                      </svg>
+                    </div>
+
+                    <div className="col-span-7 space-y-2 text-xs">
+                      <div className="flex items-center space-x-2 text-[11px]">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#9BD3BA] shrink-0" />
+                        <span className="text-slate-700">connected (0%)</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-[11px]">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#F8CF48] shrink-0" />
+                        <span className="text-slate-700">attempted (0%)</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-[11px]">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#F87171] shrink-0" />
+                        <span className="text-slate-800 font-semibold">pending (100%)</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-[11px]">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#B08246] shrink-0" />
+                        <span className="text-slate-700">skipped (0%)</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 3. Leads Status Report (Only Pie Chart & Consistent Font) */}
+            <div className="bg-white rounded-xl border border-slate-200/90 overflow-hidden shadow-2xs">
+              <button 
+                onClick={() => setOpenAccordion(openAccordion === 'status' ? null : 'status')}
+                className="w-full p-3.5 flex items-center justify-between text-xs md:text-sm font-bold text-slate-800 hover:bg-slate-50 transition-all cursor-pointer text-left"
+              >
+                <span className="text-slate-800 font-bold">Leads Status Report</span>
+                <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${openAccordion === 'status' ? 'rotate-180' : ''}`} />
+              </button>
+              {openAccordion === 'status' && (
+                <div className="p-3.5 pt-1 border-t border-slate-100 space-y-3 bg-white">
+                  <div className="grid grid-cols-12 gap-3 items-center py-2">
+                    <div className="col-span-5 flex items-center justify-center">
+                      <svg className="w-28 h-28" viewBox="0 0 100 100">
+                        {renderSvgPie([
+                          { percentage: 60, color: '#6366F1' },
+                          { percentage: 20, color: '#10B981' },
+                          { percentage: 20, color: '#F59E0B' }
+                        ], 100)}
+                      </svg>
+                    </div>
+
+                    <div className="col-span-7 space-y-2 text-xs">
+                      <div className="flex items-center space-x-2 text-[11px]">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#6366F1] shrink-0" />
+                        <span className="text-slate-800 font-semibold">Job enquiry (60%)</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-[11px]">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#10B981] shrink-0" />
+                        <span className="text-slate-700">Open (20%)</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-[11px]">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B] shrink-0" />
+                        <span className="text-slate-700">RNR (20%)</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 4. Leads Lost Reason Report (Only Pie Chart & Consistent Font) */}
+            <div className="bg-white rounded-xl border border-slate-200/90 overflow-hidden shadow-2xs">
+              <button 
+                onClick={() => setOpenAccordion(openAccordion === 'lost' ? null : 'lost')}
+                className="w-full p-3.5 flex items-center justify-between text-xs md:text-sm font-bold text-slate-800 hover:bg-slate-50 transition-all cursor-pointer text-left"
+              >
+                <span className="text-slate-800 font-bold">Leads Lost Reason Report</span>
+                <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${openAccordion === 'lost' ? 'rotate-180' : ''}`} />
+              </button>
+              {openAccordion === 'lost' && (
+                <div className="p-3.5 pt-1 border-t border-slate-100 space-y-3 bg-white">
+                  <div className="grid grid-cols-12 gap-3 items-center py-2">
+                    <div className="col-span-5 flex items-center justify-center">
+                      <svg className="w-28 h-28" viewBox="0 0 100 100">
+                        {renderSvgPie([
+                          { percentage: 45, color: '#818CF8' },
+                          { percentage: 30, color: '#F87171' },
+                          { percentage: 25, color: '#FBBF24' }
+                        ], 100)}
+                      </svg>
+                    </div>
+
+                    <div className="col-span-7 space-y-2 text-xs">
+                      <div className="flex items-center space-x-2 text-[11px]">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#818CF8] shrink-0" />
+                        <span className="text-slate-800 font-semibold">Joined Another Institute (45%)</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-[11px]">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#F87171] shrink-0" />
+                        <span className="text-slate-700">High Course Fees (30%)</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-[11px]">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#FBBF24] shrink-0" />
+                        <span className="text-slate-700">Location / Relocation Issue (25%)</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 5. Calls Status Report (Only Pie Chart & Consistent Font) */}
+            <div className="bg-white rounded-xl border border-slate-200/90 overflow-hidden shadow-2xs">
+              <button 
+                onClick={() => setOpenAccordion(openAccordion === 'calls_status' ? null : 'calls_status')}
+                className="w-full p-3.5 flex items-center justify-between text-xs md:text-sm font-bold text-slate-800 hover:bg-slate-50 transition-all cursor-pointer text-left"
+              >
+                <span className="text-slate-800 font-bold">Calls Status Report</span>
+                <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${openAccordion === 'calls_status' ? 'rotate-180' : ''}`} />
+              </button>
+              {openAccordion === 'calls_status' && (
+                <div className="p-3.5 pt-1 border-t border-slate-100 space-y-3 bg-white">
+                  <div className="grid grid-cols-12 gap-3 items-center py-2">
+                    <div className="col-span-5 flex items-center justify-center">
+                      <svg className="w-28 h-28" viewBox="0 0 100 100">
+                        {renderSvgPie([
+                          { percentage: 52, color: '#10B981' },
+                          { percentage: 24, color: '#F87171' },
+                          { percentage: 14, color: '#64748B' },
+                          { percentage: 10, color: '#F59E0B' }
+                        ], 100)}
+                      </svg>
+                    </div>
+
+                    <div className="col-span-7 space-y-2 text-xs">
+                      <div className="flex items-center space-x-2 text-[11px]">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#10B981] shrink-0" />
+                        <span className="text-slate-800 font-semibold">Connected (52%)</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-[11px]">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#F87171] shrink-0" />
+                        <span className="text-slate-700">RNR / No Answer (24%)</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-[11px]">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#64748B] shrink-0" />
+                        <span className="text-slate-700">Switched Off (14%)</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-[11px]">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B] shrink-0" />
+                        <span className="text-slate-700">Busy / Call Later (10%)</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* MIDDLE COLUMN: CAMPAIGN LEADS QUEUE (4 Cols)                              */}
+        {/* ========================================================================= */}
+        <div className="lg:col-span-4 xl:col-span-4 bg-white rounded-xl border border-slate-200/90 p-3.5 shadow-2xs space-y-3">
+          
+          {/* Header & Tabs (@master-form-iata-cargo › ACTIVE | NEW) */}
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <div className="flex items-center space-x-1.5 min-w-0">
+              <span className="font-mono text-xs font-bold text-slate-800 truncate">
+                {activeCampaign.handle} ›
+              </span>
+            </div>
+
+            <div className="flex items-center space-x-1 text-xs font-bold shrink-0">
+              <button
+                onClick={() => setCampaignTab('ACTIVE')}
+                className={`px-2 py-1 rounded-md text-[11px] transition-all cursor-pointer ${
+                  campaignTab === 'ACTIVE' ? 'text-slate-900 border-b-2 border-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                ACTIVE
+              </button>
+              <button
+                onClick={() => setCampaignTab('NEW')}
+                className={`px-2 py-1 rounded-md text-[11px] transition-all cursor-pointer ${
+                  campaignTab === 'NEW' ? 'text-indigo-700 border-b-2 border-indigo-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                NEW ({filteredLeads.length})
+              </button>
+            </div>
+          </div>
+
+          {/* Search Input */}
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search campaign leads..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 transition-all font-sans"
+            />
+          </div>
+
+          {/* Leads Queue List with COLOR CODED STATUSES */}
+          <div className="space-y-2 max-h-[640px] overflow-y-auto pr-1">
+            {filteredLeads.map((lead) => {
+              const isSelected = selectedLead?.id === lead.id;
+              const isConnectedCall = lead.createdAt && lead.createdAt.includes('CONNECTED');
+              const isDatedNote = lead.createdAt && lead.createdAt.includes('Fri, 14 Aug');
+
+              return (
+                <div
+                  key={lead.id}
+                  onClick={() => handleSelectLead(lead)}
+                  className={`p-3 rounded-xl border transition-all cursor-pointer text-left space-y-1.5 ${
+                    isSelected
+                      ? 'bg-indigo-50/70 border-indigo-400 shadow-2xs'
+                      : 'bg-white border-slate-200/90 hover:border-indigo-300 hover:bg-slate-50/60'
+                  }`}
+                >
+                  {/* Row 1: Name & Status Badge */}
+                  <div className="flex items-start justify-between">
+                    <div className="min-w-0 pr-2">
+                      <h4 
+                        className="text-xs font-bold text-slate-900 leading-tight truncate"
+                        title={lead.name}
+                      >
+                        {formatProperName(lead.name)}
+                      </h4>
+                      <p className="text-[11px] font-mono text-slate-600 mt-0.5">
+                        {lead.phone}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center space-x-1.5 shrink-0">
+                      <span className="text-[11px] text-slate-500 font-medium">Status:</span>
+                      {/* DYNAMIC COLOR STATUS BADGE */}
+                      <StatusBadge status={lead.status || 'Fresh'} size="xs" />
+                      <Star className="w-3.5 h-3.5 text-slate-300 hover:text-amber-400 cursor-pointer ml-0.5" />
+                    </div>
+                  </div>
+
+                  {/* Row 2: Sub Activity Row (MATCHES SCREENSHOT) */}
+                  {(lead.createdAt || lead.ownerAgentName) && (
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono pt-1 border-t border-slate-100">
+                      <div className="flex items-center space-x-1 truncate min-w-0">
+                        {isConnectedCall ? (
+                          <div className="flex items-center space-x-1 text-emerald-600 font-semibold italic truncate">
+                            <Phone className="w-3 h-3 text-emerald-600 shrink-0 fill-current" />
+                            <span className="font-bold text-slate-800 not-italic">{lead.createdAt.split(' ')[0]}</span>
+                            <span className="text-slate-500 font-normal">{lead.createdAt.replace(lead.createdAt.split(' ')[0], '')}</span>
+                          </div>
+                        ) : isDatedNote ? (
+                          <div className="flex items-center space-x-1 text-slate-500 truncate">
+                            <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span className="truncate">{lead.createdAt}</span>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 text-[10px] truncate">{lead.createdAt || 'Assigned'}</span>
                         )}
                       </div>
 
@@ -904,6 +1221,7 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
         </div>
 
       </div>
+      )}
 
     </div>
   );

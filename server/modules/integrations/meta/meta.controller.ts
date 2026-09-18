@@ -402,18 +402,7 @@ export class MetaController {
         logger.warn('[Meta Controller] Error updating existing leads for campaign:', leadErr);
       }
 
-      // 3. Mark in RDS database if available
-      try {
-        const { executeAwsQuery } = await import('../../../config/database');
-        await executeAwsQuery(
-          `UPDATE leads 
-           SET campaign_name = $1, form_name = $2, updated_at = NOW() 
-           WHERE client_id = $3 AND (form_id = $4 OR custom_fields->>'form_id' = $4)`,
-          [targetCampName, formName, clientId, String(formId)]
-        ).catch(() => {});
-      } catch {}
-
-      // 4. Trigger immediate sync if leads exist on Meta Graph API
+      // 3. Trigger immediate sync if leads exist on Meta Graph API
       try {
         const { metaSyncEngine } = await import('./meta.sync');
         metaSyncEngine.syncAllMetaLeads(clientId).catch(() => {});

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { saveLeadToAwsDb, logWebhookToAwsDb } from '../../../../src/lib/awsDb';
 import { logger } from '../../../utils/logger';
+import { multiTenantDb } from '../../../services/multiTenantDb';
 
 const router = Router();
 
@@ -72,11 +72,11 @@ router.post('/webhooks/google-ads', async (req: Request, res: Response) => {
       gclid: payload.gclid || 'gclid-demo-123'
     };
 
-    await saveLeadToAwsDb(newLead);
-    await logWebhookToAwsDb({ id: 'wh-gads', name: 'Google Ads Webhook', sourcePlatform: 'Google Ads' });
+    const tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string) || process.env.DEFAULT_TENANT_ID || 'default_tenant';
+    await multiTenantDb.saveLead(tenantId, newLead as any);
 
-    logger.info(`✅ [Google Ads] Lead Saved to Aurora RDS: ${newLead.name} (${newLead.phone})`);
-    res.status(200).json({ status: 'success', message: 'Google Ads Lead captured into AWS Aurora RDS', leadId });
+    logger.info(`✅ [Google Ads] Lead Saved to Database: ${newLead.name} (${newLead.phone})`);
+    res.status(200).json({ status: 'success', message: 'Google Ads Lead captured into CRM Database', leadId });
   } catch (error: any) {
     logger.error('❌ [Google Ads Webhook Error]:', error);
     res.status(500).json({ status: 'error', error: error.message });
@@ -135,8 +135,8 @@ router.post('/webhooks/lead', async (req: Request, res: Response) => {
       fbclid: payload.fbclid || null
     };
 
-    await saveLeadToAwsDb(newLead);
-    await logWebhookToAwsDb({ id: 'wh-generic', name: 'Zapier Meta Webhook', sourcePlatform: leadSource });
+    const tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string) || process.env.DEFAULT_TENANT_ID || 'default_tenant';
+    await multiTenantDb.saveLead(tenantId, newLead as any);
 
     logger.info(`[Zapier Webhook] ✅ Live lead captured: ${newLead.name} (${newLead.phone})`);
     res.status(201).json({ status: 'success', message: 'Lead captured live into CRM', leadId, lead: newLead });

@@ -1506,11 +1506,14 @@ if (selectedManageIntegration?.id === 'facebook') {
                         className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#6342E8] shadow-2xs cursor-pointer"
                       >
                         <option value="[ Select Telecrm Field To Map ]">[ Select Telecrm Field To Map ]</option>
-                        {telecrmLeadFields.map((fName) => (
-                          <option key={fName} value={fName}>
-                            {fName}
-                          </option>
-                        ))}
+                        {telecrmLeadFields.map((fName) => {
+                          const isUsed = fieldMapping.some((m, mIdx) => mIdx !== idx && m.telecrmField === fName);
+                          return (
+                            <option key={fName} value={fName} disabled={isUsed}>
+                              {fName} {isUsed ? '(Already mapped)' : ''}
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
 

@@ -38,13 +38,20 @@ export function verifyMetaSignature(req: Request, res: Response, next: NextFunct
   }
 
   try {
-    const rawPayload = (req as any).rawBody || (typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
+    const rawPayload = (req as any).rawBody;
+    
+    if (!rawPayload) {
+      console.warn('⚠️ [Meta Webhook] req.rawBody is missing. Please ensure express.json() with verify is configured.');
+      return res.status(500).json({ error: 'Server misconfiguration: raw payload required' });
+    }
     const signatureHash = signature.startsWith('sha256=') ? signature.replace('sha256=', '') : signature;
     const isValid = verifyHmacSha256(rawPayload, signatureHash, metaConfig.appSecret);
 
     if (!isValid) {
       console.warn('⚠️ [Meta Webhook] Invalid X-Hub-Signature-256 signature against app secret');
       return res.status(403).json({ error: 'Invalid webhook signature' });
+    } else {
+      console.log('✅ [Meta Webhook] Signature verified successfully');
     }
   } catch (err: any) {
     console.warn('⚠️ [Meta Webhook] Signature verification notice:', err.message);

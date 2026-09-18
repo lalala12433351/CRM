@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSyncState } from './lib/hooks';
-import { seedDatabase, clearAllLeadsFromFirestore } from './lib/db';
 // Reusable UI Components & Modals
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
@@ -409,11 +408,6 @@ export function App() {
 
     document.title = viewTitleMap[currentView] || `${brandName}`;
   }, [isAuthenticated, authScreen, currentView, rawCompanyName]);
-
-  // Real database fetch strictly scoped to activeTenantId
-  useEffect(() => {
-    seedDatabase();
-  }, []);
 
   // Fetch all domain data from database when authenticated and activeTenantId is ready
   const loadTenantDomainData = React.useCallback(async (tenantId?: string) => {
@@ -879,8 +873,7 @@ export function App() {
 
   const handleClearAllLeads = () => {
     setLeads([]);
-    clearAllLeadsFromFirestore();
-    showToast('All mock leads cleared! CRM is now clean and ready for real Meta Leads.');
+    showToast('All leads cleared! CRM is now clean.');
   };
 
   const handleSaveCallLog = (log: Partial<CallRecord>, followUpAt?: string) => {
