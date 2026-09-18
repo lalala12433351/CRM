@@ -23,6 +23,8 @@ COPY tsconfig.json vite.config.ts index.html server.ts ./
 COPY public ./public
 COPY src ./src
 COPY server ./server
+COPY scripts ./scripts
+COPY .data ./.data
 
 # Build the Vite SPA and compile server.ts into dist/server.cjs
 RUN npm run build:docker
@@ -35,14 +37,17 @@ WORKDIR /app
 # Set production environment
 ENV NODE_ENV=production
 ENV PORT=8080
+ENV PIXBE_DATA_DIR=/app/.data
 
 # Create application data directory for multi-tenant persistent storage
-RUN mkdir -p /app/.data && chown -R node:node /app
+RUN mkdir -p /app/.data /app/data-seed && chown -R node:node /app
 
 # Copy built application distribution from builder
 COPY --from=builder --chown=node:node /app/dist ./dist
 COPY --from=builder --chown=node:node /app/public ./public
 COPY --from=builder --chown=node:node /app/package.json ./package.json
+COPY --from=builder --chown=node:node /app/.data ./data-seed
+COPY --from=builder --chown=node:node /app/.data ./.data
 
 # Copy optional runtime configurations if present
 COPY --from=builder --chown=node:node /app/tsconfig.json ./tsconfig.json

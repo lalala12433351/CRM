@@ -430,17 +430,29 @@ export class MultiTenantDatabase {
     }
   }
 
+  private storeCandidatePaths(): string[] {
+    const cwd = process.cwd();
+    const candidates = [
+      STORE_PATH,
+      MIRROR_STORE_PATH,
+      LEGACY_STORE_PATH,
+      path.join(cwd, 'dist', '.data', 'multi_tenant_store.json'),
+      path.join(cwd, 'data-seed', 'multi_tenant_store.json'),
+    ];
+    return [...new Set(candidates.filter(Boolean))];
+  }
+
   private pickNewestStorePath(): string | null {
-    // Always prefer LocalAppData primary path when present (OneDrive Desktop mirrors can be newer but unwritable).
-    try {
-      if (fs.existsSync(STORE_PATH)) return STORE_PATH;
-    } catch {}
-    for (const p of [MIRROR_STORE_PATH, LEGACY_STORE_PATH]) {
+    // Prefer the newest readable copy so a git-pulled / built-in .data can replace a stale LocalAppData file.
+    let best: { path: string; mtime: number } | null = null;
+    for (const p of this.storeCandidatePaths()) {
       try {
-        if (p !== STORE_PATH && fs.existsSync(p)) return p;
+        if (!fs.existsSync(p)) continue;
+        const mtime = fs.statSync(p).mtimeMs;
+        if (!best || mtime > best.mtime) best = { path: p, mtime };
       } catch {}
     }
-    return null;
+    return best?.path || null;
   }
 
   private initLocalStore() {
@@ -448,13 +460,17 @@ export class MultiTenantDatabase {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
       }
-      // One-time migrate from project .data (OneDrive) → LocalAppData primary
-      if (!fs.existsSync(STORE_PATH) && fs.existsSync(LEGACY_STORE_PATH)) {
-        try {
-          fs.copyFileSync(LEGACY_STORE_PATH, STORE_PATH);
-          logger.info('[MultiTenantDB] Migrated store from project .data to LocalAppData (avoids OneDrive locks)');
-        } catch (migErr: any) {
-          logger.warn('[MultiTenantDB] Legacy store migrate notice:', migErr?.message || migErr);
+      // Seed primary from repo / build / Docker seed when primary is missing
+      if (!fs.existsSync(STORE_PATH)) {
+        const seed =
+          this.storeCandidatePaths().find((p) => p !== STORE_PATH && fs.existsSync(p)) || null;
+        if (seed) {
+          try {
+            fs.copyFileSync(seed, STORE_PATH);
+            logger.info('[MultiTenantDB] Seeded primary store from ' + seed);
+          } catch (migErr: any) {
+            logger.warn('[MultiTenantDB] Store seed notice:', migErr?.message || migErr);
+          }
         }
       }
       const loadPath = this.pickNewestStorePath();
@@ -463,6 +479,8 @@ export class MultiTenantDatabase {
         this.hydrateStoreFromParsed(JSON.parse(raw));
         if (loadPath !== STORE_PATH) {
           logger.info('[MultiTenantDB] Loaded store from ' + loadPath);
+          // Promote newest copy into primary + project mirror so builds/git stay aligned
+          this.saveStoreImmediate();
         }
         this.healOrphanLeadOwners();
       } else {

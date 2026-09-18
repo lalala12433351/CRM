@@ -14,6 +14,7 @@ FILES_TO_INCLUDE = [
 DIRS_TO_INCLUDE = [
     "dist",
     "public",
+    ".data",
     ".ebextensions"
 ]
 

@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "tsx server.ts",
     "build": "node -e \"console.log('Prebuilt bundle ready')\"",
-    "build:local": "vite build --configLoader runner && vite build --ssr server.ts --configLoader runner --outDir dist --emptyOutDir false",
-    "build:docker": "vite build --configLoader runner && vite build --ssr server.ts --configLoader runner --outDir dist --emptyOutDir false",
+    "build:local": "vite build --configLoader runner && vite build --ssr server.ts --configLoader runner --outDir dist --emptyOutDir false && node scripts/copy-store-to-dist.cjs",
+    "build:docker": "vite build --configLoader runner && vite build --ssr server.ts --configLoader runner --outDir dist --emptyOutDir false && node scripts/copy-store-to-dist.cjs",
     "bundle": "npm run build:local && python create_deploy_zip.py",
+    "copy-store": "node scripts/copy-store-to-dist.cjs",
     "start": "node dist/server.js",
     "start:meta": "node server.js",
     "clean": "rm -rf dist server.js",

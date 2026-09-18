@@ -19,6 +19,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=8080
+      - PIXBE_DATA_DIR=/app/.data
       - APP_URL=${APP_URL:-http://localhost:8080}
 
       # Database Configuration (Defaults to internal 'db' service)
