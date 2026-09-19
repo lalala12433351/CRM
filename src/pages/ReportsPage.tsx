@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   PhoneCall, 
   Trophy, 
@@ -11,19 +11,26 @@ import {
   Save,
   Check,
   Calendar,
-  Filter,
   User,
-  ArrowUpRight,
   Clock,
   ArrowUpDown,
-  SlidersHorizontal,
-  RotateCcw
+  RotateCcw,
+  Users
 } from 'lucide-react';
 import { CallRecord, Agent, Lead, ActivityLog } from '../types';
 import { CallRecordingPlayer } from '../components/CallRecordingPlayer';
 import { UserAvatar } from '../components/UserAvatar';
-import { CustomDropdown, DropdownOption } from '../components/CustomDropdown';
+import { CustomDropdown } from '../components/CustomDropdown';
 import { formatProperName } from '../utils/formatUtils';
+import { fetchWithTenantAuth } from '../lib/auth';
+import { getCrmRole } from '../utils/roleUtils';
+import {
+  callBelongsToAgents,
+  listManagers,
+  resolveReportAgentIds,
+  roleLabel,
+  usersForManagerFilter
+} from '../utils/reportScope';
 
 export type ReportsSubTab = 'call_logs' | 'leaderboard' | 'user_report';
 
@@ -33,6 +40,7 @@ interface ReportsViewProps {
   agents: Agent[];
   leads: Lead[];
   activities: ActivityLog[];
+  currentUser?: Agent | null;
   onOpenLeadDetail?: (lead: Lead) => void;
   onOpenPowerDialerForLead?: (lead: Lead) => void;
   onUpdateCallRecord?: (callId: string, updates: Partial<CallRecord>) => void;
@@ -43,9 +51,8 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
   callRecords,
   agents,
   leads,
-  activities,
+  currentUser,
   onOpenLeadDetail,
-  onOpenPowerDialerForLead,
   onUpdateCallRecord
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<ReportsSubTab>(initialSubTab);
@@ -66,9 +73,13 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
   // Call Logs Filter & Time Sort State
   const [searchTerm, setSearchTerm] = useState('');
   const [dispositionFilter, setDispositionFilter] = useState<string>('ALL');
-  const [agentFilter, setAgentFilter] = useState<string>('ALL');
+  const [userFilter, setUserFilter] = useState<string>('ALL');
+  const [managerFilter, setManagerFilter] = useState<string>('ALL');
   const [callTypeFilter, setCallTypeFilter] = useState<string>('ALL');
   const [callSortOption, setCallSortOption] = useState<'newest' | 'oldest' | 'duration_desc' | 'duration_asc'>('newest');
+  const [remoteCalls, setRemoteCalls] = useState<CallRecord[] | null>(null);
+  const [remoteUsers, setRemoteUsers] = useState<Agent[] | null>(null);
+  const [remoteManagers, setRemoteManagers] = useState<Agent[] | null>(null);
 
   // Leaderboard Sorting State - Comprehensive sorting options
   type LeaderboardSortOption = 
@@ -85,9 +96,11 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
 
   const [leaderboardSortBy, setLeaderboardSortBy] = useState<LeaderboardSortOption>('deals_desc');
 
-  // Individual Telecaller Report State
-  const [selectedAgentId, setSelectedAgentId] = useState<string>(agents[0]?.id || 'agent-ms');
+  // Individual user report state
+  const [selectedAgentId, setSelectedAgentId] = useState<string>(agents[0]?.id || '');
   const [userReportCallSort, setUserReportCallSort] = useState<'newest' | 'oldest' | 'duration_desc' | 'duration_asc'>('newest');
+  const viewerRole = getCrmRole(currentUser);
+  const canPickManager = viewerRole === 'Admin';
 
   // Inline Call Remarks Edit State
   const [callRemarksState, setCallRemarksState] = useState<Record<string, string>>({});
@@ -127,6 +140,9 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
     const remark = callRemarksState[callId];
     if (remark !== undefined && onUpdateCallRecord) {
       onUpdateCallRecord(callId, { assigneeRemarks: remark, assigneeUpdatedAt: new Date().toISOString() });
+      setRemoteCalls((prev) =>
+        prev ? prev.map((call) => (call.id === callId ? { ...call, assigneeRemarks: remark } : call)) : prev
+      );
       setSavedRemarksCallId(callId);
       setTimeout(() => setSavedRemarksCallId(null), 2000);
     }
@@ -165,26 +181,88 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
     }
   };
 
-  // 1. Date Filtered Call Records
-  const dateFilteredCalls = callRecords.filter(c => isDateInRange(c.timestamp));
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (userFilter !== 'ALL') params.set('userId', userFilter);
+    if (managerFilter !== 'ALL') params.set('managerId', managerFilter);
+    if (fromDate) params.set('from', fromDate);
+    if (toDate) params.set('to', toDate);
 
-  // 2. Date Filtered Leads
-  const dateFilteredLeads = leads.filter(l => isDateInRange(l.createdAt || l.updatedAt || ''));
+    let cancelled = false;
+    fetchWithTenantAuth(`/api/reports/call-logs?${params.toString()}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled || !data?.success) return;
+        if (Array.isArray(data.calls)) setRemoteCalls(data.calls);
+        if (Array.isArray(data.users)) setRemoteUsers(data.users);
+        if (Array.isArray(data.managers)) setRemoteManagers(data.managers);
+      })
+      .catch(() => {
+        if (!cancelled) setRemoteCalls(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userFilter, managerFilter, fromDate, toDate]);
+
+  const reportUsers = remoteUsers && remoteUsers.length > 0 ? remoteUsers : agents;
+  const reportManagers = remoteManagers && remoteManagers.length > 0
+    ? remoteManagers
+    : listManagers(agents);
+  const selectableUsers = usersForManagerFilter(reportUsers, managerFilter);
+
+  useEffect(() => {
+    if (userFilter !== 'ALL' && !selectableUsers.some((agent) => agent.id === userFilter)) {
+      setUserFilter('ALL');
+    }
+  }, [selectableUsers, userFilter]);
+
+  useEffect(() => {
+    if (userFilter !== 'ALL') {
+      setSelectedAgentId(userFilter);
+      return;
+    }
+    if (!selectedAgentId && selectableUsers[0]?.id) {
+      setSelectedAgentId(selectableUsers[0].id);
+      return;
+    }
+    if (selectedAgentId && selectableUsers.length > 0 && !selectableUsers.some((agent) => agent.id === selectedAgentId)) {
+      setSelectedAgentId(selectableUsers[0].id);
+    }
+  }, [userFilter, selectableUsers, selectedAgentId]);
+
+  const sourceCalls = remoteCalls ?? callRecords;
+  const scopedAgentIds = resolveReportAgentIds(reportUsers, userFilter, managerFilter);
+
+  // Date + user/manager scoped records (stats, charts, leaderboard)
+  const scopedCalls = sourceCalls.filter((call) =>
+    isDateInRange(call.timestamp || call.callStartTime || '') &&
+    callBelongsToAgents(call, reportUsers, scopedAgentIds)
+  );
+
+  const scopedLeads = leads.filter((lead) => {
+    if (!isDateInRange(lead.createdAt || lead.updatedAt || '')) return false;
+    if (!scopedAgentIds) return true;
+    if (lead.ownerAgentId && scopedAgentIds.includes(lead.ownerAgentId)) return true;
+    const names = new Set(
+      reportUsers
+        .filter((agent) => scopedAgentIds.includes(agent.id))
+        .map((agent) => (agent.name || '').trim().toLowerCase())
+    );
+    return Boolean(lead.ownerAgentName && names.has(lead.ownerAgentName.trim().toLowerCase()));
+  });
 
   // Filter & Sort Call Records for Call Logs Subtab
-  const filteredAndSortedCallRecords = dateFilteredCalls
+  const filteredAndSortedCallRecords = scopedCalls
     .filter((call) => {
-      const matchesSearch = 
-        call.leadName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        call.leadPhone.includes(searchTerm) ||
-        call.agentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        call.notes.toLowerCase().includes(searchTerm.toLowerCase());
-      
+      const hay = [call.leadName, call.leadPhone, call.agentName, call.assigneeName, call.notes, call.callNotes]
+        .map((value) => String(value || '').toLowerCase())
+        .join(' ');
+      const matchesSearch = !searchTerm.trim() || hay.includes(searchTerm.trim().toLowerCase());
       const matchesDisposition = dispositionFilter === 'ALL' || call.disposition === dispositionFilter;
-      const matchesAgent = agentFilter === 'ALL' || call.agentId === agentFilter || call.agentName.toLowerCase() === agents.find(a => a.id === agentFilter)?.name.toLowerCase();
       const matchesType = callTypeFilter === 'ALL' || call.type === callTypeFilter;
-
-      return matchesSearch && matchesDisposition && matchesAgent && matchesType;
+      return matchesSearch && matchesDisposition && matchesType;
     })
     .sort((a, b) => {
       if (callSortOption === 'newest') {
@@ -202,12 +280,10 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
       return 0;
     });
 
-  // Calculate Metrics based on Date-Filtered Calls
-  const totalCalls = dateFilteredCalls.length;
-  const connectedCalls = dateFilteredCalls.filter(c => c.durationSeconds > 0).length;
-  const totalTalkTimeSecs = dateFilteredCalls.reduce((acc, c) => acc + (c.durationSeconds || 0), 0);
-  // Revenue calculated STRICTLY based on converted leads (status: Converted / Won) and their estimated deal values
-  const totalSales = dateFilteredLeads
+  // Calculate Metrics based on scoped calls (date + user/manager)
+  const totalCalls = scopedCalls.length;
+  const totalTalkTimeSecs = scopedCalls.reduce((acc, c) => acc + (c.durationSeconds || 0), 0);
+  const totalSales = scopedLeads
     .filter(l => (l.status || '').toLowerCase() === 'converted' || (l.status || '').toLowerCase() === 'won')
     .reduce((acc, l) => acc + (Number(l.dealValue) || 0), 0);
 
@@ -245,28 +321,18 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
 
   // Calculations for Leaderboard - Dynamic with Full Sort Criteria
   const rankedAgents = useMemo(() => {
-    return [...agents].map((agent) => {
-      const agentCalls = dateFilteredCalls.filter(c => 
-        c.agentId === agent.id || 
-        (c.agentName && c.agentName.toLowerCase() === agent.name.toLowerCase()) ||
-        (c.assigneeName && c.assigneeName.toLowerCase() === agent.name.toLowerCase())
+    return [...selectableUsers].map((agent) => {
+      const agentCalls = scopedCalls.filter(c =>
+        callBelongsToAgents(c, [agent], [agent.id])
       );
-      const agentLeads = dateFilteredLeads.filter(l => 
-        l.ownerAgentId === agent.id || 
-        (l.ownerAgentName && l.ownerAgentName.toLowerCase() === agent.name.toLowerCase())
+      const agentLeads = scopedLeads.filter(l =>
+        l.ownerAgentId === agent.id ||
+        (l.ownerAgentName && l.ownerAgentName.toLowerCase() === (agent.name || '').toLowerCase())
       );
-      
-      const hasActiveDateFilter = Boolean(fromDate || toDate || datePreset !== 'ALL');
 
-      const totalCallsCount = hasActiveDateFilter
-        ? agentCalls.length
-        : (agentCalls.length || agent.totalCallsToday || 0);
-
-      const convertedCount = hasActiveDateFilter
-        ? agentLeads.filter(l => (l.status || '').toLowerCase() === 'converted' || (l.status || '').toLowerCase() === 'won').length
-        : (agent.convertedLeadsCount || agentLeads.filter(l => (l.status || '').toLowerCase() === 'converted' || (l.status || '').toLowerCase() === 'won').length);
-
-      const totalTalkSecs = agentCalls.reduce((sum, c) => sum + (c.durationSeconds || 0), 0) || (hasActiveDateFilter ? 0 : (agent.talkTimeMinutes || 0) * 60);
+      const totalCallsCount = agentCalls.length;
+      const convertedCount = agentLeads.filter(l => (l.status || '').toLowerCase() === 'converted' || (l.status || '').toLowerCase() === 'won').length;
+      const totalTalkSecs = agentCalls.reduce((sum, c) => sum + (c.durationSeconds || 0), 0);
       const revenue = agentLeads
         .filter(l => (l.status || '').toLowerCase() === 'converted' || (l.status || '').toLowerCase() === 'won')
         .reduce((sum, l) => sum + (Number(l.dealValue) || 0), 0);
@@ -306,12 +372,12 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
           return b.calculatedConverted - a.calculatedConverted;
       }
     });
-  }, [agents, dateFilteredCalls, dateFilteredLeads, fromDate, toDate, datePreset, leaderboardSortBy]);
+  }, [selectableUsers, scopedCalls, scopedLeads, leaderboardSortBy]);
 
   // Individual Agent Selection & Calls
   const currentAgentReport = rankedAgents.find(a => a.id === selectedAgentId) || rankedAgents[0];
-  const selectedAgentCalls = dateFilteredCalls
-    .filter(c => c.agentId === currentAgentReport?.id || c.agentName.toLowerCase() === currentAgentReport?.name.toLowerCase())
+  const selectedAgentCalls = scopedCalls
+    .filter(c => currentAgentReport ? callBelongsToAgents(c, [currentAgentReport], [currentAgentReport.id]) : false)
     .sort((a, b) => {
       if (userReportCallSort === 'newest') return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
       if (userReportCallSort === 'oldest') return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
@@ -342,7 +408,7 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
     a.click();
   };
 
-  // Dynamic hourly call volume chart data computed from dateFilteredCalls
+  // Dynamic hourly call volume chart data computed from scoped calls
   const hourlyData = [
     { hour: '12 AM', slot: 0 },
     { hour: '02 AM', slot: 2 },
@@ -357,7 +423,7 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
     { hour: '08 PM', slot: 20 },
     { hour: '10 PM', slot: 22 },
   ].map(slotObj => {
-    const callCount = dateFilteredCalls.filter(c => {
+    const callCount = scopedCalls.filter(c => {
       try {
         const hour = new Date(c.timestamp).getHours();
         return hour >= slotObj.slot && hour < slotObj.slot + 2;
@@ -369,6 +435,8 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
   });
 
   const maxBarVal = Math.max(...hourlyData.map(d => d.calls), 1);
+  const peakHour = hourlyData.reduce((best, row) => (row.calls > best.calls ? row : best), hourlyData[0]);
+  const peakHourLabel = peakHour && peakHour.calls > 0 ? `Peak: ${peakHour.hour}` : 'No calls in range';
 
   // Common Reusable Mobile-Optimized Date Range Control Bar Component
   const renderDateRangeControlBar = () => (
@@ -443,9 +511,13 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
         </div>
 
         {/* Reset Button */}
-        {(fromDate || toDate || datePreset !== 'ALL') && (
+        {(fromDate || toDate || datePreset !== 'ALL' || userFilter !== 'ALL' || managerFilter !== 'ALL') && (
           <button
-            onClick={() => handlePresetChange('ALL')}
+            onClick={() => {
+              handlePresetChange('ALL');
+              setUserFilter('ALL');
+              setManagerFilter('ALL');
+            }}
             className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 cursor-pointer border border-slate-200 transition-all flex items-center justify-center space-x-1.5 text-xs font-bold self-end sm:self-center shrink-0"
             title="Reset Date Range Filter"
           >
@@ -453,6 +525,42 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
             <span>Reset</span>
           </button>
         )}
+      </div>
+
+      <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center gap-2">
+        {canPickManager && (
+          <CustomDropdown<string>
+            value={managerFilter}
+            onChange={(val) => {
+              setManagerFilter(val);
+              setUserFilter('ALL');
+            }}
+            options={[
+              { value: 'ALL', label: 'All Managers' },
+              ...reportManagers.map((manager) => ({
+                value: manager.id,
+                label: `${formatProperName(manager.name)} (team)`
+              }))
+            ]}
+            icon={<Users className="w-3.5 h-3.5 text-indigo-600" />}
+            align="left"
+            wrapperClassName="w-full sm:w-56"
+          />
+        )}
+        <CustomDropdown<string>
+          value={userFilter}
+          onChange={(val) => setUserFilter(val)}
+          options={[
+            { value: 'ALL', label: managerFilter === 'ALL' ? 'All Users' : 'All Users In Team' },
+            ...selectableUsers.map((agent) => ({
+              value: agent.id,
+              label: `${formatProperName(agent.name)} (${roleLabel(agent)})`
+            }))
+          ]}
+          icon={<User className="w-3.5 h-3.5 text-indigo-600" />}
+          align="left"
+          wrapperClassName="w-full sm:w-56"
+        />
       </div>
     </div>
   );
@@ -466,12 +574,12 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
           <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">
             {activeSubTab === 'call_logs' && 'Calls & Activity Report'}
             {activeSubTab === 'leaderboard' && 'Telecaller Leaderboard'}
-            {activeSubTab === 'user_report' && 'Individual Telecaller Report'}
+            {activeSubTab === 'user_report' && 'Individual User Report'}
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
             {activeSubTab === 'call_logs' && 'Analyze call volume, connect duration, dispositions, and audio recordings.'}
             {activeSubTab === 'leaderboard' && 'Performance rankings based on call volume, conversions, and revenue generated.'}
-            {activeSubTab === 'user_report' && `Detailed performance breakdown for ${currentAgentReport?.name || 'Telecaller'}.`}
+            {activeSubTab === 'user_report' && `Detailed performance breakdown for ${currentAgentReport?.name || 'user'}.`}
           </p>
         </div>
 
@@ -562,7 +670,7 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
               <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3">
                 <div className="flex items-center justify-between text-xs font-mono text-slate-600 font-bold">
                   <span>Call Volume by Hour</span>
-                  <span className="text-[10px] text-slate-500">Peak: 12 PM - 02 PM</span>
+                  <span className="text-[10px] text-slate-500">{peakHourLabel}</span>
                 </div>
 
                 <div className="overflow-x-auto ios-scroll pb-2">
@@ -628,17 +736,6 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
                       { value: 'Converted', label: 'Converted' },
                       { value: 'RNR', label: 'RNR / Unreachable' },
                       { value: 'Open', label: 'Open' },
-                    ]}
-                    align="left"
-                  />
-
-                  {/* Agent Filter */}
-                  <CustomDropdown<string>
-                    value={agentFilter}
-                    onChange={(val) => setAgentFilter(val)}
-                    options={[
-                      { value: 'ALL', label: 'All Agents' },
-                      ...agents.map(ag => ({ value: ag.id, label: formatProperName(ag.name) }))
                     ]}
                     align="left"
                   />
@@ -972,13 +1069,35 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <label className="text-slate-600 font-bold">Select Telecaller:</label>
+            <div className="flex flex-wrap items-center gap-2">
+              {canPickManager && (
+                <CustomDropdown<string>
+                  value={managerFilter}
+                  onChange={(val) => {
+                    setManagerFilter(val);
+                    setUserFilter('ALL');
+                  }}
+                  options={[
+                    { value: 'ALL', label: 'All Managers' },
+                    ...reportManagers.map((manager) => ({
+                      value: manager.id,
+                      label: `${formatProperName(manager.name)} (team)`
+                    }))
+                  ]}
+                  align="right"
+                  wrapperClassName="min-w-[160px]"
+                />
+              )}
+              <label className="text-slate-600 font-bold">Select User:</label>
               <CustomDropdown<string>
                 value={selectedAgentId}
                 onChange={(val) => setSelectedAgentId(val)}
-                options={rankedAgents.map(ag => ({ value: ag.id, label: formatProperName(ag.name) }))}
+                options={selectableUsers.map((ag) => ({
+                  value: ag.id,
+                  label: `${formatProperName(ag.name)} (${roleLabel(ag)})`
+                }))}
                 align="right"
+                wrapperClassName="min-w-[180px]"
               />
             </div>
           </div>

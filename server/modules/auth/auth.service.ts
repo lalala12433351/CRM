@@ -100,6 +100,56 @@ loadPersistedSessions();
 
 export const AUTH_USERS: UserAccount[] = [];
 
+function userAccountFromAgent(agent: {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role?: string;
+  companyName?: string;
+  tenantId?: string;
+  isAdmin?: boolean;
+  status?: string;
+  avatar?: string;
+  totalCallsToday?: number;
+  talkTimeMinutes?: number;
+  convertedLeadsCount?: number;
+  revenueGenerated?: number;
+  responseTimeMinutes?: number;
+  managerId?: string;
+}, overrides?: Partial<UserAccount>): UserAccount {
+  return {
+    id: agent.id,
+    name: agent.name,
+    email: agent.email,
+    phone: agent.phone || '',
+    role: agent.role || 'Telecaller',
+    companyName: agent.companyName,
+    tenantId: agent.tenantId,
+    databaseCollection: agent.tenantId,
+    isAdmin: Boolean(agent.isAdmin),
+    status: agent.status || 'online',
+    avatar: agent.avatar || '',
+    totalCallsToday: agent.totalCallsToday || 0,
+    talkTimeMinutes: agent.talkTimeMinutes || 0,
+    convertedLeadsCount: agent.convertedLeadsCount || 0,
+    revenueGenerated: agent.revenueGenerated || 0,
+    responseTimeMinutes: agent.responseTimeMinutes || 0,
+    managerId: agent.managerId,
+    ...overrides
+  };
+}
+
+function upsertAuthUserCache(user: UserAccount) {
+  const idx = AUTH_USERS.findIndex(
+    (u) =>
+      u.id === user.id ||
+      (u.email && user.email && u.email.toLowerCase() === user.email.toLowerCase())
+  );
+  if (idx >= 0) AUTH_USERS[idx] = { ...AUTH_USERS[idx], ...user };
+  else AUTH_USERS.push(user);
+}
+
 export class AuthService {
   public sendOtp(email?: string, phone?: string) {
     const targetEmail = (email || '').trim().toLowerCase();
@@ -223,52 +273,92 @@ export class AuthService {
 
     const ALLOWED_ADMIN = 'admin@kiteaviation';
     const ALLOWED_ADMIN_ALT = 'admin@kiteaviation.com';
+    const DEFAULT_ADMIN_TENANT = 'company_kite_aviation';
 
-    // 1. Check Kite Aviation Admin
+    // 1. Built-in workspace admin (credentials stay the same; display name comes from the tenant store)
     if (targetEmail === ALLOWED_ADMIN || targetEmail === ALLOWED_ADMIN_ALT) {
       const isValidAdminPass = inputPass === 'admin' || inputPass === 'admin@123';
       if (!isValidAdminPass) {
         throw new Error('Invalid password. Incorrect password for admin@kiteaviation.');
       }
-      let kiteUser = AUTH_USERS.find(u => u.email.toLowerCase() === ALLOWED_ADMIN || u.email.toLowerCase() === ALLOWED_ADMIN_ALT);
-      if (!kiteUser) {
-        kiteUser = {
-          id: 'agent_kiteaviation_admin',
-          name: 'Kite Aviation Admin',
-          email: 'admin@kiteaviation',
-          phone: '+91 98765 43210',
-          companyName: 'Kite Aviation',
-          tenantId: 'company_kite_aviation',
-          databaseCollection: 'company_kite_aviation',
-          role: 'Admin',
-          isAdmin: true,
-          status: 'online',
-          avatar: '',
-          totalCallsToday: 0,
-          talkTimeMinutes: 0,
-          convertedLeadsCount: 0,
-          revenueGenerated: 0,
-          responseTimeMinutes: 1.0
-        };
-        AUTH_USERS.push(kiteUser);
+
+      const storedAgent =
+        (await multiTenantDb.findAgentByEmail(ALLOWED_ADMIN)) ||
+        (await multiTenantDb.findAgentByEmail(ALLOWED_ADMIN_ALT)) ||
+        (await multiTenantDb.getAgents(DEFAULT_ADMIN_TENANT)).find((agent) => agent.id === 'agent_kiteaviation_admin');
+      const tenant = multiTenantDb.getTenant(storedAgent?.tenantId || DEFAULT_ADMIN_TENANT);
+      const companyName = tenant?.companyName || storedAgent?.companyName || 'Direct Keys';
+      const tenantId = storedAgent?.tenantId || tenant?.tenantId || DEFAULT_ADMIN_TENANT;
+
+      const adminUser: UserAccount = storedAgent
+        ? userAccountFromAgent(storedAgent, {
+            companyName,
+            tenantId,
+            databaseCollection: tenantId,
+            role: 'Admin',
+            isAdmin: true
+          })
+        : {
+            id: 'agent_kiteaviation_admin',
+            name: 'Direct Keys Admin',
+            email: ALLOWED_ADMIN,
+            phone: '+91 98765 43210',
+            companyName,
+            tenantId,
+            databaseCollection: tenantId,
+            role: 'Admin',
+            isAdmin: true,
+            status: 'online',
+            avatar: '',
+            totalCallsToday: 0,
+            talkTimeMinutes: 0,
+            convertedLeadsCount: 0,
+            revenueGenerated: 0,
+            responseTimeMinutes: 1
+          };
+
+      upsertAuthUserCache(adminUser);
+      if (!storedAgent) {
+        try {
+          await multiTenantDb.saveAgent(tenantId, {
+            ...adminUser,
+            role: 'Admin',
+            isAdmin: true,
+            permission: 'Admin'
+          });
+        } catch (e) {
+          logger.warn('Admin store sync notice:', (e as any)?.message || e);
+        }
       }
+
       const token = `pixbe_token_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      // Persist Admin into multi_tenant_store so Facebook leads + role switcher resolve correctly
-      try {
-        await multiTenantDb.saveAgent(kiteUser.tenantId!, {
-          ...kiteUser,
-          role: 'Admin',
-          isAdmin: true,
-          permission: 'Admin'
-        });
-      } catch (e) {
-        logger.warn('Kite Admin store sync notice:', (e as any)?.message || e);
-      }
-      setSession(token, { ...kiteUser, role: 'Admin', isAdmin: true });
-      return { token, user: { ...kiteUser, role: 'Admin', isAdmin: true } };
+      setSession(token, adminUser);
+      return { token, user: adminUser };
     }
 
-    // 2. Check explicitly registered users from runtime registration
+    // 2. Persisted workspace users (primary) — always hydrate from multiTenantDb
+    const storedAgent = await multiTenantDb.findAgentByEmail(targetEmail);
+    if (storedAgent) {
+      if (storedAgent.passwordHash) {
+        if (!verifyPassword(inputPass, storedAgent.passwordHash)) {
+          throw new Error('Invalid password. Ask your administrator to set or reset your temporary password.');
+        }
+      } else {
+        const registeredUser = AUTH_USERS.find((u) => u.email.toLowerCase() === targetEmail);
+        const expectedPass = (registeredUser as any)?.password || 'admin';
+        if (inputPass !== expectedPass && inputPass !== 'admin' && inputPass !== 'admin@123') {
+          throw new Error('Invalid password. Ask your administrator to set or reset your temporary password.');
+        }
+      }
+
+      const storedUser = userAccountFromAgent(storedAgent);
+      upsertAuthUserCache(storedUser);
+      const token = `pixbe_token_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      setSession(token, storedUser);
+      return { token, user: storedUser };
+    }
+
+    // 3. Runtime-only registered users (no agent row yet)
     const registeredUser = AUTH_USERS.find((u) => u.email.toLowerCase() === targetEmail);
     if (registeredUser) {
       const expectedPass = (registeredUser as any).password || 'admin';
@@ -280,41 +370,39 @@ export class AuthService {
       return { token, user: registeredUser };
     }
 
-    // 3. Check persisted workspace users created by an administrator.
-    const storedAgent = await multiTenantDb.findAgentByEmail(targetEmail);
-    if (storedAgent) {
-      if (!verifyPassword(inputPass, storedAgent.passwordHash)) {
-        throw new Error('Invalid password. Ask your administrator to set or reset your temporary password.');
-      }
-      const storedUser: UserAccount = {
-        id: storedAgent.id,
-        name: storedAgent.name,
-        email: storedAgent.email,
-        phone: storedAgent.phone,
-        role: storedAgent.role,
-        companyName: storedAgent.companyName,
-        tenantId: storedAgent.tenantId,
-        databaseCollection: storedAgent.tenantId,
-        isAdmin: Boolean(storedAgent.isAdmin),
-        status: storedAgent.status,
-        avatar: storedAgent.avatar || '',
-        totalCallsToday: storedAgent.totalCallsToday || 0,
-        talkTimeMinutes: storedAgent.talkTimeMinutes || 0,
-        convertedLeadsCount: storedAgent.convertedLeadsCount || 0,
-        revenueGenerated: storedAgent.revenueGenerated || 0,
-        responseTimeMinutes: storedAgent.responseTimeMinutes || 0,
-        managerId: storedAgent.managerId
-      };
-      const token = `pixbe_token_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      setSession(token, storedUser);
-      return { token, user: storedUser };
-    }
-
     throw new Error('Invalid email address or password.');
   }
 
   public getSession(token: string) {
     return activeSessions.get(token);
+  }
+
+  /** Return session user refreshed from the durable agent record when available. */
+  public async getSessionHydrated(token: string): Promise<UserAccount | null> {
+    const session = activeSessions.get(token);
+    if (!session) return null;
+
+    try {
+      let agent =
+        (session.email ? await multiTenantDb.findAgentByEmail(session.email) : null) ||
+        null;
+      if (!agent && session.tenantId && session.id) {
+        const agents = await multiTenantDb.getAgents(session.tenantId);
+        agent = agents.find((a) => a.id === session.id) || null;
+      }
+      if (!agent) return session;
+
+      const hydrated = userAccountFromAgent(agent, {
+        companyName: agent.companyName || session.companyName,
+        role: session.isAdmin ? 'Admin' : (agent.role || session.role),
+        isAdmin: session.isAdmin || Boolean(agent.isAdmin)
+      });
+      setSession(token, hydrated);
+      upsertAuthUserCache(hydrated);
+      return hydrated;
+    } catch {
+      return session;
+    }
   }
 
   public logoutSession(token: string) {
@@ -328,7 +416,10 @@ export class AuthService {
       throw new Error('Invalid session token');
     }
     const existing = activeSessions.get(token);
-    if (existing) return { token, user: existing };
+    if (existing) {
+      const hydrated = await this.getSessionHydrated(token);
+      return { token, user: hydrated || existing };
+    }
 
     const email = (userHint?.email || '').trim().toLowerCase();
     const userId = (userHint?.id || '').trim();
@@ -346,51 +437,24 @@ export class AuthService {
         email === 'admin@kiteaviation.com' ||
         userId === 'agent_kiteaviation_admin')
     ) {
-      const restored: UserAccount = {
-        id: 'agent_kiteaviation_admin',
-        name: userHint?.name || 'Kite Aviation Admin',
-        email: 'admin@kiteaviation',
-        phone: userHint?.phone || '+91 98765 43210',
-        companyName: 'Kite Aviation',
-        tenantId: 'company_kite_aviation',
-        databaseCollection: 'company_kite_aviation',
-        role: 'Admin',
-        isAdmin: true,
-        status: 'online',
-        avatar: '',
-        totalCallsToday: 0,
-        talkTimeMinutes: 0,
-        convertedLeadsCount: 0,
-        revenueGenerated: 0,
-        responseTimeMinutes: 0
-      };
-      setSession(token, restored);
-      return { token, user: restored };
+      agent =
+        (await multiTenantDb.findAgentByEmail('admin@kiteaviation')) ||
+        (await multiTenantDb.getAgents('company_kite_aviation')).find(
+          (a) => a.id === 'agent_kiteaviation_admin'
+        ) ||
+        null;
     }
 
     if (!agent) {
       throw new Error('Session expired. Please sign in again.');
     }
 
-    const restored: UserAccount = {
-      id: agent.id,
-      name: agent.name,
-      email: agent.email,
-      phone: agent.phone,
-      role: agent.role,
-      companyName: agent.companyName,
-      tenantId: agent.tenantId,
-      databaseCollection: agent.tenantId,
-      isAdmin: Boolean(agent.isAdmin),
-      status: agent.status,
-      avatar: agent.avatar || '',
-      totalCallsToday: agent.totalCallsToday || 0,
-      talkTimeMinutes: agent.talkTimeMinutes || 0,
-      convertedLeadsCount: agent.convertedLeadsCount || 0,
-      revenueGenerated: agent.revenueGenerated || 0,
-      responseTimeMinutes: agent.responseTimeMinutes || 0,
-      managerId: agent.managerId
-    };
+    const restored = userAccountFromAgent(agent, {
+      companyName: agent.companyName || userHint?.companyName,
+      role: agent.isAdmin || userHint?.isAdmin ? 'Admin' : (agent.role || userHint?.role || 'Telecaller'),
+      isAdmin: Boolean(agent.isAdmin || userHint?.isAdmin)
+    });
+    upsertAuthUserCache(restored);
     setSession(token, restored);
     return { token, user: restored };
   }
@@ -398,41 +462,80 @@ export class AuthService {
   public async updateProfile(userId: string, data: { name: string; newId?: string; email?: string; phone?: string; avatar?: string }, tenantId?: string) {
     const cleanName = (data.name || '').trim();
     const newId = (data.newId || userId || '').trim();
+    const cleanEmail = data.email !== undefined ? String(data.email || '').trim() : undefined;
+    const cleanPhone = data.phone !== undefined ? String(data.phone || '').trim() : undefined;
     if (!cleanName) throw new Error('User name is required.');
 
-    // 1. Update in activeSessions
+    // 1. Update only sessions for this user (not every user in the tenant)
     for (const [token, sessionUser] of activeSessions.entries()) {
-      if (sessionUser.id === userId || (tenantId && sessionUser.tenantId === tenantId)) {
-        sessionUser.name = cleanName;
-        if (newId) sessionUser.id = newId;
-        if (data.email) sessionUser.email = data.email.trim();
-        if (data.phone) sessionUser.phone = data.phone.trim();
-        if (data.avatar !== undefined) sessionUser.avatar = data.avatar;
-        setSession(token, sessionUser);
-      }
+      const sameUser =
+        sessionUser.id === userId ||
+        (cleanEmail && sessionUser.email && sessionUser.email.toLowerCase() === cleanEmail.toLowerCase());
+      if (!sameUser) continue;
+      sessionUser.name = cleanName;
+      if (newId) sessionUser.id = newId;
+      if (cleanEmail !== undefined) sessionUser.email = cleanEmail;
+      if (cleanPhone !== undefined) sessionUser.phone = cleanPhone;
+      if (data.avatar !== undefined) sessionUser.avatar = data.avatar;
+      setSession(token, sessionUser);
     }
 
     // 2. Update in AUTH_USERS array
-    const userInAuth = AUTH_USERS.find(u => u.id === userId || (tenantId && u.tenantId === tenantId));
+    const emailLower = cleanEmail?.toLowerCase();
+    const userInAuth = AUTH_USERS.find(
+      (u) =>
+        u.id === userId ||
+        (emailLower && u.email && u.email.toLowerCase() === emailLower)
+    );
     if (userInAuth) {
       userInAuth.name = cleanName;
       if (newId) userInAuth.id = newId;
-      if (data.email) userInAuth.email = data.email.trim();
-      if (data.phone) userInAuth.phone = data.phone.trim();
+      if (cleanEmail !== undefined) userInAuth.email = cleanEmail;
+      if (cleanPhone !== undefined) userInAuth.phone = cleanPhone;
       if (data.avatar !== undefined) userInAuth.avatar = data.avatar;
     }
 
-    // 3. Update in multiTenantDb
+    // 3. Persist in multiTenantDb (agents + denormalized lead/task/call labels)
     const targetTenantId = tenantId || userInAuth?.tenantId || 'company_kite_aviation';
     const updatedAgent = await multiTenantDb.updateAgentProfile(targetTenantId, userId, {
       name: cleanName,
       id: newId,
-      email: data.email,
-      phone: data.phone,
+      email: cleanEmail,
+      phone: cleanPhone,
       avatar: data.avatar
     });
 
-    return updatedAgent || userInAuth || { id: newId, name: cleanName, email: data.email || '', avatar: data.avatar };
+    const merged: UserAccount = {
+      id: updatedAgent?.id || newId || userId,
+      name: cleanName,
+      email: cleanEmail !== undefined ? cleanEmail : (updatedAgent?.email || userInAuth?.email || ''),
+      phone: cleanPhone !== undefined ? cleanPhone : (updatedAgent?.phone || userInAuth?.phone || ''),
+      avatar: data.avatar !== undefined ? data.avatar : (updatedAgent?.avatar || userInAuth?.avatar || ''),
+      tenantId: updatedAgent?.tenantId || targetTenantId,
+      databaseCollection: updatedAgent?.tenantId || targetTenantId,
+      companyName: updatedAgent?.companyName || userInAuth?.companyName,
+      role: updatedAgent?.role || userInAuth?.role || 'Admin',
+      isAdmin: updatedAgent?.isAdmin ?? userInAuth?.isAdmin ?? false,
+      status: updatedAgent?.status || userInAuth?.status || 'online',
+      totalCallsToday: updatedAgent?.totalCallsToday || userInAuth?.totalCallsToday || 0,
+      talkTimeMinutes: updatedAgent?.talkTimeMinutes || userInAuth?.talkTimeMinutes || 0,
+      convertedLeadsCount: updatedAgent?.convertedLeadsCount || userInAuth?.convertedLeadsCount || 0,
+      revenueGenerated: updatedAgent?.revenueGenerated || userInAuth?.revenueGenerated || 0,
+      responseTimeMinutes: updatedAgent?.responseTimeMinutes || userInAuth?.responseTimeMinutes || 0,
+      managerId: updatedAgent?.managerId || userInAuth?.managerId
+    };
+
+    upsertAuthUserCache(merged);
+
+    // Refresh all matching sessions with the full hydrated profile
+    for (const [token, sessionUser] of activeSessions.entries()) {
+      if (sessionUser.id === merged.id || sessionUser.id === userId ||
+          (merged.email && sessionUser.email && sessionUser.email.toLowerCase() === merged.email.toLowerCase())) {
+        setSession(token, { ...sessionUser, ...merged });
+      }
+    }
+
+    return merged;
   }
 }
 

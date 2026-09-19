@@ -125,7 +125,7 @@ export const LoginPage: React.FC<LoginViewProps> = ({ agents, onLogin, onSwitchT
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Email or Username (e.g. admin@kiteaviation)"
+                  placeholder="Email or Username"
                   className="w-full pl-11 pr-4 py-3.5 rounded-full border border-gray-200 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-normal bg-white"
                 />
               </div>

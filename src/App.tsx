@@ -172,7 +172,16 @@ export function App() {
       return 'general';
     }
   });
-  const [activeAgentId, setActiveAgentId] = useState<string>('agent-ms');
+  const [activeAgentId, setActiveAgentId] = useState<string>(() => {
+    try {
+      const stored = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pixbe_auth_user') : null;
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.id) return parsed.id;
+      }
+    } catch {}
+    return '';
+  });
   const [selectedCampaignHandle, setSelectedCampaignHandle] = useState<string>('@master-form-iata-cargo');
   const [activeFilterId, setActiveFilterId] = useState<string>('all_leads');
 
@@ -201,6 +210,29 @@ export function App() {
     return 'login';
   });
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
+
+  // Re-validate session against the server (clears stale offline tokens)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const hadSession =
+        typeof sessionStorage !== 'undefined' &&
+        Boolean(sessionStorage.getItem('pixbe_auth_token') || sessionStorage.getItem('pixbe_auth_user'));
+      const user = await verifyCurrentSession();
+      if (cancelled) return;
+      if (user) {
+        setCurrentUser(user);
+        setActiveAgentId(user.id);
+        setIsAuthenticated(true);
+      } else if (hadSession) {
+        setCurrentUser(null);
+        setIsAuthenticated(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Keep navigation states synchronized with browser URL & localStorage
   useEffect(() => {
@@ -311,7 +343,7 @@ export function App() {
   const [workspaceEmail, setWorkspaceEmail] = useSyncState<{ id: string; email: string }>('workspaceEmail', activeTenantId);
   const [workspaceCurrency, setWorkspaceCurrency] = useSyncState<{ id: string; code: string }>('workspaceCurrency', activeTenantId);
 
-  const rawCompanyName = currentUser?.companyName || (workspaceProfile && workspaceProfile[0]?.name) || '';
+  const rawCompanyName = (workspaceProfile && workspaceProfile[0]?.name) || currentUser?.companyName || '';
   const companyName = rawCompanyName;
 
   const INITIAL_TASK_CATEGORIES: TaskTypeCategory[] = [
@@ -458,6 +490,33 @@ export function App() {
       }
       if (agentsRes?.success && Array.isArray(agentsRes.agents)) {
         setAgents(agentsRes.agents);
+        // Keep the signed-in profile in sync with the persisted agent record
+        setCurrentUser((prev) => {
+          if (!prev) return prev;
+          const match = agentsRes.agents.find(
+            (a: any) =>
+              a.id === prev.id ||
+              (a.email && prev.email && String(a.email).toLowerCase() === String(prev.email).toLowerCase())
+          );
+          if (!match) return prev;
+          const synced = {
+            ...prev,
+            ...match,
+            id: match.id || prev.id,
+            name: match.name || prev.name,
+            email: match.email || prev.email,
+            phone: match.phone ?? prev.phone,
+            avatar: match.avatar !== undefined ? match.avatar : prev.avatar,
+            tenantId: match.tenantId || prev.tenantId,
+            companyName: match.companyName || prev.companyName,
+            role: match.role || prev.role,
+            isAdmin: match.isAdmin ?? prev.isAdmin
+          };
+          try {
+            sessionStorage.setItem('pixbe_auth_user', JSON.stringify(synced));
+          } catch {}
+          return synced;
+        });
       }
       if (pipelinesRes?.success && Array.isArray(pipelinesRes.stages)) {
         setStages(pipelinesRes.stages);
@@ -514,7 +573,17 @@ export function App() {
       void campaignsRes;
       if (workspaceRes?.success && workspaceRes.settings) {
         const ws = workspaceRes.settings;
-        if (ws.companyName) setWorkspaceProfile([{ id: 'default_workspace', name: ws.companyName }]);
+        if (ws.companyName) {
+          setWorkspaceProfile([{ id: 'default_workspace', name: ws.companyName }]);
+          setCurrentUser((prev) => {
+            if (!prev || prev.companyName === ws.companyName) return prev;
+            const updated = { ...prev, companyName: ws.companyName };
+            try {
+              sessionStorage.setItem('pixbe_auth_user', JSON.stringify(updated));
+            } catch {}
+            return updated;
+          });
+        }
         if (ws.supportEmail) setWorkspaceEmail([{ id: 'default_email', email: ws.supportEmail }]);
         if (ws.currency) setWorkspaceCurrency([{ id: 'default_currency', code: ws.currency }]);
         if (Array.isArray(ws.permissionTemplates) && ws.permissionTemplates.length > 0) {
@@ -700,10 +769,29 @@ export function App() {
 
   const activeAgentsList = agents && agents.length > 0 ? agents : (currentUser ? [currentUser] : []);
   const matchedDbAgent = currentUser
-    ? activeAgentsList.find((a) => a.id === currentUser.id || (a.email && currentUser.email && a.email.toLowerCase() === currentUser.email.toLowerCase()) || (a.name && currentUser.name && a.name.toLowerCase() === currentUser.name.toLowerCase()))
+    ? activeAgentsList.find((a) =>
+        a.id === currentUser.id ||
+        (a.email && currentUser.email && a.email.toLowerCase() === currentUser.email.toLowerCase())
+      ) || null
     : null;
-  const activeAgent = matchedDbAgent
-    ? { ...currentUser, ...matchedDbAgent, avatar: matchedDbAgent.avatar || currentUser?.avatar || '' }
+  // Prefer the live session user for identity fields so profile edits show immediately
+  // across Navbar / Settings / Leads without waiting for a full tenant reload.
+  const activeAgent = matchedDbAgent && currentUser
+    ? {
+        ...matchedDbAgent,
+        ...currentUser,
+        id: currentUser.id || matchedDbAgent.id,
+        name: currentUser.name || matchedDbAgent.name,
+        email: currentUser.email || matchedDbAgent.email,
+        phone: currentUser.phone ?? matchedDbAgent.phone,
+        avatar: currentUser.avatar !== undefined && currentUser.avatar !== null
+          ? currentUser.avatar
+          : (matchedDbAgent.avatar || ''),
+        role: currentUser.role || matchedDbAgent.role,
+        isAdmin: currentUser.isAdmin ?? matchedDbAgent.isAdmin,
+        tenantId: currentUser.tenantId || matchedDbAgent.tenantId,
+        companyName: currentUser.companyName || matchedDbAgent.companyName
+      }
     : (currentUser || activeAgentsList.find((a) => a.id === activeAgentId) || activeAgentsList[0]);
   const activeAgentRights = getAgentPermissionRights(activeAgent, activeTemplates);
   const isAdmin = isAgentAdmin(activeAgent);
@@ -1722,9 +1810,10 @@ export function App() {
               <ReportsView
                 initialSubTab={reportsSubTab}
                 callRecords={callRecords}
-                agents={agents}
+                agents={visibleAgents}
                 leads={visibleLeads}
                 activities={activities}
+                currentUser={activeAgent}
                 onOpenLeadDetail={(lead) => setDetailLead(lead)}
                 onUpdateCallRecord={handleUpdateCallRecord}
               />
@@ -1894,12 +1983,36 @@ export function App() {
                 });
               }}
               onUpdateCurrentUser={(updatedUser) => {
+                const prevId = activeAgent?.id || currentUser?.id;
+                const prevEmail = (activeAgent?.email || currentUser?.email || '').toLowerCase();
+
                 setCurrentUser(updatedUser);
                 setActiveAgentId(updatedUser.id);
-                setAgents((prev) => prev.map((a) => (a.id === activeAgent?.id ? updatedUser : a)));
+
+                setAgents((prev) => {
+                  const list = prev || [];
+                  const idx = list.findIndex(
+                    (a) =>
+                      a.id === prevId ||
+                      a.id === updatedUser.id ||
+                      (prevEmail && a.email && a.email.toLowerCase() === prevEmail) ||
+                      (updatedUser.email && a.email && a.email.toLowerCase() === updatedUser.email.toLowerCase())
+                  );
+                  if (idx >= 0) {
+                    const next = [...list];
+                    next[idx] = { ...list[idx], ...updatedUser };
+                    return next;
+                  }
+                  return [updatedUser, ...list];
+                });
+
                 if (typeof sessionStorage !== 'undefined') {
                   sessionStorage.setItem('pixbe_auth_user', JSON.stringify(updatedUser));
+                  sessionStorage.removeItem('pixbe_current_user');
                 }
+
+                // Reload agents/leads/tasks/calls from DB so denormalized labels match primary store
+                void loadTenantDomainData(updatedUser.tenantId || activeTenantId);
               }}
               customFields={activeCustomFields}
               onUpdateFields={(updatedFields) => {

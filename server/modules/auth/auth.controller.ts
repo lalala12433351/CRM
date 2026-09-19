@@ -56,7 +56,7 @@ export class AuthController {
     }
   }
 
-  public getMe(req: Request, res: Response) {
+  public async getMe(req: Request, res: Response) {
     try {
       const authHeader = req.headers.authorization || '';
       const token = authHeader.replace('Bearer ', '').trim();
@@ -65,7 +65,7 @@ export class AuthController {
         return res.status(401).json({ error: 'Unauthorized / Session Expired' });
       }
 
-      const user = authService.getSession(token);
+      const user = await authService.getSessionHydrated(token);
       if (!user) {
         return res.status(401).json({ error: 'Unauthorized / Session Expired' });
       }
@@ -83,10 +83,18 @@ export class AuthController {
       const currentSession = token ? authService.getSession(token) : null;
       const tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string) || currentSession?.tenantId || 'company_kite_aviation';
       const isAdmin = Boolean(currentSession?.isAdmin) || currentSession?.role === 'Admin';
-      const userId = isAdmin && req.body?.currentId ? req.body.currentId : currentSession?.id;
+      const requestedId = typeof req.body?.currentId === 'string' ? req.body.currentId.trim() : '';
+      const userId = isAdmin && requestedId ? requestedId : currentSession?.id;
       if (!userId || !currentSession) return res.status(401).json({ error: 'Unauthorized / Session Expired' });
 
-      const updated = await authService.updateProfile(userId, req.body, tenantId);
+      const updated = await authService.updateProfile(userId, {
+        name: req.body?.name,
+        newId: req.body?.newId,
+        email: req.body?.email,
+        phone: req.body?.phone,
+        avatar: req.body?.avatar
+      }, tenantId);
+
       res.json({
         success: true,
         message: 'User profile updated successfully',

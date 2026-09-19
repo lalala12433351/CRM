@@ -17,7 +17,6 @@ import {
   Building2,
   Check,
   Plus,
-  Plane,
   X,
   Command,
   Search,
@@ -53,36 +52,14 @@ export interface WorkAccount {
 const DEFAULT_WORK_ACCOUNTS: WorkAccount[] = [
   {
     id: 'acc-main',
-    name: 'Primary Workspace',
-    orgName: 'Main Organization HQ',
+    name: 'Workspace',
+    orgName: 'Organization',
     type: 'Primary Account',
-    badge: 'Sales & CRM',
+    badge: 'CRM',
     color: 'bg-[#5034a8]',
-    iconLetter: 'P',
-    membersCount: 12,
-    plan: 'Enterprise'
-  },
-  {
-    id: 'acc-1',
-    name: 'Real Estate & Sales',
-    orgName: 'Sales Group HQ',
-    type: 'Primary Account',
-    badge: 'Real Estate',
-    color: 'bg-indigo-600',
-    iconLetter: 'R',
-    membersCount: 24,
-    plan: 'Enterprise'
-  },
-  {
-    id: 'acc-2',
-    name: 'Enterprise SaaS',
-    orgName: 'Tech Solutions Workspace',
-    type: 'B2B Software Workspace',
-    badge: 'B2B SaaS',
-    color: 'bg-emerald-600',
-    iconLetter: 'S',
-    membersCount: 12,
-    plan: 'Pro Team'
+    iconLetter: 'W',
+    membersCount: 0,
+    plan: 'Workspace'
   }
 ];
 
@@ -255,7 +232,7 @@ const accountDropdownRef = useRef<HTMLDivElement>(null);
               title="Switch Workspace"
             >
               <div className="w-6 h-6 rounded-full bg-[#5034a8] text-white flex items-center justify-center font-bold text-xs shadow-2xs shrink-0">
-                <Plane className="w-3.5 h-3.5 transform -rotate-45" />
+                {(currentWorkspaceName || 'W').charAt(0).toUpperCase()}
               </div>
               <span className="font-semibold text-xs md:text-sm text-slate-800 tracking-tight truncate max-w-[120px] sm:max-w-[220px] md:max-w-none">
                 {currentWorkspaceName}

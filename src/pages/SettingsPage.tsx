@@ -329,50 +329,59 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
         avatar: profileAvatar
       };
 
-      // 1. Immediately update active agent and UI
-      if (onUpdateCurrentUser) {
-        onUpdateCurrentUser(updatedUser);
+      // 1. Persist to backend first so Navbar / Leads / reload stay consistent
+      const response = await fetchWithTenantAuth('/api/auth/profile', {
+        method: 'PUT',
+        body: JSON.stringify({
+          currentId: activeAgent.id,
+          name: updatedUser.name,
+          email: updatedUser.email,
+          phone: updatedUser.phone,
+          avatar: updatedUser.avatar
+        })
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data?.success === false) {
+        throw new Error(data?.error || 'Failed to save profile to database');
       }
 
-      setLocalAgents(prev => prev.map(a => a.id === activeAgent.id ? updatedUser : a));
-      if (onUpdateAgents) {
-        onUpdateAgents(localAgents.map(a => a.id === activeAgent.id ? updatedUser : a));
+      const savedUser: Agent = {
+        ...updatedUser,
+        ...(data?.user || {}),
+        name: data?.user?.name || updatedUser.name,
+        email: data?.user?.email ?? updatedUser.email,
+        phone: data?.user?.phone ?? updatedUser.phone,
+        avatar: data?.user?.avatar !== undefined ? data.user.avatar : updatedUser.avatar,
+        id: data?.user?.id || updatedUser.id
+      };
+
+      // 2. Propagate to App state (Navbar, leads ownership, session)
+      if (onUpdateCurrentUser) {
+        onUpdateCurrentUser(savedUser);
       }
+
+      setLocalAgents((prev) =>
+        prev.map((a) =>
+          a.id === activeAgent.id ||
+          a.id === savedUser.id ||
+          (a.email && savedUser.email && a.email.toLowerCase() === savedUser.email.toLowerCase())
+            ? { ...a, ...savedUser }
+            : a
+        )
+      );
+
+      setProfileName(savedUser.name || '');
+      setProfileEmail(savedUser.email || '');
+      setProfilePhone(savedUser.phone || '');
+      setProfileAvatar(savedUser.avatar || '');
 
       try {
         if (typeof sessionStorage !== 'undefined') {
-          sessionStorage.setItem('pixbe_auth_user', JSON.stringify(updatedUser));
-          sessionStorage.setItem('pixbe_current_user', JSON.stringify(updatedUser));
+          sessionStorage.setItem('pixbe_auth_user', JSON.stringify(savedUser));
+          sessionStorage.removeItem('pixbe_current_user');
         }
       } catch (e) {}
-
-      // 2. Sync to backend API with a fast timeout fallback
-      const token = typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('pixbe_auth_token') || '') : '';
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-      try {
-        await fetch('/api/auth/profile', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-            'x-tenant-id': activeAgent.tenantId || 'company_kite_aviation'
-          },
-          body: JSON.stringify({
-            currentId: activeAgent.id,
-            name: profileName.trim(),
-            email: profileEmail.trim(),
-            phone: profilePhone.trim(),
-            avatar: profileAvatar
-          }),
-          signal: controller.signal
-        });
-      } catch (fetchErr) {
-        console.warn('Backend sync notice (saved locally):', fetchErr);
-      } finally {
-        clearTimeout(timeoutId);
-      }
 
       if (onShowToast) {
         onShowToast('Profile updated successfully!');
@@ -380,10 +389,7 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
       setShowProfileConfirmModal(false);
     } catch (err: any) {
       console.warn('Profile update error:', err);
-      if (onShowToast) {
-        onShowToast('Profile updated!');
-      }
-      setShowProfileConfirmModal(false);
+      toast.error(err?.message || 'Failed to update profile. Please try again.', 'Profile Settings');
     } finally {
       setIsUpdatingProfile(false);
     }

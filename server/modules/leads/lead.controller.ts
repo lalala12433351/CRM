@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { leadService } from './lead.service';
 import { logger } from '../../utils/logger';
 import { AuthenticatedRequest } from '../../middleware/auth';
-import { multiTenantDb } from '../../services/multiTenantDb';
+import { getAccessScope } from '../../utils/accessScope';
 
 function isFollowUpStatus(status?: string): boolean {
   if (!status) return false;
@@ -18,28 +18,12 @@ function isFollowUpStatus(status?: string): boolean {
 }
 
 export class LeadController {
-  private async getAccessScope(req: Request) {
-    const authReq = req as AuthenticatedRequest;
-    const role = (authReq.user?.role || '').toLowerCase();
-    const isAdmin = Boolean(authReq.user?.isAdmin) || role === 'admin' || role === 'root';
-    if (isAdmin) return { isAdmin: true, agentIds: [] as string[] };
-    if (role === 'manager') {
-      const agents = await multiTenantDb.getAgents(authReq.tenantId || 'default_tenant');
-      return {
-        isAdmin: false,
-        agentIds: [authReq.user!.id, ...agents.filter((agent) => agent.managerId === authReq.user!.id).map((agent) => agent.id)]
-      };
-    }
-    // Telecaller / Caller / Counselor — only self
-    return { isAdmin: false, agentIds: authReq.user?.id ? [authReq.user.id] : [] };
-  }
-
   public async getLeads(req: Request, res: Response) {
     try {
       const authReq = req as any; // Using any for AuthenticatedRequest fields
       const tenantId = authReq.tenantId || (req.headers['x-tenant-id'] as string) || process.env.DEFAULT_TENANT_ID || 'default_tenant';
       
-      const scope = await this.getAccessScope(req);
+      const scope = await getAccessScope(req as AuthenticatedRequest);
       
       const leads = await leadService.getLeads(
         tenantId,
@@ -85,7 +69,7 @@ export class LeadController {
     try {
       const tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string) || req.body?.tenantId || process.env.DEFAULT_TENANT_ID || 'default_tenant';
       const authReq = req as AuthenticatedRequest;
-      const scope = await this.getAccessScope(req);
+      const scope = await getAccessScope(req as AuthenticatedRequest);
       const allLeads = await leadService.getLeads(tenantId, [], true);
       const existing = req.body?.id ? allLeads.find((lead: any) => lead.id === req.body.id) : null;
       if (existing && !scope.isAdmin && !scope.agentIds.includes(existing.ownerAgentId)) {
@@ -118,7 +102,7 @@ export class LeadController {
     try {
       const tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string) || process.env.DEFAULT_TENANT_ID || 'default_tenant';
       const leadId = req.params.id;
-      const scope = await this.getAccessScope(req);
+      const scope = await getAccessScope(req as AuthenticatedRequest);
       const allLeads = await leadService.getLeads(tenantId, [], true);
       const existing = allLeads.find((lead: any) => lead.id === leadId);
       if (existing && !scope.isAdmin && !scope.agentIds.includes(existing.ownerAgentId)) {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface UserAvatarProps {
   name: string;
@@ -37,6 +37,10 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
   const rawAvatar = (avatarUrl || avatar || '').trim();
   const initial = (name?.trim()?.charAt(0) || 'U').toUpperCase();
   const gradient = getAvatarColor(name);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [rawAvatar]);
 
   const sizeClasses = {
     xs: 'w-6 h-6 text-[10px]',

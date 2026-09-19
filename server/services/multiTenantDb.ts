@@ -430,29 +430,16 @@ export class MultiTenantDatabase {
     }
   }
 
-  private storeCandidatePaths(): string[] {
+  /** Seed sources only — never used for runtime reads once primary exists. */
+  private seedCandidatePaths(): string[] {
     const cwd = process.cwd();
     const candidates = [
-      STORE_PATH,
       MIRROR_STORE_PATH,
       LEGACY_STORE_PATH,
       path.join(cwd, 'dist', '.data', 'multi_tenant_store.json'),
       path.join(cwd, 'data-seed', 'multi_tenant_store.json'),
     ];
-    return [...new Set(candidates.filter(Boolean))];
-  }
-
-  private pickNewestStorePath(): string | null {
-    // Prefer the newest readable copy so a git-pulled / built-in .data can replace a stale LocalAppData file.
-    let best: { path: string; mtime: number } | null = null;
-    for (const p of this.storeCandidatePaths()) {
-      try {
-        if (!fs.existsSync(p)) continue;
-        const mtime = fs.statSync(p).mtimeMs;
-        if (!best || mtime > best.mtime) best = { path: p, mtime };
-      } catch {}
-    }
-    return best?.path || null;
+    return [...new Set(candidates.filter((p) => p && p !== STORE_PATH))];
   }
 
   private initLocalStore() {
@@ -460,32 +447,34 @@ export class MultiTenantDatabase {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
       }
-      // Seed primary from repo / build / Docker seed when primary is missing
+
+      // Primary-only contract: load LocalAppData / PIXBE_DATA_DIR exclusively.
+      // Seed once from project .data (or build seed) only when primary is missing.
       if (!fs.existsSync(STORE_PATH)) {
-        const seed =
-          this.storeCandidatePaths().find((p) => p !== STORE_PATH && fs.existsSync(p)) || null;
+        const seed = this.seedCandidatePaths().find((p) => fs.existsSync(p)) || null;
         if (seed) {
           try {
             fs.copyFileSync(seed, STORE_PATH);
-            logger.info('[MultiTenantDB] Seeded primary store from ' + seed);
+            logger.info('[MultiTenantDB] Seeded primary store from ' + seed + ' → ' + STORE_PATH);
           } catch (migErr: any) {
             logger.warn('[MultiTenantDB] Store seed notice:', migErr?.message || migErr);
           }
         }
       }
-      const loadPath = this.pickNewestStorePath();
-      if (loadPath) {
-        const raw = fs.readFileSync(loadPath, 'utf-8');
+
+      if (fs.existsSync(STORE_PATH)) {
+        const raw = fs.readFileSync(STORE_PATH, 'utf-8');
         this.hydrateStoreFromParsed(JSON.parse(raw));
-        if (loadPath !== STORE_PATH) {
-          logger.info('[MultiTenantDB] Loaded store from ' + loadPath);
-          // Promote newest copy into primary + project mirror so builds/git stay aligned
-          this.saveStoreImmediate();
-        }
+        logger.info('[MultiTenantDB] Loaded primary store from ' + STORE_PATH);
         this.healOrphanLeadOwners();
+        this.healDenormalizedAgentLabels();
+        // Mirror primary → project .data so git/visibility stays aligned without flipping the source of truth
+        this.saveStoreImmediate();
       } else {
+        logger.info('[MultiTenantDB] No store found; initializing empty primary at ' + STORE_PATH);
         this.saveStoreImmediate();
       }
+
       process.once('exit', () => {
         try { this.saveStoreImmediate(); } catch {}
       });
@@ -533,6 +522,67 @@ export class MultiTenantDatabase {
     }
   }
 
+  /** Rewrite denormalized owner/assignee labels to match the current agent name for each id. */
+  private healDenormalizedAgentLabels() {
+    let repaired = 0;
+    const tenantIds = new Set<string>([
+      ...Object.keys(this.store.agents || {}),
+      ...Object.keys(this.store.leads || {}),
+      ...Object.keys(this.store.tasks || {}),
+      ...Object.keys(this.store.calls || {}),
+      ...Object.keys(this.store.activities || {})
+    ]);
+
+    for (const tenantId of tenantIds) {
+      const agents = this.store.agents[tenantId] || [];
+      if (!agents.length) continue;
+      const byId = new Map(agents.map((a) => [a.id, a]));
+
+      for (const lead of this.store.leads[tenantId] || []) {
+        const agent = lead.ownerAgentId ? byId.get(lead.ownerAgentId) : undefined;
+        if (agent && lead.ownerAgentName !== agent.name) {
+          lead.ownerAgentName = agent.name;
+          repaired++;
+        }
+      }
+
+      for (const task of this.store.tasks[tenantId] || []) {
+        const agent = task.assigneeAgentId ? byId.get(task.assigneeAgentId) : undefined;
+        if (agent && task.assigneeAgentName !== agent.name) {
+          task.assigneeAgentName = agent.name;
+          repaired++;
+        }
+      }
+
+      for (const call of this.store.calls[tenantId] || []) {
+        const agent = call.agentId ? byId.get(call.agentId) : undefined;
+        if (agent) {
+          if (call.agentName !== agent.name) {
+            call.agentName = agent.name;
+            repaired++;
+          }
+          if (call.assigneeName && call.assigneeName !== agent.name) {
+            call.assigneeName = agent.name;
+            repaired++;
+          }
+        }
+      }
+
+      for (const act of this.store.activities[tenantId] || []) {
+        const agent = act.agentId ? byId.get(act.agentId) : undefined;
+        if (agent && act.agentName !== agent.name) {
+          act.agentName = agent.name;
+          repaired++;
+        }
+      }
+    }
+
+    if (repaired > 0) {
+      logger.info(`[MultiTenantDB] Healed ${repaired} denormalized agent label(s) from current agent profiles`);
+      this.saveStoreImmediate();
+    }
+  }
+
   private writeStoreFile(targetPath: string, payload: string): boolean {
     const dir = path.dirname(targetPath);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -562,9 +612,12 @@ export class MultiTenantDatabase {
   private saveStoreImmediate() {
     const payload = JSON.stringify(this.store, null, 2);
     const okPrimary = this.writeStoreFile(STORE_PATH, payload);
-    // Best-effort mirror into project .data for visibility / backup
+    // Best-effort mirror into project .data for visibility / backup (never the read source when primary exists)
     if (MIRROR_STORE_PATH !== STORE_PATH) {
-      this.writeStoreFile(MIRROR_STORE_PATH, payload);
+      const okMirror = this.writeStoreFile(MIRROR_STORE_PATH, payload);
+      if (!okMirror) {
+        logger.warn('[MultiTenantDB] Mirror write failed for ' + MIRROR_STORE_PATH);
+      }
     }
     this.dirty = false;
     if (!okPrimary) {
@@ -1006,22 +1059,30 @@ export class MultiTenantDatabase {
       this.store.agents[tenantId] = [];
     }
 
-    const agentIndex = this.store.agents[tenantId].findIndex((a) => a.id === currentId);
+    const agents = this.store.agents[tenantId];
+    let agentIndex = agents.findIndex((a) => a.id === currentId);
+    if (agentIndex < 0 && data.email) {
+      const emailLower = data.email.trim().toLowerCase();
+      agentIndex = agents.findIndex((a) => (a.email || '').toLowerCase() === emailLower);
+    }
+
     let agent: TenantAgent;
+    const previous = agentIndex >= 0 ? agents[agentIndex] : null;
+    const previousName = previous?.name || '';
+    const previousId = previous?.id || currentId;
+    const targetId = (data.id || previousId || currentId).trim() || currentId;
 
-    const targetId = data.id || currentId;
-
-    if (agentIndex >= 0) {
+    if (agentIndex >= 0 && previous) {
       agent = {
-        ...this.store.agents[tenantId][agentIndex],
+        ...previous,
         id: targetId,
         name: data.name,
-        email: data.email !== undefined ? data.email : this.store.agents[tenantId][agentIndex].email,
-        phone: data.phone !== undefined ? data.phone : this.store.agents[tenantId][agentIndex].phone,
-        avatar: data.avatar !== undefined ? data.avatar : this.store.agents[tenantId][agentIndex].avatar,
+        email: data.email !== undefined ? data.email : previous.email,
+        phone: data.phone !== undefined ? data.phone : previous.phone,
+        avatar: data.avatar !== undefined ? data.avatar : previous.avatar,
         tenantId
       };
-      this.store.agents[tenantId][agentIndex] = agent;
+      agents[agentIndex] = agent;
     } else {
       agent = {
         id: targetId,
@@ -1040,25 +1101,49 @@ export class MultiTenantDatabase {
         revenueGenerated: 0,
         responseTimeMinutes: 1.0
       };
-      this.store.agents[tenantId].push(agent);
+      agents.push(agent);
     }
 
-    // If ID or name changed, update corresponding leads
+    const ownsByIdentity = (ownerId?: string, ownerName?: string) =>
+      Boolean(
+        (ownerId && (ownerId === previousId || ownerId === currentId)) ||
+          (previousName && ownerName && ownerName.toLowerCase() === previousName.toLowerCase())
+      );
+
+    // Keep denormalized owner/assignee labels consistent across domain collections
     if (this.store.leads[tenantId]) {
       this.store.leads[tenantId].forEach((lead) => {
-        if (lead.ownerAgentId === currentId) {
-          lead.ownerAgentId = data.id;
+        if (ownsByIdentity(lead.ownerAgentId, lead.ownerAgentName)) {
+          lead.ownerAgentId = targetId;
           lead.ownerAgentName = data.name;
         }
       });
     }
 
-    // Also update tasks
     if (this.store.tasks[tenantId]) {
       this.store.tasks[tenantId].forEach((task) => {
-        if (task.assigneeAgentId === currentId) {
-          task.assigneeAgentId = data.id;
+        if (ownsByIdentity(task.assigneeAgentId, task.assigneeAgentName)) {
+          task.assigneeAgentId = targetId;
           task.assigneeAgentName = data.name;
+        }
+      });
+    }
+
+    if (this.store.calls?.[tenantId]) {
+      this.store.calls[tenantId].forEach((call: any) => {
+        if (ownsByIdentity(call.agentId, call.agentName) || ownsByIdentity(call.agentId, call.assigneeName)) {
+          call.agentId = targetId;
+          call.agentName = data.name;
+          call.assigneeName = data.name;
+        }
+      });
+    }
+
+    if (this.store.activities?.[tenantId]) {
+      this.store.activities[tenantId].forEach((act: any) => {
+        if (ownsByIdentity(act.agentId, act.agentName)) {
+          act.agentId = targetId;
+          act.agentName = data.name;
         }
       });
     }
@@ -1977,6 +2062,10 @@ export class MultiTenantDatabase {
     if (patch.companyName) {
       tenant.companyName = String(patch.companyName);
       next.companyName = tenant.companyName;
+      const agents = this.store.agents[tenantId] || [];
+      agents.forEach((agent) => {
+        agent.companyName = tenant.companyName;
+      });
     }
     if (patch.currency) next.currency = patch.currency;
     if (patch.supportEmail) next.supportEmail = patch.supportEmail;

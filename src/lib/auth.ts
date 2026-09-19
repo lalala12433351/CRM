@@ -28,6 +28,24 @@ export function clearLocalStorageAuth(): void {
   }
 }
 
+function clearSessionAuth(): void {
+  if (typeof sessionStorage === 'undefined') return;
+  try {
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem('pixbe_current_user');
+  } catch (e) {}
+}
+
+function persistSessionUser(user: Agent, token?: string): void {
+  if (typeof sessionStorage === 'undefined') return;
+  try {
+    if (token) sessionStorage.setItem(TOKEN_KEY, token);
+    sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+    sessionStorage.removeItem('pixbe_current_user');
+  } catch (e) {}
+}
+
 // Immediately purge any stale credentials from localStorage upon module load
 clearLocalStorageAuth();
 
@@ -44,12 +62,7 @@ export async function sendVerificationOtp(email: string, phone: string): Promise
     }
     return { success: false, error: data.error || 'Failed to send OTP' };
   } catch (err: any) {
-    // Session-only fallback generated code
-    const fallbackOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    if (typeof sessionStorage !== 'undefined') {
-      sessionStorage.setItem(`pixbe_otp_${email}`, fallbackOtp);
-    }
-    return { success: true, demoOtp: fallbackOtp };
+    return { success: false, error: err?.message || 'Failed to send OTP. Is the server running?' };
   }
 }
 
@@ -66,17 +79,13 @@ export async function verifyRegistrationOtp(email: string, phone: string, otp: s
     }
     return { success: false, error: data.error || 'Invalid verification code' };
   } catch (err: any) {
-    const sessionOtp = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(`pixbe_otp_${email}`) : null;
-    if (sessionOtp && sessionOtp === otp.trim()) {
-      sessionStorage.removeItem(`pixbe_otp_${email}`);
-      return { success: true };
-    }
-    return { success: false, error: 'Invalid verification code' };
+    return { success: false, error: err?.message || 'OTP verification failed. Is the server running?' };
   }
 }
 
 export async function registerClientAccount(payload: RegisterPayload): Promise<{ success: boolean; user?: Agent; tenantId?: string; error?: string }> {
   clearLocalStorageAuth();
+  clearSessionAuth();
   try {
     const response = await fetch('/api/auth/register', {
       method: 'POST',
@@ -89,53 +98,22 @@ export async function registerClientAccount(payload: RegisterPayload): Promise<{
     const data = await response.json();
 
     if (response.ok && data.success && data.user) {
-      if (typeof sessionStorage !== 'undefined') {
-        if (data.token) {
-          sessionStorage.setItem(TOKEN_KEY, data.token);
-        }
-        sessionStorage.setItem(USER_KEY, JSON.stringify(data.user));
-      }
+      persistSessionUser(data.user, data.token);
       return { success: true, user: data.user, tenantId: data.tenantId };
     }
 
     return { success: false, error: data.error || 'Registration failed' };
   } catch (err: any) {
-    console.warn('⚠️ Registration endpoint notice, using session tenant provisioning:', err?.message || err);
-    
-    // Client-side company database collection fallback
-    const companySlug = payload.companyName.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/^_+|_+$/g, '');
-    const companyCollectionName = `company_${companySlug}`;
-    const tenantId = companyCollectionName;
-    const newUser: Agent = {
-      id: `agent_${Date.now()}`,
-      name: payload.name,
-      email: payload.email,
-      phone: payload.phone,
-      companyName: payload.companyName,
-      companyDescription: payload.companyDescription,
-      businessType: payload.businessType,
-      tenantId: companyCollectionName,
-      role: 'Admin',
-      isAdmin: true,
-      status: 'online',
-      avatar: '',
-      totalCallsToday: 0,
-      talkTimeMinutes: 0,
-      convertedLeadsCount: 0,
-      revenueGenerated: 0,
-      responseTimeMinutes: 0,
+    return {
+      success: false,
+      error: err?.message || 'Registration failed. Please ensure the CRM server is running and try again.'
     };
-
-    if (typeof sessionStorage !== 'undefined') {
-      sessionStorage.setItem(TOKEN_KEY, `token_${tenantId}`);
-      sessionStorage.setItem(USER_KEY, JSON.stringify(newUser));
-    }
-    return { success: true, user: newUser, tenantId };
   }
 }
 
 export async function loginWithApi(email: string, password?: string): Promise<{ success: boolean; user?: Agent; error?: string }> {
   clearLocalStorageAuth();
+  clearSessionAuth();
   const cleanEmail = (email || '').trim().toLowerCase();
   const inputPass = (password || '').trim();
 
@@ -149,78 +127,64 @@ export async function loginWithApi(email: string, password?: string): Promise<{ 
     const data = await response.json();
 
     if (response.ok && data.success && data.user) {
-      if (typeof sessionStorage !== 'undefined') {
-        if (data.token) {
-          sessionStorage.setItem(TOKEN_KEY, data.token);
-        }
-        sessionStorage.setItem(USER_KEY, JSON.stringify(data.user));
-      }
+      persistSessionUser(data.user, data.token);
       return { success: true, user: data.user };
     }
 
-    if (data.error) {
-      return { success: false, error: data.error };
-    }
+    return { success: false, error: data.error || 'Invalid email or password. Please verify your credentials.' };
   } catch (err: any) {
-    console.warn('Network / offline login notice:', err?.message || err);
-  }
-
-  // Offline fallback validation for admin credentials if server cannot be reached
-  const ALLOWED_EMAIL = 'admin@kiteaviation';
-  const ALLOWED_PASSWORD = 'admin';
-  const isCorrectEmail = cleanEmail === ALLOWED_EMAIL.toLowerCase() || cleanEmail === 'admin@kiteaviation.com';
-  const isCorrectPassword = inputPass === ALLOWED_PASSWORD || inputPass === 'admin@123';
-
-  if (isCorrectEmail && isCorrectPassword) {
-    const adminUser: Agent = {
-      id: 'agent_kiteaviation_admin',
-      name: 'Kite Aviation Admin',
-      email: ALLOWED_EMAIL,
-      phone: '+91 98765 43210',
-      companyName: 'Kite Aviation',
-      tenantId: 'company_kite_aviation',
-      role: 'Admin',
-      isAdmin: true,
-      status: 'online',
-      avatar: '',
-      totalCallsToday: 0,
-      talkTimeMinutes: 0,
-      convertedLeadsCount: 0,
-      revenueGenerated: 0,
-      responseTimeMinutes: 0,
+    return {
+      success: false,
+      error: err?.message || 'Unable to reach the CRM server. Start the backend and try again.'
     };
-
-    if (typeof sessionStorage !== 'undefined') {
-      sessionStorage.setItem(TOKEN_KEY, `token_${adminUser.id}`);
-      sessionStorage.setItem(USER_KEY, JSON.stringify(adminUser));
-    }
-
-    return { success: true, user: adminUser };
   }
-
-  return { success: false, error: 'Invalid email or password. Please verify your credentials.' };
 }
 
+/** Verify browser session against the server; clears stale tokens on failure. */
 export async function verifyCurrentSession(): Promise<Agent | null> {
   clearLocalStorageAuth();
-  const storedUser = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(USER_KEY) : null;
-  if (!storedUser) return null;
+  if (typeof sessionStorage === 'undefined') return null;
+
+  const storedUser = sessionStorage.getItem(USER_KEY);
+  const token = sessionStorage.getItem(TOKEN_KEY) || '';
+  if (!storedUser || !token) {
+    clearSessionAuth();
+    return null;
+  }
 
   try {
-    return JSON.parse(storedUser) as Agent;
-  } catch (err) {
+    const ok = await ensureServerSession();
+    if (!ok) {
+      clearSessionAuth();
+      return null;
+    }
+
+    const me = await fetch('/api/auth/me', {
+      headers: {
+        Authorization: `Bearer ${sessionStorage.getItem(TOKEN_KEY) || token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!me.ok) {
+      clearSessionAuth();
+      return null;
+    }
+    const data = await me.json();
+    if (data?.success && data.user) {
+      persistSessionUser(data.user);
+      return data.user as Agent;
+    }
+    clearSessionAuth();
+    return null;
+  } catch {
+    clearSessionAuth();
     return null;
   }
 }
 
 export async function logoutWithApi(): Promise<void> {
   clearLocalStorageAuth();
-  if (typeof sessionStorage !== 'undefined') {
-    try {
-      sessionStorage.removeItem(USER_KEY);
-      sessionStorage.removeItem(TOKEN_KEY);
-    } catch (e) {}
-  }
+  clearSessionAuth();
 }
 
 export function getAuthHeaders(): Record<string, string> {
@@ -247,11 +211,21 @@ export async function ensureServerSession(): Promise<boolean> {
   const rawUser = sessionStorage.getItem(USER_KEY);
   if (!token || !rawUser) return false;
 
+  // Reject legacy offline / non-server tokens — they cannot mutate the database
+  if (!token.startsWith('pixbe_token_') || token.startsWith('pixbe_token_offline_') || token.startsWith('token_')) {
+    clearSessionAuth();
+    return false;
+  }
+
   try {
     const me = await fetch('/api/auth/me', {
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
     });
-    if (me.ok) return true;
+    if (me.ok) {
+      const data = await me.json().catch(() => ({}));
+      if (data?.user) persistSessionUser(data.user);
+      return true;
+    }
 
     const user = JSON.parse(rawUser);
     const restored = await fetch('/api/auth/restore', {
@@ -265,9 +239,11 @@ export async function ensureServerSession(): Promise<boolean> {
     });
     if (!restored.ok) return false;
     const data = await restored.json();
-    if (data?.token) sessionStorage.setItem(TOKEN_KEY, data.token);
-    if (data?.user) sessionStorage.setItem(USER_KEY, JSON.stringify(data.user));
-    return Boolean(data?.success);
+    if (data?.token && data?.user) {
+      persistSessionUser(data.user, data.token);
+      return Boolean(data?.success);
+    }
+    return false;
   } catch {
     return false;
   }
