@@ -613,11 +613,51 @@
         "priority": "Normal",
         "assignedTo": "agent_kiteaviation_admin",
         "createdAt": "2026-09-16T07:33:48.189Z",
-        "updatedAt": "2026-09-19T07:00:44.943Z",
+        "updatedAt": "2026-09-19T07:01:14.972Z",
         "formName": "Masterform Karnataka",
         "formId": "1771666150629320",
         "campaignName": "no-otp-form---andra",
         "activities": [
+          {
+            "id": "act-1789801274972",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Direct Keys Admin",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 19/9/2026, 12:31:14 pm",
+            "timestamp": "2026-09-19T07:01:14.972Z"
+          },
+          {
+            "id": "act-1789801273196",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Direct Keys Admin",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 19/9/2026, 12:31:13 pm",
+            "timestamp": "2026-09-19T07:01:13.196Z"
+          },
+          {
+            "id": "act-1789801260746",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Direct Keys Admin",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 19/9/2026, 12:31:00 pm",
+            "timestamp": "2026-09-19T07:01:00.746Z"
+          },
+          {
+            "id": "act-1789801258193",
+            "leadId": "meta-lead-1079207984665498",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Direct Keys Admin",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 19/9/2026, 12:30:58 pm",
+            "timestamp": "2026-09-19T07:00:58.193Z"
+          },
           {
             "id": "act-1789801244943",
             "leadId": "meta-lead-1079207984665498",
@@ -63457,11 +63497,31 @@
         "priority": "Normal",
         "assignedTo": "agent-1788331792115",
         "createdAt": "2026-09-16T07:33:21.367Z",
-        "updatedAt": "2026-09-19T07:00:44.074Z",
+        "updatedAt": "2026-09-19T07:01:14.014Z",
         "formName": "Masterform North India",
         "formId": "1563717635493396",
         "campaignName": "hello",
         "activities": [
+          {
+            "id": "act-1789801274014",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Direct Keys Admin",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 19/9/2026, 12:31:14 pm",
+            "timestamp": "2026-09-19T07:01:14.014Z"
+          },
+          {
+            "id": "act-1789801259481",
+            "leadId": "meta-lead-1602427667592570",
+            "agentId": "agent-1788331792115",
+            "agentName": "adsada",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 19/9/2026, 12:30:59 pm",
+            "timestamp": "2026-09-19T07:00:59.481Z"
+          },
           {
             "id": "act-1789801244074",
             "leadId": "meta-lead-1602427667592570",
