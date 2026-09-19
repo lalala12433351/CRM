@@ -68,11 +68,17 @@ export function getLeadFormOrCampaignName(lead: any): string {
 }
 
 /**
- * Converts a campaign or form display name into a clean handle format e.g. @master-form--bangalore--hindi
+ * Converts a campaign or form display name into a clean handle.
+ * Always normalizes, including strings that already start with `@`,
+ * so `@no-otp-form---andra` and `no-otp-form---andra` become the same handle.
  */
 export function formatCampaignHandle(name: string): string {
   if (!name) return '@general';
-  if (name.startsWith('@')) return name;
-  const clean = name.toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-');
-  return `@${clean}`;
+  const withoutAt = String(name).trim().replace(/^@+/, '');
+  const clean = withoutAt
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  return clean ? `@${clean}` : '@general';
 }

@@ -57,115 +57,69 @@ export const AnalyticsPage: React.FC<AnalyticsViewProps> = ({ leads, hourlyMetri
   const [activeChartMode, setActiveChartMode] = useState<ChartMode>('cpl_volume');
   const [sortBy, setSortBy] = useState<'roi' | 'cpl' | 'leads' | 'revenue'>('revenue');
 
-  // Baseline channel benchmarks and realistic CPL/CPA data
-  const baseChannelData = useMemo(() => [
-    { 
-      source: 'Facebook Ads', 
-      adSpend: 38400, 
-      defaultCpl: 240, 
-      defaultCpa: 1420, 
-      impressions: 142000, 
-      clicks: 4800,
-      color: '#4f46e5',
-      badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200'
-    },
-    { 
-      source: 'Google Ads', 
-      adSpend: 46200, 
-      defaultCpl: 385, 
-      defaultCpa: 1780, 
-      impressions: 98000, 
-      clicks: 3900,
-      color: '#0284c7',
-      badgeColor: 'bg-sky-50 text-sky-700 border-sky-200'
-    },
-    { 
-      source: 'IndiaMart', 
-      adSpend: 21600, 
-      defaultCpl: 180, 
-      defaultCpa: 1150, 
-      impressions: 64000, 
-      clicks: 2200,
-      color: '#059669',
-      badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
-    },
-    { 
-      source: 'WhatsApp', 
-      adSpend: 9500, 
-      defaultCpl: 95, 
-      defaultCpa: 680, 
-      impressions: 45000, 
-      clicks: 3100,
-      color: '#10b981',
-      badgeColor: 'bg-teal-50 text-teal-700 border-teal-200'
-    },
-    { 
-      source: 'JustDial', 
-      adSpend: 18200, 
-      defaultCpl: 320, 
-      defaultCpa: 1650, 
-      impressions: 42000, 
-      clicks: 1400,
-      color: '#f59e0b',
-      badgeColor: 'bg-amber-50 text-amber-700 border-amber-200'
-    },
-    { 
-      source: '99acres', 
-      adSpend: 24600, 
-      defaultCpl: 410, 
-      defaultCpa: 2100, 
-      impressions: 51000, 
-      clicks: 1600,
-      color: '#ec4899',
-      badgeColor: 'bg-pink-50 text-pink-700 border-pink-200'
-    },
-  ], []);
+  const CHANNEL_STYLES: Record<string, { color: string; badgeColor: string }> = {
+    'Facebook Ads': { color: '#4f46e5', badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+    'Meta Ads': { color: '#4f46e5', badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+    'Google Ads': { color: '#0284c7', badgeColor: 'bg-sky-50 text-sky-700 border-sky-200' },
+    'IndiaMart': { color: '#059669', badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    'WhatsApp': { color: '#10b981', badgeColor: 'bg-teal-50 text-teal-700 border-teal-200' },
+    'JustDial': { color: '#f59e0b', badgeColor: 'bg-amber-50 text-amber-700 border-amber-200' },
+    '99acres': { color: '#ec4899', badgeColor: 'bg-pink-50 text-pink-700 border-pink-200' },
+    'Direct': { color: '#6366f1', badgeColor: 'bg-slate-50 text-slate-700 border-slate-200' }
+  };
 
-  // Multiplier depending on selected time range
-  const timeMultiplier = useMemo(() => {
-    switch (timeRange) {
-      case 'today': return 0.25;
-      case '7d': return 1;
-      case '30d': return 3.8;
-      case 'quarter': return 11.2;
-    }
-  }, [timeRange]);
-
-  // Dynamic channel statistics computed from leads & benchmarks
   const channelStats = useMemo(() => {
-    return baseChannelData.map((ch) => {
-      const srcLeads = leads.filter((l) => l.source === ch.source || (ch.source === 'Facebook Ads' && l.source === 'Meta Ads'));
-      const capturedCount = Math.max(srcLeads.length, Math.round((ch.adSpend / ch.defaultCpl) * (timeMultiplier * 0.4)));
-      const convertedCount = Math.max(
-        srcLeads.filter((l) => l.status === 'Converted').length, 
-        Math.round(capturedCount * (ch.source === 'WhatsApp' ? 0.22 : ch.source === 'IndiaMart' ? 0.19 : 0.15))
-      );
-      
-      const computedSpend = Math.round(ch.adSpend * timeMultiplier);
-      const computedRevenue = convertedCount * 85000 + srcLeads.reduce((acc, c) => acc + (c.dealValue || 0), 0);
-      const realCpl = Math.round(computedSpend / (capturedCount || 1));
-      const realCpa = convertedCount > 0 ? Math.round(computedSpend / convertedCount) : ch.defaultCpa;
-      const netProfit = computedRevenue - computedSpend;
-      const roas = computedSpend > 0 ? (computedRevenue / computedSpend).toFixed(1) : '0.0';
-      const convRate = capturedCount > 0 ? ((convertedCount / capturedCount) * 100).toFixed(1) : '0';
+    const now = Date.now();
+    const rangeStart = timeRange === 'today'
+      ? new Date().setHours(0, 0, 0, 0)
+      : timeRange === '7d'
+        ? now - 7 * 86400000
+        : timeRange === '30d'
+          ? now - 30 * 86400000
+          : now - 90 * 86400000;
 
+    const rangedLeads = leads.filter((l) => {
+      if (!l.createdAt) return true;
+      const t = new Date(l.createdAt).getTime();
+      if (isNaN(t)) return true;
+      return t >= rangeStart;
+    });
+    const sourceMap = new Map<string, Lead[]>();
+    rangedLeads.forEach((l) => {
+      const key = l.source === 'Meta Ads' ? 'Facebook Ads' : (l.source || 'Direct');
+      if (!sourceMap.has(key)) sourceMap.set(key, []);
+      sourceMap.get(key)!.push(l);
+    });
+
+    return Array.from(sourceMap.entries()).map(([source, srcLeads]) => {
+      const capturedCount = srcLeads.length;
+      const convertedCount = srcLeads.filter((l) => {
+        const st = (l.status || '').toLowerCase();
+        return st === 'converted' || st === 'won';
+      }).length;
+      const computedRevenue = srcLeads.reduce((acc, c) => acc + (Number(c.dealValue) || 0), 0);
+      const style = CHANNEL_STYLES[source] || { color: '#6366f1', badgeColor: 'bg-slate-50 text-slate-700 border-slate-200' };
       return {
-        ...ch,
+        source,
         capturedLeads: capturedCount,
         convertedDeals: convertedCount,
-        adSpend: computedSpend,
+        adSpend: 0,
         revenue: computedRevenue,
-        cpl: realCpl,
-        cpa: realCpa,
-        netProfit,
-        roas: `${roas}x`,
-        roasVal: parseFloat(roas),
-        conversionRate: `${convRate}%`,
-        conversionRateVal: parseFloat(convRate),
-        cplEfficiency: realCpl <= 200 ? 'Optimal' : realCpl <= 350 ? 'Moderate' : 'High'
+        cpl: 0,
+        cpa: 0,
+        netProfit: computedRevenue,
+        roas: '0.0x',
+        roasVal: 0,
+        conversionRate: capturedCount > 0 ? `${((convertedCount / capturedCount) * 100).toFixed(1)}%` : '0%',
+        conversionRateVal: capturedCount > 0 ? (convertedCount / capturedCount) * 100 : 0,
+        cplEfficiency: '—',
+        color: style.color,
+        badgeColor: style.badgeColor,
+        impressions: 0,
+        clicks: 0
       };
     });
-  }, [leads, baseChannelData, timeMultiplier]);
+  }, [leads, timeRange]);
 
   // Filtered by selected channel
   const filteredChannels = useMemo(() => {
@@ -226,21 +180,10 @@ export const AnalyticsPage: React.FC<AnalyticsViewProps> = ({ leads, hourlyMetri
 
   // Hourly Activity Trend Data with smoothed metrics
   const hourlyTrendData = useMemo(() => {
-    return (hourlyMetrics.length > 0 ? hourlyMetrics : [
-      { hour: '09:00', totalCalls: 24, connectedCalls: 18, leadsCaptured: 14, conversions: 2, revenue: 65000 },
-      { hour: '10:00', totalCalls: 48, connectedCalls: 36, leadsCaptured: 22, conversions: 4, revenue: 140000 },
-      { hour: '11:00', totalCalls: 72, connectedCalls: 58, leadsCaptured: 31, conversions: 6, revenue: 245000 },
-      { hour: '12:00', totalCalls: 62, connectedCalls: 49, leadsCaptured: 24, conversions: 5, revenue: 195000 },
-      { hour: '13:00', totalCalls: 32, connectedCalls: 22, leadsCaptured: 10, conversions: 2, revenue: 55000 },
-      { hour: '14:00', totalCalls: 56, connectedCalls: 42, leadsCaptured: 18, conversions: 4, revenue: 165000 },
-      { hour: '15:00', totalCalls: 66, connectedCalls: 52, leadsCaptured: 26, conversions: 5, revenue: 215000 },
-      { hour: '16:00', totalCalls: 70, connectedCalls: 56, leadsCaptured: 25, conversions: 6, revenue: 280000 },
-      { hour: '17:00', totalCalls: 44, connectedCalls: 32, leadsCaptured: 14, conversions: 3, revenue: 110000 },
-      { hour: '18:00', totalCalls: 26, connectedCalls: 19, leadsCaptured: 8, conversions: 1, revenue: 45000 },
-    ]).map(h => ({
+    return hourlyMetrics.map((h) => ({
       ...h,
       callEfficiency: h.totalCalls > 0 ? Math.round((h.connectedCalls / h.totalCalls) * 100) : 0,
-      leadCostEquivalent: Math.round(350 - (h.conversions * 25))
+      leadCostEquivalent: h.conversions || 0
     }));
   }, [hourlyMetrics]);
 
@@ -254,14 +197,28 @@ export const AnalyticsPage: React.FC<AnalyticsViewProps> = ({ leads, hourlyMetri
   }, [channelStats]);
 
   // Funnel Leakage Stages
-  const funnelStages = [
-    { stage: 'Campaign Impressions', count: '442,000', drop: '0%', color: 'bg-indigo-600', width: '100%' },
-    { stage: 'Ad Clicks (CTR 3.8%)', count: '16,900', drop: '96.2%', color: 'bg-indigo-500', width: '78%' },
-    { stage: 'Inbound Leads Captured', count: totalMetrics.totalLeads.toString(), drop: '72.4%', color: 'bg-sky-500', width: '58%' },
-    { stage: 'Telecaller Connected (82%)', count: Math.round(totalMetrics.totalLeads * 0.82).toString(), drop: '18.0%', color: 'bg-teal-500', width: '42%' },
-    { stage: 'Sales Qualified Opportunities', count: Math.round(totalMetrics.totalLeads * 0.45).toString(), drop: '45.1%', color: 'bg-amber-500', width: '28%' },
-    { stage: 'Final Converted Deals', count: totalMetrics.totalConversions.toString(), drop: '52.6%', color: 'bg-emerald-600', width: '18%' }
-  ];
+  const funnelStages = useMemo(() => {
+    const total = Math.max(leads.length, 1);
+    const contacted = leads.filter((l) => {
+      const st = (l.status || '').toLowerCase();
+      return st && st !== 'fresh' && st !== 'open';
+    }).length;
+    const qualified = leads.filter((l) => {
+      const st = (l.status || '').toLowerCase();
+      return ['interested', 'follow', 'demo', 'proposal', 'negotiation', 'warm'].some((k) => st.includes(k));
+    }).length;
+    const converted = leads.filter((l) => {
+      const st = (l.status || '').toLowerCase();
+      return st === 'converted' || st === 'won';
+    }).length;
+    const pct = (n: number) => `${Math.round((n / total) * 100)}%`;
+    return [
+      { stage: 'Inbound Leads Captured', count: String(leads.length), drop: '0%', color: 'bg-sky-500', width: '100%' },
+      { stage: 'Contacted / In Progress', count: String(contacted), drop: pct(total - contacted), color: 'bg-teal-500', width: pct(contacted) },
+      { stage: 'Sales Qualified', count: String(qualified), drop: pct(Math.max(contacted - qualified, 0)), color: 'bg-amber-500', width: pct(qualified) },
+      { stage: 'Final Converted Deals', count: String(converted), drop: pct(Math.max(qualified - converted, 0)), color: 'bg-emerald-600', width: pct(converted) }
+    ];
+  }, [leads]);
 
   return (
     <div className="p-3.5 sm:p-5 md:p-6 space-y-5 max-w-7xl mx-auto text-slate-900 font-sans">
@@ -293,7 +250,7 @@ export const AnalyticsPage: React.FC<AnalyticsViewProps> = ({ leads, hourlyMetri
               className="bg-transparent text-slate-800 font-medium focus:outline-hidden cursor-pointer"
             >
               <option value="ALL">All Marketing Channels</option>
-              {baseChannelData.map((c) => (
+              {channelStats.map((c) => (
                 <option key={c.source} value={c.source}>{c.source}</option>
               ))}
             </select>

@@ -1,3 +1,4 @@
+import { resolveAgentName, matchesAgent, isUnassignedOwner } from '../utils/agentDisplay';
 import React, { useState, useEffect } from 'react';
 import { 
   Pencil, 
@@ -316,19 +317,14 @@ export const PipelinePage: React.FC<PipelineViewProps> = ({
   const filteredLeads = leads.filter(ld => {
     if (selectedAgentFilter !== 'all') {
       if (selectedAgentFilter === 'unassigned') {
-        const hasOwner = ld.ownerAgentId || (ld.ownerAgentName && ld.ownerAgentName !== 'Unassigned');
+        const hasOwner = !isUnassignedOwner({ id: ld.ownerAgentId, name: ld.ownerAgentName });
         if (hasOwner) return false;
       } else {
         const agentObj = agents.find(a => a.id === selectedAgentFilter);
-        const matchesId = ld.ownerAgentId === selectedAgentFilter || (ld as any).assignedAgentId === selectedAgentFilter || ld.assignedTo === selectedAgentFilter;
-        const matchesName = (ld.ownerAgentName && ld.ownerAgentName.toLowerCase() === selectedAgentFilter.toLowerCase()) || 
-                            ((ld as any).agentName && (ld as any).agentName.toLowerCase() === selectedAgentFilter.toLowerCase()) ||
-                            (agentObj && (
-                              (ld.ownerAgentName && ld.ownerAgentName.toLowerCase() === agentObj.name.toLowerCase()) ||
-                              ((ld as any).agentName && (ld as any).agentName.toLowerCase() === agentObj.name.toLowerCase()) ||
-                              (ld.assignedTo && ld.assignedTo.toLowerCase() === agentObj.name.toLowerCase())
-                            ));
-        if (!matchesId && !matchesName) return false;
+        const isMatch = agentObj
+          ? matchesAgent(agents, agentObj, { id: ld.ownerAgentId, name: ld.ownerAgentName || (ld as any).agentName })
+          : ld.ownerAgentId === selectedAgentFilter || ld.assignedTo === selectedAgentFilter;
+        if (!isMatch) return false;
       }
     }
     if (searchQuery.trim()) {
@@ -526,9 +522,9 @@ export const PipelinePage: React.FC<PipelineViewProps> = ({
                               <span>{lead.phone}</span>
                               <span 
                                 className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 truncate max-w-[90px]"
-                                title={lead.ownerAgentName || (lead as any).agentName || agents.find(a => a.id === lead.ownerAgentId)?.name || 'Unassigned'}
+                                title={resolveAgentName(agents, { id: lead.ownerAgentId, name: lead.ownerAgentName || (lead as any).agentName })}
                               >
-                                {lead.ownerAgentName || (lead as any).agentName || agents.find(a => a.id === lead.ownerAgentId)?.name || 'Unassigned'}
+                                {resolveAgentName(agents, { id: lead.ownerAgentId, name: lead.ownerAgentName || (lead as any).agentName })}
                               </span>
                             </div>
 

@@ -81,6 +81,7 @@ import {
 import { getAgentPermissionRights } from './utils/permissionUtils';
 import { getInitialViewFromUrl, syncUrlWithView, pathToView } from './utils/navigation';
 import { canAccessView, getCrmRole, getDefaultViewForRole, formatRoleBadge } from './utils/roleUtils';
+import { resolveAgentName, resolveLeadContact, matchesAgent } from './utils/agentDisplay';
 import { ShieldCheck } from 'lucide-react';
 
 export const StagesContext = React.createContext<PipelineStage[]>([]);
@@ -449,8 +450,13 @@ export function App() {
     document.title = viewTitleMap[currentView] || `${brandName}`;
   }, [isAuthenticated, authScreen, currentView, rawCompanyName]);
 
+  const tenantLoadInFlightRef = React.useRef(false);
+
   // Fetch all domain data from database when authenticated and activeTenantId is ready
   const loadTenantDomainData = React.useCallback(async (tenantId?: string) => {
+    if (tenantLoadInFlightRef.current) return;
+    tenantLoadInFlightRef.current = true;
+    try {
     await ensureServerSession();
     let activeId = tenantId || currentUser?.tenantId;
     if (!activeId) {
@@ -463,7 +469,6 @@ export function App() {
     }
     activeId = activeId || activeTenantId || 'default_tenant';
 
-    try {
       const headers = { 'x-tenant-id': activeId };
       // Parallel high-performance multi-collection hydration with explicit tenant header
       const [leadsRes, agentsRes, pipelinesRes, fieldsRes, tasksRes, lostReasonsRes, activitiesRes, callsRes, campaignsRes, messagesRes, waTemplatesRes, waCampaignsRes, workflowsRes, workspaceRes] = await Promise.all([
@@ -600,6 +605,8 @@ export function App() {
       }
     } catch (err) {
       console.warn('Tenant data loading notice:', err);
+    } finally {
+      tenantLoadInFlightRef.current = false;
     }
   }, []);
 
@@ -610,6 +617,33 @@ export function App() {
       loadTenantDomainData(targetTenant);
     }
   }, [isAuthenticated, activeTenantId, loadTenantDomainData]);
+
+  // Keep CRM collections live: refetch on focus/visibility and poll while the tab is open
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const targetTenant = currentUser?.tenantId || activeTenantId;
+
+    const refreshIfVisible = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      loadTenantDomainData(targetTenant);
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        loadTenantDomainData(targetTenant);
+      }
+    };
+
+    window.addEventListener('focus', refreshIfVisible);
+    document.addEventListener('visibilitychange', onVisibility);
+    const interval = window.setInterval(refreshIfVisible, 25000);
+
+    return () => {
+      window.removeEventListener('focus', refreshIfVisible);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.clearInterval(interval);
+    };
+  }, [isAuthenticated, activeTenantId, loadTenantDomainData, currentUser?.tenantId]);
 
   const [lostReasons, setLostReasons] = useState<string[]>([]);
 
@@ -833,7 +867,65 @@ export function App() {
     });
   }, [leads, currentUser?.tenantId, activeTenantId]);
 
-  const companyLeads = sanitizedLeads;
+  // Display-only projections: IDs stay as stored; labels always come from the live roster/leads.
+  const liveLeads = useMemo(() => {
+    return sanitizedLeads.map((l) => {
+      const liveName = resolveAgentName(agents, {
+        id: l.ownerAgentId,
+        name: l.ownerAgentName,
+        fallback: l.ownerAgentName || 'Unassigned'
+      });
+      if (liveName === (l.ownerAgentName || '')) return l;
+      return { ...l, ownerAgentName: liveName };
+    });
+  }, [sanitizedLeads, agents]);
+
+  const liveCallRecords = useMemo(() => {
+    return (callRecords || []).map((c) => {
+      const contact = resolveLeadContact(liveLeads, { id: c.leadId, name: c.leadName, phone: c.leadPhone });
+      const agentLabel = resolveAgentName(agents, {
+        id: c.agentId,
+        name: c.assigneeName || c.agentName,
+        fallback: c.agentName || 'Agent'
+      });
+      return {
+        ...c,
+        leadName: contact.name,
+        leadPhone: contact.phone || c.leadPhone,
+        agentName: agentLabel,
+        assigneeName: agentLabel
+      };
+    });
+  }, [callRecords, liveLeads, agents]);
+
+  const liveCrmTasks = useMemo(() => {
+    return (crmTasks || []).map((t) => ({
+      ...t,
+      assigneeAgentName: resolveAgentName(agents, {
+        id: t.assigneeAgentId,
+        name: t.assigneeAgentName,
+        fallback: t.assigneeAgentName || 'Unassigned'
+      })
+    }));
+  }, [crmTasks, agents]);
+
+  const liveActivities = useMemo(() => {
+    return (activities || []).map((a) => ({
+      ...a,
+      agentName: resolveAgentName(agents, {
+        id: a.agentId,
+        name: a.agentName,
+        fallback: a.agentName || 'User'
+      })
+    }));
+  }, [activities, agents]);
+
+  const liveDetailLead = useMemo(() => {
+    if (!detailLead) return null;
+    return liveLeads.find((l) => l.id === detailLead.id) || detailLead;
+  }, [detailLead, liveLeads]);
+
+  const companyLeads = liveLeads;
 
   // Scoped Lead list: Admin = all, Manager = self + telecallers under them, Telecaller = assigned only
   const scopedOwnerIds = new Set(visibleAgents.map((agent) => agent.id));
@@ -1346,7 +1438,7 @@ export function App() {
     // Admin does not use Tasks
     if (isAdmin || crmRole === 'Telecaller') return 0;
 
-    const pendingFromTasks = (crmTasks || []).filter(t => t.status === 'Pending' || !t.status);
+    const pendingFromTasks = (liveCrmTasks || []).filter(t => t.status === 'Pending' || !t.status);
     if (crmRole === 'Manager') {
       const teamIds = new Set(visibleAgents.map((a) => a.id));
       return pendingFromTasks.filter(
@@ -1354,9 +1446,9 @@ export function App() {
       ).length;
     }
     return pendingFromTasks.filter(
-      (t) => t.assigneeAgentId === activeAgent?.id || t.assigneeAgentName?.toLowerCase() === activeAgent?.name?.toLowerCase()
+      (t) => matchesAgent(agents, activeAgent, { id: t.assigneeAgentId, name: t.assigneeAgentName })
     ).length;
-  }, [crmTasks, activeAgent, isAdmin, crmRole, visibleAgents]);
+  }, [liveCrmTasks, activeAgent, isAdmin, crmRole, visibleAgents, agents]);
 
   const pendingFollowUpsCount = useMemo(() => {
     // Use role-scoped leads so Manager sees team follow-ups and Telecaller only their own
@@ -1478,7 +1570,7 @@ export function App() {
         pendingFollowUpsCount={pendingFollowUpsCount}
         pendingTasksCount={pendingTasksCount}
         leads={visibleLeads}
-        tasks={crmTasks}
+        tasks={liveCrmTasks}
         onOpenLeadDetail={(lead) => setDetailLead(lead)}
         onNavigateToFollowUps={() => setCurrentView('followups')}
         onNavigateToSettings={() => setCurrentView('settings')}
@@ -1520,7 +1612,7 @@ export function App() {
         <main className="flex-1 overflow-y-auto bg-transparent p-3 md:p-5 pb-24 md:pb-5 ios-scroll min-h-0">
           {currentView === 'add_lead' && (
             <AddLeadView
-              leads={leads}
+              leads={liveLeads}
               agents={agents}
               customFields={customFields}
               activeAgent={activeAgent}
@@ -1622,6 +1714,7 @@ export function App() {
                 onNavigateToTab={(tab) => setCurrentView(tab)}
                 onDeleteLead={handleDeleteLead}
                 onUpdateLead={handlePartialUpdateLead}
+                onRefreshData={() => loadTenantDomainData(activeTenantId)}
               />
             ) : renderAccessRestricted('Executive Dashboard')
           )}
@@ -1684,6 +1777,7 @@ export function App() {
               onDeleteLead={handleDeleteLead}
               onClearAllLeads={handleClearAllLeads}
               onUpdateLead={handlePartialUpdateLead}
+              onRefreshData={() => loadTenantDomainData(activeTenantId)}
               onNavigateToTab={(tab) => setCurrentView(tab)}
               onOpenGoogleSheets={() => setIsGoogleSheetsModalOpen(true)}
               globalSavedFilters={globalSavedFilters}
@@ -1697,7 +1791,7 @@ export function App() {
               leads={visibleLeads}
               agents={visibleAgents}
               customFields={activeCustomFields}
-              callRecords={callRecords}
+              callRecords={liveCallRecords}
               activeAgent={activeAgent}
               onUpdateLead={handlePartialUpdateLead}
               onOpenLeadDetail={(lead) => setDetailLead(lead)}
@@ -1713,7 +1807,7 @@ export function App() {
             <TasksView
               agents={visibleAgents}
               activeAgent={activeAgent}
-              tasks={crmTasks || []}
+              tasks={liveCrmTasks}
               currency={activeCurrency}
               onCreateTask={handleCreateCrmTask}
               onDeleteTask={handleDeleteCrmTask}
@@ -1727,6 +1821,7 @@ export function App() {
             <OmnichannelInboxView
               leads={visibleLeads}
               messages={messages}
+              agents={agents}
               onSendMessage={handleSendMessage}
               onOpenLeadDetail={(lead) => setDetailLead(lead)}
               onCallLead={(lead) => { window.location.href = `tel:${lead.phone}`; }}
@@ -1778,7 +1873,7 @@ export function App() {
 
           {(currentView === 'calls' || currentView === 'calling_logs') && (
             <MyCallsView
-              callRecords={callRecords}
+              callRecords={liveCallRecords}
               agents={agents}
               activeAgent={activeAgent}
               leads={visibleLeads}
@@ -1809,10 +1904,10 @@ export function App() {
             activeAgentRights.reports ? (
               <ReportsView
                 initialSubTab={reportsSubTab}
-                callRecords={callRecords}
+                callRecords={liveCallRecords}
                 agents={visibleAgents}
                 leads={visibleLeads}
-                activities={activities}
+                activities={liveActivities}
                 currentUser={activeAgent}
                 onOpenLeadDetail={(lead) => setDetailLead(lead)}
                 onUpdateCallRecord={handleUpdateCallRecord}
@@ -1849,9 +1944,9 @@ export function App() {
               activeTenantId={activeTenantId}
               leads={visibleLeads}
               agents={visibleAgents}
-              activities={activities}
+              activities={liveActivities}
               messages={messages}
-              callRecords={callRecords}
+              callRecords={liveCallRecords}
               customFields={activeCustomFields}
               initialCampaignHandle={selectedCampaignHandle}
               onOpenLeadDetail={(lead) => setDetailLead(lead)}
@@ -1901,7 +1996,7 @@ export function App() {
           )}
 
           {currentView === 'docs_sign' && (
-            <DocsAndSignView leads={leads} />
+            <DocsAndSignView leads={visibleLeads} />
           )}
 
           {currentView === 'fields' && (
@@ -2044,12 +2139,12 @@ export function App() {
       {/* MODAL 1: Lead Details Drawer */}
       {detailLead && (
         <LeadDetailModal
-          lead={detailLead}
-          allLeads={leads}
+          lead={liveDetailLead || detailLead}
+          allLeads={visibleLeads}
           agents={agents}
-          activities={activities}
+          activities={liveActivities}
           messages={messages}
-          callRecords={callRecords}
+          callRecords={liveCallRecords}
           lostReasons={lostReasons}
           customFields={activeCustomFields}
           onClose={() => setDetailLead(null)}
@@ -2107,7 +2202,8 @@ export function App() {
       {/* MODAL 3: Google Sheets Two-Way Auto-Sync Modal */}
       {isGoogleSheetsModalOpen && (
         <GoogleSheetsIntegrationModal
-          leads={leads}
+          leads={visibleLeads}
+          activeAgent={activeAgent}
           onImportLeads={(importedLeads) => {
             setLeads((prev) => [...importedLeads, ...prev]);
             showToast(`Imported ${importedLeads.length} leads from Google Sheets!`);
@@ -2136,8 +2232,8 @@ export function App() {
       <AiCopilotModal
         isOpen={isAiCopilotOpen}
         onClose={() => setIsAiCopilotOpen(false)}
-        lead={detailLead || leads[0]}
-        leads={leads}
+        lead={liveDetailLead || visibleLeads[0]}
+        leads={visibleLeads}
         activeAgent={activeAgent}
         companyName={rawCompanyName}
         onSendMessage={handleSendMessage}

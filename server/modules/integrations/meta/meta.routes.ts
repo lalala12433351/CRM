@@ -67,6 +67,13 @@ router.get(
   (req, res) => metaController.getCampaignMappings(req, res)
 );
 
+// DELETE /api/integrations/facebook/campaign-mappings/:formId - Unlink form + purge data
+router.delete(
+  ['/integrations/facebook/campaign-mappings/:formId', '/facebook/campaign-mappings/:formId'],
+  tenantContextMiddleware,
+  (req, res) => metaController.deleteCampaignMapping(req, res)
+);
+
 // Legacy Disconnect route
 router.post(
   ['/meta/disconnect', '/integrations/facebook/disconnect'],

@@ -1,3 +1,4 @@
+import { resolveAgentName, matchesAgent, resolveLeadContact } from '../utils/agentDisplay';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Phone, 
@@ -155,15 +156,13 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
     return callRecords.filter((call) => {
       // 1. Assignee Scoping
       if (!isAdmin && activeAgent) {
-        const isMyCall = call.agentId === activeAgent.id || 
-                         (call.agentName && activeAgent.name && call.agentName.toLowerCase() === activeAgent.name.toLowerCase()) ||
-                         (call.assigneeName && activeAgent.name && call.assigneeName.toLowerCase() === activeAgent.name.toLowerCase());
+        const isMyCall = matchesAgent(agents, activeAgent, { id: call.agentId, name: call.agentName || call.assigneeName });
         if (!isMyCall) return false;
       } else if (selectedAssignee !== 'all') {
         const selectedAg = agents.find((a) => a.id === selectedAssignee);
-        const match = call.agentId === selectedAssignee || 
-                      (selectedAg && call.agentName && call.agentName.toLowerCase() === selectedAg.name.toLowerCase()) ||
-                      (selectedAg && call.assigneeName && call.assigneeName.toLowerCase() === selectedAg.name.toLowerCase());
+        const match = selectedAg
+          ? matchesAgent(agents, selectedAg, { id: call.agentId, name: call.agentName || call.assigneeName })
+          : call.agentId === selectedAssignee;
         if (!match) return false;
       }
 
@@ -173,9 +172,10 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
         const digits = term.replace(/\D/g, '');
         const phone = (call.leadPhone || '').replace(/\D/g, '');
         
-        const matchName = (call.leadName || '').toLowerCase().includes(term);
-        const matchPhone = (call.leadPhone || '').toLowerCase().includes(term) || (digits.length >= 2 && phone.includes(digits));
-        const matchAgent = (call.assigneeName || call.agentName || '').toLowerCase().includes(term);
+        const contact = resolveLeadContact(leads, { id: call.leadId, name: call.leadName, phone: call.leadPhone });
+        const matchName = (contact.name || '').toLowerCase().includes(term);
+        const matchPhone = (contact.phone || call.leadPhone || '').toLowerCase().includes(term) || (digits.length >= 2 && phone.includes(digits));
+        const matchAgent = resolveAgentName(agents, { id: call.agentId, name: call.assigneeName || call.agentName }).toLowerCase().includes(term);
         const matchDisp = (call.disposition || '').toLowerCase().includes(term);
         const matchNotes = (call.callNotes || call.notes || call.assigneeRemarks || '').toLowerCase().includes(term);
 
@@ -229,7 +229,7 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
 
       return true;
     });
-  }, [callRecords, selectedAssignee, selectedCallType, selectedDisposition, selectedDateRange, customStartDate, customEndDate, searchTerm, isAdmin, activeAgent, agents]);
+  }, [callRecords, selectedAssignee, selectedCallType, selectedDisposition, selectedDateRange, customStartDate, customEndDate, searchTerm, isAdmin, activeAgent, agents, leads]);
 
   // Paginated List
   const totalCallsCount = filteredCalls.length;
@@ -286,10 +286,11 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
     const rows = filteredCalls.map((c) => {
       const start = c.callStartTime || c.timestamp;
       const end = getCallEndTime(c);
-      const assignee = c.assigneeName || c.agentName || 'Agent';
+      const contact = resolveLeadContact(leads, { id: c.leadId, name: c.leadName, phone: c.leadPhone });
+      const assignee = resolveAgentName(agents, { id: c.agentId, name: c.assigneeName || c.agentName, fallback: 'Agent' });
       return [
-        `"${c.leadName || 'Contact'}"`,
-        `"${c.leadPhone || ''}"`,
+        `"${contact.name}"`,
+        `"${contact.phone || c.leadPhone || ''}"`,
         `"${start}"`,
         `"${end}"`,
         c.durationSeconds || 0,
@@ -806,7 +807,7 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
                 ) : (
                   currentPaginatedCalls.map((call) => {
                     const isSelected = selectedCallIds.includes(call.id);
-                    const assigneeName = call.assigneeName || call.agentName || 'Agent';
+                    const assigneeName = resolveAgentName(agents, { id: call.agentId, name: call.assigneeName || call.agentName, fallback: 'Agent' });
                     const avatar = getAgentAvatar(assigneeName);
                     const startFormatted = formatDateTime(call.callStartTime || call.timestamp);
                     const endFormatted = formatDateTime(getCallEndTime(call));
@@ -814,6 +815,7 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
 
                     // Match Lead record if available
                     const matchedLead = leads.find((l) => l.id === call.leadId || l.phone === call.leadPhone);
+                    const contact = resolveLeadContact(leads, { id: call.leadId, name: call.leadName, phone: call.leadPhone });
 
                     return (
                       <tr
@@ -845,7 +847,7 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
                                 matchedLead ? 'text-slate-900 hover:text-indigo-600 hover:underline cursor-pointer' : 'text-slate-800'
                               }`}
                             >
-                              {formatProperName(call.leadName || 'Contact')}
+                              {formatProperName(contact.name)}
                             </span>
                             {matchedLead && (
                               <ExternalLink
@@ -864,7 +866,7 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
                               className="font-mono text-slate-800 font-semibold hover:text-indigo-600 flex items-center space-x-1"
                             >
                               <Phone className="w-3 h-3 text-slate-400" />
-                              <span>{call.leadPhone}</span>
+                              <span>{contact.phone || call.leadPhone}</span>
                             </a>
                             <button
                               onClick={() => window.open(`https://wa.me/${call.leadPhone.replace(/[^0-9]/g, '')}`, '_blank')}

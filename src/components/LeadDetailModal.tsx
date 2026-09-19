@@ -1,7 +1,7 @@
+import { resolveAgentName } from '../utils/agentDisplay';
 import React, { useState, useContext, useRef, useEffect, useMemo } from 'react';
 import { 
   X, 
-  PhoneCall, 
   MessageSquare, 
   Mail, 
   Calendar, 
@@ -156,6 +156,9 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
     if (key === 'pincode' || idKey === 'f-pincode') return lead.pincode || '';
     if (key === 'address' || idKey === 'f-addr') return lead.address || '';
     if (key === 'source' || idKey === 'f-source' || labelLower.includes('source')) return lead.source || '';
+    if (key === 'assignee' || key === 'owner' || idKey === 'f-assignee' || labelLower.includes('assignee') || labelLower.includes('owner')) {
+      return formatProperName(resolveAgentName(agents, { id: lead.ownerAgentId, name: lead.ownerAgentName, fallback: 'Unassigned' }));
+    }
     if (key === 'deal_value' || key === 'dealValue' || idKey === 'f-deal-val' || labelLower.includes('deal value')) {
       if (lead.dealValue !== undefined && lead.dealValue !== null && lead.dealValue !== 0) return String(lead.dealValue);
       if ((lead as any).deal_value !== undefined && (lead as any).deal_value !== null && (lead as any).deal_value !== 0) return String((lead as any).deal_value);
@@ -838,7 +841,9 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
 
     const selectedAgent = agents.find((a) => a.id === followupAssigneeId);
     const finalAssigneeId = followupAssigneeId || lead.ownerAgentId || lead.assignedTo;
-    const finalAssigneeName = selectedAgent ? selectedAgent.name : (lead.ownerAgentName || 'Unassigned');
+    const finalAssigneeName = selectedAgent
+      ? selectedAgent.name
+      : resolveAgentName(agents, { id: followupAssigneeId || lead.ownerAgentId, name: lead.ownerAgentName, fallback: 'Unassigned' });
 
     const activityText = followupNote.trim() || 'Follow-up scheduled.';
     onAddActivity({
@@ -1212,22 +1217,34 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
             <span className="text-xs font-bold text-slate-800 truncate max-w-[160px]">{formatProperName(lead.name)}</span>
           )}
 
-          <div className="flex items-center space-x-1.5 text-xs font-semibold text-slate-600">
-            <button onClick={handlePrevLead} className="px-2 py-1 hover:text-slate-900 rounded-lg bg-slate-50 border border-slate-200 flex items-center space-x-1 cursor-pointer">
-              <ChevronLeft className="w-3.5 h-3.5" />
-              <span>Prev</span>
-            </button>
-            <span className="px-1.5 text-[11px] text-slate-700 font-mono">
-              {currentIndex + 1} of {totalLeadsCount}
-            </span>
-            <button onClick={handleNextLead} className="px-2.5 py-1 bg-[#3a2088] hover:bg-[#2c186b] text-white rounded-lg flex items-center space-x-1 cursor-pointer shadow-2xs active:scale-95 transition-all">
-              <PhoneCall className="w-3.5 h-3.5" />
-              <span>Next</span>
-            </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <div className="inline-flex items-center rounded-lg border border-slate-200 bg-white overflow-hidden shadow-2xs">
+              <button
+                onClick={handlePrevLead}
+                disabled={totalLeadsCount <= 1}
+                className="flex items-center gap-0.5 px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                Prev
+              </button>
+              <span className="px-2.5 py-1.5 text-[11px] font-bold tabular-nums text-slate-800 bg-slate-50 border-x border-slate-200 min-w-[4.25rem] text-center">
+                {Math.max(currentIndex + 1, 0)}
+                <span className="text-slate-400 font-medium mx-0.5">/</span>
+                {totalLeadsCount}
+              </span>
+              <button
+                onClick={handleNextLead}
+                disabled={totalLeadsCount <= 1}
+                className="flex items-center gap-0.5 px-2.5 py-1.5 text-[11px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              >
+                Next
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
             {onClose && (
               <button 
                 onClick={onClose} 
-                className="p-1 text-slate-400 hover:text-indigo-600 rounded cursor-pointer ml-1" 
+                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer" 
                 title="Expand full lead record"
               >
                 <Eye className="w-4 h-4" />
@@ -1247,24 +1264,28 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
               <span>Close</span>
             </button>
             <span className="text-xs font-bold text-slate-800 truncate max-w-[140px]">{formatProperName(lead.name)}</span>
-            <div className="flex items-center space-x-1 text-xs font-semibold text-slate-600">
-              <button onClick={handlePrevLead} className="p-1 hover:text-slate-900 rounded-md bg-slate-50 border border-slate-200 cursor-pointer">
+            <div className="inline-flex items-center rounded-lg border border-slate-200 bg-white overflow-hidden">
+              <button onClick={handlePrevLead} className="p-1.5 hover:bg-slate-50 text-slate-600 hover:text-slate-900 cursor-pointer">
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
-              <span className="px-1 text-[11px] text-slate-700">{currentIndex + 1}/{totalLeadsCount}</span>
-              <button onClick={handleNextLead} className="p-1 hover:text-slate-900 rounded-md bg-slate-50 border border-slate-200 cursor-pointer">
+              <span className="px-2 py-1 text-[11px] font-bold tabular-nums text-slate-800 bg-slate-50 border-x border-slate-200">
+                {Math.max(currentIndex + 1, 0)}/{totalLeadsCount}
+              </span>
+              <button onClick={handleNextLead} className="p-1.5 hover:bg-slate-50 text-slate-600 hover:text-slate-900 cursor-pointer">
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
 
           {/* Desktop Top Floating Navigation */}
-          <div className="hidden md:flex absolute top-4 right-6 z-10 items-center bg-white border border-slate-200 rounded-full px-1 py-1 shadow-sm text-xs font-semibold text-slate-600">
-           <button onClick={handlePrevLead} className="px-3 py-1 hover:text-slate-900 transition-colors flex items-center space-x-1 cursor-pointer rounded-full hover:bg-slate-50">
+          <div className="hidden md:flex absolute top-4 right-6 z-10 items-center bg-white border border-slate-200 rounded-full overflow-hidden shadow-sm text-xs font-semibold text-slate-600">
+           <button onClick={handlePrevLead} className="px-3 py-1.5 hover:text-slate-900 hover:bg-slate-50 transition-colors flex items-center space-x-1 cursor-pointer">
              <ChevronLeft className="w-3.5 h-3.5"/> <span>Prev</span>
            </button>
-           <span className="px-3 text-slate-800 border-x border-slate-200">{currentIndex + 1} <span className="text-slate-400 font-normal">of</span> {totalLeadsCount}</span>
-           <button onClick={handleNextLead} className="px-3 py-1 hover:text-slate-900 transition-colors flex items-center space-x-1 cursor-pointer rounded-full hover:bg-slate-50">
+           <span className="px-3 py-1.5 text-slate-800 font-bold tabular-nums bg-slate-50 border-x border-slate-200">
+             {Math.max(currentIndex + 1, 0)} <span className="text-slate-400 font-medium">/</span> {totalLeadsCount}
+           </span>
+           <button onClick={handleNextLead} className="px-3 py-1.5 hover:text-white hover:bg-indigo-600 transition-colors flex items-center space-x-1 cursor-pointer">
              <span>Next</span> <ChevronRight className="w-3.5 h-3.5"/>
            </button>
           </div>
@@ -1527,9 +1548,9 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                        onClick={(e) => { e.stopPropagation(); setShowAssigneeMenu(!showAssigneeMenu); setShowCampaignMenu(false); setShowTagMenu(false); setShowMoreOptions(false); }}
                        className="flex items-center space-x-2 hover:bg-slate-50 p-1 -m-1 rounded-lg transition-colors cursor-pointer"
                        title="Transfer Lead"
-                     >                       <span className="text-[13px] text-slate-700 font-medium hover:text-indigo-600 transition-colors border-b border-dashed border-slate-300">{lead.ownerAgentName ? formatProperName(lead.ownerAgentName) : 'Radhika M R'}</span>
+                     >                       <span className="text-[13px] text-slate-700 font-medium hover:text-indigo-600 transition-colors border-b border-dashed border-slate-300">{formatProperName(resolveAgentName(agents, { id: lead.ownerAgentId, name: lead.ownerAgentName, fallback: 'Unassigned' }))}</span>
                        <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-700">
-                         {getAgentInitials(lead.ownerAgentName || 'Radhika M R')}
+                         {getAgentInitials(resolveAgentName(agents, { id: lead.ownerAgentId, name: lead.ownerAgentName, fallback: 'U' }))}
                        </div>
                      </button>
 
@@ -2239,7 +2260,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                     </select>
                   </div>
                   <p className="text-[10px] text-slate-400 mt-1">
-                    Directly assigned to this lead's owner ({lead.ownerAgentName ? formatProperName(lead.ownerAgentName) : 'Unassigned'}).
+                    Directly assigned to this lead's owner ({formatProperName(resolveAgentName(agents, { id: lead.ownerAgentId, name: lead.ownerAgentName }))}).
                   </p>
                 </div>
                 <div>
@@ -2674,7 +2695,12 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                     const isWhatsapp = act.type === 'whatsapp';
                     const isNote = act.type === 'note';
 
-                    const avatarInitials = act.agentName ? getAgentInitials(act.agentName) : 'KA';
+                    const actAgentLabel = resolveAgentName(agents, {
+                      id: act.agentId,
+                      name: act.agentName,
+                      fallback: 'User'
+                    });
+                    const avatarInitials = getAgentInitials(actAgentLabel);
 
                     return (
                       <div 

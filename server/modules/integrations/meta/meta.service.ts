@@ -350,51 +350,114 @@ export class MetaService {
   > {
 
 
-    // Multi-tenant fallback
+    // Multi-tenant store — only active pages (disconnected/revoked are hard-removed on unlink)
     const localPages = await multiTenantDb.getFacebookPages(clientId);
-    return localPages.map((p) => ({
-      id: p.id,
-      page_id: p.pageId,
-      page_name: p.pageName,
-      status: p.status || 'active',
-      created_at: p.createdAt,
-      updated_at: p.updatedAt
-    }));
+    return localPages
+      .filter((p) => (p.status || 'active') === 'active')
+      .map((p) => ({
+        id: p.id,
+        page_id: p.pageId,
+        page_name: p.pageName,
+        status: p.status || 'active',
+        created_at: p.createdAt,
+        updated_at: p.updatedAt
+      }));
   }
 
   /**
-   * Disconnects a Facebook Page for a specific client.
-   * Only calls DELETE /{page-id}/subscribed_apps if no other client in the CRM is actively connected to that page.
+   * Reads a tenant's page token before any delete so Meta unsubscribe can still run.
    */
-  public async disconnectPage(clientId: string, pageId: string): Promise<{ success: boolean; message: string }> {
+  private async getTenantPageToken(
+    clientId: string,
+    pageId: string
+  ): Promise<{ page_access_token: string; page_name: string } | null> {
     try {
-      // 1. Mark disconnected for this specific client in database and local store
-      await multiTenantDb.deleteFacebookPage(clientId, pageId);
+      const pages = await multiTenantDb.getFacebookPages(clientId);
+      const page = pages.find((p) => p.pageId === pageId || p.id === pageId);
+      if (!page?.accessToken) return null;
+      const decrypted = decryptText(page.accessToken);
+      if (!decrypted) return null;
+      return { page_access_token: decrypted, page_name: page.pageName };
+    } catch {
+      return null;
+    }
+  }
 
-      // 2. Multi-tenant Collision Safety Check:
-      // Check if any other client still actively listens to this page_id
-      const remainingActive = await this.getAllPageTokens(pageId);
-      const otherActiveSubscribers = remainingActive.filter((p) => p.client_id !== clientId && p.status === 'active');
+  /**
+   * Whether any other tenant still has this page active (for shared Meta unsubscribe safety).
+   */
+  private async otherTenantsUsingPage(clientId: string, pageId: string): Promise<number> {
+    const store = (multiTenantDb as any).store?.facebookPages || {};
+    let count = 0;
+    for (const tenantId of Object.keys(store)) {
+      if (tenantId === clientId) continue;
+      const pages = store[tenantId] || [];
+      if (pages.some((p: any) => (p.pageId === pageId || p.id === pageId) && p.status === 'active')) {
+        count++;
+      }
+    }
+    return count;
+  }
 
-      if (otherActiveSubscribers.length === 0) {
-        // Safe to unregister Meta webhook subscription since no other tenant is using it
-        const pageInfo = await this.getPageToken(pageId);
-        const tokenToUse = pageInfo?.page_access_token;
-        if (tokenToUse) {
-          try {
-            await this.unsubscribePage(pageId, tokenToUse);
-            logger.info(`[Meta Service] Unsubscribed page ${pageId} from Meta webhook (0 remaining active tenants).`);
-          } catch (unsubErr: any) {
-            logger.warn(`[Meta Service] Notice during page unsubscription: ${unsubErr.message}`);
-          }
+  /**
+   * Purges CRM data tied to a Meta page: leads, form mappings, mirrored campaigns.
+   */
+  public async purgePageData(clientId: string, pageId: string): Promise<{ leads: number; mappings: number; campaigns: number }> {
+    const leads = await multiTenantDb.deleteMetaLeadsByPage(clientId, pageId);
+    const { mappings, campaigns } = await multiTenantDb.deleteMetaMappingsByPage(clientId, pageId);
+    return { leads, mappings, campaigns };
+  }
+
+  /**
+   * Purges CRM data tied to a single Meta form mapping.
+   */
+  public async purgeFormData(clientId: string, formId: string): Promise<{ leads: number; mappings: number; campaigns: number }> {
+    const leads = await multiTenantDb.deleteMetaLeadsByForm(clientId, formId);
+    const { mappings, campaigns } = await multiTenantDb.deleteMetaMappingByForm(clientId, formId);
+    return { leads, mappings, campaigns };
+  }
+
+  /**
+   * Disconnects a Facebook Page: unsubscribe (if safe) → purge tenant data → hard-remove page record.
+   */
+  public async disconnectPage(
+    clientId: string,
+    pageId: string,
+    options: { purgeData?: boolean } = { purgeData: true }
+  ): Promise<{ success: boolean; message: string; purged?: { leads: number; mappings: number; campaigns: number } }> {
+    try {
+      // 1. Capture token BEFORE removing the page record
+      const tokenInfo = await this.getTenantPageToken(clientId, pageId);
+      const otherSubscribers = await this.otherTenantsUsingPage(clientId, pageId);
+
+      // 2. Unsubscribe from Meta only when no other tenant still needs this page
+      if (otherSubscribers === 0 && tokenInfo?.page_access_token) {
+        try {
+          await this.unsubscribePage(pageId, tokenInfo.page_access_token);
+          logger.info(`[Meta Service] Unsubscribed page ${pageId} from Meta webhook.`);
+        } catch (unsubErr: any) {
+          logger.warn(`[Meta Service] Notice during page unsubscription: ${unsubErr.message}`);
         }
-      } else {
+      } else if (otherSubscribers > 0) {
         logger.info(
-          `[Meta Service] Page ${pageId} disconnected for ${clientId}. Kept subscribed on Meta for ${otherActiveSubscribers.length} other active tenant(s).`
+          `[Meta Service] Page ${pageId} disconnected for ${clientId}. Kept subscribed on Meta for ${otherSubscribers} other tenant(s).`
         );
       }
 
-      return { success: true, message: `Successfully disconnected Facebook Page ${pageId}` };
+      // 3. Purge related CRM data for this tenant
+      let purged = { leads: 0, mappings: 0, campaigns: 0 };
+      if (options.purgeData !== false) {
+        purged = await this.purgePageData(clientId, pageId);
+      }
+
+      // 4. Hard-remove the page credential record
+      await multiTenantDb.deleteFacebookPage(clientId, pageId, true);
+
+      return {
+        success: true,
+        message: `Successfully disconnected Facebook Page ${pageId}`,
+        purged
+      };
     } catch (err: any) {
       logger.error(`[Meta Service] Error disconnecting page ${pageId}:`, err);
       throw err;
@@ -402,16 +465,74 @@ export class MetaService {
   }
 
   /**
-   * Permanently removes a Facebook Page record from the database for this client.
+   * Permanently removes a Facebook Page and all related CRM data for this client.
    */
-  public async removePage(clientId: string, pageId: string): Promise<{ success: boolean; message: string }> {
+  public async removePage(clientId: string, pageId: string): Promise<{ success: boolean; message: string; purged?: any }> {
+    return this.disconnectPage(clientId, pageId, { purgeData: true });
+  }
+
+  /**
+   * Disconnects the entire Meta account for a tenant: every page + all Meta CRM data.
+   */
+  public async disconnectAccount(clientId: string): Promise<{ success: boolean; message: string; pages: number }> {
+    const rawPages = await multiTenantDb.getFacebookPages(clientId);
+    let count = 0;
+    for (const page of rawPages) {
+      await this.disconnectPage(clientId, page.pageId, { purgeData: true });
+      count++;
+    }
+    // Wipe any leftover Meta leads that lacked page/form ids
+    await multiTenantDb.deleteAllMetaLeads(clientId);
+    await multiTenantDb.clearFacebookIntegration(clientId);
+    return { success: true, message: `Disconnected Meta account (${count} page(s) removed).`, pages: count };
+  }
+
+  /**
+   * Unlinks a single form mapping and purges its leads + mirrored campaign.
+   */
+  public async unlinkForm(clientId: string, formId: string): Promise<{ success: boolean; message: string; purged: any }> {
+    const purged = await this.purgeFormData(clientId, formId);
+    return {
+      success: true,
+      message: `Unlinked form ${formId}`,
+      purged
+    };
+  }
+
+  /**
+   * Marks the facebook integration row connected (called after successful OAuth).
+   */
+  public async markFacebookConnected(
+    clientId: string,
+    account?: { name?: string; email?: string }
+  ): Promise<void> {
+    const all = await multiTenantDb.getIntegrations(clientId);
+    const existing = all.find((i: any) => i.id === 'facebook');
+    await multiTenantDb.saveIntegration(clientId, {
+      id: 'facebook',
+      tenantId: clientId,
+      integrationName: 'Meta',
+      isConnected: true,
+      credentials: {
+        ...(existing?.credentials || {}),
+        ...(account?.name ? { accountName: account.name } : {}),
+        ...(account?.email ? { accountEmail: account.email } : {})
+      }
+    });
+  }
+
+  /**
+   * Fetches basic Graph /me profile for account labeling.
+   */
+  public async getUserProfile(userAccessToken: string): Promise<{ id?: string; name?: string; email?: string } | null> {
     try {
-      await this.disconnectPage(clientId, pageId);
-      await multiTenantDb.deleteFacebookPage(clientId, pageId, true);
-      return { success: true, message: `Successfully removed Facebook Page ${pageId}` };
-    } catch (err: any) {
-      logger.error(`[Meta Service] Error removing page ${pageId}:`, err);
-      throw err;
+      const res = await axios.get(`https://graph.facebook.com/${metaConfig.graphVersion}/me`, {
+        params: { access_token: userAccessToken, fields: 'id,name,email' },
+        timeout: 8000
+      });
+      return res.data || null;
+    } catch {
+      return null;
     }
   }
 
@@ -479,7 +600,7 @@ export class MetaService {
     }
   }
   /**
-   * Fetch lead forms published under a Facebook Page from Graph API
+   * Fetch lead forms published under a Facebook Page from Graph API (live only — no mocks).
    */
   public async getPageForms(pageId: string): Promise<Array<{ id: string; name: string; status: string; questions?: any[] }>> {
     const pageObj = await this.getPageToken(pageId);
@@ -497,80 +618,51 @@ export class MetaService {
         timeout: 8000
       });
       const forms = res.data?.data || [];
-      if (forms.length > 0) {
-        return forms.map((f: any) => ({
-          id: f.id,
-          name: f.name || `Form ${f.id}`,
-          status: f.status || 'ACTIVE',
-          questions: f.questions || []
-        }));
-      }
+      return forms.map((f: any) => ({
+        id: f.id,
+        name: f.name || `Form ${f.id}`,
+        status: f.status || 'ACTIVE',
+        questions: f.questions || []
+      }));
     } catch (err: any) {
-      logger.warn(`[Meta Service] Graph API getPageForms notice for ${pageId}: ${err?.response?.data?.error?.message || err.message}`);
+      await this.handleAuthError(pageId, err);
+      const msg = err?.response?.data?.error?.message || err.message;
+      logger.warn(`[Meta Service] Graph API getPageForms failed for ${pageId}: ${msg}`);
+      throw new Error(msg || `Failed to fetch lead forms for page ${pageId}`);
     }
-
-    // Fallback standard lead form for testing or offline dev
-    return [
-      {
-        id: `form_${pageId}_101`,
-        name: `${pageObj.page_name} Standard Lead Form`,
-        status: 'ACTIVE',
-        questions: [
-          { label: 'Full name', key: 'full_name', type: 'FULL_NAME' },
-          { label: 'Email', key: 'email', type: 'EMAIL' },
-          { label: 'Phone number', key: 'phone_number', type: 'PHONE' },
-          { label: 'Date of birth', key: 'date_of_birth', type: 'DATE_OF_BIRTH' },
-          { label: 'City', key: 'city', type: 'CITY' }
-        ]
-      },
-      {
-        id: `form_${pageId}_102`,
-        name: `${pageObj.page_name} Instant Admission Form`,
-        status: 'ACTIVE',
-        questions: [
-          { label: 'Full name', key: 'full_name', type: 'FULL_NAME' },
-          { label: 'Email', key: 'email', type: 'EMAIL' },
-          { label: 'Phone number', key: 'phone_number', type: 'PHONE' },
-          { label: 'Course Preference', key: 'course_preference', type: 'CUSTOM' }
-        ]
-      }
-    ];
   }
 
   /**
-   * Fetch detailed questions/fields of a specific form
+   * Fetch detailed questions/fields of a specific form (live Graph only).
    */
   public async getFormQuestions(pageId: string, formId: string): Promise<Array<{ label: string; key: string; type?: string }>> {
     const pageObj = await this.getPageToken(pageId);
-    if (pageObj && pageObj.page_access_token) {
-      try {
-        const res = await axios.get(`https://graph.facebook.com/${metaConfig.graphVersion}/${formId}`, {
-          params: {
-            access_token: pageObj.page_access_token,
-            fields: 'id,name,status,questions'
-          },
-          timeout: 8000
-        });
-        if (res.data?.questions && Array.isArray(res.data.questions)) {
-          return res.data.questions.map((q: any) => ({
-            label: q.label || q.key || q.type,
-            key: q.key || q.label?.toLowerCase().replace(/[^a-z0-9_]/g, '_') || 'custom_field',
-            type: q.type || 'CUSTOM'
-          }));
-        }
-      } catch (err: any) {
-        logger.warn(`[Meta Service] Graph API getFormQuestions notice for ${formId}: ${err?.response?.data?.error?.message || err.message}`);
-      }
+    if (!pageObj?.page_access_token) {
+      throw new Error(`No active access token found for Facebook Page ID ${pageId}`);
     }
 
-    // Standard question fallback
-    return [
-      { label: 'Full name', key: 'full_name', type: 'FULL_NAME' },
-      { label: 'Email', key: 'email', type: 'EMAIL' },
-      { label: 'Phone number', key: 'phone_number', type: 'PHONE' },
-      { label: 'Date of birth', key: 'date_of_birth', type: 'DATE_OF_BIRTH' },
-      { label: 'City', key: 'city', type: 'CITY' }
-    ];
+    try {
+      const res = await axios.get(`https://graph.facebook.com/${metaConfig.graphVersion}/${formId}`, {
+        params: {
+          access_token: pageObj.page_access_token,
+          fields: 'id,name,status,questions'
+        },
+        timeout: 8000
+      });
+      if (res.data?.questions && Array.isArray(res.data.questions)) {
+        return res.data.questions.map((q: any) => ({
+          label: q.label || q.key || q.type,
+          key: q.key || q.label?.toLowerCase().replace(/[^a-z0-9_]/g, '_') || 'custom_field',
+          type: q.type || 'CUSTOM'
+        }));
+      }
+      return [];
+    } catch (err: any) {
+      await this.handleAuthError(pageId, err);
+      const msg = err?.response?.data?.error?.message || err.message;
+      logger.warn(`[Meta Service] Graph API getFormQuestions failed for ${formId}: ${msg}`);
+      throw new Error(msg || `Failed to fetch questions for form ${formId}`);
+    }
   }
 }
 

@@ -26,6 +26,7 @@ import { CustomDropdown, DropdownOption } from '../components/CustomDropdown';
 import { UserAvatar } from '../components/UserAvatar';
 import { toast } from '../context/ToastContext';
 import { formatProperName } from '../utils/formatUtils';
+import { resolveAgentName, resolveAgentAvatar, matchesAgent } from '../utils/agentDisplay';
 
 function parseLeadCreatedMs(createdAt?: string): number {
   if (!createdAt || createdAt === 'Just Now' || createdAt === 'Just now') return Date.now();
@@ -58,6 +59,7 @@ interface DashboardViewProps {
   onNavigateToTab: (tab: string) => void;
   onDeleteLead?: (leadId: string) => void;
   onUpdateLead?: (leadId: string, updates: Partial<Lead>) => void;
+  onRefreshData?: () => void | Promise<void>;
 }
 
 export const DashboardPage: React.FC<DashboardViewProps> = ({
@@ -74,6 +76,7 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
   onNavigateToTab,
   onDeleteLead,
   onUpdateLead,
+  onRefreshData,
 }) => {
   const [aiInsights, setAiInsights] = useState<any[]>([]);
   const [loadingInsights, setLoadingInsights] = useState(false);
@@ -111,7 +114,7 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
   const [stagesAssigneeSearch, setStagesAssigneeSearch] = useState('');
   const [stagesSortCol, setStagesSortCol] = useState<'name' | 'fresh' | 'active' | 'won' | 'lost'>('name');
   const [stagesSortDir, setStagesSortDir] = useState<'asc' | 'desc'>('asc');
-  const [stagesLastRefreshed, setStagesLastRefreshed] = useState('24m ago');
+  const [stagesLastRefreshed, setStagesLastRefreshed] = useState('Just now');
   const [isAssigneeFilterOpen, setIsAssigneeFilterOpen] = useState(false);
   const assigneeDropdownRef = React.useRef<HTMLDivElement>(null);
 
@@ -148,7 +151,9 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
     onUpdateLead(followUpLead.id, {
       followUpAt: combinedDate.toISOString(),
       ownerAgentId: followUpAssigneeId || followUpLead.ownerAgentId,
-      ownerAgentName: assignedAgent ? assignedAgent.name : followUpLead.ownerAgentName,
+      ownerAgentName: assignedAgent
+        ? assignedAgent.name
+        : resolveAgentName(agents, { id: followUpAssigneeId || followUpLead.ownerAgentId, name: followUpLead.ownerAgentName }),
       notes: followUpRemarks
         ? `${followUpLead.notes ? followUpLead.notes + '\n' : ''}[Follow-Up Scheduled]: ${followUpRemarks}`
         : followUpLead.notes,
@@ -160,8 +165,13 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
 
   // Helper to enforce assignee calling authority
   const handleCallLead = (lead: Lead) => {
+    const ownerLabel = resolveAgentName(agents, {
+      id: lead.ownerAgentId,
+      name: lead.ownerAgentName,
+      fallback: 'the assignee'
+    });
     if (lead.ownerAgentId && activeAgent && lead.ownerAgentId !== activeAgent.id) {
-      toast.warning(`Lead "${lead.name}" is assigned to ${lead.ownerAgentName}. Only ${lead.ownerAgentName} has authority to place calls to this lead.`, 'Call Authority Restricted');
+      toast.warning(`Lead "${lead.name}" is assigned to ${ownerLabel}. Only ${ownerLabel} has authority to place calls to this lead.`, 'Call Authority Restricted');
       return;
     }
     window.location.href = `tel:${lead.phone}`;
@@ -175,10 +185,8 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
     if (selectedAssigneeId === 'ALL') return leads;
     if (selectedAssigneeId === 'UNASSIGNED') return leads.filter((l) => !l.ownerAgentId);
     const targetAgent = agents.find((a) => a.id === selectedAssigneeId);
-    return leads.filter(
-      (l) =>
-        l.ownerAgentId === selectedAssigneeId ||
-        (targetAgent && l.ownerAgentName && l.ownerAgentName.toLowerCase() === targetAgent.name.toLowerCase())
+    return leads.filter((l) =>
+      matchesAgent(agents, targetAgent, { id: l.ownerAgentId, name: l.ownerAgentName })
     );
   }, [leads, selectedAssigneeId, agents]);
 
@@ -287,7 +295,9 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
       (lead.phone || '').toLowerCase().includes(rawSearch) ||
       (digitsSearch.length >= 2 && (cleanPhone.includes(digitsSearch) || cleanAltPhone.includes(digitsSearch))) ||
       (lead.company || '').toLowerCase().includes(rawSearch) ||
-      (lead.ownerAgentName && lead.ownerAgentName.toLowerCase().includes(rawSearch));
+      resolveAgentName(agents, { id: lead.ownerAgentId, name: lead.ownerAgentName })
+        .toLowerCase()
+        .includes(rawSearch);
 
     const matchesSource =
       tableSourceFilter === 'ALL' ||
@@ -372,9 +382,8 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
     }
 
     const rows = allAgentEntries.map(ag => {
-      const agLeads = timeframeFilteredLeads.filter(l => 
-        l.ownerAgentId === ag.id || 
-        (l.ownerAgentName && l.ownerAgentName.toLowerCase() === ag.name.toLowerCase())
+      const agLeads = timeframeFilteredLeads.filter((l) =>
+        matchesAgent(agents, ag, { id: l.ownerAgentId, name: l.ownerAgentName })
       );
 
       const freshCount = agLeads.filter(l => l.status === 'Fresh' || l.status === 'New Lead').length;
@@ -551,12 +560,33 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
                   {/* Assignee Column */}
                   <div className="col-span-4 flex items-center space-x-2 min-w-0">
                     <UserAvatar
-                      name={formatProperName(lead.ownerAgentName || 'Unassigned')}
-                      avatarUrl={agents.find((a) => a.name === lead.ownerAgentName || a.id === lead.ownerAgentId)?.avatar || (activeAgent?.name === lead.ownerAgentName ? activeAgent.avatar : undefined)}
+                      name={formatProperName(
+                        resolveAgentName(agents, {
+                          id: lead.ownerAgentId,
+                          name: lead.ownerAgentName
+                        })
+                      )}
+                      avatarUrl={
+                        resolveAgentAvatar(agents, {
+                          id: lead.ownerAgentId,
+                          name: lead.ownerAgentName,
+                          fallbackAvatar:
+                            activeAgent?.id === lead.ownerAgentId || activeAgent?.name === lead.ownerAgentName
+                              ? activeAgent?.avatar
+                              : undefined
+                        })
+                      }
                       size="xs"
                       rounded="full"
                     />
-                    <p className="text-slate-700 font-medium truncate text-[11px]">{formatProperName(lead.ownerAgentName || 'Unassigned')}</p>
+                    <p className="text-slate-700 font-medium truncate text-[11px]">
+                      {formatProperName(
+                        resolveAgentName(agents, {
+                          id: lead.ownerAgentId,
+                          name: lead.ownerAgentName
+                        })
+                      )}
+                    </p>
                   </div>
 
                   {/* Contact Column (Left-Aligned with generous gap between phone number and action buttons) */}
@@ -618,7 +648,10 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
             <div className="flex items-center space-x-1.5 text-[11px] text-slate-400">
               <span>{stagesLastRefreshed}</span>
               <button
-                onClick={() => setStagesLastRefreshed('Just now')}
+                onClick={() => {
+                  setStagesLastRefreshed('Just now');
+                  void onRefreshData?.();
+                }}
                 title="Refresh Lead Stages Data"
                 className="p-0.5 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
               >
@@ -1073,7 +1106,7 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
                             return (
                               <td key={field.id} className="px-3.5 py-2.5 whitespace-nowrap">
                                 <span className="text-slate-700 text-xs font-normal">
-                                  {formatProperName(lead.ownerAgentName || 'Unassigned')}
+                                  {formatProperName(resolveAgentName(agents, { id: lead.ownerAgentId, name: lead.ownerAgentName }))}
                                 </span>
                               </td>
                             );
@@ -1162,7 +1195,12 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
                   </select>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1">
-                  Directly pre-assigned to the lead's owner ({followUpLead.ownerAgentName || 'Unassigned'}).
+                  Directly pre-assigned to the lead's owner (
+                  {resolveAgentName(agents, {
+                    id: followUpLead.ownerAgentId,
+                    name: followUpLead.ownerAgentName
+                  })}
+                  ).
                 </p>
               </div>
 

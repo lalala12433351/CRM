@@ -467,6 +467,7 @@ export class MultiTenantDatabase {
         this.hydrateStoreFromParsed(JSON.parse(raw));
         logger.info('[MultiTenantDB] Loaded primary store from ' + STORE_PATH);
         this.healOrphanLeadOwners();
+        this.healCorruptedLeadContactNames();
         this.healDenormalizedAgentLabels();
         // Mirror primary → project .data so git/visibility stays aligned without flipping the source of truth
         this.saveStoreImmediate();
@@ -522,7 +523,66 @@ export class MultiTenantDatabase {
     }
   }
 
-  /** Rewrite denormalized owner/assignee labels to match the current agent name for each id. */
+  /**
+   * If heal/sync previously copied an agent display name into lead.name, restore the
+   * contact name from Meta/custom field payloads (full_name, Full name, Name, etc.).
+   * Never invent names and never leave agent labels on lead.name when a Meta source exists.
+   */
+  private healCorruptedLeadContactNames() {
+    let repaired = 0;
+    for (const tenantId of Object.keys(this.store.leads || {})) {
+      const agents = this.store.agents[tenantId] || [];
+      if (!agents.length) continue;
+      const agentNames = new Set(
+        agents.map((a) => String(a.name || '').trim().toLowerCase()).filter(Boolean)
+      );
+
+      const pickContactName = (lead: any): string | null => {
+        const cf = (lead && lead.customFields) || {};
+        const firstLast = `${cf.first_name || cf.firstName || ''} ${cf.last_name || cf.lastName || ''}`.trim();
+        const candidates = [
+          cf.full_name,
+          cf.fullName,
+          cf['Full name'],
+          cf['Full Name'],
+          cf.Name,
+          cf.name,
+          firstLast,
+          cf.meta_full_name,
+          cf.lead_name,
+          cf.leadName
+        ];
+        for (const raw of candidates) {
+          const n = String(raw || '').trim();
+          if (!n) continue;
+          if (agentNames.has(n.toLowerCase())) continue;
+          return n;
+        }
+        return null;
+      };
+
+      const leads = this.store.leads[tenantId] || [];
+      for (let i = 0; i < leads.length; i++) {
+        const lead = leads[i];
+        const current = String(lead.name || '').trim();
+        if (!current || !agentNames.has(current.toLowerCase())) continue;
+        const restored = pickContactName(lead);
+        if (!restored || restored === current) continue;
+        leads[i] = { ...lead, name: restored };
+        repaired++;
+      }
+    }
+    if (repaired > 0) {
+      logger.info(`[MultiTenantDB] Restored ${repaired} lead contact name(s) from Meta/customFields (cleared agent-name corruption)`);
+      this.saveStoreImmediate();
+    }
+  }
+
+  /**
+   * Rewrite every denormalized owner/assignee/agent label to match the live agents[]
+   * profile for that id. Also refreshes embedded agent snapshots (e.g. campaign distribution).
+   * CRITICAL: never writes agent names into lead.name (contact name).
+   */
   private healDenormalizedAgentLabels() {
     let repaired = 0;
     const tenantIds = new Set<string>([
@@ -530,49 +590,225 @@ export class MultiTenantDatabase {
       ...Object.keys(this.store.leads || {}),
       ...Object.keys(this.store.tasks || {}),
       ...Object.keys(this.store.calls || {}),
-      ...Object.keys(this.store.activities || {})
+      ...Object.keys(this.store.activities || {}),
+      ...Object.keys(this.store.campaigns || {}),
+      ...Object.keys(this.store.messages || {}),
+      ...Object.keys(this.store.whatsappCampaigns || {})
     ]);
+
+    const setIfChanged = (obj: any, key: string, value: string) => {
+      if (!obj || value == null) return;
+      if (obj[key] !== value) {
+        obj[key] = value;
+        repaired++;
+      }
+    };
+
+    /** True for CRM lead records — contact `name` must never be overwritten by agent heal. */
+    const isLeadLike = (obj: any) =>
+      Boolean(
+        obj &&
+          typeof obj === 'object' &&
+          (obj.formId != null ||
+            obj.formName != null ||
+            obj.pipelineStageId != null ||
+            obj.customFields != null ||
+            (obj.ownerAgentId != null && obj.phone != null && !obj.role))
+      );
+
+    const syncEmbeddedAgent = (entry: any, byId: Map<string, TenantAgent>) => {
+      if (!entry || typeof entry !== 'object') return;
+      // Never treat a lead record as an embedded agent snapshot
+      if (isLeadLike(entry)) return;
+      const id = entry.id || entry.agentId || entry.ownerAgentId || entry.assigneeAgentId;
+      const agent = id ? byId.get(String(id)) : undefined;
+      if (!agent) return;
+      // Only rewrite `name` when this entry is clearly an agent snapshot (id is an agent id)
+      if (entry.id && byId.has(String(entry.id))) {
+        setIfChanged(entry, 'name', agent.name);
+      }
+      setIfChanged(entry, 'agentName', agent.name);
+      setIfChanged(entry, 'ownerAgentName', agent.name);
+      setIfChanged(entry, 'assigneeAgentName', agent.name);
+      setIfChanged(entry, 'assigneeName', agent.name);
+      if (agent.companyName) setIfChanged(entry, 'companyName', agent.companyName);
+      if (agent.email) setIfChanged(entry, 'email', agent.email);
+      if (agent.avatar !== undefined && entry.avatar !== agent.avatar) {
+        entry.avatar = agent.avatar;
+        repaired++;
+      }
+    };
 
     for (const tenantId of tenantIds) {
       const agents = this.store.agents[tenantId] || [];
       if (!agents.length) continue;
       const byId = new Map(agents.map((a) => [a.id, a]));
+      const names = new Set(agents.map((a) => a.name));
+      const admin =
+        agents.find((a) => a.isAdmin || String(a.role || '').toLowerCase().includes('admin')) || agents[0];
+      const aliasToId = new Map<string, string>([['agent-admin', admin.id]]);
+
+      const resolveId = (raw?: string) => {
+        if (!raw) return undefined;
+        if (byId.has(raw)) return raw;
+        return aliasToId.get(raw);
+      };
+
+      const syncPersonFields = (obj: any) => {
+        if (!obj || typeof obj !== 'object') return;
+        // Lead contact records: only touch owner* labels — never contact `name`
+        if (isLeadLike(obj)) {
+          const ownerId = resolveId(obj.ownerAgentId) || obj.ownerAgentId;
+          const owner = ownerId ? byId.get(String(ownerId)) : undefined;
+          if (owner) setIfChanged(obj, 'ownerAgentName', owner.name);
+          return;
+        }
+        let rawId = obj.agentId || obj.ownerAgentId || obj.assigneeAgentId || obj.id;
+        const mapped = resolveId(rawId);
+        if (rawId && mapped && rawId !== mapped) {
+          if (obj.agentId === rawId) obj.agentId = mapped;
+          if (obj.ownerAgentId === rawId) obj.ownerAgentId = mapped;
+          if (obj.assigneeAgentId === rawId) obj.assigneeAgentId = mapped;
+          repaired++;
+          rawId = mapped;
+        }
+        // assignedTo must be an agent id, never a display name
+        if (typeof obj.assignedTo === 'string' && obj.assignedTo && !byId.has(obj.assignedTo)) {
+          if (!names.has(obj.assignedTo)) {
+            obj.assignedTo = admin.id;
+            repaired++;
+          } else {
+            const match = agents.find((a) => a.name === obj.assignedTo);
+            if (match) {
+              obj.assignedTo = match.id;
+              repaired++;
+            }
+          }
+        }
+        const agent = rawId ? byId.get(String(rawId)) : undefined;
+        if (agent) {
+          if ('agentName' in obj) setIfChanged(obj, 'agentName', agent.name);
+          if ('ownerAgentName' in obj) setIfChanged(obj, 'ownerAgentName', agent.name);
+          if ('assigneeAgentName' in obj) setIfChanged(obj, 'assigneeAgentName', agent.name);
+          if ('assigneeName' in obj) setIfChanged(obj, 'assigneeName', agent.name);
+          // Embedded agent snapshot only — id must be a known agent id
+          if ((obj.email != null || obj.role != null) && obj.id && byId.has(String(obj.id))) {
+            setIfChanged(obj, 'name', agent.name);
+            if (agent.companyName) setIfChanged(obj, 'companyName', agent.companyName);
+          }
+        }
+      };
+
+      const walkNested = (node: any) => {
+        if (!node) return;
+        if (Array.isArray(node)) {
+          for (const item of node) walkNested(item);
+          return;
+        }
+        if (typeof node !== 'object') return;
+        syncPersonFields(node);
+        for (const value of Object.values(node)) {
+          if (value && typeof value === 'object') walkNested(value);
+        }
+      };
 
       for (const lead of this.store.leads[tenantId] || []) {
         const agent = lead.ownerAgentId ? byId.get(lead.ownerAgentId) : undefined;
-        if (agent && lead.ownerAgentName !== agent.name) {
-          lead.ownerAgentName = agent.name;
-          repaired++;
+        if (agent) {
+          setIfChanged(lead, 'ownerAgentName', agent.name);
+        } else if (lead.ownerAgentName && !names.has(lead.ownerAgentName) && admin) {
+          lead.ownerAgentId = admin.id;
+          setIfChanged(lead, 'ownerAgentName', admin.name);
         }
+        // Nested lead.activities / history snapshots
+        walkNested(lead.activities);
+        walkNested((lead as any).activityHistory);
       }
 
       for (const task of this.store.tasks[tenantId] || []) {
         const agent = task.assigneeAgentId ? byId.get(task.assigneeAgentId) : undefined;
-        if (agent && task.assigneeAgentName !== agent.name) {
-          task.assigneeAgentName = agent.name;
-          repaired++;
+        if (agent) {
+          setIfChanged(task, 'assigneeAgentName', agent.name);
+        } else if (task.assigneeAgentName && !names.has(task.assigneeAgentName) && admin) {
+          task.assigneeAgentId = admin.id;
+          setIfChanged(task, 'assigneeAgentName', admin.name);
         }
       }
 
       for (const call of this.store.calls[tenantId] || []) {
+        const mappedId = resolveId(call.agentId);
+        if (mappedId && call.agentId !== mappedId) {
+          call.agentId = mappedId;
+          repaired++;
+        }
         const agent = call.agentId ? byId.get(call.agentId) : undefined;
         if (agent) {
-          if (call.agentName !== agent.name) {
-            call.agentName = agent.name;
-            repaired++;
-          }
-          if (call.assigneeName && call.assigneeName !== agent.name) {
-            call.assigneeName = agent.name;
-            repaired++;
+          setIfChanged(call, 'agentName', agent.name);
+          if (call.assigneeName != null) setIfChanged(call, 'assigneeName', agent.name);
+        } else if (
+          ((call as any).agentName && !names.has((call as any).agentName)) ||
+          ((call as any).assigneeName && !names.has((call as any).assigneeName))
+        ) {
+          if (admin) {
+            (call as any).agentId = admin.id;
+            setIfChanged(call, 'agentName', admin.name);
+            setIfChanged(call, 'assigneeName', admin.name);
           }
         }
       }
 
       for (const act of this.store.activities[tenantId] || []) {
-        const agent = act.agentId ? byId.get(act.agentId) : undefined;
-        if (agent && act.agentName !== agent.name) {
-          act.agentName = agent.name;
+        const mappedId = resolveId(act.agentId);
+        if (mappedId && act.agentId !== mappedId) {
+          act.agentId = mappedId;
           repaired++;
+        }
+        const agent = act.agentId ? byId.get(act.agentId) : undefined;
+        if (agent) {
+          setIfChanged(act, 'agentName', agent.name);
+        } else if (act.agentName && !names.has(act.agentName) && admin) {
+          act.agentId = admin.id;
+          setIfChanged(act, 'agentName', admin.name);
+        }
+      }
+
+      for (const msg of this.store.messages[tenantId] || []) {
+        const anyMsg = msg as any;
+        const agent =
+          (anyMsg.agentId && byId.get(anyMsg.agentId)) ||
+          (anyMsg.ownerAgentId && byId.get(anyMsg.ownerAgentId)) ||
+          undefined;
+        if (agent) {
+          if (anyMsg.agentName != null) setIfChanged(anyMsg, 'agentName', agent.name);
+          if (anyMsg.ownerAgentName != null) setIfChanged(anyMsg, 'ownerAgentName', agent.name);
+          if (anyMsg.senderName != null && anyMsg.agentId) setIfChanged(anyMsg, 'senderName', agent.name);
+        }
+      }
+
+      for (const camp of this.store.campaigns[tenantId] || []) {
+        const anyCamp = camp as any;
+        if (Array.isArray(anyCamp.leadDistribution)) {
+          for (const entry of anyCamp.leadDistribution) syncEmbeddedAgent(entry, byId);
+        }
+        if (Array.isArray(anyCamp.members)) {
+          for (const entry of anyCamp.members) syncEmbeddedAgent(entry, byId);
+        }
+        if (Array.isArray(anyCamp.agents)) {
+          for (const entry of anyCamp.agents) syncEmbeddedAgent(entry, byId);
+        }
+        // Nested settings / form configs that snapshot agents
+        if (anyCamp.settings && typeof anyCamp.settings === 'object') {
+          const dist = anyCamp.settings.leadDistribution || anyCamp.settings.distribution;
+          if (Array.isArray(dist)) {
+            for (const entry of dist) syncEmbeddedAgent(entry, byId);
+          }
+        }
+      }
+
+      for (const wa of this.store.whatsappCampaigns[tenantId] || []) {
+        syncEmbeddedAgent(wa as any, byId);
+        if (Array.isArray((wa as any).agents)) {
+          for (const entry of (wa as any).agents) syncEmbeddedAgent(entry, byId);
         }
       }
     }
@@ -581,6 +817,12 @@ export class MultiTenantDatabase {
       logger.info(`[MultiTenantDB] Healed ${repaired} denormalized agent label(s) from current agent profiles`);
       this.saveStoreImmediate();
     }
+  }
+
+  /** Public re-heal after profile/agent renames so API responses never serve stale labels. */
+  public healAgentLabelsNow() {
+    this.healCorruptedLeadContactNames();
+    this.healDenormalizedAgentLabels();
   }
 
   private writeStoreFile(targetPath: string, payload: string): boolean {
@@ -746,12 +988,38 @@ export class MultiTenantDatabase {
   // =========================================================================
   public async getLeads(tenantId: string, agentIds?: string[], isAdmin?: boolean): Promise<TenantLead[]> {
     this.ensureTenantBuckets(tenantId);
+    const byId = new Map((this.store.agents[tenantId] || []).map((a) => [a.id, a]));
+    const agentsList = this.store.agents[tenantId] || [];
+    const agentsAdminId =
+      agentsList.find((a) => a.isAdmin || String(a.role || '').toLowerCase().includes('admin'))?.id ||
+      agentsList[0]?.id;
     const tenantLeads = [...(this.store.leads[tenantId] || [])].map((lead) => {
       // Backfill ownerAgentId from assignedTo for older Meta / Facebook leads
+      let next = lead;
       if (!lead.ownerAgentId && lead.assignedTo) {
-        return { ...lead, ownerAgentId: String(lead.assignedTo) };
+        next = { ...lead, ownerAgentId: String(lead.assignedTo) };
       }
-      return lead;
+      const agent = next.ownerAgentId ? byId.get(next.ownerAgentId) : undefined;
+      if (agent && next.ownerAgentName !== agent.name) {
+        next = { ...next, ownerAgentName: agent.name };
+      }
+      if (Array.isArray((next as any).activities)) {
+        next = {
+          ...next,
+          activities: (next as any).activities.map((act: any) => {
+            let mappedId = act.agentId;
+            if (mappedId === 'agent-admin' && agentsAdminId && !byId.has('agent-admin')) {
+              mappedId = agentsAdminId;
+            }
+            const resolved = mappedId ? byId.get(mappedId) : undefined;
+            if (resolved && (act.agentName !== resolved.name || act.agentId !== mappedId)) {
+              return { ...act, agentId: mappedId, agentName: resolved.name };
+            }
+            return act;
+          })
+        } as TenantLead;
+      }
+      return next;
     });
 
     tenantLeads.sort((a, b) => {
@@ -877,6 +1145,35 @@ export class MultiTenantDatabase {
 
     let savedLead: TenantLead;
 
+    const agentsForTenant = this.store.agents[targetTenantId] || [];
+    const agentNameSet = new Set(
+      agentsForTenant.map((a) => String(a.name || '').trim().toLowerCase()).filter(Boolean)
+    );
+    const metaContactName = (cf: any): string | null => {
+      if (!cf || typeof cf !== 'object') return null;
+      const firstLast = `${cf.first_name || cf.firstName || ''} ${cf.last_name || cf.lastName || ''}`.trim();
+      for (const raw of [
+        cf.full_name,
+        cf.fullName,
+        cf['Full name'],
+        cf['Full Name'],
+        cf.Name,
+        cf.name,
+        firstLast
+      ]) {
+        const n = String(raw || '').trim();
+        if (n && !agentNameSet.has(n.toLowerCase())) return n;
+      }
+      return null;
+    };
+    const safeLeadName = (candidate: string | undefined, cf: any, fallback: string) => {
+      const c = String(candidate || '').trim();
+      if (c && !agentNameSet.has(c.toLowerCase()) && c !== 'Meta Test Lead' && !c.includes('<test lead')) {
+        return c;
+      }
+      return metaContactName(cf) || (fallback && !agentNameSet.has(fallback.toLowerCase()) ? fallback : null) || c || 'New Inbound Lead';
+    };
+
     if (existingIndex >= 0 && this.store.leads[targetTenantId]) {
       const existing = this.store.leads[targetTenantId][existingIndex];
       const preservedCreatedAt = (existing.createdAt && existing.createdAt !== 'Just Now' && existing.createdAt !== 'Just now')
@@ -899,17 +1196,18 @@ export class MultiTenantDatabase {
         timestamp: now
       };
 
+      const mergedCf = {
+        ...(existing.customFields || {}),
+        ...(leadData.customFields || {})
+      };
       savedLead = {
         ...existing,
         ...leadData,
         id: existing.id, // Preserve existing ID
-        name: leadData.name && leadData.name !== 'Meta Test Lead' && !leadData.name.includes('<test lead') ? leadData.name : existing.name,
+        name: safeLeadName(leadData.name, mergedCf, existing.name),
         phone: leadData.phone && !leadData.phone.includes('98765 00000') ? leadData.phone : existing.phone,
         email: leadData.email && !leadData.email.includes('test_lead@') ? leadData.email : existing.email,
-        customFields: {
-          ...(existing.customFields || {}),
-          ...(leadData.customFields || {})
-        },
+        customFields: mergedCf,
         tags: mergedTags,
         activities: [newActivity, ...existingActivities],
         tenantId: targetTenantId,
@@ -922,7 +1220,7 @@ export class MultiTenantDatabase {
       savedLead = {
         id: leadData.id || `lead-${Date.now()}`,
         tenantId: targetTenantId,
-        name: leadData.name || 'New Inbound Lead',
+        name: safeLeadName(leadData.name, leadData.customFields, 'New Inbound Lead'),
         phone: leadData.phone || '',
         email: leadData.email || '',
         company: leadData.company || '',
@@ -942,6 +1240,7 @@ export class MultiTenantDatabase {
         customFields: leadData.customFields || {},
         tags: leadData.tags || [],
         ...leadData,
+        name: safeLeadName(leadData.name, leadData.customFields, 'New Inbound Lead'),
         createdAt: resolvedCreatedAt,
         updatedAt: now
       };
@@ -969,6 +1268,59 @@ export class MultiTenantDatabase {
     const deleted = this.store.leads[tenantId].length < initialLen;
     if (deleted) this.saveStore();
     return deleted;
+  }
+
+  /** Delete all Meta leads belonging to a Facebook page for this tenant. */
+  public async deleteMetaLeadsByPage(tenantId: string, pageId: string): Promise<number> {
+    if (!this.store.leads[tenantId]) return 0;
+    const before = this.store.leads[tenantId].length;
+    this.store.leads[tenantId] = this.store.leads[tenantId].filter((l) => {
+      const metaPage = l.customFields?.meta_page_id || (l as any).pageId;
+      const isMeta =
+        String(l.source || '').toLowerCase().includes('meta') ||
+        String(l.source || '').toLowerCase().includes('facebook') ||
+        String(l.id || '').startsWith('meta-lead-');
+      if (!isMeta) return true;
+      return String(metaPage) !== String(pageId);
+    });
+    const removed = before - this.store.leads[tenantId].length;
+    if (removed > 0) this.saveStore();
+    return removed;
+  }
+
+  /** Delete all Meta leads belonging to a leadgen form for this tenant. */
+  public async deleteMetaLeadsByForm(tenantId: string, formId: string): Promise<number> {
+    if (!this.store.leads[tenantId]) return 0;
+    const before = this.store.leads[tenantId].length;
+    this.store.leads[tenantId] = this.store.leads[tenantId].filter((l) => {
+      const metaForm = l.customFields?.meta_form_id || l.formId || l.customFields?.form_id;
+      const isMeta =
+        String(l.source || '').toLowerCase().includes('meta') ||
+        String(l.source || '').toLowerCase().includes('facebook') ||
+        String(l.id || '').startsWith('meta-lead-');
+      if (!isMeta) return true;
+      return String(metaForm) !== String(formId);
+    });
+    const removed = before - this.store.leads[tenantId].length;
+    if (removed > 0) this.saveStore();
+    return removed;
+  }
+
+  /** Delete every Meta/Facebook lead for a tenant (full account unlink). */
+  public async deleteAllMetaLeads(tenantId: string): Promise<number> {
+    if (!this.store.leads[tenantId]) return 0;
+    const before = this.store.leads[tenantId].length;
+    this.store.leads[tenantId] = this.store.leads[tenantId].filter((l) => {
+      const isMeta =
+        String(l.source || '').toLowerCase().includes('meta') ||
+        String(l.source || '').toLowerCase().includes('facebook') ||
+        String(l.id || '').startsWith('meta-lead-') ||
+        !!l.customFields?.meta_leadgen_id;
+      return !isMeta;
+    });
+    const removed = before - this.store.leads[tenantId].length;
+    if (removed > 0) this.saveStore();
+    return removed;
   }
 
   // =========================================================================
@@ -1037,6 +1389,27 @@ export class MultiTenantDatabase {
         responseTimeMinutes: 1.0
       };
       this.store.agents[tenantId].push(agent);
+    }
+
+    // Keep denormalized labels in sync when an agent is renamed
+    if (agent?.id && agent?.name) {
+      const byId = agent.id;
+      const liveName = agent.name;
+      for (const lead of this.store.leads[tenantId] || []) {
+        if (lead.ownerAgentId === byId) lead.ownerAgentName = liveName;
+      }
+      for (const task of this.store.tasks[tenantId] || []) {
+        if (task.assigneeAgentId === byId) task.assigneeAgentName = liveName;
+      }
+      for (const call of this.store.calls[tenantId] || []) {
+        if (call.agentId === byId) {
+          call.agentName = liveName;
+          if ((call as any).assigneeName != null) (call as any).assigneeName = liveName;
+        }
+      }
+      for (const act of this.store.activities[tenantId] || []) {
+        if (act.agentId === byId) act.agentName = liveName;
+      }
     }
 
     this.saveStore();
@@ -1148,6 +1521,8 @@ export class MultiTenantDatabase {
       });
     }
 
+    // Campaign / WhatsApp embedded agent snapshots + any remaining stale labels
+    this.healDenormalizedAgentLabels();
     this.saveStore();
     return agent;
   }
@@ -1224,7 +1599,14 @@ export class MultiTenantDatabase {
   // 6. TASKS (STRICTLY SCOPED TO tenantId)
   // =========================================================================
   public async getTasks(tenantId: string): Promise<TenantTask[]> {
-    return this.store.tasks[tenantId] || [];
+    const byId = new Map((this.store.agents[tenantId] || []).map((a) => [a.id, a]));
+    return (this.store.tasks[tenantId] || []).map((task) => {
+      const agent = task.assigneeAgentId ? byId.get(task.assigneeAgentId) : undefined;
+      if (agent && task.assigneeAgentName !== agent.name) {
+        return { ...task, assigneeAgentName: agent.name };
+      }
+      return task;
+    });
   }
 
   public async saveTask(tenantId: string, taskData: Partial<TenantTask>): Promise<TenantTask> {
@@ -1275,7 +1657,17 @@ export class MultiTenantDatabase {
   // 6b. CALLS (STRICTLY SCOPED TO tenantId WITH ASSIGNEE NAME)
   // =========================================================================
   public async getCalls(tenantId: string): Promise<TenantCall[]> {
-    return this.store.calls[tenantId] || [];
+    const byId = new Map((this.store.agents[tenantId] || []).map((a) => [a.id, a]));
+    return (this.store.calls[tenantId] || []).map((call) => {
+      const agent = call.agentId ? byId.get(call.agentId) : undefined;
+      if (!agent) return call;
+      let next = call;
+      if (call.agentName !== agent.name) next = { ...next, agentName: agent.name };
+      if ((call as any).assigneeName != null && (call as any).assigneeName !== agent.name) {
+        next = { ...next, assigneeName: agent.name } as TenantCall;
+      }
+      return next;
+    });
   }
 
   public async saveCall(tenantId: string, callData: Partial<TenantCall>): Promise<TenantCall> {
@@ -1781,20 +2173,48 @@ export class MultiTenantDatabase {
   // =========================================================================
   // 14. WORKSPACE CAMPAIGNS (MULTI-TENANT STORE + META INTEGRATION MAPPINGS)
   // =========================================================================
-  public async getCampaigns(tenantId: string): Promise<TenantCampaign[]> {
+  private normalizeCampaignHandle(str: string, fallback = ''): string {
+    if (!str) return fallback;
+    const withoutAt = String(str).trim().replace(/^@+/, '');
+    const clean = withoutAt
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+    return clean ? `@${clean}` : fallback;
+  }
+
+  private isMetaCampaignSource(source?: string): boolean {
+    return String(source || '').toLowerCase() === 'facebook lead ads';
+  }
+
+  public async getCampaigns(
+    tenantId: string,
+    opts?: { pageId?: string }
+  ): Promise<TenantCampaign[]> {
     if (!this.store.campaigns) {
       this.store.campaigns = {};
     }
     const customList = this.store.campaigns[tenantId] || [];
     const campaignMap = new Map<string, TenantCampaign>();
+    const liveFormIds = new Set<string>();
+    const liveHandles = new Set<string>();
+    const pageFilter = opts?.pageId ? String(opts.pageId) : '';
 
-    const cleanHandleStr = (str: string) => {
-      if (!str) return '';
-      const clean = str.toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-');
-      return `@${clean.replace(/^@/, '')}`;
+    // Connected Facebook pages for this tenant (used when no explicit pageId is passed)
+    const connectedPageIds = new Set(
+      (this.store.facebookPages?.[tenantId] || [])
+        .filter((p) => p.status === 'active' && p.pageId)
+        .map((p) => String(p.pageId))
+    );
+
+    const mappingMatchesPage = (mappingPageId: string) => {
+      if (pageFilter) return !mappingPageId || mappingPageId === pageFilter;
+      if (mappingPageId && connectedPageIds.size > 0 && !connectedPageIds.has(mappingPageId)) return false;
+      return true;
     };
 
-    // 1. Meta Integration mapped campaigns
+    // 1. Live Meta form mappings are the source of truth for Facebook campaigns
     try {
       const integrations = this.store.integrations?.[tenantId] || [];
       const fbIntegration = integrations.find((i) => i.id === 'facebook');
@@ -1802,13 +2222,18 @@ export class MultiTenantDatabase {
 
       Object.values(mappings).forEach((m: any) => {
         if (!m) return;
+        const mappingPageId = m.pageId ? String(m.pageId) : '';
         const name = m.campaignName || m.formName || 'Meta Campaign';
-        const rawHandle = m.campaignHandle || cleanHandleStr(name);
-        const handle = rawHandle.startsWith('@') ? rawHandle : `@${rawHandle}`;
+        const handle = this.normalizeCampaignHandle(m.campaignHandle || name, '@campaign');
         const key = handle.toLowerCase();
+        // Always register live mapping identity so page-scoped reads cannot prune other pages
+        if (m.formId) liveFormIds.add(String(m.formId));
+        liveHandles.add(key);
+
+        if (!mappingMatchesPage(mappingPageId)) return;
 
         campaignMap.set(key, {
-          id: `camp-meta-${m.formId || Math.random().toString(36).substr(2, 6)}`,
+          id: `camp-meta-${m.formId || key.replace(/^@/, '')}`,
           tenantId,
           name,
           handle,
@@ -1819,31 +2244,62 @@ export class MultiTenantDatabase {
           source: 'Facebook Lead Ads',
           status: 'active',
           distributionRule: m.distributionRule || 'round_robin',
-          assignedAgentIds: m.assignedAgentIds || [],
+          assignedAgentIds: Array.isArray(m.leadDistribution)
+            ? m.leadDistribution.map((a: any) => a.id).filter(Boolean)
+            : (m.assignedAgentIds || []),
           assignedAgentNames: m.assignedAgentNames || [],
           updatedAt: m.updatedAt || new Date().toISOString()
         });
       });
     } catch {}
 
-    // 2. Custom created workspace campaigns
+    // 2. Custom workspace campaigns + still-mapped Meta mirrors. Drop stale Meta leftovers.
+    const keptCustom: TenantCampaign[] = [];
     customList.forEach((c) => {
-      const handle = c.handle ? (c.handle.startsWith('@') ? c.handle : `@${c.handle}`) : cleanHandleStr(c.name);
+      const handle = this.normalizeCampaignHandle(c.handle || c.name, '@campaign');
       const key = handle.toLowerCase();
+      const stillMapped = Boolean(
+        (c.formId && liveFormIds.has(String(c.formId))) || liveHandles.has(key)
+      );
+      if (this.isMetaCampaignSource(c.source) && !stillMapped) {
+        return;
+      }
+      const normalized = { ...c, handle };
+      keptCustom.push(normalized);
+
+      const campPageId = c.pageId ? String(c.pageId) : '';
+      if (pageFilter) {
+        // Chosen page: Meta campaigns must match; workspace-only (no page) still allowed
+        if (campPageId && campPageId !== pageFilter) return;
+        if (this.isMetaCampaignSource(c.source) && campPageId && campPageId !== pageFilter) return;
+      } else if (campPageId && connectedPageIds.size > 0 && this.isMetaCampaignSource(c.source) && !connectedPageIds.has(campPageId)) {
+        return;
+      }
+
       if (!campaignMap.has(key)) {
-        campaignMap.set(key, {
-          ...c,
-          handle
-        });
+        campaignMap.set(key, normalized);
       } else {
         const existing = campaignMap.get(key)!;
         campaignMap.set(key, {
           ...existing,
-          ...c,
-          handle
+          ...normalized,
+          id: normalized.id || existing.id,
+          handle,
+          formId: normalized.formId || existing.formId,
+          formName: normalized.formName || existing.formName,
+          pageId: normalized.pageId || existing.pageId,
+          pageName: normalized.pageName || existing.pageName
         });
       }
     });
+
+    if (keptCustom.length !== customList.length) {
+      this.store.campaigns[tenantId] = keptCustom;
+      this.saveStore();
+      logger.info(
+        `[MultiTenantDb] Pruned ${customList.length - keptCustom.length} stale Meta campaign(s) for tenant ${tenantId}`
+      );
+    }
 
     return Array.from(campaignMap.values());
   }
@@ -1856,19 +2312,12 @@ export class MultiTenantDatabase {
       this.store.campaigns[tenantId] = [];
     }
 
-    const cleanHandleStr = (str: string) => {
-      if (!str) return '@campaign';
-      const clean = str.toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-');
-      return `@${clean.replace(/^@/, '')}`;
-    };
-
     const now = new Date().toISOString();
-    const rawHandle = campaignData.handle || cleanHandleStr(campaignData.name);
-    const handle = rawHandle.startsWith('@') ? rawHandle : `@${rawHandle}`;
+    const handle = this.normalizeCampaignHandle(campaignData.handle || campaignData.name, '@campaign');
     const cleanHandle = handle.toLowerCase();
 
     const existingIndex = this.store.campaigns[tenantId].findIndex(
-      (c) => c.id === campaignData.id || c.handle.toLowerCase() === cleanHandle
+      (c) => c.id === campaignData.id || this.normalizeCampaignHandle(c.handle).toLowerCase() === cleanHandle
     );
 
     const campaignId = campaignData.id || `camp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
@@ -1912,19 +2361,163 @@ export class MultiTenantDatabase {
   }
 
   public async deleteCampaign(tenantId: string, campaignIdOrHandle: string): Promise<boolean> {
-    if (!this.store.campaigns || !this.store.campaigns[tenantId]) {
-      return false;
-    }
-    const target = campaignIdOrHandle.toLowerCase();
-    const prevLen = this.store.campaigns[tenantId].length;
-    this.store.campaigns[tenantId] = this.store.campaigns[tenantId].filter(
-      (c) => c.id !== campaignIdOrHandle && c.handle.toLowerCase() !== target
+    if (!this.store.campaigns) this.store.campaigns = {};
+    if (!this.store.campaigns[tenantId]) this.store.campaigns[tenantId] = [];
+
+    const decoded = decodeURIComponent(campaignIdOrHandle || '');
+    const targetHandle = this.normalizeCampaignHandle(decoded);
+    const targetRaw = decoded.toLowerCase();
+    const metaFormIdFromId = decoded.startsWith('camp-meta-') ? decoded.slice('camp-meta-'.length) : '';
+
+    const removed = this.store.campaigns[tenantId].filter(
+      (c) =>
+        c.id === campaignIdOrHandle ||
+        c.id === decoded ||
+        c.handle.toLowerCase() === targetRaw ||
+        (targetHandle && this.normalizeCampaignHandle(c.handle) === targetHandle)
     );
-    const deleted = this.store.campaigns[tenantId].length < prevLen;
-    if (deleted) {
+
+    const removedIds = new Set(removed.map((c) => c.id));
+    const removedFormIds = new Set(removed.map((c) => String(c.formId || '')).filter(Boolean));
+    const removedHandles = new Set(removed.map((c) => this.normalizeCampaignHandle(c.handle)));
+    if (metaFormIdFromId) removedFormIds.add(metaFormIdFromId);
+    if (targetHandle) removedHandles.add(targetHandle);
+
+    if (removedIds.size > 0) {
+      this.store.campaigns[tenantId] = this.store.campaigns[tenantId].filter((c) => !removedIds.has(c.id));
+    }
+
+    let mappingRemoved = false;
+    const integrations = this.store.integrations?.[tenantId] || [];
+    const fbIdx = integrations.findIndex((i) => i.id === 'facebook');
+    if (fbIdx >= 0) {
+      const creds = { ...(integrations[fbIdx].credentials || {}) } as any;
+      const campaignMappings = { ...(creds.campaignMappings || {}) };
+      for (const [formId, m] of Object.entries(campaignMappings) as [string, any][]) {
+        const mappedHandle = this.normalizeCampaignHandle(m?.campaignHandle || m?.campaignName || '');
+        if (
+          removedFormIds.has(String(formId)) ||
+          (m?.formId && removedFormIds.has(String(m.formId))) ||
+          (mappedHandle && removedHandles.has(mappedHandle))
+        ) {
+          delete campaignMappings[formId];
+          mappingRemoved = true;
+        }
+      }
+      if (mappingRemoved) {
+        creds.campaignMappings = campaignMappings;
+        this.store.integrations[tenantId][fbIdx] = {
+          ...integrations[fbIdx],
+          credentials: creds,
+          updatedAt: new Date().toISOString()
+        };
+      }
+    }
+
+    const deleted = removed.length > 0 || mappingRemoved;
+    if (deleted) this.saveStore();
+    return deleted;
+  }
+
+  /** Remove Meta campaignMappings + mirrored campaigns for a page. */
+  public async deleteMetaMappingsByPage(
+    tenantId: string,
+    pageId: string
+  ): Promise<{ mappings: number; campaigns: number }> {
+    let mappings = 0;
+    let campaigns = 0;
+    const integrations = this.store.integrations?.[tenantId] || [];
+    const fbIdx = integrations.findIndex((i) => i.id === 'facebook');
+    if (fbIdx >= 0) {
+      const creds = { ...(integrations[fbIdx].credentials || {}) } as any;
+      const campaignMappings = { ...(creds.campaignMappings || {}) };
+      const formIds: string[] = [];
+      for (const [formId, m] of Object.entries(campaignMappings) as [string, any][]) {
+        if (m && String(m.pageId) === String(pageId)) {
+          formIds.push(formId);
+          delete campaignMappings[formId];
+          mappings++;
+        }
+      }
+      creds.campaignMappings = campaignMappings;
+      this.store.integrations[tenantId][fbIdx] = {
+        ...integrations[fbIdx],
+        credentials: creds,
+        isConnected: Object.keys(campaignMappings).length > 0 || integrations[fbIdx].isConnected,
+        updatedAt: new Date().toISOString()
+      };
+
+      if (this.store.campaigns?.[tenantId]) {
+        const before = this.store.campaigns[tenantId].length;
+        this.store.campaigns[tenantId] = this.store.campaigns[tenantId].filter((c) => {
+          if (String(c.pageId) === String(pageId)) return false;
+          if (c.formId && formIds.includes(String(c.formId))) return false;
+          return true;
+        });
+        campaigns = before - this.store.campaigns[tenantId].length;
+      }
       this.saveStore();
     }
-    return deleted;
+    return { mappings, campaigns };
+  }
+
+  /** Remove a single form mapping + mirrored campaign. */
+  public async deleteMetaMappingByForm(
+    tenantId: string,
+    formId: string
+  ): Promise<{ mappings: number; campaigns: number }> {
+    let mappings = 0;
+    let campaigns = 0;
+    const integrations = this.store.integrations?.[tenantId] || [];
+    const fbIdx = integrations.findIndex((i) => i.id === 'facebook');
+    if (fbIdx >= 0) {
+      const creds = { ...(integrations[fbIdx].credentials || {}) } as any;
+      const campaignMappings = { ...(creds.campaignMappings || {}) };
+      if (campaignMappings[formId]) {
+        delete campaignMappings[formId];
+        mappings = 1;
+      }
+      creds.campaignMappings = campaignMappings;
+      const remaining = Object.keys(campaignMappings).length;
+      this.store.integrations[tenantId][fbIdx] = {
+        ...integrations[fbIdx],
+        credentials: creds,
+        updatedAt: new Date().toISOString()
+      };
+
+      if (this.store.campaigns?.[tenantId]) {
+        const before = this.store.campaigns[tenantId].length;
+        this.store.campaigns[tenantId] = this.store.campaigns[tenantId].filter(
+          (c) => String(c.formId) !== String(formId)
+        );
+        campaigns = before - this.store.campaigns[tenantId].length;
+      }
+      this.saveStore();
+      void remaining;
+    }
+    return { mappings, campaigns };
+  }
+
+  /** Clear facebook integration connection flag and credentials after full unlink. */
+  public async clearFacebookIntegration(tenantId: string): Promise<void> {
+    const integrations = this.store.integrations?.[tenantId] || [];
+    const fbIdx = integrations.findIndex((i) => i.id === 'facebook');
+    if (fbIdx >= 0) {
+      this.store.integrations[tenantId][fbIdx] = {
+        ...integrations[fbIdx],
+        isConnected: false,
+        credentials: {},
+        updatedAt: new Date().toISOString()
+      };
+      this.saveStore();
+    }
+    // Also wipe any leftover Meta-sourced campaigns
+    if (this.store.campaigns?.[tenantId]) {
+      this.store.campaigns[tenantId] = this.store.campaigns[tenantId].filter(
+        (c) => String(c.source || '').toLowerCase() !== 'facebook lead ads'
+      );
+      this.saveStore();
+    }
   }
 
   // =========================================================================

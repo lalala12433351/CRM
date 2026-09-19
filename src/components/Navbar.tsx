@@ -1,3 +1,4 @@
+import { resolveAgentName } from '../utils/agentDisplay';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Settings, 
@@ -634,7 +635,7 @@ const accountDropdownRef = useRef<HTMLDivElement>(null);
                             </span>
                           </div>
                           <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                            Assigned to {task.assigneeAgentName || 'You'}
+                            Assigned to {resolveAgentName(agents, { id: task.assigneeAgentId, name: task.assigneeAgentName, fallback: 'You' })}
                           </p>
                           <div className="flex items-center justify-between mt-1.5">
                             <span className="text-[10px] text-slate-400">
@@ -707,9 +708,6 @@ const accountDropdownRef = useRef<HTMLDivElement>(null);
             <span className="text-xs font-semibold text-slate-800 hidden sm:inline-block max-w-[180px] truncate">
               {activeAgent.name}
             </span>
-            <span className="hidden md:inline-flex px-1.5 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wide bg-indigo-50 text-indigo-700 border border-indigo-100">
-              {activeCrmRole}
-            </span>
             <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${isUserMenuOpen ? 'rotate-180 text-indigo-600' : ''}`} />
           </button>
 
@@ -718,9 +716,6 @@ const accountDropdownRef = useRef<HTMLDivElement>(null);
               <div className="flex items-center justify-between px-2 pb-2.5 mb-1 border-b border-slate-100 gap-2">
                 <div className="min-w-0">
                   <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Switch account</p>
-                  <p className="text-[11px] text-slate-600 truncate mt-0.5">
-                    Choose Admin, Manager, or Telecaller
-                  </p>
                 </div>
                 {canManageSettings && (
                   <button
@@ -763,20 +758,9 @@ const accountDropdownRef = useRef<HTMLDivElement>(null);
                     >
                       <UserAvatar name={account.agent.name} avatarUrl={account.agent.avatar} size="md" rounded="full" />
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className={`text-[12px] font-bold truncate ${selected ? 'text-indigo-900' : 'text-slate-900'}`}>
-                            {account.label}
-                          </p>
-                          <span className={`shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide ${
-                            account.role === 'Admin'
-                              ? 'bg-violet-100 text-violet-700'
-                              : account.role === 'Manager'
-                                ? 'bg-sky-100 text-sky-700'
-                                : 'bg-emerald-100 text-emerald-700'
-                          }`}>
-                            {account.role}
-                          </span>
-                        </div>
+                        <p className={`text-[12px] font-bold truncate ${selected ? 'text-indigo-900' : 'text-slate-900'}`}>
+                          {account.label}
+                        </p>
                         <p className="text-[11px] font-semibold text-slate-700 truncate mt-0.5">
                           {account.agent.name}
                         </p>

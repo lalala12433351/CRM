@@ -1,3 +1,4 @@
+import { resolveAgentName, matchesAgent } from '../utils/agentDisplay';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   RefreshCw,
@@ -97,7 +98,7 @@ export const TasksPage: React.FC<TasksViewProps> = ({
 
   const visibleTasks = tasks.filter((t) => {
     if (!isAdmin) {
-      return t.assigneeAgentId === activeAgent?.id || t.assigneeAgentName === activeAgent?.name;
+      return matchesAgent(agents, activeAgent, { id: t.assigneeAgentId, name: t.assigneeAgentName });
     }
     return true;
   }).filter((t) => {
@@ -395,7 +396,11 @@ export const TasksPage: React.FC<TasksViewProps> = ({
                 ) : visibleTasks.map((task) => {
                   const dueDate = task.dueDate ? new Date(task.dueDate) : null;
                   const isOverdue = dueDate && dueDate < new Date() && task.status === 'Pending';
-                  const initials = task.assigneeAgentName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
+                  const displayAssignee = resolveAgentName(agents, {
+                    id: task.assigneeAgentId,
+                    name: task.assigneeAgentName
+                  });
+                  const initials = displayAssignee.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
 
                   return (
                     <tr key={task.id} className="hover:bg-slate-50/80 transition-colors group">
@@ -409,7 +414,7 @@ export const TasksPage: React.FC<TasksViewProps> = ({
                       <td className="p-3 text-center">
                         <div className="flex flex-col items-center space-y-0.5">
                           <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-bold border border-indigo-200">{initials}</div>
-                          <span className="text-[10px] text-slate-500 max-w-[100px] truncate">{formatProperName(task.assigneeAgentName)}</span>
+                          <span className="text-[10px] text-slate-500 max-w-[100px] truncate">{formatProperName(displayAssignee)}</span>
                         </div>
                       </td>
                       <td className="p-3 text-center">

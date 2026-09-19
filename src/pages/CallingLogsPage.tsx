@@ -13,17 +13,20 @@ import {
   CheckCircle2,
   Tag
 } from 'lucide-react';
-import { CallRecord } from '../types';
+import { CallRecord, Agent, Lead } from '../types';
 import { CallRecordingPlayer } from '../components/CallRecordingPlayer';
 import { StatusBadge } from '../components/StatusBadge';
 import { formatProperName } from '../utils/formatUtils';
+import { resolveAgentName, resolveLeadContact } from '../utils/agentDisplay';
 
 interface CallingLogsViewProps {
   callRecords: CallRecord[];
+  agents?: Agent[];
+  leads?: Lead[];
   onUpdateCallRecord?: (callId: string, updates: Partial<CallRecord>) => void;
 }
 
-export const CallingLogsPage: React.FC<CallingLogsViewProps> = ({ callRecords, onUpdateCallRecord }) => {
+export const CallingLogsPage: React.FC<CallingLogsViewProps> = ({ callRecords, agents = [], leads = [], onUpdateCallRecord }) => {
   const [selectedCall, setSelectedCall] = useState<CallRecord | null>(null);
   const [editingRemarksId, setEditingRemarksId] = useState<string | null>(null);
   const [tempRemarks, setTempRemarks] = useState<string>('');
@@ -130,12 +133,15 @@ export const CallingLogsPage: React.FC<CallingLogsViewProps> = ({ callRecords, o
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {callRecords.map((call) => (
+              {callRecords.map((call) => {
+                const contact = resolveLeadContact(leads, { id: call.leadId, name: call.leadName, phone: call.leadPhone });
+                const agentLabel = resolveAgentName(agents, { id: call.agentId, name: call.agentName || call.assigneeName, fallback: call.agentName || 'Agent' });
+                return (
                 <tr key={call.id} className="hover:bg-slate-50 transition-all">
                   {/* Lead Details */}
                   <td className="px-3.5 py-3">
-                    <p className="font-medium text-slate-900">{formatProperName(call.leadName)}</p>
-                    <p className="text-[10px] font-mono text-slate-500">{call.leadPhone}</p>
+                    <p className="font-medium text-slate-900">{formatProperName(contact.name)}</p>
+                    <p className="text-[10px] font-mono text-slate-500">{contact.phone || call.leadPhone}</p>
                     <div className="mt-1">
                       <StatusBadge status={call.disposition} size="xs" />
                     </div>
@@ -145,7 +151,7 @@ export const CallingLogsPage: React.FC<CallingLogsViewProps> = ({ callRecords, o
                   <td className="px-3.5 py-3">
                     <div className="flex items-center space-x-1.5 text-slate-900">
                       <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
-                      <span className="font-medium text-xs">{formatProperName(call.agentName)}</span>
+                      <span className="font-medium text-xs">{formatProperName(agentLabel)}</span>
                     </div>
                     <span className="text-[10px] text-slate-500 capitalize">{call.type} Call</span>
                   </td>
@@ -231,7 +237,8 @@ export const CallingLogsPage: React.FC<CallingLogsViewProps> = ({ callRecords, o
                     </button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -254,7 +261,7 @@ export const CallingLogsPage: React.FC<CallingLogsViewProps> = ({ callRecords, o
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Lead: <span className="text-slate-900 font-bold">{selectedCall.leadName}</span> ({selectedCall.leadPhone}) • Assignee: <span className="text-slate-900 font-bold">{selectedCall.agentName}</span>
+                  Lead: <span className="text-slate-900 font-bold">{resolveLeadContact(leads, { id: selectedCall.leadId, name: selectedCall.leadName, phone: selectedCall.leadPhone }).name}</span> ({resolveLeadContact(leads, { id: selectedCall.leadId, name: selectedCall.leadName, phone: selectedCall.leadPhone }).phone || selectedCall.leadPhone}) • Assignee: <span className="text-slate-900 font-bold">{resolveAgentName(agents, { id: selectedCall.agentId, name: selectedCall.agentName || selectedCall.assigneeName, fallback: selectedCall.agentName })}</span>
                 </p>
               </div>
 

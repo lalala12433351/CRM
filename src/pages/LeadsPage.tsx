@@ -1,3 +1,4 @@
+import { resolveAgentName, resolveAgentAvatar, matchesAgent, isUnassignedOwner } from '../utils/agentDisplay';
 
 import React, { useState, useMemo, useRef, useEffect, useContext } from 'react';
 import { 
@@ -169,6 +170,7 @@ interface LeadsViewProps {
   onDeleteLead?: (leadId: string) => void;
   onClearAllLeads?: () => void;
   onUpdateLead?: (leadId: string, updates: Partial<Lead>) => void;
+  onRefreshData?: () => void | Promise<void>;
   onOpenGoogleSheets?: () => void;
   globalSavedFilters?: { id: string; name: string; iconType: string }[];
   activeFilterId?: string;
@@ -204,6 +206,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
   onDeleteLead,
   onClearAllLeads,
   onUpdateLead,
+  onRefreshData,
   onOpenGoogleSheets,
   globalSavedFilters = [],
   activeFilterId = 'all_leads',
@@ -222,6 +225,15 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
   onNavigateToTab,
 }) => {
   const stages = useContext(StagesContext);
+
+  const leadOwnerLabel = (lead: Lead, fallback = 'Unassigned') =>
+    formatProperName(resolveAgentName(agents, { id: lead.ownerAgentId, name: lead.ownerAgentName, fallback }));
+  const leadOwnerAvatarUrl = (lead: Lead) =>
+    resolveAgentAvatar(agents, {
+      id: lead.ownerAgentId,
+      name: lead.ownerAgentName,
+      fallbackAvatar: activeAgent && lead.ownerAgentId === activeAgent.id ? activeAgent.avatar : undefined
+    });
 
   // Main View Toggle: 'chart' (Analytics/Graph) vs 'table' (Data Grid)
   const [viewMode, setViewMode] = useState<'chart' | 'table'>('table');
@@ -665,7 +677,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
     if (key === 'status' || idKey === 'f-status' || labelLower.includes('status')) return lead.status || '—';
     if (key === 'rating' || idKey === 'f-rating' || labelLower.includes('rating')) return String(leadRatings[lead.id] ?? lead.rating ?? 0);
     if (key === 'assignee' || key === 'owner' || idKey === 'f-assignee' || labelLower.includes('assignee') || labelLower.includes('owner')) {
-      return formatProperName(lead.ownerAgentName || activeAgent?.name || 'System Administrator');
+      return leadOwnerLabel(lead);
     }
     if (key === 'createdOn' || key === 'createdAt' || key === 'created_on' || idKey === 'f-created-on' || labelLower.includes('created')) {
       return formatCreatedDate(lead.createdAt);
@@ -767,7 +779,9 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
 
     const selectedAgent = agents.find((a) => a.id === followUpAssigneeId);
     const finalAssigneeId = followUpAssigneeId || followUpLead.ownerAgentId || followUpLead.assignedTo;
-    const finalAssigneeName = selectedAgent ? selectedAgent.name : (followUpLead.ownerAgentName || 'Unassigned');
+    const finalAssigneeName = selectedAgent
+      ? selectedAgent.name
+      : resolveAgentName(agents, { id: finalAssigneeId, name: followUpLead.ownerAgentName, fallback: 'Unassigned' });
 
     onUpdateLead(followUpLead.id, {
       status: 'Follow Up',
@@ -904,7 +918,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
           const matchCompany = lead.company && lead.company.toLowerCase().includes(rawTerm);
           const matchNotes = lead.notes && lead.notes.toLowerCase().includes(rawTerm);
           const matchSource = lead.source && lead.source.toLowerCase().includes(rawTerm);
-          const matchOwner = lead.ownerAgentName && lead.ownerAgentName.toLowerCase().includes(rawTerm);
+          const matchOwner = leadOwnerLabel(lead).toLowerCase().includes(rawTerm);
           const matchCustom = lead.customFields && Object.values(lead.customFields).some(val => String(val).toLowerCase().includes(rawTerm));
 
           const matchesAny = matchName || matchPhone || matchEmail || matchCompany || matchNotes || matchSource || matchOwner || matchCustom;
@@ -914,8 +928,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
 
       // 2. Role-based Scoping: Non-Admin Employees can ONLY view My Leads
       if (!isAdmin && activeAgent) {
-        const isMine = lead.ownerAgentId === activeAgent.id || 
-                       (lead.ownerAgentName && activeAgent.name && lead.ownerAgentName.toLowerCase() === activeAgent.name.toLowerCase());
+        const isMine = matchesAgent(agents, activeAgent, { id: lead.ownerAgentId, name: lead.ownerAgentName });
         if (!isMine) return false;
       }
 
@@ -943,13 +956,13 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
       // 3. Assignee Filter
       if (selectedAssignee !== 'all') {
         if (selectedAssignee === 'unassigned') {
-          const hasOwner = lead.ownerAgentId || (lead.ownerAgentName && lead.ownerAgentName !== 'Unassigned');
+          const hasOwner = !isUnassignedOwner({ id: lead.ownerAgentId, name: lead.ownerAgentName });
           if (hasOwner) return false;
         } else {
           const selectedAgent = agents.find(a => a.id === selectedAssignee);
-          const isMatch = 
-            lead.ownerAgentId === selectedAssignee || 
-            (selectedAgent && lead.ownerAgentName && lead.ownerAgentName.toLowerCase() === selectedAgent.name.toLowerCase());
+          const isMatch = selectedAgent
+            ? matchesAgent(agents, selectedAgent, { id: lead.ownerAgentId, name: lead.ownerAgentName })
+            : lead.ownerAgentId === selectedAssignee;
           if (!isMatch) return false;
         }
       }
@@ -1072,9 +1085,9 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
 
   const handleRefresh = () => {
     setIsRefreshing(true);
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 400);
+    Promise.resolve(onRefreshData?.()).finally(() => {
+      setTimeout(() => setIsRefreshing(false), 400);
+    });
   };
 
   // Bulk edit execution
@@ -1095,7 +1108,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
         if (updates.status) leadUpdates.status = updates.status;
         if (updates.ownerAgentId) {
           leadUpdates.ownerAgentId = updates.ownerAgentId;
-          leadUpdates.ownerAgentName = updates.ownerAgentName;
+          leadUpdates.ownerAgentName = updates.ownerAgentName || agents.find((a) => a.id === updates.ownerAgentId)?.name;
         }
         if (updates.source) leadUpdates.source = updates.source;
         if (updates.addTag) {
@@ -1130,7 +1143,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
       `"${l.source || ''}"`,
       `"${l.status || ''}"`,
       l.dealValue || 0,
-      `"${l.ownerAgentName || ''}"`
+      `"${leadOwnerLabel(l)}"`
     ]);
 
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
@@ -1166,7 +1179,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
   // Helper to extract group value for any lead when grouping
   const getLeadGroupValue = (l: Lead, groupKey: string): string => {
     if (groupKey === 'Source') return l.source || 'Direct';
-    if (groupKey === 'Assignee') return l.ownerAgentName || activeAgent?.name || 'Unassigned';
+    if (groupKey === 'Assignee') return resolveAgentName(agents, { id: l.ownerAgentId, name: l.ownerAgentName, fallback: 'Unassigned' });
     if (groupKey === 'Status') return l.status || 'Fresh';
     if (groupKey === 'Rating') {
       const score = l.aiScore || (l.rating ? l.rating * 20 : 0);
@@ -1319,7 +1332,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
       leadMap['Unassigned'] = [];
 
       filteredAndSortedLeads.forEach((l) => {
-        const name = l.ownerAgentName || activeAgent?.name || 'Unassigned';
+        const name = resolveAgentName(agents, { id: l.ownerAgentId, name: l.ownerAgentName, fallback: 'Unassigned' });
         if (!leadMap[name]) leadMap[name] = [];
         leadMap[name].push(l);
       });
@@ -1894,7 +1907,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
 
                   <div className="max-h-48 overflow-y-auto space-y-0.5 pr-0.5">
                     {agents.map((ag) => {
-                      const count = leads.filter(l => l.ownerAgentId === ag.id || (l.ownerAgentName && l.ownerAgentName.toLowerCase() === ag.name.toLowerCase())).length;
+                      const count = leads.filter((l) => matchesAgent(agents, ag, { id: l.ownerAgentId, name: l.ownerAgentName })).length;
                       const isSelected = selectedAssignee === ag.id;
                       return (
                         <button
@@ -1938,7 +1951,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                     </div>
                     <div className="flex items-center space-x-1">
                       <span className="text-[10px] text-slate-400 font-medium px-1.5 py-0.2 rounded bg-slate-100">
-                        {leads.filter(l => !l.ownerAgentId || l.ownerAgentName === 'Unassigned').length}
+                        {leads.filter((l) => isUnassignedOwner({ id: l.ownerAgentId, name: l.ownerAgentName })).length}
                       </span>
                       {selectedAssignee === 'unassigned' && <Check className="w-3 h-3 text-indigo-600" />}
                     </div>
@@ -3012,7 +3025,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
               />
             ) : (
               currentPaginatedLeads.map((lead) => {
-                const avatar = getAgentAvatar(lead.ownerAgentName);
+                const avatar = getAgentAvatar(leadOwnerLabel(lead));
                 const isSelected = selectedLeadIds.includes(lead.id);
 
                 return (
@@ -3081,13 +3094,13 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                       
                       <div className="flex items-center space-x-1.5">
                         <UserAvatar
-                          name={formatProperName(lead.ownerAgentName || 'Unassigned')}
-                          avatarUrl={agents.find((a) => a.name === lead.ownerAgentName || a.id === lead.ownerAgentId)?.avatar || (activeAgent?.name === lead.ownerAgentName ? activeAgent.avatar : undefined)}
+                          name={leadOwnerLabel(lead)}
+                          avatarUrl={leadOwnerAvatarUrl(lead)}
                           size="xs"
                           rounded="full"
                         />
                         <span className="text-[11px] text-slate-600 truncate max-w-[100px]">
-                          {formatProperName(lead.ownerAgentName || 'Unassigned')}
+                          {leadOwnerLabel(lead)}
                         </span>
                       </div>
                     </div>
@@ -3201,7 +3214,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                       </tr>
                     ) : (
                       currentPaginatedLeads.map((lead) => {
-                        const avatar = getAgentAvatar(lead.ownerAgentName);
+                        const avatar = getAgentAvatar(leadOwnerLabel(lead));
                         const isSelected = selectedLeadIds.includes(lead.id);
 
                         return (
@@ -3295,13 +3308,13 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                                   <td key={field.id} className="px-3.5 py-2.5 whitespace-nowrap">
                                     <div className="flex items-center space-x-2">
                                       <UserAvatar
-                                        name={formatProperName(lead.ownerAgentName || activeAgent?.name || 'Unassigned')}
-                                        avatarUrl={agents.find((a) => a.name === lead.ownerAgentName || a.id === lead.ownerAgentId)?.avatar || (activeAgent?.name === lead.ownerAgentName ? activeAgent.avatar : undefined)}
+                                        name={leadOwnerLabel(lead)}
+                                        avatarUrl={leadOwnerAvatarUrl(lead)}
                                         size="xs"
                                         rounded="full"
                                       />
                                       <span className="text-slate-700 text-xs font-normal truncate max-w-[180px]">
-                                        {formatProperName(lead.ownerAgentName || activeAgent?.name || 'Unassigned')}
+                                        {leadOwnerLabel(lead)}
                                       </span>
                                     </div>
                                   </td>
@@ -3428,7 +3441,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
             <div className="space-y-3">
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
                 <p className="text-sm font-bold text-slate-900">{reassignModalLead.name}</p>
-                <p className="text-xs text-slate-600">Current Assignee: <strong className="text-indigo-600">{reassignModalLead.ownerAgentName || activeAgent?.name || 'Unassigned'}</strong></p>
+                <p className="text-xs text-slate-600">Current Assignee: <strong className="text-indigo-600">{leadOwnerLabel(reassignModalLead)}</strong></p>
               </div>
 
               <div>
@@ -3516,7 +3529,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                   </select>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1">
-                  Directly assigned to the lead's owner ({followUpLead.ownerAgentName || 'Unassigned'}). You can reassign if needed.
+                  Directly assigned to the lead's owner ({leadOwnerLabel(followUpLead)}). You can reassign if needed.
                 </p>
               </div>
 

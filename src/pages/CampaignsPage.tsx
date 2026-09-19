@@ -1,3 +1,4 @@
+import { resolveAgentName, matchesAgent } from '../utils/agentDisplay';
 import React, { useState, useEffect, useMemo, useContext } from 'react';
 import { 
   Megaphone, 
@@ -50,7 +51,7 @@ import { LeadDetailModal } from '../components/LeadDetailModal';
 import { toast } from '../context/ToastContext';
 import { fetchWithTenantAuth } from '../lib/auth';
 import { formatProperName } from '../utils/formatUtils';
-import { getLeadFormOrCampaignName, formatCampaignHandle } from '../utils/leadFormUtils';
+import { formatCampaignHandle } from '../utils/leadFormUtils';
 
 interface CampaignsViewProps {
   leads: Lead[];
@@ -77,6 +78,8 @@ interface CampaignDef {
   id: string;
   handle: string;
   name: string;
+  formId?: string;
+  formName?: string;
   totalLeads: number;
   newLeads: number;
   progress: number;
@@ -111,91 +114,121 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
   const [isAddingCampaign, setIsAddingCampaign] = useState(false);
   const [newCampaignInput, setNewCampaignInput] = useState('');
   const [dbCampaignMappings, setDbCampaignMappings] = useState<any[]>([]);
+  const [campaignsLoaded, setCampaignsLoaded] = useState(false);
 
-  // Fetch registered campaigns from database (/api/campaigns and Meta mappings)
-  const fetchDbCampaigns = () => {
-    const tenantId = activeTenantId || (typeof sessionStorage !== 'undefined'
+  const resolveTenantId = () =>
+    activeTenantId || (typeof sessionStorage !== 'undefined'
       ? (() => { try { return JSON.parse(sessionStorage.getItem('pixbe_auth_user') || '{}')?.tenantId; } catch { return null; } })()
       : null) || 'default_tenant';
-    Promise.all([
-      fetchWithTenantAuth('/api/campaigns', { headers: { 'x-tenant-id': tenantId } }).then(r => r.json()).catch(() => ({ success: false })),
-      fetchWithTenantAuth('/api/integrations/facebook/campaign-mappings', { headers: { 'x-tenant-id': tenantId } }).then(r => r.json()).catch(() => ({ success: false }))
-    ]).then(([campRes, mapRes]) => {
-      const combined: any[] = [];
-      if (campRes && campRes.success && Array.isArray(campRes.campaigns)) {
-        combined.push(...campRes.campaigns);
-      }
-      if (mapRes && mapRes.success && Array.isArray(mapRes.mappings)) {
-        combined.push(...mapRes.mappings);
-      }
-      setDbCampaignMappings(combined);
-    }).catch(() => {});
+
+  const fetchDbCampaigns = () => {
+    const tenantId = resolveTenantId();
+    fetchWithTenantAuth('/api/campaigns', { headers: { 'x-tenant-id': tenantId } })
+      .then(r => r.json())
+      .then((campRes) => {
+        if (campRes && campRes.success && Array.isArray(campRes.campaigns)) {
+          setDbCampaignMappings(campRes.campaigns);
+        } else {
+          setDbCampaignMappings([]);
+        }
+      })
+      .catch(() => setDbCampaignMappings([]))
+      .finally(() => setCampaignsLoaded(true));
   };
 
   useEffect(() => {
+    setCampaignsLoaded(false);
     fetchDbCampaigns();
-  }, []);
+  }, [activeTenantId]);
 
-  // Deduplicated Campaign list derived from workspace database + live leads
+  const createWorkspaceCampaign = (rawName: string) => {
+    const cleanName = rawName.trim();
+    if (!cleanName) return;
+    const cleanHandle = formatCampaignHandle(cleanName);
+    setCustomCampaigns((prev) => (prev.includes(cleanName) ? prev : [...prev, cleanName]));
+    fetchWithTenantAuth('/api/campaigns', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: cleanName,
+        handle: cleanHandle
+      })
+    }).then(() => fetchDbCampaigns()).catch(() => {});
+    setNewCampaignInput('');
+    setIsAddingCampaign(false);
+    if (onShowToast) onShowToast(`Created campaign "${cleanName}" in database.`);
+  };
+
+  // Only campaigns the user created / configured (workspace + Meta mappings) — never invent from lead noise
   const campaignsList = useMemo(() => {
-    const handleMap = new Map<string, { handle: string; name: string; formId?: string; leads: Lead[] }>();
+    const handleMap = new Map<string, { id?: string; handle: string; name: string; formId?: string; formName?: string; leads: Lead[] }>();
 
-    const addCampaignHandle = (rawNameOrHandle: string, formId?: string) => {
+    const addCampaignHandle = (
+      rawNameOrHandle: string,
+      extras?: { id?: string; formId?: string; formName?: string; name?: string }
+    ) => {
       if (!rawNameOrHandle || !rawNameOrHandle.trim()) return;
       const clean = rawNameOrHandle.trim();
-      const h = formatCampaignHandle(clean).toLowerCase().replace(/^@/, '');
+      const displayHandle = formatCampaignHandle(clean);
+      const h = displayHandle.toLowerCase().replace(/^@/, '');
       if (!h || h === 'empty' || h === 'n-a' || h === 'general-inbound') return;
 
       if (!handleMap.has(h)) {
-        const displayHandle = formatCampaignHandle(clean);
         handleMap.set(h, {
+          id: extras?.id,
           handle: displayHandle,
-          name: clean.startsWith('@') ? clean.replace(/^@/, '').split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ') : clean,
-          formId,
+          name: extras?.name || (clean.startsWith('@') ? clean.replace(/^@/, '').split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ') : clean),
+          formId: extras?.formId,
+          formName: extras?.formName,
           leads: []
         });
-      } else if (formId && !handleMap.get(h)!.formId) {
-        handleMap.get(h)!.formId = formId;
+      } else {
+        const existing = handleMap.get(h)!;
+        if (extras?.id && !existing.id) existing.id = extras.id;
+        if (extras?.formId && !existing.formId) existing.formId = extras.formId;
+        if (extras?.formName && !existing.formName) existing.formName = extras.formName;
+        if (extras?.name && extras.name !== existing.name) existing.name = extras.name;
       }
     };
 
-    // 1. Add all registered campaigns from database
+    // One row per registered campaign (handle is identity; name is display only)
     dbCampaignMappings.forEach(m => {
-      if (m.campaignHandle) addCampaignHandle(m.campaignHandle, m.formId);
-      if (m.campaignName) addCampaignHandle(m.campaignName, m.formId);
-      if (m.name) addCampaignHandle(m.name, m.formId);
-      if (m.handle) addCampaignHandle(m.handle, m.formId);
+      const identity = m.campaignHandle || m.handle || m.campaignName || m.name;
+      if (!identity) return;
+      addCampaignHandle(identity, {
+        id: m.id,
+        formId: m.formId,
+        formName: m.formName,
+        name: m.campaignName || m.name
+      });
     });
 
-    // 2. Add custom created workspace campaigns
+    // Locally created campaigns not yet reflected in fetch
     customCampaigns.forEach(c => addCampaignHandle(c));
 
-    // 3. Distribute leads into their respective database campaigns
+    // Attach leads only by form id or explicit campaign handle/name — not by form title alone
     if (leads && leads.length > 0) {
       leads.forEach(l => {
         const lFormId = l.formId || l.customFields?.meta_form_id || l.customFields?.form_id;
-        const leadFormName = getLeadFormOrCampaignName(l);
-        const lH1 = l.campaignHandle ? formatCampaignHandle(l.campaignHandle).toLowerCase().replace(/^@/, '') : '';
-        const lH2 = l.campaign_handle ? formatCampaignHandle(l.campaign_handle).toLowerCase().replace(/^@/, '') : '';
-        const lN1 = l.campaignName ? formatCampaignHandle(l.campaignName).toLowerCase().replace(/^@/, '') : '';
-        const lN2 = l.campaign ? formatCampaignHandle(l.campaign).toLowerCase().replace(/^@/, '') : '';
-        const lN3 = l.campaign_name ? formatCampaignHandle(l.campaign_name).toLowerCase().replace(/^@/, '') : '';
-        const lC1 = l.customFields?.campaign_name ? formatCampaignHandle(l.customFields.campaign_name).toLowerCase().replace(/^@/, '') : '';
-        const lC2 = l.customFields?.campaign_handle ? formatCampaignHandle(l.customFields.campaign_handle).toLowerCase().replace(/^@/, '') : '';
-        const lF1 = leadFormName ? formatCampaignHandle(leadFormName).toLowerCase().replace(/^@/, '') : '';
+        const toKey = (value?: string) => value ? formatCampaignHandle(value).toLowerCase().replace(/^@/, '') : '';
+        const lH1 = toKey(l.campaignHandle);
+        const lH2 = toKey(l.campaign_handle);
+        const lN1 = toKey(l.campaignName);
+        const lN2 = toKey(l.campaign);
+        const lN3 = toKey(l.campaign_name);
+        const lC1 = toKey(l.customFields?.campaign_name);
+        const lC2 = toKey(l.customFields?.campaign_handle);
 
-        // Match lead against available campaign entries
         handleMap.forEach((entry, hKey) => {
           const isFormMatch = Boolean(entry.formId && lFormId && String(entry.formId) === String(lFormId));
           const isHandleMatch = (
-            hKey === lH1 || 
-            hKey === lH2 || 
-            hKey === lN1 || 
-            hKey === lN2 || 
-            hKey === lN3 || 
-            hKey === lC1 || 
-            hKey === lC2 || 
-            hKey === lF1 ||
+            hKey === lH1 ||
+            hKey === lH2 ||
+            hKey === lN1 ||
+            hKey === lN2 ||
+            hKey === lN3 ||
+            hKey === lC1 ||
+            hKey === lC2 ||
             (entry.name && l.campaignName && entry.name.toLowerCase() === l.campaignName.toLowerCase()) ||
             (entry.name && l.campaign && entry.name.toLowerCase() === l.campaign.toLowerCase())
           );
@@ -210,13 +243,15 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
     return Array.from(handleMap.values()).map((entry, idx) => {
       const freshCount = entry.leads.filter((l) => l.status === 'Fresh' || l.status === 'Open').length;
       return {
-        id: `camp-dyn-${idx}-${entry.handle.replace(/[^a-z0-9]/gi, '')}`,
+        id: entry.id || `camp-dyn-${idx}-${entry.handle.replace(/[^a-z0-9]/gi, '')}`,
         handle: entry.handle,
         name: entry.name,
+        formId: entry.formId,
+        formName: entry.formName,
         totalLeads: entry.leads.length,
         newLeads: freshCount,
         progress: entry.leads.length > 0 ? Math.round(((entry.leads.length - freshCount) / entry.leads.length) * 100) : 0,
-        members: Array.from(new Set(entry.leads.map((l) => l.ownerAgentName || 'Admin'))).map((n) =>
+        members: Array.from(new Set(entry.leads.map((l) => resolveAgentName(agents, { id: l.ownerAgentId, name: l.ownerAgentName, fallback: 'Admin' })))).map((n) =>
           n.split(' ').map((x) => x[0]).join('').toUpperCase()
         ),
         errors: 0,
@@ -226,23 +261,29 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
   }, [leads, agents, customCampaigns, dbCampaignMappings]);
 
   // Campaign Selection State
-  const [activeCampaign, setActiveCampaign] = useState<CampaignDef>(campaignsList[0]);
+  const [activeCampaign, setActiveCampaign] = useState<CampaignDef | null>(null);
   const [showCampaignDropdown, setShowCampaignDropdown] = useState(false);
   const [showCampaignSettingsMenu, setShowCampaignSettingsMenu] = useState(false);
   const [isCampaignPaused, setIsCampaignPaused] = useState(false);
 
   useEffect(() => {
-    if (campaignsList.length > 0) {
-      if (!activeCampaign || !campaignsList.some(c => c.handle.toLowerCase() === activeCampaign.handle.toLowerCase())) {
-        setActiveCampaign(campaignsList[0]);
-      }
+    if (campaignsList.length === 0) {
+      setActiveCampaign(null);
+      return;
+    }
+    if (!activeCampaign || !campaignsList.some(c => c.handle.toLowerCase() === activeCampaign.handle.toLowerCase())) {
+      setActiveCampaign(campaignsList[0]);
     }
   }, [campaignsList]);
 
   // Sync campaign selection when passed from parent
   useEffect(() => {
     if (initialCampaignHandle) {
-      const found = campaignsList.find((c) => c.handle.toLowerCase() === initialCampaignHandle.toLowerCase() || c.name.toLowerCase() === initialCampaignHandle.toLowerCase());
+      const found = campaignsList.find((c) => {
+        const campaignKey = formatCampaignHandle(c.handle).toLowerCase();
+        const targetKey = formatCampaignHandle(initialCampaignHandle).toLowerCase();
+        return campaignKey === targetKey || (c.name && c.name.toLowerCase() === initialCampaignHandle.replace(/^@/, '').toLowerCase());
+      });
       if (found) {
         setActiveCampaign(found);
       }
@@ -285,8 +326,6 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
     }
   }, [campaignLeads]);
 
-  const [campaignTab, setCampaignTab] = useState<'NEW' | 'ACTIVE'>('NEW');
-
   // Search filter
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -301,35 +340,78 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
   const [activeRightTab, setActiveRightTab] = useState<'Activity History' | 'Task'>('Activity History');
   const [actionFilter, setActionFilter] = useState('All Actions');
   const [showActionDropdown, setShowActionDropdown] = useState(false);
-  const [activitiesList, setActivitiesList] = useState<Array<{ id: string; text: string; time: string; type: string }>>([
-    { id: 'act-1', text: 'Lead Source : empty → Facebook-Meta-01', time: '5h', type: 'source' },
-    { id: 'act-2', text: 'Facebook page : empty → 506000535940727', time: '5h', type: 'fb' },
-    { id: 'act-3', text: 'Call Outgoing: 6s CONNECTED by Ummema Sufiya BM', time: '1d ago', type: 'call' },
-    { id: 'act-4', text: 'Automated WhatsApp Intro Message Delivered', time: '1d ago', type: 'whatsapp' },
-  ]);
+  const [activitiesList, setActivitiesList] = useState<Array<{ id: string; text: string; time: string; type: string }>>([]);
 
-  // Status Distribution Calculation
-  const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = {
-      'Fresh': 0,
-      'Open': 0,
-      'Interested': 0,
-      'Warm': 0,
-      'Contacted': 0,
-      'Converted': 0,
-      'RNR': 0,
-      'Lost': 0
-    };
-    campaignLeads.forEach(l => {
-      const st = l.status || 'Fresh';
-      if (counts[st] !== undefined) {
-        counts[st]++;
-      } else {
-        counts[st] = (counts[st] || 0) + 1;
-      }
+  const PIE_FALLBACK_COLORS = ['#6366F1', '#10B981', '#F59E0B', '#F87171', '#3B82F6', '#8B5CF6', '#14B8A6', '#EC4899', '#64748B', '#F97316'];
+
+  const toPiePercentages = (counts: number[]) => {
+    const total = counts.reduce((sum, n) => sum + n, 0);
+    if (!total) return counts.map(() => 0);
+    const raw = counts.map((n) => (n / total) * 100);
+    const floored = raw.map((n) => Math.floor(n));
+    let remainder = 100 - floored.reduce((sum, n) => sum + n, 0);
+    const order = raw
+      .map((n, i) => ({ i, frac: n - Math.floor(n) }))
+      .sort((a, b) => b.frac - a.frac);
+    for (let k = 0; k < remainder; k++) {
+      floored[order[k % order.length].i] += 1;
+    }
+    return floored;
+  };
+
+  // Lead status pie: actual stages present on campaign leads, using pipeline colors from the database
+  const statusDistribution = useMemo(() => {
+    const counts = new Map<string, number>();
+    campaignLeads.forEach((l) => {
+      const name = String(l.status || '').trim() || 'Unknown';
+      counts.set(name, (counts.get(name) || 0) + 1);
     });
-    return counts;
-  }, [campaignLeads]);
+
+    const pipelineOrder = new Map(stages.map((s, i) => [s.name.toLowerCase(), i]));
+    const stageByName = new Map(stages.map((s) => [s.name.toLowerCase(), s]));
+
+    const entries = Array.from(counts.entries()).sort((a, b) => {
+      const ao = pipelineOrder.has(a[0].toLowerCase()) ? pipelineOrder.get(a[0].toLowerCase())! : 999;
+      const bo = pipelineOrder.has(b[0].toLowerCase()) ? pipelineOrder.get(b[0].toLowerCase())! : 999;
+      if (ao !== bo) return ao - bo;
+      return b[1] - a[1];
+    });
+
+    const percentages = toPiePercentages(entries.map(([, count]) => count));
+    return entries.map(([name, count], idx) => {
+      const stage = stageByName.get(name.toLowerCase());
+      const color = stage?.color || getStatusStyle(name).hex || PIE_FALLBACK_COLORS[idx % PIE_FALLBACK_COLORS.length];
+      return { name, count, percentage: percentages[idx], color };
+    });
+  }, [campaignLeads, stages]);
+
+  // Lost-reason pie: actual lostReason values on campaign leads
+  const lostReasonDistribution = useMemo(() => {
+    const counts = new Map<string, number>();
+    campaignLeads.forEach((l) => {
+      const isLost = String(l.status || '').toLowerCase() === 'lost';
+      const reason = String(l.lostReason || '').trim();
+      if (!isLost && !reason) return;
+      const label = reason || 'Unspecified';
+      counts.set(label, (counts.get(label) || 0) + 1);
+    });
+
+    const configuredOrder = new Map((lostReasons || []).map((r, i) => [r.toLowerCase(), i]));
+    const entries = Array.from(counts.entries()).sort((a, b) => {
+      const ao = configuredOrder.has(a[0].toLowerCase()) ? configuredOrder.get(a[0].toLowerCase())! : 999;
+      const bo = configuredOrder.has(b[0].toLowerCase()) ? configuredOrder.get(b[0].toLowerCase())! : 999;
+      if (ao !== bo) return ao - bo;
+      return b[1] - a[1];
+    });
+
+    const percentages = toPiePercentages(entries.map(([, count]) => count));
+    return entries.map(([name, count], idx) => ({
+      name,
+      count,
+      percentage: percentages[idx],
+      color: PIE_FALLBACK_COLORS[idx % PIE_FALLBACK_COLORS.length]
+    }));
+  }, [campaignLeads, lostReasons]);
 
   // Dynamic Telecaller Lead Allocation computation
   const telecallerAllocation = useMemo(() => {
@@ -337,7 +419,7 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
     const validAgentNames = new Set(agents.map(a => a.name.toLowerCase()));
     
     campaignLeads.forEach((lead) => {
-      let assignee = lead.ownerAgentName || 'Unassigned';
+      let assignee = resolveAgentName(agents, { id: lead.ownerAgentId, name: lead.ownerAgentName });
       if (assignee !== 'Unassigned' && !validAgentNames.has(assignee.toLowerCase())) {
         assignee = 'Unassigned';
       }
@@ -415,18 +497,20 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
     setNewNoteText('');
   };
 
-  // Filter leads by search, assignee, and tab
+  // Filter leads by search and assignee
   const filteredLeads = useMemo(() => {
     return campaignLeads.filter((l) => {
       try {
-        if (campaignTab === 'NEW' && l.status !== 'Fresh' && l.status !== 'Open') {
-          return false;
-        }
-        
         const matchesSearch = String(l.name || '').toLowerCase().includes(String(searchQuery || '').toLowerCase()) || String(l.phone || '').includes(String(searchQuery || ''));
         const matchesAssignee = String(selectedAssigneeFilter || '').toUpperCase() === 'ALL' || !selectedAssigneeFilter
           ? true
-          : String(l.ownerAgentName || '').toLowerCase().includes(String(selectedAssigneeFilter || '').toLowerCase());
+          : (() => {
+              const selected = agents.find((a) => a.id === selectedAssigneeFilter || a.name === selectedAssigneeFilter);
+              if (selected) return matchesAgent(agents, selected, { id: l.ownerAgentId, name: l.ownerAgentName });
+              return resolveAgentName(agents, { id: l.ownerAgentId, name: l.ownerAgentName })
+                .toLowerCase()
+                .includes(String(selectedAssigneeFilter || '').toLowerCase());
+            })();
         
         return matchesSearch && matchesAssignee;
       } catch (err) {
@@ -434,7 +518,7 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
         return false;
       }
     });
-  }, [campaignLeads, searchQuery, selectedAssigneeFilter, campaignTab]);
+  }, [campaignLeads, searchQuery, selectedAssigneeFilter, agents]);
 
   // Dynamic Assignee Distribution for active campaign
   const dynamicAssignees = useMemo(() => {
@@ -443,7 +527,7 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
     const map = new Map<string, number>();
 
     campaignLeads.forEach((l) => {
-      const name = l.ownerAgentName || 'Unassigned';
+      const name = resolveAgentName(agents, { id: l.ownerAgentId, name: l.ownerAgentName });
       map.set(name, (map.get(name) || 0) + 1);
     });
 
@@ -546,14 +630,42 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
         </div>
       )}
 
-      {!activeCampaign ? (
+      {!campaignsLoaded ? (
         <div className="flex flex-col items-center justify-center min-h-[400px] bg-white rounded-xl border border-slate-200/90 shadow-2xs">
+          <Filter className="w-12 h-12 text-slate-300 mb-4" />
+          <h2 className="text-lg font-bold text-slate-800">Loading campaigns</h2>
+          <p className="text-sm text-slate-500 mt-1 max-w-md text-center">
+            Fetching workspace campaigns from the database...
+          </p>
+        </div>
+      ) : !activeCampaign ? (
+        <div className="flex flex-col items-center justify-center min-h-[400px] bg-white rounded-xl border border-slate-200/90 shadow-2xs px-6 py-10">
           <Filter className="w-12 h-12 text-slate-300 mb-4" />
           <h2 className="text-lg font-bold text-slate-800">No Campaigns Found</h2>
           <p className="text-sm text-slate-500 mt-1 max-w-md text-center">
-            You don't have any workspace campaigns configured yet. 
-            Connect your Facebook page or create a custom campaign to see leads here.
+            You don't have any workspace campaigns configured yet. Create a custom campaign to see leads here.
           </p>
+          <div className="w-full max-w-sm mt-4 p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-2">
+            <input
+              type="text"
+              value={newCampaignInput}
+              onChange={(e) => setNewCampaignInput(e.target.value)}
+              placeholder="Campaign name e.g. Bangalore Leads..."
+              className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  createWorkspaceCampaign(newCampaignInput);
+                }
+              }}
+            />
+            <button
+              onClick={() => createWorkspaceCampaign(newCampaignInput)}
+              className="w-full px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold cursor-pointer"
+            >
+              Create campaign
+            </button>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
@@ -654,6 +766,11 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
                   <h3 className="font-mono text-xs font-bold text-slate-900 truncate">
                     {activeCampaign.handle}
                   </h3>
+                  {activeCampaign.formName && (
+                    <p className="text-[10px] text-slate-500 font-medium truncate mt-0.5">
+                      Form: {activeCampaign.formName}
+                    </p>
+                  )}
                 </div>
                 <ChevronDown className="w-4 h-4 text-slate-400 shrink-0 ml-1" />
               </button>
@@ -696,19 +813,7 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
-                            if (newCampaignInput.trim()) {
-                              const cleanName = newCampaignInput.trim();
-                              const cleanHandle = formatCampaignHandle(cleanName);
-                              setCustomCampaigns(prev => [...prev, cleanName]);
-                              fetchWithTenantAuth('/api/campaigns', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ name: cleanName, handle: cleanHandle })
-                              }).then(() => fetchDbCampaigns()).catch(() => {});
-                              setNewCampaignInput('');
-                              setIsAddingCampaign(false);
-                              if (onShowToast) onShowToast(`Created campaign "${cleanName}" in database.`);
-                            }
+                            createWorkspaceCampaign(newCampaignInput);
                           }
                         }}
                       />
@@ -720,21 +825,7 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
                           Cancel
                         </button>
                         <button
-                          onClick={() => {
-                            if (newCampaignInput.trim()) {
-                              const cleanName = newCampaignInput.trim();
-                              const cleanHandle = formatCampaignHandle(cleanName);
-                              setCustomCampaigns(prev => [...prev, cleanName]);
-                              fetchWithTenantAuth('/api/campaigns', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ name: cleanName, handle: cleanHandle })
-                              }).then(() => fetchDbCampaigns()).catch(() => {});
-                              setNewCampaignInput('');
-                              setIsAddingCampaign(false);
-                              if (onShowToast) onShowToast(`Created campaign "${cleanName}" in database.`);
-                            }
-                          }}
+                          onClick={() => createWorkspaceCampaign(newCampaignInput)}
                           className="px-2.5 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-semibold cursor-pointer"
                         >
                           Add
@@ -761,6 +852,9 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
                             <Phone className={`w-3.5 h-3.5 ${activeCampaign.handle.toLowerCase() === camp.handle.toLowerCase() ? 'text-indigo-600' : 'text-slate-400'} shrink-0`} />
                             <div className="truncate">
                               <div className="font-mono text-[11px] font-bold truncate">{camp.handle.replace(/^@/, '')}</div>
+                              {camp.formName && (
+                                <div className="text-[10px] text-slate-500 font-medium truncate">{camp.formName}</div>
+                              )}
                             </div>
                           </div>
                           <span className="text-[10px] font-mono font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded shrink-0 ml-1">
@@ -962,27 +1056,23 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
                   <div className="grid grid-cols-12 gap-3 items-center py-2">
                     <div className="col-span-5 flex items-center justify-center">
                       <svg className="w-28 h-28" viewBox="0 0 100 100">
-                        {renderSvgPie([
-                          { percentage: 60, color: '#6366F1' },
-                          { percentage: 20, color: '#10B981' },
-                          { percentage: 20, color: '#F59E0B' }
-                        ], 100)}
+                        {renderSvgPie(statusDistribution.map((s) => ({ percentage: s.percentage, color: s.color })), 100)}
                       </svg>
                     </div>
 
-                    <div className="col-span-7 space-y-2 text-xs">
-                      <div className="flex items-center space-x-2 text-[11px]">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#6366F1] shrink-0" />
-                        <span className="text-slate-800 font-semibold">Job enquiry (60%)</span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-[11px]">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#10B981] shrink-0" />
-                        <span className="text-slate-700">Open (20%)</span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-[11px]">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B] shrink-0" />
-                        <span className="text-slate-700">RNR (20%)</span>
-                      </div>
+                    <div className="col-span-7 space-y-2 text-xs max-h-40 overflow-y-auto pr-0.5">
+                      {statusDistribution.length === 0 ? (
+                        <p className="text-slate-400 text-[11px]">No stage data yet for this campaign.</p>
+                      ) : (
+                        statusDistribution.map((item) => (
+                          <div key={item.name} className="flex items-center space-x-2 text-[11px]">
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                            <span className={`${item.percentage > 0 ? 'text-slate-800 font-semibold' : 'text-slate-700'}`}>
+                              {item.name} ({item.percentage}%)
+                            </span>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1003,27 +1093,23 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
                   <div className="grid grid-cols-12 gap-3 items-center py-2">
                     <div className="col-span-5 flex items-center justify-center">
                       <svg className="w-28 h-28" viewBox="0 0 100 100">
-                        {renderSvgPie([
-                          { percentage: 45, color: '#818CF8' },
-                          { percentage: 30, color: '#F87171' },
-                          { percentage: 25, color: '#FBBF24' }
-                        ], 100)}
+                        {renderSvgPie(lostReasonDistribution.map((s) => ({ percentage: s.percentage, color: s.color })), 100)}
                       </svg>
                     </div>
 
-                    <div className="col-span-7 space-y-2 text-xs">
-                      <div className="flex items-center space-x-2 text-[11px]">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#818CF8] shrink-0" />
-                        <span className="text-slate-800 font-semibold">Joined Another Institute (45%)</span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-[11px]">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#F87171] shrink-0" />
-                        <span className="text-slate-700">High Course Fees (30%)</span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-[11px]">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#FBBF24] shrink-0" />
-                        <span className="text-slate-700">Location / Relocation Issue (25%)</span>
-                      </div>
+                    <div className="col-span-7 space-y-2 text-xs max-h-40 overflow-y-auto pr-0.5">
+                      {lostReasonDistribution.length === 0 ? (
+                        <p className="text-slate-400 text-[11px]">No lost reasons recorded for this campaign.</p>
+                      ) : (
+                        lostReasonDistribution.map((item) => (
+                          <div key={item.name} className="flex items-center space-x-2 text-[11px]">
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                            <span className={`${item.percentage > 0 ? 'text-slate-800 font-semibold' : 'text-slate-700'}`}>
+                              {item.name} ({item.percentage}%)
+                            </span>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1084,32 +1170,14 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
         {/* ========================================================================= */}
         <div className="lg:col-span-4 xl:col-span-4 bg-white rounded-xl border border-slate-200/90 p-3.5 shadow-2xs space-y-3">
           
-          {/* Header & Tabs (@master-form-iata-cargo › ACTIVE | NEW) */}
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <div className="flex items-center space-x-1.5 min-w-0">
-              <span className="font-mono text-xs font-bold text-slate-800 truncate">
-                {activeCampaign.handle} ›
-              </span>
-            </div>
-
-            <div className="flex items-center space-x-1 text-xs font-bold shrink-0">
-              <button
-                onClick={() => setCampaignTab('ACTIVE')}
-                className={`px-2 py-1 rounded-md text-[11px] transition-all cursor-pointer ${
-                  campaignTab === 'ACTIVE' ? 'text-slate-900 border-b-2 border-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                ACTIVE
-              </button>
-              <button
-                onClick={() => setCampaignTab('NEW')}
-                className={`px-2 py-1 rounded-md text-[11px] transition-all cursor-pointer ${
-                  campaignTab === 'NEW' ? 'text-indigo-700 border-b-2 border-indigo-600 font-extrabold' : 'text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                NEW ({filteredLeads.length})
-              </button>
-            </div>
+          {/* Header with campaign handle and lead count */}
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2 gap-2">
+            <span className="font-mono text-xs font-bold text-slate-800 truncate">
+              {activeCampaign.handle}
+            </span>
+            <span className="inline-flex items-center shrink-0 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[11px] font-bold border border-indigo-100 tabular-nums">
+              {filteredLeads.length} {filteredLeads.length === 1 ? 'lead' : 'leads'}
+            </span>
           </div>
 
           {/* Search Input */}
@@ -1185,7 +1253,7 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
 
                       {/* Agent Initials Pill */}
                       <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 font-bold text-[9px] border border-indigo-200 shrink-0">
-                        {lead.ownerAgentName.split(' ').map((n) => n[0]).join('').slice(0, 2)}
+                        {resolveAgentName(agents, { id: lead.ownerAgentId, name: lead.ownerAgentName }).split(' ').map((n) => n[0]).join('').slice(0, 2)}
                       </span>
                     </div>
                   )}

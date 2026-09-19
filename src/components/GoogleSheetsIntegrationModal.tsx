@@ -19,17 +19,19 @@ import {
   SlidersHorizontal,
   Code
 } from 'lucide-react';
-import { Lead, LeadSource, LeadStatus } from '../types';
+import { Lead, LeadSource, LeadStatus, Agent } from '../types';
 import { formatProperName } from '../utils/formatUtils';
 
 interface GoogleSheetsIntegrationModalProps {
   leads: Lead[];
+  activeAgent?: Agent | null;
   onImportLeads: (importedLeads: Lead[]) => void;
   onClose: () => void;
 }
 
 export const GoogleSheetsIntegrationModal: React.FC<GoogleSheetsIntegrationModalProps> = ({
   leads,
+  activeAgent,
   onImportLeads,
   onClose
 }) => {
@@ -100,8 +102,8 @@ export const GoogleSheetsIntegrationModal: React.FC<GoogleSheetsIntegrationModal
           aiReasoning: 'Direct live sync from connected Google Sheet row.',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          ownerAgentId: 'agent-1',
-          ownerAgentName: 'Rahul Sharma',
+          ownerAgentId: activeAgent?.id || '',
+          ownerAgentName: activeAgent?.name || 'Unassigned',
           customFields: {},
           tags: ['Google Sheets', 'Auto-Sync'],
           notes

@@ -9,7 +9,8 @@ class MetaSyncEngine {
   private isSyncing = false;
 
   /**
-   * Sync all recent leads from all connected Meta forms
+   * Sync all recent leads from all connected Meta forms (live Graph only).
+   * Respects per-form importOption: future_only skips leads created before mapping.updatedAt.
    */
   public async syncAllMetaLeads(tenantId = 'company_kite_aviation'): Promise<{ syncedCount: number; formsSynced: number; errors: any[] }> {
     if (this.isSyncing) return { syncedCount: 0, formsSynced: 0, errors: [] };
@@ -23,20 +24,18 @@ class MetaSyncEngine {
       const { metaService } = await import('./meta.service');
       const activePages = await metaService.getActiveConnectedPages(tenantId);
 
-      // Fallback: If no database pages, check env variables
-      if (activePages.length === 0 && process.env.META_PAGE_ACCESS_TOKEN) {
-        activePages.push({
-          client_id: tenantId,
-          page_id: process.env.META_PAGE_ID || '1354212834436427',
-          page_name: process.env.META_PAGE_NAME || 'Meta Page',
-          page_access_token: process.env.META_PAGE_ACCESS_TOKEN
-        });
-      }
-
       if (activePages.length === 0) {
         this.isSyncing = false;
-        return { syncedCount: 0, formsSynced: 0, errors: ['No active connected Facebook Pages found for tenant. Connect a Page under Integrations → Meta first.'] };
+        return {
+          syncedCount: 0,
+          formsSynced: 0,
+          errors: ['No active connected Facebook Pages found for tenant. Connect a Page under Integrations → Meta first.']
+        };
       }
+
+      const integrations = await multiTenantDb.getIntegrations(tenantId);
+      const fbIntegration = integrations.find((i: any) => i.id === 'facebook');
+      const campaignMappings: Record<string, any> = (fbIntegration?.credentials as any)?.campaignMappings || {};
 
       const existingLeads = await multiTenantDb.getLeads(tenantId, undefined, true);
       const existingLeadIds = new Set(
@@ -50,7 +49,6 @@ class MetaSyncEngine {
             continue;
           }
 
-          // 1. Fetch all Leadgen Forms on Page via Meta Graph API v22.0
           const formsRes = await axios.get(`https://graph.facebook.com/${metaConfig.graphVersion}/${page_id}/leadgen_forms`, {
             params: { access_token: page_access_token }
           });
@@ -58,9 +56,19 @@ class MetaSyncEngine {
           const forms = formsRes.data?.data || [];
           formsSynced += forms.length;
 
-          // 2. Iterate through each form on Page
           for (const form of forms) {
             try {
+              const mapping = campaignMappings[form.id];
+              const importOption = mapping?.importOption || 'all';
+              const mappingSince = mapping?.updatedAt ? new Date(mapping.updatedAt).getTime() : 0;
+
+              // If forms are mapped and this form is not mapped, skip poll ingest
+              // (webhooks can still deliver; mapped forms are the active connections)
+              const hasAnyMappings = Object.keys(campaignMappings).length > 0;
+              if (hasAnyMappings && !mapping) {
+                continue;
+              }
+
               const leadsRes = await axios.get(
                 `https://graph.facebook.com/${metaConfig.graphVersion}/${form.id}/leads`,
                 {
@@ -74,21 +82,27 @@ class MetaSyncEngine {
               const leads = leadsRes.data?.data || [];
 
               for (const rawLead of leads) {
-                if (!existingLeadIds.has(rawLead.id)) {
-                  // Ingest live lead through worker pipeline
-                  await metaWorker.processLeadgenChange({
-                    value: {
-                      leadgen_id: rawLead.id,
-                      page_id: page_id,
-                      form_id: form.id,
-                      form_name: form.name || form.id,
-                      page_name: page_name
-                    }
-                  });
+                if (existingLeadIds.has(rawLead.id)) continue;
 
-                  existingLeadIds.add(rawLead.id);
-                  syncedCount++;
+                if (importOption === 'future_only' && mappingSince > 0 && rawLead.created_time) {
+                  const leadCreated = new Date(rawLead.created_time).getTime();
+                  if (leadCreated < mappingSince) {
+                    continue;
+                  }
                 }
+
+                await metaWorker.processLeadgenChange({
+                  value: {
+                    leadgen_id: rawLead.id,
+                    page_id: page_id,
+                    form_id: form.id,
+                    form_name: form.name || form.id,
+                    page_name: page_name
+                  }
+                });
+
+                existingLeadIds.add(rawLead.id);
+                syncedCount++;
               }
             } catch (formErr: any) {
               errors.push({ form: form.name || form.id, page: page_name, error: formErr?.response?.data || formErr.message });
@@ -100,7 +114,7 @@ class MetaSyncEngine {
       }
 
       if (syncedCount > 0) {
-        logger.info(`[Meta Sync Engine] 🚀 Successfully synced ${syncedCount} live lead(s) from Meta Graph API.`);
+        logger.info(`[Meta Sync Engine] Successfully synced ${syncedCount} live lead(s) from Meta Graph API.`);
       }
     } catch (err: any) {
       logger.warn('[Meta Sync Engine Notice]:', err?.response?.data?.error?.message || err?.message);
@@ -112,12 +126,8 @@ class MetaSyncEngine {
     return { syncedCount, formsSynced, errors };
   }
 
-  /**
-   * Start periodic background sync every N seconds
-   */
   public async syncAllConnectedTenants(): Promise<void> {
     try {
-      const { multiTenantDb } = await import('../../../services/multiTenantDb');
       const storeTenants = Object.keys((multiTenantDb as any).store?.facebookPages || {});
       const targets = storeTenants.length > 0
         ? storeTenants
@@ -135,17 +145,15 @@ class MetaSyncEngine {
   public startPeriodicSync(intervalMs = 20000) {
     if (this.syncInterval) clearInterval(this.syncInterval);
 
-    // Run initial sync after 5s across all tenants with connected pages
     setTimeout(() => {
       this.syncAllConnectedTenants().catch((e) => logger.warn('[Meta Initial Sync Notice]:', e?.message));
     }, 5000);
 
-    // Recurring sync
     this.syncInterval = setInterval(() => {
       this.syncAllConnectedTenants().catch((e) => logger.warn('[Meta Periodic Sync Notice]:', e?.message));
     }, intervalMs);
 
-    logger.info(`[Meta Sync Engine] ⚡ Background lead poller started (every ${intervalMs / 1000}s)`);
+    logger.info(`[Meta Sync Engine] Background lead poller started (every ${intervalMs / 1000}s)`);
   }
 
   public stopPeriodicSync() {

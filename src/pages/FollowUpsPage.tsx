@@ -25,6 +25,7 @@ import { Lead, Agent, CallRecord, CustomFieldDef, isAgentAdmin, formatDealValue 
 import { toast } from '../context/ToastContext';
 import { EmptyState } from '../components/EmptyState';
 import { formatProperName } from '../utils/formatUtils';
+import { resolveAgentName, resolveAgentAvatar, matchesAgent } from '../utils/agentDisplay';
 
 import { CallRecordingPlayer } from '../components/CallRecordingPlayer';
 import { StatusBadge } from '../components/StatusBadge';
@@ -278,10 +279,10 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
         <td key={field.id || field.name} className="py-3.5 px-4 whitespace-nowrap">
           <div className="flex items-center space-x-2">
             <div className="w-5 h-5 rounded-full bg-purple-100 text-[#3a2088] flex items-center justify-center text-[10px] font-bold">
-              {(lead.ownerAgentName || 'U')[0].toUpperCase()}
+              {(resolveAgentName(agents, { id: lead.ownerAgentId, name: lead.ownerAgentName }) || 'U')[0].toUpperCase()}
             </div>
             <span className="font-semibold text-slate-800 text-xs truncate max-w-[120px]">
-              {formatProperName(lead.ownerAgentName || 'Unassigned')}
+              {formatProperName(resolveAgentName(agents, { id: lead.ownerAgentId, name: lead.ownerAgentName }))}
             </span>
           </div>
         </td>
@@ -440,7 +441,9 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
 
     const selectedAgent = agents.find((a) => a.id === modalAssigneeId);
     const finalAssigneeId = modalAssigneeId || targetLead.ownerAgentId || targetLead.assignedTo || activeAgent?.id;
-    const finalAssigneeName = selectedAgent ? selectedAgent.name : (targetLead.ownerAgentName || activeAgent?.name || 'Unassigned');
+    const finalAssigneeName = selectedAgent
+      ? selectedAgent.name
+      : resolveAgentName(agents, { id: finalAssigneeId, name: targetLead.ownerAgentName, fallback: activeAgent?.name || 'Unassigned' });
 
     onUpdateLead(modalLeadId, {
       status: 'Follow Up',
@@ -699,10 +702,10 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
                         <span className="font-mono font-semibold text-slate-800">{lead.phone}</span>
                         <div className="flex items-center space-x-1">
                           <span className="w-4 h-4 rounded-full bg-purple-100 text-[#3a2088] text-[9px] font-bold flex items-center justify-center">
-                            {(lead.ownerAgentName || 'U')[0].toUpperCase()}
+                            {(resolveAgentName(agents, { id: lead.ownerAgentId, name: lead.ownerAgentName }) || 'U')[0].toUpperCase()}
                           </span>
                           <span className="text-[11px] text-slate-700 truncate max-w-[110px]">
-                            {formatProperName(lead.ownerAgentName || 'Unassigned')}
+                            {formatProperName(resolveAgentName(agents, { id: lead.ownerAgentId, name: lead.ownerAgentName }))}
                           </span>
                         </div>
                       </div>
@@ -912,7 +915,7 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
                   <option value="" className="bg-white text-slate-500 font-medium">Choose an Existing Lead</option>
                   {(isAdmin
                     ? leads
-                    : leads.filter((l) => l.ownerAgentId === activeAgent?.id || l.ownerAgentName === activeAgent?.name)
+                    : leads.filter((l) => matchesAgent(agents, activeAgent, { id: l.ownerAgentId, name: l.ownerAgentName }))
                   ).map((l) => (
                     <option key={l.id} value={l.id} className="bg-white text-slate-900 font-medium py-1">
                       {l.name} {l.phone ? `(${l.phone})` : ''} {l.followUpAt ? '• [Existing Follow-up]' : ''}

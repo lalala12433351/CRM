@@ -1,3 +1,4 @@
+import { resolveAgentName } from '../utils/agentDisplay';
 import React, { useState } from 'react';
 import { 
   Inbox, 
@@ -13,13 +14,14 @@ import {
   CheckCheck,
   Filter
 } from 'lucide-react';
-import { Lead, WhatsAppMessage } from '../types';
+import { Lead, WhatsAppMessage, Agent } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
 import { EmptyState } from '../components/EmptyState';
 
 interface OmnichannelInboxProps {
   leads: Lead[];
   messages: WhatsAppMessage[];
+  agents?: Agent[];
   onSendMessage: (leadId: string, text: string) => void;
   onOpenLeadDetail?: (lead: Lead) => void;
   onCallLead?: (lead: Lead) => void;
@@ -28,6 +30,7 @@ interface OmnichannelInboxProps {
 export const OmnichannelInboxPage: React.FC<OmnichannelInboxProps> = ({
   leads,
   messages,
+  agents = [],
   onSendMessage,
   onOpenLeadDetail,
   onCallLead,
@@ -191,7 +194,7 @@ export const OmnichannelInboxPage: React.FC<OmnichannelInboxProps> = ({
                         {lastMsg ? lastMsg.content : lead.company || lead.city || 'Incoming conversation'}
                       </p>
                       <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1">
-                        <span>{lead.ownerAgentName || 'Unassigned'}</span>
+                        <span>{resolveAgentName(agents, { id: lead.ownerAgentId, name: lead.ownerAgentName })}</span>
                         <span>₹{(lead.dealValue || 0).toLocaleString()}</span>
                       </div>
                     </div>

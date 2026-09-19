@@ -58,12 +58,13 @@ export class MetaController {
 
     // 1. Validate CSRF State and extract Tenant/Client ID
     const stateValidation = metaService.verifyState(String(state || ''));
-    let clientId = stateValidation.clientId;
-
-    if (!stateValidation.valid) {
-      logger.warn(`[Meta OAuth] State verification warning: ${stateValidation.error}. Falling back to request tenant.`);
-      clientId = req.tenantId || req.user?.id || process.env.DEFAULT_TENANT_ID || 'company_kite_aviation';
+    if (!stateValidation.valid || !stateValidation.clientId) {
+      logger.warn(`[Meta OAuth] State verification failed: ${stateValidation.error}`);
+      return this.renderPopupResponse(res, false, {
+        message: stateValidation.error || 'Invalid or expired OAuth state. Please try connecting again.'
+      });
     }
+    const clientId = stateValidation.clientId;
 
     const callbackPath = req.originalUrl?.includes('/auth/meta/callback')
       ? '/api/auth/meta/callback'
@@ -78,17 +79,21 @@ export class MetaController {
       const rawPages = await metaService.getUserPages(longLivedUserToken);
       logger.info(`[Meta Controller] Found ${rawPages.length} Facebook page(s) for client '${clientId}'`);
 
+      const profile = await metaService.getUserProfile(longLivedUserToken);
+      await metaService.markFacebookConnected(clientId, {
+        name: profile?.name,
+        email: profile?.email
+      });
+
       const connectedPages: Array<{ id: string; name: string; status: string }> = [];
 
       // 4. Encrypt at rest, save to facebook_page_integrations, and register webhooks
       for (const page of rawPages) {
         await metaService.saveConnectedPage(clientId, page);
 
-        let subSuccess = false;
         try {
           await metaService.subscribePageToLeadgen(page.id, page.access_token);
-          subSuccess = true;
-          logger.info(`[Meta Controller] ✅ Automated Webhook Registered for page: ${page.name} (${page.id})`);
+          logger.info(`[Meta Controller] Automated Webhook Registered for page: ${page.name} (${page.id})`);
         } catch (subErr: any) {
           logger.warn(
             `[Meta Subscribed App Notice for ${page.name}]: ${
@@ -132,20 +137,24 @@ export class MetaController {
     try {
       const pages = await metaService.getClientPages(clientId);
       const { multiTenantDb } = await import('../../../services/multiTenantDb');
-      const tenant = await multiTenantDb.getTenant(clientId);
       const integrations = await multiTenantDb.getIntegrations(clientId);
       const fbIntegration = integrations.find((i: any) => i.id === 'facebook');
-
-      const account = {
-        name: (fbIntegration?.credentials as any)?.accountName || tenant?.companyName || (pages.length > 0 ? pages[0].page_name : 'Facebook Account'),
-        email: (fbIntegration?.credentials as any)?.accountEmail || tenant?.ownerEmail || (pages.length > 0 ? `${pages[0].page_name.toLowerCase().replace(/[^a-z0-9]/g, '')}@facebook.com` : 'user@facebook.com')
-      };
+      // Only expose Meta account when live pages are connected (never invent from tenant CRM profile)
+      const hasLivePages = pages.length > 0;
+      const creds = (fbIntegration?.credentials || {}) as any;
+      const account = hasLivePages
+        ? {
+            name: creds.accountName || pages[0].page_name || 'Facebook Account',
+            email: creds.accountEmail || undefined
+          }
+        : null;
 
       return res.json({
         success: true,
         tenantId: clientId,
         count: pages.length,
         pages,
+        isConnected: hasLivePages || !!fbIntegration?.isConnected,
         account
       });
     } catch (err: any) {
@@ -156,7 +165,7 @@ export class MetaController {
 
   /**
    * DELETE /api/integrations/facebook/pages/:pageId
-   * Unsubscribes page from Meta webhook and marks integration status as disconnected
+   * Unsubscribes page from Meta, purges related CRM data, and hard-removes the page.
    */
   public async deleteConnectedPage(req: any, res: Response) {
     const clientId =
@@ -168,22 +177,37 @@ export class MetaController {
       'company_kite_aviation';
 
     const { pageId } = req.params;
-    const isHard = req.query?.hard === 'true' || req.query?.permanent === 'true';
 
     if (!pageId) {
       return res.status(400).json({ success: false, error: 'pageId URL parameter is required.' });
     }
 
     try {
-      const result = isHard
-        ? await metaService.removePage(clientId, pageId)
-        : await metaService.disconnectPage(clientId, pageId);
+      // User unlink always hard-removes page + cascade-purges related data
+      const result = await metaService.removePage(clientId, pageId);
+
+      // If no pages remain, mark integration disconnected
+      const remaining = await metaService.getClientPages(clientId);
+      const activeRemaining = remaining.filter((p) => p.status === 'active');
+      if (activeRemaining.length === 0) {
+        const { multiTenantDb } = await import('../../../services/multiTenantDb');
+        const integrations = await multiTenantDb.getIntegrations(clientId);
+        const existing = integrations.find((i: any) => i.id === 'facebook');
+        if (existing) {
+          await multiTenantDb.saveIntegration(clientId, {
+            id: 'facebook',
+            isConnected: false,
+            credentials: existing.credentials || {}
+          });
+        }
+      }
 
       return res.json({
         success: true,
         message: result.message,
         pageId,
-        status: isHard ? 'removed' : 'disconnected'
+        status: 'removed',
+        purged: result.purged
       });
     } catch (err: any) {
       logger.error(`[Meta Controller] Error deleting page ${pageId}:`, err);
@@ -236,20 +260,33 @@ export class MetaController {
   }
 
   /**
-   * POST /api/meta/disconnect (Backwards compatibility)
+   * POST /api/meta/disconnect — full account unlink + cascade purge
    */
   public async disconnect(req: any, res: Response) {
-    const { pageId } = req.body;
+    const clientId =
+      req.tenantId ||
+      req.user?.tenantId ||
+      req.user?.id ||
+      process.env.DEFAULT_TENANT_ID ||
+      'company_kite_aviation';
+
+    const { pageId } = req.body || {};
     if (pageId) {
       req.params = { pageId };
       return this.deleteConnectedPage(req, res);
     }
-    const clientId = req.tenantId || req.user?.id || process.env.DEFAULT_TENANT_ID || 'company_kite_aviation';
-    const pages = await metaService.getClientPages(clientId);
-    for (const page of pages) {
-      await metaService.disconnectPage(clientId, page.page_id);
+
+    try {
+      const result = await metaService.disconnectAccount(clientId);
+      return res.json({
+        success: true,
+        message: result.message,
+        pages: result.pages
+      });
+    } catch (err: any) {
+      logger.error('[Meta Controller] Account disconnect error:', err);
+      return res.status(500).json({ success: false, error: err.message });
     }
-    return res.json({ success: true, message: 'Disconnected all Facebook pages.' });
   }
 
   /**
@@ -323,13 +360,23 @@ export class MetaController {
       const existing = allIntegrations.find((i: any) => i.id === 'facebook') || { credentials: {} };
 
       const campaignMappings = (existing.credentials as any)?.campaignMappings || {};
+      const normalizedHandle = String(campaignHandle || campaignName || 'campaign')
+        .trim()
+        .replace(/^@+/, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+      const targetCampHandle = normalizedHandle ? `@${normalizedHandle}` : '@campaign';
+      const targetCampName = (campaignName || campaignHandle || '').replace(/^@/, '').trim() || normalizedHandle;
+
       campaignMappings[formId] = {
         pageId,
         pageName: pageName || 'Facebook Page',
         formId,
         formName: formName || 'Meta Form',
-        campaignName: campaignName || campaignHandle.replace(/^@/, ''),
-        campaignHandle: campaignHandle.startsWith('@') ? campaignHandle : `@${campaignHandle}`,
+        campaignName: targetCampName,
+        campaignHandle: targetCampHandle,
         fieldMapping: fieldMapping || [],
         leadDistribution: leadDistribution || [],
         importOption: importOption || 'future_only',
@@ -347,9 +394,26 @@ export class MetaController {
         }
       });
 
+      // Persist as a workspace campaign so Campaigns page lists only configured campaigns + form link
+      try {
+        await multiTenantDb.saveCampaign(clientId, {
+          name: targetCampName,
+          handle: targetCampHandle,
+          source: 'Facebook Lead Ads',
+          formId,
+          formName: formName || 'Meta Form',
+          pageId,
+          pageName: pageName || 'Facebook Page',
+          assignedAgentIds: Array.isArray(leadDistribution)
+            ? leadDistribution.map((a: any) => a.id).filter(Boolean)
+            : [],
+          distributionRule: 'round_robin'
+        });
+      } catch (campErr) {
+        logger.warn('[Meta Controller] Could not mirror mapping into workspace campaigns:', campErr);
+      }
+
       // 2. Mark and update all matching leads in the database with campaign name & distribution
-      const targetCampName = campaignName || campaignHandle.replace(/^@/, '');
-      const targetCampHandle = campaignHandle.startsWith('@') ? campaignHandle : `@${campaignHandle}`;
       let updatedLeadCount = 0;
 
       try {
@@ -424,7 +488,8 @@ export class MetaController {
 
   /**
    * GET /api/integrations/facebook/campaign-mappings
-   * Returns all active campaign mappings for the current tenant
+   * Returns live campaign mappings for the current tenant.
+   * Optional query: ?pageId= — only mappings for the Facebook page the client chose.
    */
   public async getCampaignMappings(req: any, res: Response) {
     const clientId =
@@ -435,14 +500,52 @@ export class MetaController {
       process.env.DEFAULT_TENANT_ID ||
       'company_kite_aviation';
 
+    const pageId = String(req.query?.pageId || req.query?.page_id || '').trim();
+
     try {
       const { multiTenantDb } = await import('../../../services/multiTenantDb');
       const allIntegrations = await multiTenantDb.getIntegrations(clientId);
       const existing = allIntegrations.find((i: any) => i.id === 'facebook');
       const campaignMappings = (existing?.credentials as any)?.campaignMappings || {};
-      return res.json({ success: true, mappings: Object.values(campaignMappings) });
+      let mappings = Object.values(campaignMappings) as any[];
+      if (pageId) {
+        mappings = mappings.filter((m) => m && String(m.pageId) === pageId);
+      }
+      return res.json({ success: true, mappings, pageId: pageId || null });
     } catch (err: any) {
       return res.json({ success: false, mappings: [] });
+    }
+  }
+
+  /**
+   * DELETE /api/integrations/facebook/campaign-mappings/:formId
+   * Unlinks a form connection and purges its leads + mirrored campaign.
+   */
+  public async deleteCampaignMapping(req: any, res: Response) {
+    const clientId =
+      req.tenantId ||
+      req.user?.tenantId ||
+      req.user?.id ||
+      (req.headers['x-tenant-id'] as string) ||
+      process.env.DEFAULT_TENANT_ID ||
+      'company_kite_aviation';
+
+    const { formId } = req.params;
+    if (!formId) {
+      return res.status(400).json({ success: false, error: 'formId is required.' });
+    }
+
+    try {
+      const result = await metaService.unlinkForm(clientId, formId);
+      return res.json({
+        success: true,
+        message: result.message,
+        formId,
+        purged: result.purged
+      });
+    } catch (err: any) {
+      logger.error(`[Meta Controller] Error unlinking form ${formId}:`, err);
+      return res.status(500).json({ success: false, error: err.message });
     }
   }
 

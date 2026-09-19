@@ -5,10 +5,11 @@ import { logger } from '../../utils/logger';
 export class CampaignsController {
   /**
    * GET /api/campaigns
-   * Returns all campaigns configured in the workspace database for the current tenant
+   * Returns live workspace + Meta campaigns for the current tenant.
+   * Optional query: ?pageId= — scopes to the Facebook page the client chose.
    */
   public async getCampaigns(req: any, res: Response) {
-    console.log('[DEBUG] GET /api/campaigns HIT. tenantId:', req.headers['x-tenant-id']);
+    console.log('[DEBUG] GET /api/campaigns HIT. tenantId:', req.headers['x-tenant-id'], 'pageId:', req.query?.pageId);
     const tenantId =
       req.tenantId ||
       req.user?.tenantId ||
@@ -17,12 +18,15 @@ export class CampaignsController {
       process.env.DEFAULT_TENANT_ID ||
       'company_kite_aviation';
 
+    const pageId = String(req.query?.pageId || req.query?.page_id || '').trim() || undefined;
+
     try {
-      const campaigns = await multiTenantDb.getCampaigns(tenantId);
+      const campaigns = await multiTenantDb.getCampaigns(tenantId, { pageId });
       return res.json({
         success: true,
         campaigns,
-        total: campaigns.length
+        total: campaigns.length,
+        pageId: pageId || null
       });
     } catch (err: any) {
       logger.error('[CampaignsController] Error fetching campaigns:', err);

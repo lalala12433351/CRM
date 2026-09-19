@@ -32,8 +32,18 @@ export function verifyMetaWebhookHandshake(req: Request, res: Response): boolean
  */
 export function verifyMetaSignature(req: Request, res: Response, next: NextFunction) {
   const signature = (req.headers['x-hub-signature-256'] as string)?.trim();
-  if (!signature || !metaConfig.appSecret) {
-    // If signature header is omitted in development / test environments, allow through
+  const isProd = process.env.NODE_ENV === 'production';
+
+  if (!signature) {
+    if (isProd && metaConfig.appSecret) {
+      console.warn('⚠️ [Meta Webhook] Missing X-Hub-Signature-256 in production — rejected');
+      return res.status(403).json({ error: 'Missing webhook signature' });
+    }
+    // Dev/test without signature header
+    return next();
+  }
+
+  if (!metaConfig.appSecret) {
     return next();
   }
 
@@ -55,6 +65,9 @@ export function verifyMetaSignature(req: Request, res: Response, next: NextFunct
     }
   } catch (err: any) {
     console.warn('⚠️ [Meta Webhook] Signature verification notice:', err.message);
+    if (isProd) {
+      return res.status(403).json({ error: 'Webhook signature verification failed' });
+    }
   }
 
   next();

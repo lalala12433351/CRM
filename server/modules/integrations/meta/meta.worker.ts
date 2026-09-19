@@ -31,14 +31,9 @@ export class MetaWorker {
       } catch (fetchErr: any) {
         await metaService.handleAuthError(page_id, fetchErr);
         logger.warn(
-          `[Meta Worker] Graph API lead fetch notice (using test lead fallback): ${fetchErr?.response?.data?.error?.message || fetchErr.message}`
+          `[Meta Worker] Graph API lead fetch failed — skipping ingest (no mock leads): ${fetchErr?.response?.data?.error?.message || fetchErr.message}`
         );
-        fieldMap = {
-          full_name: 'Meta Test User',
-          email: 'test_lead@facebook.com',
-          phone_number: '+91 98765 43210',
-          city: 'Hyderabad'
-        };
+        return;
       }
 
       let formName = change.value?.form_name || change.value?.form_title;
@@ -57,7 +52,6 @@ export class MetaWorker {
       // Check for saved campaign mapping for this form_id
       let savedMapping: any = null;
       try {
-        const { multiTenantDb } = await import('../../../services/multiTenantDb');
         const firstTenant = primaryPage.client_id || process.env.DEFAULT_TENANT_ID || 'company_kite_aviation';
         const allIntegrations = await multiTenantDb.getIntegrations(firstTenant);
         const integrationObj = allIntegrations.find((i: any) => i.id === 'facebook');
@@ -101,9 +95,14 @@ export class MetaWorker {
         customMappedFields['Full name'] ||
         fieldMap.full_name ||
         `${fieldMap.first_name || ''} ${fieldMap.last_name || ''}`.trim() ||
-        'Meta Test Lead';
-      const email = customMappedFields['Email'] || fieldMap.email || 'test_lead@facebook.com';
-      const phone = customMappedFields['Number'] || customMappedFields['Phone number'] || fieldMap.phone_number || fieldMap.phone || '+91 98765 00000';
+        'Unknown Lead';
+      const email = customMappedFields['Email'] || fieldMap.email || '';
+      const phone =
+        customMappedFields['Number'] ||
+        customMappedFields['Phone number'] ||
+        fieldMap.phone_number ||
+        fieldMap.phone ||
+        '';
 
       // Resolve assignee from campaign distribution against *current* tenant agents (skip stale IDs/names)
       let assignedOwnerId = '';
@@ -164,7 +163,6 @@ export class MetaWorker {
       try {
         for (const subscriber of allActivePages) {
           const tenantId = subscriber.client_id || process.env.DEFAULT_TENANT_ID || 'company_kite_aviation';
-          // If distribution didn't set an owner, attach tenant Admin so Admin dashboards stay consistent
           let leadForTenant = { ...newLead, tenantId };
           const agents = await multiTenantDb.getAgents(tenantId);
           const adminAgent = agents.find((a) => a.isAdmin || String(a.role || '').toLowerCase().includes('admin'));
@@ -204,22 +202,6 @@ export class MetaWorker {
       }
 
       logger.info(`[Meta Worker] ✅ Lead successfully ingested: ${newLead.name} (${newLead.phone}) [ID: ${leadId}] across ${allActivePages.length} tenant(s)`);
-      
-      console.log(`
-======================================================================
-🎯 [META LEAD RECEIVED & INGESTED]
-----------------------------------------------------------------------
-👤 Full Name:    ${newLead.name}
-📞 Phone:        ${newLead.phone}
-📧 Email:        ${newLead.email}
-🏢 Source:       ${newLead.source}
-📋 Form ID:      ${(newLead.customFields as any)?.meta_form_id || 'N/A'}
-💰 Deal/Budget:  ${newLead.customFields?.['what_budget_range_are_you_comfortable_considering?'] || newLead.dealValue || 'N/A'}
-🆔 Lead ID:      ${leadId}
-🕒 Ingest Time:  ${new Date().toLocaleString()}
-📄 Form Answers: ${JSON.stringify(fieldMap, null, 2)}
-======================================================================
-`);
     } catch (err: any) {
       logger.error(`[Meta Worker] Failed to process leadgen ${leadgen_id}:`, err?.response?.data || err.message);
     }

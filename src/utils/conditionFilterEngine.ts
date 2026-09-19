@@ -1,5 +1,6 @@
 import React from 'react';
 import { Lead, Agent, CustomFieldDef } from '../types';
+import { resolveAgentName, isUnassignedOwner } from './agentDisplay';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DATA TYPES FOR DYNAMIC CONDITIONS (Matching Strict User Specifications)
@@ -242,9 +243,6 @@ export const getDynamicFieldOptions = (
     agents.forEach(a => {
       if (a.name && a.name.trim()) optionsSet.add(a.name.trim());
     });
-    leads.forEach(l => {
-      if (l.ownerAgentName && l.ownerAgentName.trim()) optionsSet.add(l.ownerAgentName.trim());
-    });
     return Array.from(optionsSet);
   }
 
@@ -325,9 +323,9 @@ export const evaluateLeadAgainstConditions = (
     } else if (key === 'source' || key === 'f-source' || keyLower.includes('source')) {
       rawVal = lead.source;
     } else if (key === 'assignee' || key === 'owner' || key === 'f-assignee' || keyLower.includes('assignee')) {
-      rawVal = lead.ownerAgentName || context.agents?.find(a => a.id === lead.ownerAgentId)?.name || '';
+      rawVal = resolveAgentName(context.agents, { id: lead.ownerAgentId, name: lead.ownerAgentName });
     } else if (key === 'createdBy' || keyLower.includes('created by')) {
-      rawVal = lead.ownerAgentName || context.agents?.find(a => a.id === lead.ownerAgentId)?.name || '';
+      rawVal = resolveAgentName(context.agents, { id: lead.ownerAgentId, name: lead.ownerAgentName });
     } else if (key === 'lostReason' || key === 'lost_reason' || keyLower.includes('lost')) {
       rawVal = lead.lostReason || '';
     } else if (key === 'tags' || keyLower.includes('tag')) {
@@ -346,13 +344,13 @@ export const evaluateLeadAgainstConditions = (
     // 1. Unary operators across any type
     if (cond.operator === 'is_empty') {
       if (cond.dataType === 'user') {
-        return !lead.ownerAgentName || strVal === 'unassigned' || strVal === '';
+        return isUnassignedOwner({ id: lead.ownerAgentId, name: lead.ownerAgentName });
       }
       return rawVal === undefined || rawVal === null || strVal === '';
     }
     if (cond.operator === 'is_not_empty') {
       if (cond.dataType === 'user') {
-        return Boolean(lead.ownerAgentName) && strVal !== 'unassigned' && strVal !== '';
+        return !isUnassignedOwner({ id: lead.ownerAgentId, name: lead.ownerAgentName });
       }
       return rawVal !== undefined && rawVal !== null && strVal !== '';
     }

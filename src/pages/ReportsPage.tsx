@@ -24,6 +24,7 @@ import { CustomDropdown } from '../components/CustomDropdown';
 import { formatProperName } from '../utils/formatUtils';
 import { fetchWithTenantAuth } from '../lib/auth';
 import { getCrmRole } from '../utils/roleUtils';
+import { resolveAgentName, resolveLeadContact } from '../utils/agentDisplay';
 import {
   callBelongsToAgents,
   listManagers,
@@ -233,10 +234,27 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
   }, [userFilter, selectableUsers, selectedAgentId]);
 
   const sourceCalls = remoteCalls ?? callRecords;
+  const liveSourceCalls = useMemo(() => {
+    return sourceCalls.map((c) => {
+      const agentLabel = resolveAgentName(reportUsers, {
+        id: c.agentId,
+        name: c.assigneeName || c.agentName,
+        fallback: c.agentName || 'Agent'
+      });
+      const contact = resolveLeadContact(leads, { id: c.leadId, name: c.leadName, phone: c.leadPhone });
+      return {
+        ...c,
+        agentName: agentLabel,
+        assigneeName: agentLabel,
+        leadName: contact.name,
+        leadPhone: contact.phone || c.leadPhone
+      };
+    });
+  }, [sourceCalls, reportUsers, leads]);
   const scopedAgentIds = resolveReportAgentIds(reportUsers, userFilter, managerFilter);
 
   // Date + user/manager scoped records (stats, charts, leaderboard)
-  const scopedCalls = sourceCalls.filter((call) =>
+  const scopedCalls = liveSourceCalls.filter((call) =>
     isDateInRange(call.timestamp || call.callStartTime || '') &&
     callBelongsToAgents(call, reportUsers, scopedAgentIds)
   );
@@ -245,12 +263,13 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
     if (!isDateInRange(lead.createdAt || lead.updatedAt || '')) return false;
     if (!scopedAgentIds) return true;
     if (lead.ownerAgentId && scopedAgentIds.includes(lead.ownerAgentId)) return true;
+    const liveName = resolveAgentName(reportUsers, { id: lead.ownerAgentId, name: lead.ownerAgentName }).trim().toLowerCase();
     const names = new Set(
       reportUsers
         .filter((agent) => scopedAgentIds.includes(agent.id))
         .map((agent) => (agent.name || '').trim().toLowerCase())
     );
-    return Boolean(lead.ownerAgentName && names.has(lead.ownerAgentName.trim().toLowerCase()));
+    return Boolean(liveName && names.has(liveName));
   });
 
   // Filter & Sort Call Records for Call Logs Subtab
@@ -776,7 +795,7 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
                       ? callRemarksState[call.id]
                       : (call.assigneeRemarks || call.notes || '');
 
-                    const initials = call.agentName.split(' ').map(n => n[0]).join('').slice(0, 2);
+                    const initials = (call.agentName || 'A').split(' ').map(n => n[0]).join('').slice(0, 2);
 
                     return (
                       <div
@@ -789,9 +808,9 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
                               onClick={() => foundLead && onOpenLeadDetail && onOpenLeadDetail(foundLead)}
                               className="font-medium text-sm text-slate-900 hover:text-indigo-600 text-left cursor-pointer"
                             >
-                              {formatProperName(call.leadName)}
+                              {formatProperName(foundLead?.name || call.leadName)}
                             </button>
-                            <p className="text-xs text-slate-500 font-mono">{call.leadPhone}</p>
+                            <p className="text-xs text-slate-500 font-mono">{foundLead?.phone || call.leadPhone}</p>
                           </div>
 
                           <div className="flex items-center space-x-2">

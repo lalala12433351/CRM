@@ -25,10 +25,13 @@ import {
   AlertCircle,
   ArrowRight,
   Info,
-  ChevronDown
+  ChevronDown,
+  Trash2,
+  Unlink
 } from 'lucide-react';
 import { Agent, CustomFieldDef } from '../types';
 import { fetchWithTenantAuth } from '../lib/auth';
+import { formatCampaignHandle } from '../utils/leadFormUtils';
 
 export interface IntegrationItem {
   id: string;
@@ -51,6 +54,9 @@ export interface ConnectedForm {
   totalLeads: number;
   lastLeadTime: string;
   campaignHandle: string;
+  campaignName?: string;
+  formId?: string;
+  pageId?: string;
 }
 
 export interface IntegrationsViewProps {
@@ -66,16 +72,16 @@ const INITIAL_CONNECTED_FORMS: ConnectedForm[] = [];
 
 
 const INITIAL_INTEGRATIONS: IntegrationItem[] = [
-  // Active Integrations (1)
+  // Meta starts inactive until live pages/integration status is fetched
   {
     id: 'facebook',
     name: 'Meta',
     description: 'Capture leads directly from Meta (Facebook & Instagram) Lead Ads in real time.',
-    isActive: true,
+    isActive: false,
     category: 'social',
     iconType: 'facebook',
-    webhookUrl: 'http://localhost:3000/api/webhooks/facebook',
-    lastSync: 'Connected'
+    webhookUrl: `${typeof window !== 'undefined' ? window.location.origin : ''}/api/webhooks/meta`,
+    lastSync: undefined
   },
 
   // Available Integrations
@@ -383,6 +389,11 @@ const [importOption, setImportOption] = useState<string>('future_only');
 const [isLoadingForms, setIsLoadingForms] = useState<boolean>(false);
 
 const fetchPageForms = async (pageId: string) => {
+  if (!pageId) {
+    setPageForms([]);
+    setWizardFormId('');
+    return;
+  }
   setIsLoadingForms(true);
   try {
     const controller = new AbortController();
@@ -390,19 +401,28 @@ const fetchPageForms = async (pageId: string) => {
     const res = await fetchWithTenantAuth(`/api/integrations/facebook/pages/${pageId}/forms`, { signal: controller.signal });
     clearTimeout(timeoutId);
     const data = await res.json();
-    if (data.success && Array.isArray(data.forms) && data.forms.length > 0) {
+    if (data.success && Array.isArray(data.forms)) {
       setPageForms(data.forms);
-      setWizardFormId(data.forms[0].id);
-      const defaultHandle = `@${data.forms[0].name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
-      setWizardCampaignName(defaultHandle);
-      fetchFormQuestions(pageId, data.forms[0].id);
+      if (data.forms.length > 0) {
+        setWizardFormId(data.forms[0].id);
+        const defaultHandle = `@${data.forms[0].name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+        setWizardCampaignName(defaultHandle);
+        fetchFormQuestions(pageId, data.forms[0].id);
+      } else {
+        setWizardFormId('');
+        toast.info('No lead forms found on this Facebook Page. Publish a Lead Ad form in Meta Ads Manager.', 'Meta Forms');
+      }
     } else {
       setPageForms([]);
       setWizardFormId('');
+      if (data.error) {
+        toast.error(data.error, 'Meta Forms');
+      }
     }
-  } catch {
+  } catch (err: any) {
     setPageForms([]);
     setWizardFormId('');
+    toast.error(err?.message || 'Failed to load forms from Facebook', 'Meta Forms');
   } finally {
     setIsLoadingForms(false);
   }
@@ -461,6 +481,43 @@ const fetchFormQuestions = async (pageId: string, formId: string) => {
 };
 
 // Fetch Meta status on mount & listen for Meta OAuth Login popup postMessage callback
+const fetchConnectedFormMappings = React.useCallback(async (pageId?: string) => {
+  try {
+    const qs = pageId ? `?pageId=${encodeURIComponent(pageId)}` : '';
+    const res = await fetchWithTenantAuth(`/api/integrations/facebook/campaign-mappings${qs}`);
+    const data = await res.json();
+    if (data.success && Array.isArray(data.mappings)) {
+      const mappedForms: ConnectedForm[] = data.mappings
+        .filter((m: any) => m && (m.formId || m.formName))
+        .filter((m: any) => !pageId || String(m.pageId) === String(pageId))
+        .map((m: any) => ({
+          id: `f-${m.formId}`,
+          title: m.formName || `Form ${m.formId}`,
+          companyName: m.pageName || 'Facebook Page',
+          period: 'Active',
+          totalLeads: 0,
+          lastLeadTime: m.updatedAt ? new Date(m.updatedAt).toLocaleString() : 'Connected',
+          campaignHandle: formatCampaignHandle(m.campaignHandle || m.campaignName || m.formName || 'campaign'),
+          campaignName: m.campaignName || (m.campaignHandle || '').replace(/^@/, ''),
+          formId: m.formId,
+          pageId: m.pageId
+        }));
+      setFormsList(mappedForms);
+      if (mappedForms.length > 0) {
+        setIntegrations(prev =>
+          prev.map(item =>
+            item.id === 'facebook'
+              ? { ...item, isActive: true, lastSync: `${mappedForms.length} form${mappedForms.length === 1 ? '' : 's'} connected` }
+              : item
+          )
+        );
+      }
+    }
+  } catch {
+    // ignore — manage view can still configure new forms
+  }
+}, []);
+
 const fetchConnectedFacebookPages = React.useCallback(async () => {
   try {
     const res = await fetchWithTenantAuth('/api/integrations/facebook/pages');
@@ -474,15 +531,24 @@ const fetchConnectedFacebookPages = React.useCallback(async () => {
           pageMap.set(pid, p);
         }
       });
-      if (data.account) {
-        setFbUser(data.account);
-      }
       const uniquePages = Array.from(pageMap.values());
       const activePages = uniquePages.filter((p: any) => p.status === 'active');
-      setFbAvailablePages(uniquePages);
+      setFbAvailablePages(activePages);
       if (activePages.length > 0) {
-        const directKeysPage = activePages.find((p: any) => (p.page_name || p.name || '').toLowerCase().includes('direct keys'));
-        const firstPage = directKeysPage || activePages[0];
+        // Real Meta connection — only then show Logged In profile
+        if (data.account?.name) {
+          setFbUser({
+            name: data.account.name,
+            email: data.account.email || ''
+          });
+        } else {
+          const first = activePages[0];
+          setFbUser({
+            name: first.page_name || first.name || 'Facebook Account',
+            email: ''
+          });
+        }
+        const firstPage = activePages[0];
         const firstPageId = firstPage.page_id || firstPage.id;
         setFbPageId(firstPageId);
         setFbPageName(firstPage.page_name || firstPage.name);
@@ -500,20 +566,31 @@ const fetchConnectedFacebookPages = React.useCallback(async () => {
               : item
           )
         );
+        await fetchConnectedFormMappings(firstPageId);
       } else {
+        // Not connected — clear fake logged-in state so Activate shows Facebook Login
+        setFbUser(null);
+        setFbAvailablePages([]);
+        setFormsList([]);
+        setPageForms([]);
+        setFbPageId('');
+        setFbPageName('');
+        setWizardPageId('');
+        setFbStep('overview');
         setIntegrations(prev =>
           prev.map(item =>
             item.id === 'facebook'
-              ? { ...item, isActive: false, lastSync: 'Disconnected' }
+              ? { ...item, isActive: false, lastSync: undefined }
               : item
           )
         );
       }
     }
   } catch {
-    // Fallback
+    setFbUser(null);
+    setFbStep('overview');
   }
-}, []);
+}, [fetchConnectedFormMappings]);
 
 React.useEffect(() => {
   fetchConnectedFacebookPages();
@@ -524,7 +601,15 @@ React.useEffect(() => {
       await fetchConnectedFacebookPages();
       setIsModalOpen(false);
       setIsFbConnectModalOpen(false);
-      setSelectedManageIntegration((prev) => prev?.id === 'facebook' ? prev : null);
+      setSelectedManageIntegration({
+        id: 'facebook',
+        name: 'Meta',
+        description: 'Capture leads directly from Meta (Facebook & Instagram) Lead Ads in real time.',
+        isActive: true,
+        category: 'social',
+        iconType: 'facebook'
+      });
+      setWizardStep(1);
     } else if (event.data && event.data.type === 'META_AUTH_ERROR') {
       toast.error(event.data.error || 'Facebook connection failed', 'Meta Integration');
     }
@@ -560,17 +645,27 @@ const handleConnectMeta = async () => {
 };
 
 const handleDisconnectFacebookPage = async (pageId: string) => {
+  if (!pageId) return;
+  if (!window.confirm('Unlink this Facebook Page? All leads, form mappings, and campaigns from this page will be removed from the CRM.')) {
+    return;
+  }
   try {
     const res = await fetchWithTenantAuth(`/api/integrations/facebook/pages/${pageId}`, {
       method: 'DELETE'
     });
     const data = await res.json();
     if (data.success) {
-      toast.success(`Disconnected page ${pageId}`, 'Meta Integration');
-      setFbAvailablePages(prev =>
-        prev.map(p => ((p.page_id || p.id) === pageId ? { ...p, status: 'disconnected' } : p))
+      const purged = data.purged;
+      toast.success(
+        purged
+          ? `Page unlinked. Removed ${purged.leads || 0} lead(s), ${purged.mappings || 0} form(s).`
+          : `Disconnected page ${pageId}`,
+        'Meta Integration'
       );
+      setFbAvailablePages(prev => prev.filter(p => (p.page_id || p.id) !== pageId));
+      setFormsList(prev => prev.filter(f => f.pageId !== pageId));
       await fetchConnectedFacebookPages();
+      onLeadsSynced?.();
     } else {
       toast.error(data.error || 'Failed to disconnect page', 'Meta Integration');
     }
@@ -579,22 +674,37 @@ const handleDisconnectFacebookPage = async (pageId: string) => {
   }
 };
 
-const handleRemoveFacebookPage = async (pageId: string) => {
+const handleUnlinkForm = async (formId: string) => {
+  if (!formId) return;
+  if (!window.confirm('Unlink this form? All leads and the campaign for this form will be removed from the CRM.')) {
+    return;
+  }
   try {
-    const res = await fetchWithTenantAuth(`/api/integrations/facebook/pages/${pageId}?hard=true`, {
+    const res = await fetchWithTenantAuth(`/api/integrations/facebook/campaign-mappings/${formId}`, {
       method: 'DELETE'
     });
     const data = await res.json();
     if (data.success) {
-      toast.success(`Removed page ${pageId}`, 'Meta Integration');
-      setFbAvailablePages(prev => prev.filter(p => (p.page_id || p.id) !== pageId));
-      await fetchConnectedFacebookPages();
+      const purged = data.purged;
+      toast.success(
+        purged
+          ? `Form unlinked. Removed ${purged.leads || 0} lead(s).`
+          : 'Form unlinked',
+        'Meta Integration'
+      );
+      setFormsList(prev => prev.filter(f => f.formId !== formId));
+      await fetchConnectedFormMappings(wizardPageId || undefined);
+      onLeadsSynced?.();
     } else {
-      toast.error(data.error || 'Failed to remove page', 'Meta Integration');
+      toast.error(data.error || 'Failed to unlink form', 'Meta Integration');
     }
   } catch (err: any) {
     toast.error(err.message, 'Meta Integration');
   }
+};
+
+const handleRemoveFacebookPage = async (pageId: string) => {
+  await handleDisconnectFacebookPage(pageId);
 };
 
 const handleDisconnectIntegration = async (integration: IntegrationItem) => {
@@ -629,85 +739,52 @@ const handleOfficialFacebookLogin = () => {
 };
 
 const handleSyncSelectedPage = async () => {
-  const page = fbAvailablePages.find(p => p.id === selectedPageId || (p as any).page_id === selectedPageId);
+  const page = fbAvailablePages.find(
+    (p) => (p.page_id || p.id) === selectedPageId || p.id === selectedPageId
+  );
   if (!page) {
-    setModalStatusMsg("Please select a Facebook Page from the dropdown.");
+    setModalStatusMsg('Please select a Facebook Page from the dropdown.');
     return;
   }
-  await handleSelectAndSubscribePage(page);
+  const pageId = page.page_id || page.id;
+  setFbPageId(pageId);
+  setFbPageName(page.page_name || page.name);
+  setWizardPageId(pageId);
+  await fetchPageForms(pageId);
+  setModalStatusMsg(`Selected page "${page.page_name || page.name}". Configure a form in Manage to activate live sync.`);
 };
 
-const handleSelectAndSubscribePage = async (page: { id: string; name: string; access_token: string }) => {
+const handleSelectAndSubscribePage = async (page: { id?: string; page_id?: string; name?: string; page_name?: string }) => {
+  const pageId = page.page_id || page.id;
+  if (!pageId) {
+    setModalStatusMsg('Invalid page selection.');
+    return;
+  }
   setIsSubscribingPage(true);
   setModalStatusMsg(null);
   try {
-    const res = await fetchWithTenantAuth('/api/meta/subscribe-page', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        pageId: page.id,
-        pageName: page.name,
-        pageAccessToken: page.access_token,
-        crmUserId: 'default_admin'
-      })
-    });
-    const data = await res.json();
-    if (data.success) {
-      setFbPageId(page.id);
-      setFbPageName(page.name);
-      setFbPageToken(page.access_token);
-      setFbStep('connected');
-      setModalStatusMsg(`⚡ Successfully connected & subscribed "${page.name}"! Leads will automatically flow into your CRM.`);
-      setIntegrations(prev => prev.map(item => item.id === 'facebook' ? { ...item, isActive: true, lastSync: `Connected: ${page.name}` } : item));
-
-      setFormsList(prev => [
-        {
-          id: `f-${page.id}`,
-          title: `${page.name} Lead Gen Ad Form`,
-          companyName: page.name,
-          period: 'Active Real-Time',
-          totalLeads: 1,
-          lastLeadTime: 'Just now',
-          campaignHandle: `@${page.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`
-        },
-        ...prev.filter(f => f.id !== `f-${page.id}`)
-      ]);
-    } else {
-      setModalStatusMsg(`⚠️ Subscription notice: ${data.error || 'Failed to subscribe page'}`);
-    }
+    setFbPageId(pageId);
+    setFbPageName(page.page_name || page.name || '');
+    setWizardPageId(pageId);
+    setFbStep('connected');
+    await fetchPageForms(pageId);
+    setModalStatusMsg(`Page "${page.page_name || page.name}" selected. Open Manage to map a live lead form.`);
+    setIntegrations((prev) =>
+      prev.map((item) =>
+        item.id === 'facebook'
+          ? { ...item, isActive: true, lastSync: `Connected: ${page.page_name || page.name}` }
+          : item
+      )
+    );
   } catch (e: any) {
-    setModalStatusMsg(`⚠️ Subscription error: ${e.message}`);
+    setModalStatusMsg(`Page select error: ${e.message}`);
   } finally {
     setIsSubscribingPage(false);
   }
 };
 
 const handleSendTestLead = async () => {
-  setIsSendingTestLead(true);
-  setFbStatusMessage(null);
-  try {
-    const res = await fetchWithTenantAuth('/api/meta/test-lead', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: 'Jane Doe',
-        email: 'jane.doe@example.com',
-        phone: '+1 234 567 8900',
-        city: 'Hyderabad'
-      })
-    });
-    const data = await res.json();
-    if (data.success && data.lead) {
-      setFbStatusMessage(`✅ Real-time lead test successful! "${data.lead.name}" (${data.lead.phone}) saved to database.`);
-      setFormsList(prev => prev.map((f, i) => i === 0 ? { ...f, totalLeads: f.totalLeads + 1, lastLeadTime: 'Just now' } : f));
-    } else {
-      setFbStatusMessage(`⚠️ Test lead notice: ${data.error}`);
-    }
-  } catch (e: any) {
-    setFbStatusMessage(`⚠️ Error: ${e.message}`);
-  } finally {
-    setIsSendingTestLead(false);
-  }
+  toast.info('Test leads are disabled. Use a real Facebook Lead Ad or Meta Ads Manager test lead.', 'Meta Integration');
 };
 
 const handleOpenFbConnectModal = () => {
@@ -717,85 +794,39 @@ const handleOpenFbConnectModal = () => {
 
 const handleFacebookLoginSubmit = async (e?: React.FormEvent) => {
   if (e) e.preventDefault();
-  if (!fbPageToken.trim() && !fbAppSecret.trim()) {
-    setModalStatusMsg("⚠️ Please enter a Meta Page Access Token (starts with EAAB...) or Meta App Secret.");
-    return;
-  }
-
-  setIsLoggingInFb(true);
-  setModalStatusMsg(null);
-  try {
-    // 1. If App Secret provided, save config first
-    if (fbAppSecret.trim() || fbAppId.trim()) {
-      await fetchWithTenantAuth('/api/meta/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          appId: fbAppId.trim(),
-          appSecret: fbAppSecret.trim(),
-          verifyToken: fbVerifyToken.trim()
-        })
-      });
-    }
-
-    // 2. If Page Token provided, verify real Facebook Page via Graph API
-    if (fbPageToken.trim()) {
-      const res = await fetchWithTenantAuth('/api/meta/verify-real-page', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          pageToken: fbPageToken.trim(),
-          pageId: fbPageId.trim() || undefined
-        })
-      });
-      const data = await res.json();
-      if (data.success && data.page) {
-        setFbPageId(data.page.id);
-        setFbPageName(data.page.name);
-        setFbAvailablePages([data.page]);
-        setFbStep('connected');
-        setModalStatusMsg(`⚡ Successfully verified & connected real Facebook Page "${data.page.name}" (ID: ${data.page.id})!`);
-        setIntegrations(prev => prev.map(item => item.id === 'facebook' ? { ...item, isActive: true, lastSync: `Connected: ${data.page.name}` } : item));
-
-        setFormsList([
-          {
-            id: `f-${data.page.id}`,
-            title: `${data.page.name} Lead Gen Stream`,
-            companyName: data.page.name,
-            period: 'Active Real-Time',
-            totalLeads: 0,
-            lastLeadTime: 'Listening for real leads',
-            campaignHandle: `@${data.page.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`
-          }
-        ]);
-      } else {
-        setModalStatusMsg(`⚠️ Meta Graph API Error: ${data.error || 'Failed to verify Page token with Meta'}`);
-      }
-    } else {
-      setModalStatusMsg("⚡ Meta App Secret saved. You can now click 'Log in with Facebook' to authorize real pages.");
-      setFbStep('overview');
-    }
-  } catch (e: any) {
-    setModalStatusMsg(`⚠️ Connection error: ${e.message}`);
-  } finally {
-    setIsLoggingInFb(false);
-  }
+  // Manual token paste path removed — always use live OAuth
+  await handleConnectMeta();
 };
 
 const handleFacebookLogout = async () => {
+  if (!window.confirm('Unlink your Meta account? All Facebook pages, form mappings, campaigns, and Meta leads will be removed from this CRM.')) {
+    return;
+  }
   try {
-    await fetchWithTenantAuth('/api/integrations/facebook/disconnect', { method: 'POST' });
-    await fetchWithTenantAuth('/api/meta/disconnect', { method: 'POST' });
-  } catch (e) { }
+    const res = await fetchWithTenantAuth('/api/integrations/facebook/disconnect', { method: 'POST' });
+    const data = await res.json().catch(() => ({ success: true }));
+    if (!res.ok && data?.error) {
+      toast.error(data.error, 'Meta Integration');
+      return;
+    }
+  } catch (e: any) {
+    toast.error(e?.message || 'Failed to disconnect Meta', 'Meta Integration');
+    return;
+  }
   setFbUser(null);
   setFbPageToken('');
   setFbPageId('');
   setFbAvailablePages([]);
+  setFormsList([]);
+  setPageForms([]);
+  setWizardFormId('');
+  setWizardPageId('');
   setFbStep('overview');
+  setSelectedManageIntegration(null);
   setIntegrations(prev => prev.map(item => item.id === 'facebook' ? { ...item, isActive: false, lastSync: 'Disconnected' } : item));
   setModalStatusMsg('Disconnected from Meta account.');
-  toast.success('Disconnected from Meta account', 'Meta Integration');
-  await fetchConnectedFacebookPages();
+  toast.success('Meta account unlinked. Related CRM data removed.', 'Meta Integration');
+  onLeadsSynced?.();
 };
 
 const handleSyncFacebookLeads = async () => {
@@ -810,14 +841,23 @@ const handleSyncFacebookLeads = async () => {
     if (data.success) {
       const saved = data.syncedCount ?? data.newLeadsSaved ?? 0;
       const forms = data.formsSynced ?? 0;
-      setFbStatusMessage(`Synced Facebook leads into CRM database (${saved} new lead(s)${forms ? `, ${forms} form(s) scanned` : ''}).`);
+      const errCount = Array.isArray(data.errors) ? data.errors.length : 0;
+      setFbStatusMessage(
+        `Synced Facebook leads into CRM (${saved} new lead(s)${forms ? `, ${forms} form(s) scanned` : ''})${errCount ? `. ${errCount} notice(s).` : '.'}`
+      );
       toast.success(`Imported ${saved} Facebook lead(s)`, 'Meta Sync');
+      if (errCount && data.errors?.[0]) {
+        const first = typeof data.errors[0] === 'string' ? data.errors[0] : data.errors[0]?.error || JSON.stringify(data.errors[0]);
+        toast.info(String(first), 'Meta Sync');
+      }
       onLeadsSynced?.();
     } else {
       setFbStatusMessage(`${data.error || 'Failed to sync Facebook Page leads'}`);
+      toast.error(data.error || 'Sync failed', 'Meta Sync');
     }
   } catch (e: any) {
     setFbStatusMessage(`Sync notice: ${e.message || 'Server connection error'}`);
+    toast.error(e.message || 'Sync failed', 'Meta Sync');
   } finally {
     setIsSyncingFb(false);
   }
@@ -941,7 +981,16 @@ const handleOpenModal = (integration: IntegrationItem) => {
       return;
     }
   }
-  // Open Universal Configuration Modal for all integrations
+  // Meta: if already connected with pages → Manage wizard; otherwise show connect modal (Login CTA)
+  if (integration.id === 'facebook') {
+    if (fbAvailablePages.length > 0) {
+      setSelectedManageIntegration(integration);
+      setWizardStep(1);
+      return;
+    }
+    setFbUser(null);
+    setFbStep('overview');
+  }
   setSelectedIntegration(integration);
   setApiKeyInput(integration.apiKey || '');
   setIsModalOpen(true);
@@ -988,7 +1037,7 @@ const handleAddLeadForm = () => {
     period: '1M',
     totalLeads: 0,
     lastLeadTime: 'Just now',
-    campaignHandle: `@${newFormTitle.toLowerCase().replace(/[^a-z0-9]/g, '-')}`
+    campaignHandle: formatCampaignHandle(newFormTitle)
   };
   setFormsList((prev) => [newForm, ...prev]);
   setNewFormTitle('');
@@ -1172,7 +1221,7 @@ if (selectedManageIntegration?.id === 'facebook') {
         formId: activeForm.id,
         formName: activeForm.name,
         campaignName: wizardCampaignName.replace(/^@/, '').trim(),
-        campaignHandle: wizardCampaignName.startsWith('@') ? wizardCampaignName.trim() : `@${wizardCampaignName.trim()}`,
+        campaignHandle: formatCampaignHandle(wizardCampaignName),
         fieldMapping,
         leadDistribution: teamMembers.filter(tm => selectedDistributionUsers.includes(tm.id)),
         importOption
@@ -1193,13 +1242,24 @@ if (selectedManageIntegration?.id === 'facebook') {
             id: `f-${payload.formId}`,
             title: payload.formName,
             companyName: payload.pageName,
-            period: 'Active Real-Time',
-            totalLeads: 0,
-            lastLeadTime: 'Listening for live leads',
-            campaignHandle: payload.campaignHandle
+            period: 'Active',
+            totalLeads: data.updatedLeadCount || 0,
+            lastLeadTime: 'Just configured',
+            campaignHandle: payload.campaignHandle,
+            campaignName: payload.campaignName,
+            formId: payload.formId,
+            pageId: payload.pageId
           },
           ...prev.filter(f => f.id !== `f-${payload.formId}`)
         ]);
+        setIntegrations(prev =>
+          prev.map(item =>
+            item.id === 'facebook'
+              ? { ...item, isActive: true, lastSync: `Form linked: ${payload.formName}` }
+              : item
+          )
+        );
+        fetchConnectedFormMappings(payload.pageId);
 
         if (onNavigateToCampaign) {
           onNavigateToCampaign(payload.campaignHandle);
@@ -1234,7 +1294,7 @@ if (selectedManageIntegration?.id === 'facebook') {
       {/* MAIN SPLIT VIEW (LEFT: LINKED ACCOUNTS, RIGHT: STEP-BY-STEP WIZARD) */}
       <div className="grid grid-cols-12 gap-5 items-start">
 
-        {/* LEFT COLUMN: LINKED ACCOUNTS PANEL */}
+        {/* LEFT COLUMN: LINKED ACCOUNT + CONNECTED FORMS TABLE */}
         <div className="col-span-12 lg:col-span-3 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-600">Linked Account</span>
@@ -1272,6 +1332,79 @@ if (selectedManageIntegration?.id === 'facebook') {
               </div>
             </div>
             <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+          </div>
+
+          {/* CONNECTED FORMS × CAMPAIGN TABLE */}
+          <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-700">Connected Forms</span>
+              <span className="text-[10px] font-mono text-slate-500">{formsList.length}</span>
+            </div>
+            {formsList.length === 0 ? (
+              <p className="px-3 py-4 text-[11px] text-slate-500 text-center">
+                No forms mapped yet. Finish the wizard to connect a form to a campaign.
+              </p>
+            ) : (
+              <div className="overflow-x-auto max-h-80 overflow-y-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50 sticky top-0">
+                    <tr className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                      <th className="px-2.5 py-2 font-bold">Form</th>
+                      <th className="px-2.5 py-2 font-bold">Campaign</th>
+                      <th className="px-2.5 py-2 font-bold w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {formsList.map((form) => (
+                      <tr
+                        key={form.id}
+                        className="border-t border-slate-100 hover:bg-indigo-50/40 transition-colors"
+                      >
+                        <td
+                          className="px-2.5 py-2 align-top cursor-pointer"
+                          onClick={() => {
+                            if (form.pageId) {
+                              setWizardPageId(form.pageId);
+                              fetchPageForms(form.pageId);
+                            }
+                            if (form.formId) setWizardFormId(form.formId);
+                            if (form.campaignHandle) setWizardCampaignName(form.campaignHandle);
+                            setWizardStep(1);
+                          }}
+                          title="Open form in wizard"
+                        >
+                          <div className="text-[11px] font-semibold text-slate-900 leading-snug break-words">
+                            {form.title}
+                          </div>
+                          <div className="text-[9px] text-emerald-600 font-medium mt-0.5">Active</div>
+                        </td>
+                        <td className="px-2.5 py-2 align-top">
+                          <div className="text-[11px] font-medium text-slate-800 leading-snug break-words">
+                            {form.campaignName || form.campaignHandle.replace(/^@/, '')}
+                          </div>
+                          <div className="text-[9px] font-mono text-slate-400 truncate mt-0.5">
+                            {form.campaignHandle}
+                          </div>
+                        </td>
+                        <td className="px-1 py-2 align-middle">
+                          <button
+                            type="button"
+                            title="Unlink form"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (form.formId) handleUnlinkForm(form.formId);
+                            }}
+                            className="p-1.5 rounded-md text-rose-500 hover:bg-rose-50 cursor-pointer"
+                          >
+                            <Unlink className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1387,6 +1520,7 @@ if (selectedManageIntegration?.id === 'facebook') {
                     const pId = e.target.value;
                     setWizardPageId(pId);
                     fetchPageForms(pId);
+                    fetchConnectedFormMappings(pId);
                   }}
                   className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#6342E8] shadow-2xs cursor-pointer"
                 >
@@ -1400,6 +1534,18 @@ if (selectedManageIntegration?.id === 'facebook') {
                     ))
                   )}
                 </select>
+                {(wizardPageId || activePage?.page_id || activePage?.id) && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleDisconnectFacebookPage(wizardPageId || activePage?.page_id || activePage?.id || '')
+                    }
+                    className="mt-1.5 text-[11px] font-semibold text-rose-600 hover:text-rose-700 flex items-center space-x-1 cursor-pointer"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    <span>Unlink this page (removes its leads & forms)</span>
+                  </button>
+                )}
               </div>
 
               {/* Select Lead Form */}
@@ -1436,7 +1582,7 @@ if (selectedManageIntegration?.id === 'facebook') {
                   {isLoadingForms ? (
                     <option value="">Loading lead forms from Facebook Graph API...</option>
                   ) : pageForms.length === 0 ? (
-                    <option value="">Select a published form...</option>
+                    <option value="">No lead forms on this page</option>
                   ) : (
                     pageForms.map((f) => (
                       <option key={f.id} value={f.id}>
@@ -1857,7 +2003,7 @@ if (selectedManageIntegration?.id === 'facebook') {
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-200/60">
                   <span className="text-slate-500">Lead Form:</span>
-                  <span className="font-bold text-slate-800">{activeForm?.name || 'no-otp-form---andra'}</span>
+                  <span className="font-bold text-slate-800">{activeForm?.name || 'Select a form in Step 1'}</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-200/60">
                   <span className="text-slate-500">Campaign Handle:</span>
@@ -2172,16 +2318,18 @@ return (
                             onChange={(e) => {
                               const pId = e.target.value;
                               setFbPageId(pId);
-                              const matched = fbAvailablePages.find(p => p.id === pId);
+                              const matched = fbAvailablePages.find(
+                                (p) => (p.page_id || p.id) === pId
+                              );
                               if (matched) {
                                 handleSelectAndSubscribePage(matched);
                               }
                             }}
                             className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-[#1877F2]"
                           >
-                            {fbAvailablePages.map(p => (
-                              <option key={p.id} value={p.id}>
-                                {p.name} (ID: {p.id})
+                            {fbAvailablePages.map((p) => (
+                              <option key={p.page_id || p.id} value={p.page_id || p.id}>
+                                {p.page_name || p.name} (ID: {p.page_id || p.id})
                               </option>
                             ))}
                           </select>
