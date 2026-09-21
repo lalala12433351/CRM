@@ -306,6 +306,94 @@
     "company_wfwwfwf": [],
     "company_kite_aviation": [
       {
+        "id": "meta-lead-1407382044656980",
+        "tenantId": "company_kite_aviation",
+        "name": "Karthik S",
+        "phone": "+917899200450",
+        "email": "karthikkudremukh@gmail.com",
+        "company": "Direct Keys",
+        "city": "",
+        "state": "",
+        "source": "Meta (Facebook & Instagram) Lead Ads",
+        "status": "Contacted",
+        "pipelineStageId": "Contacted",
+        "dealValue": 0,
+        "ownerAgentId": "agent-1789741153619",
+        "ownerAgentName": "sfdsdf",
+        "aiScore": 0,
+        "aiRating": "Hot",
+        "aiReasoning": "Direct CRM capture",
+        "notes": "Captured via Facebook Lead Ads (Campaign: masterform-bangalore [@masterform-bangalore], Form: Masterform Bangalore, Form ID: 1330982475686712, Leadgen ID: 1407382044656980)",
+        "customFields": {
+          "what_budget_range_are_you_comfortable_considering?": "₹1.5_crore_–_₹2_crore",
+          "when_are_you_planning_to_make_your_property_investment?": "within_6–12_months",
+          "which_home_configuration_best_suits_your_requirements?": "exploring_options",
+          "would_you_be_available_for_a_site_visit_this_week?": "i’d_prefer_to_learn_more_first",
+          "full_name": "Karthik S",
+          "email": "karthikkudremukh@gmail.com",
+          "phone_number": "+917899200450",
+          "form_name": "Masterform Bangalore",
+          "form_id": "1330982475686712",
+          "campaign_name": "masterform-bangalore",
+          "campaign_handle": "@masterform-bangalore",
+          "meta_leadgen_id": "1407382044656980",
+          "meta_page_id": "1354212834436427",
+          "meta_page_name": "Direct Keys",
+          "meta_form_id": "1330982475686712",
+          "meta_form_name": "Masterform Bangalore",
+          "meta_ad_id": "",
+          "meta_adset_name": "",
+          "meta_ad_name": ""
+        },
+        "tags": [
+          "Meta Lead Ads",
+          "masterform-bangalore",
+          "@masterform-bangalore",
+          "Direct Keys",
+          "Meta Re-submission"
+        ],
+        "formName": "Masterform Bangalore",
+        "formId": "1330982475686712",
+        "campaignName": "masterform-bangalore",
+        "score": 0,
+        "priority": "Normal",
+        "assignedTo": "agent-1789741153619",
+        "createdAt": "2026-09-19T18:09:47.000Z",
+        "updatedAt": "2026-09-21T05:12:24.952Z",
+        "activities": [
+          {
+            "id": "act-1789967544952",
+            "leadId": "meta-lead-1407382044656980",
+            "agentId": "agent-1789741153619",
+            "agentName": "sfdsdf",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 21/9/2026, 10:42:24 am",
+            "timestamp": "2026-09-21T05:12:24.952Z"
+          },
+          {
+            "id": "act-1789967543509",
+            "leadId": "meta-lead-1407382044656980",
+            "agentId": "agent-1789741153619",
+            "agentName": "sfdsdf",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 21/9/2026, 10:42:23 am",
+            "timestamp": "2026-09-21T05:12:23.509Z"
+          },
+          {
+            "id": "act-1789967536704",
+            "leadId": "meta-lead-1407382044656980",
+            "agentId": "agent-1789741153619",
+            "agentName": "sfdsdf",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 21/9/2026, 10:42:16 am",
+            "timestamp": "2026-09-21T05:12:16.704Z"
+          }
+        ]
+      },
+      {
         "id": "meta-lead-1639893311020348",
         "tenantId": "company_kite_aviation",
         "name": "Pradeep",
@@ -397,15 +485,15 @@
       {
         "id": "lead-stay-1390641762",
         "tenantId": "company_kite_aviation",
-        "name": "Direct Keys Admin",
+        "name": "New Inbound Lead",
         "phone": "+918888777666",
         "email": "stay@test.com",
         "company": "",
         "city": "",
         "state": "",
         "source": "Manual Entry",
-        "status": "Fresh",
-        "pipelineStageId": "stage-1",
+        "status": "Contacted",
+        "pipelineStageId": "Contacted",
         "dealValue": 0,
         "ownerAgentId": "agent_kiteaviation_admin",
         "ownerAgentName": "Direct Keys Admin",
@@ -414,23 +502,37 @@
         "aiReasoning": "Direct CRM capture",
         "notes": "",
         "customFields": {},
-        "tags": [],
+        "tags": [
+          "Meta Re-submission"
+        ],
         "createdAt": "2026-09-18T13:57:25.869Z",
-        "updatedAt": "2026-09-18T13:57:25.869Z",
-        "companyName": "Direct Keys"
+        "updatedAt": "2026-09-21T05:12:37.047Z",
+        "companyName": "Direct Keys",
+        "activities": [
+          {
+            "id": "act-1789967557047",
+            "leadId": "lead-stay-1390641762",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Direct Keys Admin",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 21/9/2026, 10:42:37 am",
+            "timestamp": "2026-09-21T05:12:37.047Z"
+          }
+        ]
       },
       {
         "id": "lead-persist-1789739463585",
         "tenantId": "company_kite_aviation",
-        "name": "Direct Keys Admin",
+        "name": "New Inbound Lead",
         "phone": "+919999888877",
         "email": "persistlead@test.com",
         "company": "",
         "city": "",
         "state": "",
         "source": "Manual Entry",
-        "status": "Fresh",
-        "pipelineStageId": "stage-1",
+        "status": "Demo Scheduled",
+        "pipelineStageId": "Demo Scheduled",
         "dealValue": 0,
         "ownerAgentId": "agent_kiteaviation_admin",
         "ownerAgentName": "Direct Keys Admin",
@@ -439,10 +541,24 @@
         "aiReasoning": "Direct CRM capture",
         "notes": "",
         "customFields": {},
-        "tags": [],
+        "tags": [
+          "Meta Re-submission"
+        ],
         "createdAt": "2026-09-18T13:51:03.585Z",
-        "updatedAt": "2026-09-18T13:51:03.598Z",
-        "companyName": "Direct Keys"
+        "updatedAt": "2026-09-21T05:12:51.458Z",
+        "companyName": "Direct Keys",
+        "activities": [
+          {
+            "id": "act-1789967571458",
+            "leadId": "lead-persist-1789739463585",
+            "agentId": "agent_kiteaviation_admin",
+            "agentName": "Direct Keys Admin",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 21/9/2026, 10:42:51 am",
+            "timestamp": "2026-09-21T05:12:51.458Z"
+          }
+        ]
       },
       {
         "id": "meta-lead-1995918214401280",
@@ -704,8 +820,8 @@
         "city": "",
         "state": "",
         "source": "Meta (Facebook & Instagram) Lead Ads",
-        "status": "Demo Scheduled",
-        "pipelineStageId": "stage-1",
+        "status": "Fresh",
+        "pipelineStageId": "Fresh",
         "dealValue": 0,
         "ownerAgentId": "agent-1789741182661",
         "ownerAgentName": "wrwer",
@@ -752,13 +868,23 @@
         "priority": "Normal",
         "assignedTo": "wrwer",
         "createdAt": "2026-09-15T10:41:57.000Z",
-        "updatedAt": "2026-09-19T11:40:40.211Z",
+        "updatedAt": "2026-09-21T05:12:48.397Z",
         "campaign": "masterform-n",
         "campaign_name": "masterform-n",
         "campaignHandle": "@masterform-n",
         "campaign_handle": "@masterform-n",
         "pageName": "Direct Keys",
         "activities": [
+          {
+            "id": "act-1789967568397",
+            "leadId": "meta-lead-1578262443443870",
+            "agentId": "agent-1789741182661",
+            "agentName": "wrwer",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 21/9/2026, 10:42:48 am",
+            "timestamp": "2026-09-21T05:12:48.397Z"
+          },
           {
             "id": "act-1789818040211",
             "leadId": "meta-lead-1578262443443870",
@@ -6657,11 +6783,11 @@
         "city": "",
         "state": "",
         "source": "Meta (Facebook & Instagram) Lead Ads",
-        "status": "Fresh",
+        "status": "Contacted",
         "pipelineStageId": "stage-1",
         "dealValue": 0,
-        "ownerAgentId": "agent-1789741182661",
-        "ownerAgentName": "wrwer",
+        "ownerAgentId": "agent_kiteaviation_admin",
+        "ownerAgentName": "Direct Keys Admin",
         "aiScore": 0,
         "aiRating": "Hot",
         "aiReasoning": "Direct CRM capture",
@@ -6704,13 +6830,43 @@
         "priority": "Normal",
         "assignedTo": "wrwer",
         "createdAt": "2026-08-18T14:00:32.000Z",
-        "updatedAt": "2026-09-19T11:25:33.290Z",
+        "updatedAt": "2026-09-21T05:15:26.623Z",
         "campaign": "masterform-bangalore",
         "campaign_name": "masterform-bangalore",
         "campaignHandle": "@masterform-bangalore",
         "campaign_handle": "@masterform-bangalore",
         "pageName": "Direct Keys",
         "activities": [
+          {
+            "id": "act-1789967726623",
+            "leadId": "meta-lead-1404203481608241",
+            "agentId": "agent-1789741182661",
+            "agentName": "wrwer",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 21/9/2026, 10:45:26 am",
+            "timestamp": "2026-09-21T05:15:26.623Z"
+          },
+          {
+            "id": "act-1789967719626",
+            "leadId": "meta-lead-1404203481608241",
+            "agentId": "agent-1789741182661",
+            "agentName": "wrwer",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 21/9/2026, 10:45:19 am",
+            "timestamp": "2026-09-21T05:15:19.626Z"
+          },
+          {
+            "id": "act-1789967719606",
+            "leadId": "meta-lead-1404203481608241",
+            "agentId": "agent-1789741182661",
+            "agentName": "wrwer",
+            "type": "note",
+            "title": "Meta Lead Form Re-submission",
+            "description": "Lead re-submitted form on 21/9/2026, 10:45:19 am",
+            "timestamp": "2026-09-21T05:15:19.606Z"
+          },
           {
             "id": "act-1789817133290",
             "leadId": "meta-lead-1404203481608241",
@@ -9274,6 +9430,28 @@
     "company_wfwwfwf": [],
     "company_kite_aviation": [
       {
+        "id": "act-1789967749202",
+        "tenantId": "company_kite_aviation",
+        "leadId": "meta-lead-1404203481608241",
+        "agentId": "agent_kiteaviation_admin",
+        "agentName": "Direct Keys Admin",
+        "type": "note",
+        "title": "Internal Note",
+        "description": "not intersted\n",
+        "timestamp": "2026-09-21T05:15:49.202Z"
+      },
+      {
+        "id": "act-1789967719566",
+        "tenantId": "company_kite_aviation",
+        "leadId": "meta-lead-1404203481608241",
+        "agentId": "agent-1789741182661",
+        "agentName": "wrwer",
+        "type": "stage_change",
+        "title": "Stage Changed",
+        "description": "Lead stage changed to Contacted",
+        "timestamp": "2026-09-21T05:15:19.566Z"
+      },
+      {
         "id": "act-1789825819271",
         "tenantId": "company_kite_aviation",
         "leadId": "meta-lead-1639893311020348",
@@ -9978,8 +10156,8 @@
         "eventIcon": "globe",
         "status": true,
         "statusMeta": "Published by Admin",
-        "totalRuns": 6,
-        "last24hRuns": 6,
+        "totalRuns": 9,
+        "last24hRuns": 9,
         "last24hFailures": 0,
         "isDraft": false,
         "nodes": [
@@ -10180,7 +10358,7 @@
           }
         ],
         "createdAt": "2026-09-05T07:10:57.249Z",
-        "updatedAt": "2026-09-19T13:50:19.390Z",
+        "updatedAt": "2026-09-21T05:15:19.655Z",
         "is_active": true
       }
     ],
