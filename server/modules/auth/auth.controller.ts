@@ -3,24 +3,28 @@ import { authService } from './auth.service';
 import { logger } from '../../utils/logger';
 
 export class AuthController {
-  public sendOtp(req: Request, res: Response) {
+  public async sendOtp(req: Request, res: Response) {
     try {
-      const { email, phone } = req.body || {};
-      const result = authService.sendOtp(email, phone);
+      const { email, phone, password, name, resend } = req.body || {};
+      const result = await authService.sendOtp(email, phone, { password, name, resend: Boolean(resend) });
       res.json({
         success: true,
-        message: `6-digit verification code sent to ${email || phone}`,
-        demoOtp: result.code
+        message:
+          result.via === 'cognito'
+            ? `Verification code sent to ${email || phone}. Check your email.`
+            : `6-digit verification code sent to ${email || phone}`,
+        demoOtp: result.via === 'cognito' ? undefined : result.code,
+        via: result.via
       });
     } catch (e: any) {
       res.status(400).json({ error: e.message || 'Failed to send OTP' });
     }
   }
 
-  public verifyOtp(req: Request, res: Response) {
+  public async verifyOtp(req: Request, res: Response) {
     try {
       const { email, phone, otp } = req.body || {};
-      authService.verifyOtp(email, phone, otp);
+      await authService.verifyOtp(email, phone, otp);
       res.json({ success: true, verified: true });
     } catch (e: any) {
       res.status(400).json({ error: e.message || 'OTP verification failed' });
@@ -52,6 +56,7 @@ export class AuthController {
         user: result.user
       });
     } catch (e: any) {
+      logger.warn('[Auth] login failed:', e?.message || e);
       res.status(401).json({ error: e.message || 'Authentication failed' });
     }
   }
@@ -60,18 +65,22 @@ export class AuthController {
     try {
       const authHeader = req.headers.authorization || '';
       const token = authHeader.replace('Bearer ', '').trim();
+      const preferredTenant = ((req.headers['x-tenant-id'] as string) || '').trim();
 
       if (!token) {
         return res.status(401).json({ error: 'Unauthorized / Session Expired' });
       }
 
-      const user = await authService.getSessionHydrated(token);
+      const user = await authService.getSessionHydrated(token, preferredTenant || undefined);
       if (!user) {
         return res.status(401).json({ error: 'Unauthorized / Session Expired' });
       }
 
       res.json({ success: true, user });
     } catch (e: any) {
+      if (String(e?.message || '').startsWith('Forbidden')) {
+        return res.status(403).json({ error: e.message });
+      }
       res.status(500).json({ error: e.message || 'Failed to fetch user session' });
     }
   }
@@ -80,7 +89,7 @@ export class AuthController {
     try {
       const authHeader = req.headers.authorization || '';
       const token = authHeader.replace('Bearer ', '').trim();
-      const currentSession = token ? authService.getSession(token) : null;
+      const currentSession = token ? await authService.getSessionHydrated(token) : null;
       const tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string) || currentSession?.tenantId || 'company_kite_aviation';
       const isAdmin = Boolean(currentSession?.isAdmin) || currentSession?.role === 'Admin';
       const requestedId = typeof req.body?.currentId === 'string' ? req.body.currentId.trim() : '';

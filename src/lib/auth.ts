@@ -49,16 +49,26 @@ function persistSessionUser(user: Agent, token?: string): void {
 // Immediately purge any stale credentials from localStorage upon module load
 clearLocalStorageAuth();
 
-export async function sendVerificationOtp(email: string, phone: string): Promise<{ success: boolean; demoOtp?: string; error?: string }> {
+export async function sendVerificationOtp(
+  email: string,
+  phone: string,
+  extras?: { password?: string; name?: string; resend?: boolean }
+): Promise<{ success: boolean; demoOtp?: string; via?: string; error?: string }> {
   try {
     const response = await fetch('/api/auth/send-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, phone }),
+      body: JSON.stringify({
+        email,
+        phone,
+        password: extras?.password,
+        name: extras?.name,
+        resend: extras?.resend
+      }),
     });
     const data = await response.json();
     if (response.ok && data.success) {
-      return { success: true, demoOtp: data.demoOtp };
+      return { success: true, demoOtp: data.demoOtp, via: data.via };
     }
     return { success: false, error: data.error || 'Failed to send OTP' };
   } catch (err: any) {
@@ -211,8 +221,10 @@ export async function ensureServerSession(): Promise<boolean> {
   const rawUser = sessionStorage.getItem(USER_KEY);
   if (!token || !rawUser) return false;
 
-  // Reject legacy offline / non-server tokens — they cannot mutate the database
-  if (!token.startsWith('pixbe_token_') || token.startsWith('pixbe_token_offline_') || token.startsWith('token_')) {
+  // Reject offline / non-server tokens — they cannot mutate the database
+  const isJwt = token.split('.').length === 3 && !token.startsWith('pixbe_token_');
+  const isLegacyServerToken = token.startsWith('pixbe_token_') && !token.startsWith('pixbe_token_offline_');
+  if (!isJwt && !isLegacyServerToken) {
     clearSessionAuth();
     return false;
   }

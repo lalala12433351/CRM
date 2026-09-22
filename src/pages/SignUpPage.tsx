@@ -129,8 +129,8 @@ export const SignUpPage: React.FC<SignUpViewProps> = ({ onSignUpSuccess, onSwitc
         setErrorMessage('Please enter a valid 10-digit mobile number.');
         return false;
       }
-      if (!password || password.length < 6) {
-        setErrorMessage('Password must be at least 6 characters long.');
+      if (!password || password.length < 8) {
+        setErrorMessage('Password must be at least 8 characters (Cognito policy usually also needs upper, lower, number, symbol).');
         return false;
       }
       if (!confirmPassword) {
@@ -204,11 +204,14 @@ export const SignUpPage: React.FC<SignUpViewProps> = ({ onSignUpSuccess, onSwitc
     const targetPhone = phone.trim();
 
     try {
-      const otpResult = await sendVerificationOtp(targetEmail, targetPhone);
+      const otpResult = await sendVerificationOtp(targetEmail, targetPhone, {
+        password,
+        name: name.trim()
+      });
       setIsSendingOtp(false);
 
       if (otpResult.success) {
-        setDemoOtpCode(otpResult.demoOtp);
+        setDemoOtpCode(otpResult.via === 'cognito' ? undefined : otpResult.demoOtp);
         setOtpCode('');
         setShowOtpModal(true);
         setResendTimer(30);
@@ -228,9 +231,13 @@ export const SignUpPage: React.FC<SignUpViewProps> = ({ onSignUpSuccess, onSwitc
     const targetEmail = email.trim().toLowerCase();
     const targetPhone = phone.trim();
 
-    const otpResult = await sendVerificationOtp(targetEmail, targetPhone);
+    const otpResult = await sendVerificationOtp(targetEmail, targetPhone, {
+      password,
+      name: name.trim(),
+      resend: true
+    });
     if (otpResult.success) {
-      setDemoOtpCode(otpResult.demoOtp);
+      setDemoOtpCode(otpResult.via === 'cognito' ? undefined : otpResult.demoOtp);
       setResendTimer(30);
     } else {
       setOtpError(otpResult.error || 'Failed to resend verification code.');
@@ -861,9 +868,9 @@ export const SignUpPage: React.FC<SignUpViewProps> = ({ onSignUpSuccess, onSwitc
                 Enter Verification Code
               </h3>
               <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                A 6-digit verification code has been dispatched to{' '}
-                <span className="font-semibold text-gray-800">+91 {phone}</span> and{' '}
-                <span className="font-semibold text-gray-800">{email}</span>.
+                A verification code has been sent to{' '}
+                <strong className="text-slate-800">{email.trim().toLowerCase()}</strong>
+                . Enter the code from your email to create your workspace.
               </p>
             </div>
 

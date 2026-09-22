@@ -2,6 +2,8 @@ import 'dotenv/config';
 import { createApp } from './app';
 import { initializePaymentTables } from './modules/payments/payment.repository';
 import { logger } from './utils/logger';
+import { multiTenantDb } from './services/multiTenantDb';
+import { isPostgresStoreEnabled } from './db/config';
 
 // Process-level crash prevention
 process.on('unhandledRejection', (reason, promise) => {
@@ -16,6 +18,16 @@ process.on('uncaughtException', (err) => {
 initializePaymentTables().catch((err) => logger.warn('Payment store notice:', err?.message || err));
 
 export async function startServer() {
+  if (isPostgresStoreEnabled()) {
+    try {
+      await multiTenantDb.initPostgres();
+      logger.info('[DB] multiTenantDb Postgres backend ready');
+    } catch (err: any) {
+      logger.error('[DB] Failed to initialize Postgres store:', err?.message || err);
+      throw err;
+    }
+  }
+
   const app = await createApp();
   const PORT = process.env.PORT || 8080;
   const serverPort = Number(PORT) || 8080;
@@ -30,5 +42,3 @@ export async function startServer() {
 
   return app;
 }
-
-

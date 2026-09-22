@@ -371,15 +371,15 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
     const stageByName = new Map(stages.map((s) => [s.name.toLowerCase(), s]));
 
     const entries = Array.from(counts.entries()).sort((a, b) => {
-      const ao = pipelineOrder.has(a[0].toLowerCase()) ? pipelineOrder.get(a[0].toLowerCase())! : 999;
-      const bo = pipelineOrder.has(b[0].toLowerCase()) ? pipelineOrder.get(b[0].toLowerCase())! : 999;
+      const ao = Number(pipelineOrder.get(a[0].toLowerCase()) ?? 999);
+      const bo = Number(pipelineOrder.get(b[0].toLowerCase()) ?? 999);
       if (ao !== bo) return ao - bo;
       return b[1] - a[1];
     });
 
     const percentages = toPiePercentages(entries.map(([, count]) => count));
     return entries.map(([name, count], idx) => {
-      const stage = stageByName.get(name.toLowerCase());
+      const stage = stageByName.get(name.toLowerCase()) as { color?: string } | undefined;
       const color = stage?.color || getStatusStyle(name).hex || PIE_FALLBACK_COLORS[idx % PIE_FALLBACK_COLORS.length];
       return { name, count, percentage: percentages[idx], color };
     });
@@ -398,8 +398,8 @@ export const CampaignsPage: React.FC<CampaignsViewProps> = ({
 
     const configuredOrder = new Map((lostReasons || []).map((r, i) => [r.toLowerCase(), i]));
     const entries = Array.from(counts.entries()).sort((a, b) => {
-      const ao = configuredOrder.has(a[0].toLowerCase()) ? configuredOrder.get(a[0].toLowerCase())! : 999;
-      const bo = configuredOrder.has(b[0].toLowerCase()) ? configuredOrder.get(b[0].toLowerCase())! : 999;
+      const ao = Number(configuredOrder.get(a[0].toLowerCase()) ?? 999);
+      const bo = Number(configuredOrder.get(b[0].toLowerCase()) ?? 999);
       if (ao !== bo) return ao - bo;
       return b[1] - a[1];
     });

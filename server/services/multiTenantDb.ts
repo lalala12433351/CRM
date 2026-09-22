@@ -1,6 +1,17 @@
 import fs from 'fs';
 import path from 'path';
 import { logger } from '../utils/logger';
+import { isPostgresStoreEnabled, workspaceDbName } from '../db/config';
+import { bootstrapPostgres } from '../db/bootstrap';
+import {
+  deleteFacebookPageIndex,
+  deleteMembership,
+  listControlTenants,
+  provisionTenant,
+  upsertFacebookPageIndex,
+  upsertMembership
+} from '../db/provisionTenant';
+import { loadWorkspaceSlice, persistWorkspaceSlice } from '../db/workspaceStore';
 
 export interface ClientTenant {
   tenantId: string;
@@ -315,8 +326,10 @@ const MIRROR_STORE_PATH = LEGACY_STORE_PATH;
  *   tenants, agents, leads, stages, fields, tasks, calls, integrations,
  *   facebookPages, activities, lostReasons, workflows, templates, actions, campaigns
  *
- * Persistence today: `.data/multi_tenant_store.json`
- * Future Aurora: swap MultiTenantDatabase method bodies to SQL while keeping the same public API.
+ * Persistence:
+ *   - PIXBE_STORE=json (or no DB host): `.data/multi_tenant_store.json`
+ *   - PIXBE_STORE=postgres (default when DB_HOST / AWS_RDS_HOST set):
+ *       pixbe_control + one Postgres DB per workspace (Aurora-ready local path)
  */
 
 const DEFAULT_WORKFLOWS: Omit<TenantWorkflow, 'tenantId'>[] = [];
@@ -382,13 +395,202 @@ export class MultiTenantDatabase {
     whatsappCampaigns: {}
   };
 
+  private postgresMode = false;
+  private postgresReady = false;
+  private persistInFlight: Promise<void> | null = null;
+
   constructor() {
-    this.initLocalStore();
-    this.seedDefaultTenantIfNeeded();
+    this.postgresMode = isPostgresStoreEnabled();
+    if (!this.postgresMode) {
+      this.initLocalStore();
+      this.seedDefaultTenantIfNeeded();
+    } else {
+      logger.info(
+        '[MultiTenantDB] Postgres mode enabled — call initPostgres() before serving traffic'
+      );
+    }
   }
 
   private saveTimer: NodeJS.Timeout | null = null;
   private dirty = false;
+
+  /** Bootstrap control plane + load all workspace DBs into the in-memory cache. */
+  public async initPostgres(): Promise<void> {
+    if (!this.postgresMode) return;
+    if (this.postgresReady) return;
+
+    const boot = await bootstrapPostgres();
+    if (!boot.ok) {
+      throw new Error(`Postgres bootstrap failed: ${boot.error}`);
+    }
+
+    let tenants = await listControlTenants();
+    if (
+      tenants.length === 0 &&
+      String(process.env.PIXBE_AUTO_IMPORT_JSON || 'true').toLowerCase() !== 'false'
+    ) {
+      const imported = await this.tryAutoImportJsonToPostgres();
+      if (imported) tenants = await listControlTenants();
+    }
+
+    for (const t of tenants) {
+      const payload = t.payload && typeof t.payload === 'object' ? t.payload : {};
+      this.store.tenants[t.tenantId] = {
+        ...payload,
+        tenantId: t.tenantId,
+        companyName: payload.companyName || t.tenantId,
+        ownerEmail: payload.ownerEmail || '',
+        ownerPhone: payload.ownerPhone || '',
+        companyDescription: payload.companyDescription || '',
+        businessType: payload.businessType || '',
+        businessTypeOther: payload.businessTypeOther || '',
+        referralSource: payload.referralSource || '',
+        referralSourceOther: payload.referralSourceOther || '',
+        status: payload.status || 'ACTIVE',
+        settings: payload.settings || {},
+        createdAt: payload.createdAt || new Date().toISOString(),
+        updatedAt: payload.updatedAt || new Date().toISOString()
+      };
+      const slice = await loadWorkspaceSlice(t.tenantId, t.dbName || workspaceDbName(t.tenantId));
+      this.store.agents[t.tenantId] = slice.agents || [];
+      this.store.leads[t.tenantId] = slice.leads || [];
+      this.store.stages[t.tenantId] = slice.stages || [];
+      this.store.fields[t.tenantId] = slice.fields || [];
+      this.store.tasks[t.tenantId] = slice.tasks || [];
+      this.store.calls[t.tenantId] = slice.calls || [];
+      this.store.integrations[t.tenantId] = slice.integrations || [];
+      this.store.facebookPages[t.tenantId] = slice.facebookPages || [];
+      this.store.activities[t.tenantId] = slice.activities || [];
+      this.store.lostReasons[t.tenantId] = slice.lostReasons || [];
+      this.store.workflows[t.tenantId] = slice.workflows || [];
+      this.store.templates[t.tenantId] = slice.templates || [];
+      this.store.actions[t.tenantId] = slice.actions || [];
+      this.store.campaigns[t.tenantId] = slice.campaigns || [];
+      this.store.messages[t.tenantId] = slice.messages || [];
+      this.store.whatsappTemplates[t.tenantId] = slice.whatsappTemplates || [];
+      this.store.whatsappCampaigns[t.tenantId] = slice.whatsappCampaigns || [];
+    }
+
+    this.healOrphanLeadOwners();
+    this.healCorruptedLeadContactNames();
+    this.healDenormalizedAgentLabels();
+
+    this.postgresReady = true;
+    logger.info(`[MultiTenantDB] Loaded ${tenants.length} workspace(s) from Postgres`);
+  }
+
+  private async tryAutoImportJsonToPostgres(): Promise<boolean> {
+    const candidates = this.seedCandidatePaths().concat([STORE_PATH]);
+    let storePath = '';
+    for (const p of candidates) {
+      if (p && fs.existsSync(p)) {
+        storePath = p;
+        break;
+      }
+    }
+    if (!storePath) {
+      logger.info('[MultiTenantDB] No JSON store found to auto-import');
+      return false;
+    }
+    try {
+      const parsed = JSON.parse(fs.readFileSync(storePath, 'utf8'));
+      const tenantIds = Object.keys(parsed.tenants || {});
+      if (!tenantIds.length) return false;
+      logger.info(`[MultiTenantDB] Auto-importing ${tenantIds.length} tenant(s) from ${storePath}`);
+      this.hydrateStoreFromParsed(parsed);
+      for (const tenantId of tenantIds) {
+        await this.persistTenantToPostgres(tenantId, { provision: true });
+      }
+      return true;
+    } catch (err: any) {
+      logger.warn('[MultiTenantDB] Auto-import skipped:', err?.message || err);
+      return false;
+    }
+  }
+
+  private async persistTenantToPostgres(
+    tenantId: string,
+    opts?: { provision?: boolean }
+  ): Promise<void> {
+    const tenant = this.store.tenants[tenantId];
+    if (!tenant) return;
+    const agents = this.store.agents[tenantId] || [];
+    const admin =
+      agents.find((a) => a.isAdmin || String(a.role || '').toLowerCase().includes('admin')) ||
+      agents[0];
+    const adminAgentId = admin?.id || `agent_${tenantId}_admin`;
+
+    await provisionTenant({
+      tenantId,
+      companyName: tenant.companyName,
+      ownerEmail: tenant.ownerEmail || admin?.email || '',
+      ownerPhone: tenant.ownerPhone || admin?.phone || '',
+      adminName: admin?.name || 'Admin',
+      adminAgentId,
+      role: (admin?.role as string) || 'Admin',
+      tenantPayload: tenant as any,
+      agentPayload: admin || {}
+    });
+    void opts;
+
+    for (const agent of agents) {
+      if (!agent?.email) continue;
+      await upsertMembership({
+        tenantId,
+        email: agent.email,
+        agentId: agent.id,
+        role: String(agent.role || 'Telecaller'),
+        isAdmin: Boolean(agent.isAdmin),
+        payload: { name: agent.name, phone: agent.phone }
+      });
+    }
+
+    for (const page of this.store.facebookPages[tenantId] || []) {
+      if (page?.pageId) await upsertFacebookPageIndex(String(page.pageId), tenantId);
+    }
+
+    await persistWorkspaceSlice(tenantId, {
+      agents,
+      leads: this.store.leads[tenantId] || [],
+      stages: this.store.stages[tenantId] || [],
+      fields: this.store.fields[tenantId] || [],
+      tasks: this.store.tasks[tenantId] || [],
+      calls: this.store.calls[tenantId] || [],
+      integrations: this.store.integrations[tenantId] || [],
+      facebookPages: this.store.facebookPages[tenantId] || [],
+      activities: this.store.activities[tenantId] || [],
+      lostReasons: this.store.lostReasons[tenantId] || [],
+      workflows: this.store.workflows[tenantId] || [],
+      templates: this.store.templates[tenantId] || [],
+      actions: this.store.actions[tenantId] || [],
+      campaigns: this.store.campaigns[tenantId] || [],
+      messages: this.store.messages[tenantId] || [],
+      whatsappTemplates: this.store.whatsappTemplates[tenantId] || [],
+      whatsappCampaigns: this.store.whatsappCampaigns[tenantId] || []
+    });
+  }
+
+  private async persistAllToPostgres(): Promise<void> {
+    if (this.persistInFlight) {
+      await this.persistInFlight;
+    }
+    this.persistInFlight = (async () => {
+      const ids = Object.keys(this.store.tenants || {});
+      for (const tenantId of ids) {
+        try {
+          await this.persistTenantToPostgres(tenantId);
+        } catch (err: any) {
+          logger.warn(
+            `[MultiTenantDB] Postgres persist failed for ${tenantId}:`,
+            err?.message || err
+          );
+        }
+      }
+      this.dirty = false;
+    })();
+    await this.persistInFlight;
+    this.persistInFlight = null;
+  }
 
   private hydrateStoreFromParsed(parsed: any) {
     this.store = {
@@ -852,6 +1054,10 @@ export class MultiTenantDatabase {
   }
 
   private saveStoreImmediate() {
+    if (this.postgresMode) {
+      void this.persistAllToPostgres();
+      return;
+    }
     const payload = JSON.stringify(this.store, null, 2);
     const okPrimary = this.writeStoreFile(STORE_PATH, payload);
     // Best-effort mirror into project .data for visibility / backup (never the read source when primary exists)
@@ -957,7 +1163,11 @@ export class MultiTenantDatabase {
     this.store.integrations[data.tenantId] = [];
     this.store.activities[data.tenantId] = [];
 
-    this.saveStore();
+    if (this.postgresMode) {
+      await this.persistTenantToPostgres(data.tenantId, { provision: true });
+    } else {
+      this.saveStore();
+    }
 
     logger.info(`[MultiTenantDb] Tenant created & initialized: ${tenant.companyName} (${tenant.tenantId})`);
     return tenant;
@@ -1220,7 +1430,6 @@ export class MultiTenantDatabase {
       savedLead = {
         id: leadData.id || `lead-${Date.now()}`,
         tenantId: targetTenantId,
-        name: safeLeadName(leadData.name, leadData.customFields, 'New Inbound Lead'),
         phone: leadData.phone || '',
         email: leadData.email || '',
         company: leadData.company || '',
@@ -1413,6 +1622,16 @@ export class MultiTenantDatabase {
     }
 
     this.saveStore();
+    if (this.postgresMode && agent.email) {
+      void upsertMembership({
+        tenantId,
+        email: agent.email,
+        agentId: agent.id,
+        role: String(agent.role || 'Telecaller'),
+        isAdmin: Boolean(agent.isAdmin),
+        payload: { name: agent.name, phone: agent.phone }
+      });
+    }
     return agent;
   }
 
@@ -1420,6 +1639,9 @@ export class MultiTenantDatabase {
     if (!this.store.agents[tenantId]) return false;
     this.store.agents[tenantId] = this.store.agents[tenantId].filter((a) => a.id !== agentId);
     this.saveStore();
+    if (this.postgresMode) {
+      void deleteMembership(tenantId, agentId);
+    }
     return true;
   }
 
@@ -2117,6 +2339,9 @@ export class MultiTenantDatabase {
     }
 
     this.saveStore();
+    if (this.postgresMode && page.pageId) {
+      void upsertFacebookPageIndex(String(page.pageId), tenantId);
+    }
     logger.info(`[MultiTenantDb] Saved Facebook Page '${page.pageName}' (${page.pageId}) for tenant ${tenantId}`);
     return page;
   }
@@ -2152,6 +2377,9 @@ export class MultiTenantDatabase {
         (p) => p.pageId !== pageId && p.id !== pageId
       );
       this.saveStore();
+      if (this.postgresMode) {
+        void deleteFacebookPageIndex(pageId);
+      }
       return this.store.facebookPages[tenantId].length < beforeCount;
     } else {
       let found = false;
@@ -2636,7 +2864,7 @@ export class MultiTenantDatabase {
     }
     const tenant = this.store.tenants[tenantId];
     const prev = tenant.settings || {};
-    const next = {
+    const next: Record<string, any> = {
       ...prev,
       ...patch,
       workspaceFeatures: patch.workspaceFeatures !== undefined

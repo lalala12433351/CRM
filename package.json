@@ -18,12 +18,17 @@
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f app",
-    "docker:dev": "docker compose -f docker-compose.dev.yml up"
+    "docker:dev": "docker compose -f docker-compose.dev.yml up",
+    "db:up": "docker compose up -d db",
+    "db:import": "tsx scripts/import_json_to_postgres.ts",
+    "db:bootstrap": "tsx -e \"import('dotenv/config'); import('./server/db/bootstrap.ts').then(m => m.bootstrapPostgres().then(r => { console.log(r); return m.closeAllPools(); }))\""
   },
   "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1137.0",
     "@aws-sdk/rds-signer": "^3.1112.0",
     "@google/genai": "^2.4.0",
     "@xyflow/react": "^12.11.6",
+    "aws-jwt-verify": "^5.2.1",
     "axios": "^1.20.0",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
