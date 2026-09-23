@@ -24,6 +24,12 @@ export function getCognitoConfig() {
 export function allowLegacyAdminLogin(): boolean {
   const raw = (process.env.ALLOW_LEGACY_ADMIN || '').trim().toLowerCase();
   if (raw === 'true' || raw === '1') return true;
+  if (raw === 'false' || raw === '0') return false;
   // Default: allow demo admin only when Cognito is off
   return !isCognitoEnabled();
+}
+
+/** Password for the optional legacy demo admin (never hardcode in callers). */
+export function getLegacyAdminPassword(): string {
+  return (process.env.LEGACY_ADMIN_PASSWORD || '').trim();
 }

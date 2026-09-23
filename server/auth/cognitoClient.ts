@@ -5,7 +5,11 @@ import {
   ConfirmSignUpCommand,
   ResendConfirmationCodeCommand,
   InitiateAuthCommand,
-  AuthFlowType
+  AdminCreateUserCommand,
+  AdminSetUserPasswordCommand,
+  AdminGetUserCommand,
+  AuthFlowType,
+  MessageActionType
 } from '@aws-sdk/client-cognito-identity-provider';
 import { getCognitoConfig, isCognitoEnabled } from './cognitoConfig';
 import { logger } from '../utils/logger';
@@ -139,6 +143,95 @@ export async function cognitoConfirmSignUp(email: string, code: string): Promise
       })
     );
   } catch (err: any) {
+    throw mapCognitoError(err);
+  }
+}
+
+/**
+ * Admin-invite flow: create a confirmed Cognito user with a permanent password
+ * so they can log in immediately (no email verification OTP).
+ * Requires IAM permission for AdminCreateUser / AdminSetUserPassword / AdminGetUser.
+ */
+export async function cognitoAdminCreateUser(opts: {
+  email: string;
+  password: string;
+  name: string;
+  phone?: string;
+}): Promise<{ userSub: string }> {
+  if (!isCognitoEnabled()) throw new Error('Cognito is not configured');
+  const { userPoolId } = getCognitoConfig();
+  const email = opts.email.trim().toLowerCase();
+  const userAttributes: Array<{ Name: string; Value: string }> = [
+    { Name: 'email', Value: email },
+    { Name: 'email_verified', Value: 'true' },
+    { Name: 'name', Value: opts.name.trim() }
+  ];
+  const phoneDigits = (opts.phone || '').replace(/[^\d+]/g, '');
+  if (phoneDigits.length >= 10) {
+    const e164 = phoneDigits.startsWith('+') ? phoneDigits : `+91${phoneDigits.slice(-10)}`;
+    userAttributes.push({ Name: 'phone_number', Value: e164 });
+  }
+
+  try {
+    const created = await getClient().send(
+      new AdminCreateUserCommand({
+        UserPoolId: userPoolId,
+        Username: email,
+        TemporaryPassword: opts.password,
+        MessageAction: MessageActionType.SUPPRESS,
+        UserAttributes: userAttributes
+      })
+    );
+
+    await getClient().send(
+      new AdminSetUserPasswordCommand({
+        UserPoolId: userPoolId,
+        Username: email,
+        Password: opts.password,
+        Permanent: true
+      })
+    );
+
+    const subAttr = created.User?.Attributes?.find((a) => a.Name === 'sub');
+    let userSub = subAttr?.Value || created.User?.Username || '';
+    if (!userSub) {
+      const existing = await getClient().send(
+        new AdminGetUserCommand({ UserPoolId: userPoolId, Username: email })
+      );
+      userSub = existing.UserAttributes?.find((a) => a.Name === 'sub')?.Value || '';
+    }
+
+    if (!userSub) {
+      throw new Error('Cognito user was created but no user sub was returned.');
+    }
+
+    logger.info(`[Cognito] Admin-created user ${email} sub=${userSub}`);
+    return { userSub };
+  } catch (err: any) {
+    if (err?.name === 'UsernameExistsException') {
+      // Reuse existing Cognito user: reset permanent password and return their sub
+      try {
+        const existing = await getClient().send(
+          new AdminGetUserCommand({ UserPoolId: userPoolId, Username: email })
+        );
+        const userSub = existing.UserAttributes?.find((a) => a.Name === 'sub')?.Value || '';
+        if (!userSub) {
+          throw new Error('An account with this email already exists in Cognito, but no user sub was found.');
+        }
+        await getClient().send(
+          new AdminSetUserPasswordCommand({
+            UserPoolId: userPoolId,
+            Username: email,
+            Password: opts.password,
+            Permanent: true
+          })
+        );
+        logger.info(`[Cognito] Reused existing user ${email} sub=${userSub} (password updated)`);
+        return { userSub };
+      } catch (inner: any) {
+        throw mapCognitoError(inner?.name ? inner : err);
+      }
+    }
     throw mapCognitoError(err);
   }
 }

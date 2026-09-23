@@ -17,7 +17,8 @@ import {
   Download,
   ShoppingCart,
   Users,
-  ChevronDown
+  ChevronDown,
+  Loader2
 } from 'lucide-react';
 import { Agent, isAgentAdmin } from '../types';
 import { UserAvatar } from '../components/UserAvatar';
@@ -29,7 +30,9 @@ interface TeamViewProps {
   agents: Agent[];
   activeAgent: Agent;
   onToggleAgentStatus: (agentId: string, status: Agent['status']) => void;
-  onAddAgent?: (newAgent: Agent) => void;
+  onAddAgent?: (
+    newAgent: Agent
+  ) => Promise<{ success: boolean; error?: string; field?: 'email' | 'phone' }>;
   onRemoveAgent?: (agentId: string) => void;
   onToggleAdminPower?: (agentId: string) => void;
   onUpdateAgentRole?: (agentId: string, newRole: string) => void;
@@ -74,6 +77,7 @@ export const TeamPage: React.FC<TeamViewProps> = ({
   const [newAvatar, setNewAvatar] = useState('');
   const [makeAdmin, setMakeAdmin] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
 
   // Edit User Modal State
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
@@ -198,7 +202,7 @@ export const TeamPage: React.FC<TeamViewProps> = ({
     }
   };
 
-  const handleCreateUser = (e: React.FormEvent) => {
+  const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs: Record<string, string> = {};
 
@@ -258,7 +262,16 @@ export const TeamPage: React.FC<TeamViewProps> = ({
     };
 
     if (onAddAgent) {
-      onAddAgent(newAgent);
+      setIsCreatingUser(true);
+      const result = await onAddAgent(newAgent).finally(() => setIsCreatingUser(false));
+      if (!result.success) {
+        setFormErrors((previous) => ({
+          ...previous,
+          ...(result.field ? { [result.field]: result.error || 'This value is already in use.' } : {}),
+          ...(!result.field ? { submit: result.error || 'Unable to create this user. Please try again.' } : {})
+        }));
+        return;
+      }
     }
 
     setIsAddUserModalOpen(false);
@@ -267,8 +280,8 @@ export const TeamPage: React.FC<TeamViewProps> = ({
     setNewPhone('');
     setNewPassword('');
     setNewManagerId('');
-    setNewRole('Caller');
-    setNewPermission('Caller');
+    setNewRole('Telecaller');
+    setNewPermission('Telecaller');
     setNewAvatar('');
     setMakeAdmin(false);
     setFormErrors({});
@@ -588,58 +601,74 @@ export const TeamPage: React.FC<TeamViewProps> = ({
 
       {/* MODAL: Add New User Account */}
       {isAddUserModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4 font-sans">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4 animate-in fade-in text-xs font-sans font-normal max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-base font-semibold text-slate-900 flex items-center space-x-2">
-                <User className="w-5 h-5 text-indigo-600" />
-                <span>Add New User Account</span>
-              </h2>
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 font-sans">
+          <div className="bg-white rounded-3xl border border-white/80 shadow-[0_24px_80px_-20px_rgba(15,23,42,0.45)] max-w-3xl w-full animate-in fade-in zoom-in-95 text-sm font-sans font-normal max-h-[92vh] overflow-hidden flex flex-col">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 sm:px-7 py-5 bg-gradient-to-r from-indigo-50/80 via-white to-violet-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-200">
+                  <User className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-950">Add New User Account</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Create a profile and configure access for your team member.</p>
+                </div>
+              </div>
               <button 
                 onClick={() => {
                   setFormErrors({});
                   setIsAddUserModalOpen(false);
                 }} 
-                className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-white cursor-pointer transition-colors"
+                aria-label="Close add user dialog"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateUser} className="space-y-3.5" noValidate>
+            <form onSubmit={handleCreateUser} className="min-h-0 flex flex-col" noValidate aria-busy={isCreatingUser}>
+              <div className="overflow-y-auto px-5 sm:px-7 py-5 space-y-5">
               {/* Profile Image / Avatar Picker */}
               <div>
-                <label className="block text-slate-700 font-medium mb-1">
+                <label className="block text-slate-700 font-semibold mb-2">
                   Profile Image / Avatar
                 </label>
-                <div className="flex items-center space-x-3 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                  <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center shadow-2xs">
+                <div className="flex items-center gap-4 bg-slate-50/80 p-3.5 rounded-2xl border border-slate-200">
+                  <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center shadow-sm">
                     {newAvatar ? (
                       <img src={newAvatar} alt="Preview" className="w-full h-full object-cover" />
                     ) : (
-                      <User className="w-6 h-6 text-slate-400" />
+                      <User className="w-7 h-7 text-slate-400" />
                     )}
                   </div>
-                  <div className="flex-1 space-y-1.5 min-w-0">
+                  <div className="flex-1 space-y-2 min-w-0">
                     <input
                       type="file"
                       accept="image/*"
                       onChange={handleImageUpload}
-                      className="text-[10px] text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer"
+                      className="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer"
                     />
                     <input
                       type="url"
                       value={newAvatar.startsWith('data:') ? '' : newAvatar}
                       onChange={(e) => setNewAvatar(e.target.value)}
                       placeholder="Or paste image URL (https://...)"
-                      className="w-full px-2.5 py-1 rounded-lg border border-slate-200 text-[11px] focus:outline-none focus:border-indigo-600 bg-white"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-3 focus:ring-indigo-100 focus:border-indigo-500 bg-white transition-shadow"
                     />
                   </div>
                 </div>
               </div>
 
+              <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-1 border-b border-slate-100 pb-3">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Account details</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Enter the user&apos;s contact information and login credentials.</p>
+                </div>
+                <p className="text-[11px] text-slate-400">Email and phone must be unique across the CRM.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
               <div>
-                <label className="block text-slate-700 font-medium mb-1">
+                <label className="block text-slate-700 font-semibold mb-1.5">
                   Full Name <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -651,15 +680,15 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                     if (formErrors.name) setFormErrors((prev) => ({ ...prev, name: '' }));
                   }}
                   placeholder="e.g. Akhitha Rameshan"
-                  className={`w-full px-3 py-2 rounded-xl border focus:outline-none font-normal ${
-                    formErrors.name ? 'border-rose-400 bg-rose-50/40 focus:border-rose-600' : 'border-slate-200 focus:border-indigo-600'
+                  className={`w-full px-3.5 py-2.5 rounded-xl border focus:outline-none focus:ring-3 font-normal transition-shadow ${
+                    formErrors.name ? 'border-rose-400 bg-rose-50/40 focus:border-rose-600 focus:ring-rose-100' : 'border-slate-200 focus:border-indigo-500 focus:ring-indigo-100'
                   }`}
                 />
                 {formErrors.name && <p className="text-[11px] text-rose-600 mt-1">{formErrors.name}</p>}
               </div>
 
               <div>
-                <label className="block text-slate-700 font-medium mb-1">
+                <label className="block text-slate-700 font-semibold mb-1.5">
                   Email Address <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -671,15 +700,15 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                     if (formErrors.email) setFormErrors((prev) => ({ ...prev, email: '' }));
                   }}
                   placeholder="e.g. akhitha@company.com"
-                  className={`w-full px-3 py-2 rounded-xl border focus:outline-none font-normal ${
-                    formErrors.email ? 'border-rose-400 bg-rose-50/40 focus:border-rose-600' : 'border-slate-200 focus:border-indigo-600'
+                  className={`w-full px-3.5 py-2.5 rounded-xl border focus:outline-none focus:ring-3 font-normal transition-shadow ${
+                    formErrors.email ? 'border-rose-400 bg-rose-50/40 focus:border-rose-600 focus:ring-rose-100' : 'border-slate-200 focus:border-indigo-500 focus:ring-indigo-100'
                   }`}
                 />
                 {formErrors.email && <p className="text-[11px] text-rose-600 mt-1">{formErrors.email}</p>}
               </div>
 
               <div>
-                <label className="block text-slate-700 font-medium mb-1">
+                <label className="block text-slate-700 font-semibold mb-1.5">
                   Temporary Password <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -690,17 +719,17 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                     if (formErrors.password) setFormErrors((prev) => ({ ...prev, password: '' }));
                   }}
                   placeholder="At least 8 characters"
-                  className={`w-full px-3 py-2 rounded-xl border focus:outline-none ${formErrors.password ? 'border-rose-400 bg-rose-50/40' : 'border-slate-200 focus:border-indigo-600'}`}
+                  className={`w-full px-3.5 py-2.5 rounded-xl border focus:outline-none focus:ring-3 transition-shadow ${formErrors.password ? 'border-rose-400 bg-rose-50/40 focus:ring-rose-100' : 'border-slate-200 focus:border-indigo-500 focus:ring-indigo-100'}`}
                 />
                 {formErrors.password && <p className="text-[11px] text-rose-600 mt-1">{formErrors.password}</p>}
               </div>
 
               <div>
-                <label className="block text-slate-700 font-medium mb-1">
+                <label className="block text-slate-700 font-semibold mb-1.5">
                   Phone Number (10 Digits) <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative flex items-center">
-                  <span className="absolute left-3 text-slate-500 font-medium text-xs">+91</span>
+                  <span className="absolute left-3.5 text-slate-500 font-semibold text-xs border-r border-slate-200 pr-3">+91</span>
                   <input
                     type="tel"
                     maxLength={10}
@@ -712,8 +741,8 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                       if (formErrors.phone) setFormErrors((prev) => ({ ...prev, phone: '' }));
                     }}
                     placeholder="9876543210"
-                    className={`w-full pl-12 pr-3 py-2 rounded-xl border focus:outline-none font-normal font-mono ${
-                      formErrors.phone ? 'border-rose-400 bg-rose-50/40 focus:border-rose-600' : 'border-slate-200 focus:border-indigo-600'
+                    className={`w-full pl-16 pr-3.5 py-2.5 rounded-xl border focus:outline-none focus:ring-3 font-normal font-mono transition-shadow ${
+                      formErrors.phone ? 'border-rose-400 bg-rose-50/40 focus:border-rose-600 focus:ring-rose-100' : 'border-slate-200 focus:border-indigo-500 focus:ring-indigo-100'
                     }`}
                   />
                 </div>
@@ -721,8 +750,8 @@ export const TeamPage: React.FC<TeamViewProps> = ({
               </div>
 
               {/* 3 ROLE DROPDOWN: Admin, Manager, Telecaller */}
-              <div>
-                <label className="block text-slate-700 font-medium mb-1">
+              <div className={newRole === 'Telecaller' ? '' : 'md:col-span-2'}>
+                <label className="block text-slate-700 font-semibold mb-1.5">
                   Assignee Role <span className="text-rose-500">*</span>
                 </label>
                 <select
@@ -734,7 +763,7 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                     setMakeAdmin(r === 'Admin');
                     if (r !== 'Telecaller') setNewManagerId('');
                   }}
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white focus:bg-white focus:outline-none focus:border-indigo-600 font-medium text-xs text-slate-900 cursor-pointer transition-all shadow-2xs"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white focus:bg-white focus:outline-none focus:ring-3 focus:ring-indigo-100 focus:border-indigo-500 font-medium text-sm text-slate-900 cursor-pointer transition-all shadow-2xs"
                 >
                   <option value="Admin">Admin</option>
                   <option value="Manager">Manager</option>
@@ -744,7 +773,7 @@ export const TeamPage: React.FC<TeamViewProps> = ({
 
               {newRole === 'Telecaller' && (
                 <div>
-                  <label className="block text-slate-700 font-medium mb-1">
+                  <label className="block text-slate-700 font-semibold mb-1.5">
                     Reporting Manager <span className="text-rose-500">*</span>
                   </label>
                   <select
@@ -753,7 +782,7 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                       setNewManagerId(e.target.value);
                       if (formErrors.managerId) setFormErrors((prev) => ({ ...prev, managerId: '' }));
                     }}
-                    className={`w-full px-3 py-2.5 rounded-xl border bg-white focus:outline-none ${formErrors.managerId ? 'border-rose-400' : 'border-slate-200 focus:border-indigo-600'}`}
+                    className={`w-full px-3.5 py-2.5 rounded-xl border bg-white focus:outline-none focus:ring-3 text-sm transition-shadow ${formErrors.managerId ? 'border-rose-400 focus:ring-rose-100' : 'border-slate-200 focus:border-indigo-500 focus:ring-indigo-100'}`}
                   >
                     <option value="">Select a manager</option>
                     {managers.map((manager) => <option key={manager.id} value={manager.id}>{manager.name}</option>)}
@@ -766,8 +795,9 @@ export const TeamPage: React.FC<TeamViewProps> = ({
               )}
 
               {/* PERMISSIONS AREA: Admin, Manager, Telecaller */}
-              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-                <label className="block text-slate-900 font-bold text-xs">
+              <div className="md:col-span-2 p-4 rounded-2xl bg-gradient-to-br from-slate-50 to-indigo-50/40 border border-slate-200 space-y-2.5">
+                <label className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+                  <ShieldCheck className="w-4 h-4 text-indigo-600" />
                   Permissions & Access Control <span className="text-rose-500">*</span>
                 </label>
                 <select
@@ -777,7 +807,7 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                     setNewPermission(p);
                     setMakeAdmin(p === 'Admin');
                   }}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-indigo-600 font-semibold text-xs text-slate-900 cursor-pointer shadow-2xs"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-3 focus:ring-indigo-100 focus:border-indigo-500 font-semibold text-xs text-slate-900 cursor-pointer shadow-2xs"
                 >
                   <option value="Admin">Admin (Full Control - Users, Integrations, Billing, System Config)</option>
                   <option value="Manager">Manager (Team Leads, Reports, Pipeline — no settings/automations/integrations)</option>
@@ -787,23 +817,40 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                   Decides feature access and view permissions granted to this assignee in the CRM.
                 </p>
               </div>
+              {formErrors.submit && (
+                <div className="md:col-span-2 flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-xs text-rose-700">
+                  <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{formErrors.submit}</span>
+                </div>
+              )}
+              </div>
+              </div>
 
-              <div className="flex items-center justify-end space-x-2 pt-4 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-3 px-5 sm:px-7 py-4 border-t border-slate-100 bg-white shadow-[0_-8px_24px_-20px_rgba(15,23,42,0.45)]">
                 <button
                   type="button"
+                  disabled={isCreatingUser}
                   onClick={() => {
                     setFormErrors({});
                     setIsAddUserModalOpen(false);
                   }}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-medium hover:bg-slate-50 cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 hover:border-slate-300 cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 shadow-md cursor-pointer"
+                  disabled={isCreatingUser}
+                  className="min-w-40 px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow-md shadow-indigo-200 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-wait flex items-center justify-center gap-2"
                 >
-                  Create User Account
+                  {isCreatingUser ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Checking & creating...
+                    </>
+                  ) : (
+                    'Create User Account'
+                  )}
                 </button>
               </div>
             </form>

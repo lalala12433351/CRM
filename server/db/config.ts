@@ -56,7 +56,13 @@ export function isPostgresStoreEnabled(): boolean {
 }
 
 export const CONTROL_DB_NAME = (process.env.CONTROL_DB_NAME || 'pixbe_control').trim();
-export const ADMIN_DB_NAME = (process.env.ADMIN_DB_NAME || process.env.DB_NAME || 'postgres').trim();
+/** Prefer explicit ADMIN_DB_NAME, then AWS RDS database name when RDS is configured. */
+export const ADMIN_DB_NAME = (
+  process.env.ADMIN_DB_NAME ||
+  process.env.AWS_RDS_DATABASE ||
+  process.env.DB_NAME ||
+  'postgres'
+).trim();
 
 export function workspaceDbName(tenantId: string): string {
   const raw = String(tenantId || '')

@@ -165,6 +165,36 @@ export async function findMembershipsByEmail(email: string): Promise<ControlMemb
   return res.rows.map(mapMembershipRow);
 }
 
+export async function findClusterIdentityConflict(
+  email: string,
+  phone?: string
+): Promise<{ field: 'email' | 'phone'; tenantId: string } | null> {
+  const cleanEmail = String(email || '').toLowerCase().trim();
+  const cleanPhone = String(phone || '').replace(/\D/g, '').slice(-10);
+  if (!cleanEmail && cleanPhone.length !== 10) return null;
+
+  const control = await getControlPool();
+  const res = await control.query(
+    `SELECT tenant_id,
+            CASE WHEN lower(email) = $1 THEN 'email' ELSE 'phone' END AS conflict_field
+       FROM memberships
+      WHERE ($1 <> '' AND lower(email) = $1)
+         OR (
+           length($2) = 10
+           AND right(regexp_replace(COALESCE(payload->>'phone', ''), '[^0-9]', '', 'g'), 10) = $2
+         )
+      ORDER BY CASE WHEN lower(email) = $1 THEN 0 ELSE 1 END, created_at ASC
+      LIMIT 1`,
+    [cleanEmail, cleanPhone]
+  );
+
+  if (!res.rows.length) return null;
+  return {
+    field: res.rows[0].conflict_field === 'email' ? 'email' : 'phone',
+    tenantId: String(res.rows[0].tenant_id)
+  };
+}
+
 export async function bindCognitoSubToMembership(opts: {
   tenantId: string;
   email: string;

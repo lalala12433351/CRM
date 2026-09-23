@@ -13,12 +13,8 @@ export function verifyMetaWebhookHandshake(req: Request, res: Response): boolean
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
 
-  if (
-    mode === 'subscribe' &&
-    (token === metaConfig.webhookVerifyToken ||
-      token === 'my_crm_lead_secret_2026' ||
-      token === 'pixbe_meta_verify_token')
-  ) {
+  const expected = metaConfig.webhookVerifyToken;
+  if (mode === 'subscribe' && expected && token === expected) {
     res.status(200).send(String(challenge));
     return true;
   }
@@ -44,6 +40,9 @@ export function verifyMetaSignature(req: Request, res: Response, next: NextFunct
   }
 
   if (!metaConfig.appSecret) {
+    if (isProd) {
+      return res.status(503).json({ error: 'META_APP_SECRET is not configured' });
+    }
     return next();
   }
 

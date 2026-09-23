@@ -11,6 +11,12 @@ export class MetaController {
    * Generates CSRF state token linked to authenticated user and redirects to Meta's OAuth dialog
    */
   public async handleConnect(req: any, res: Response) {
+    try {
+      metaConfig.assertConfigured('Facebook OAuth');
+    } catch (err: any) {
+      return res.status(503).json({ success: false, error: err.message });
+    }
+
     const clientId =
       req.tenantId ||
       req.user?.tenantId ||
@@ -20,6 +26,12 @@ export class MetaController {
       'company_kite_aviation';
 
     const redirectUri = metaConfig.resolveRedirectUri(req, '/api/integrations/facebook/callback');
+    if (!redirectUri) {
+      return res.status(503).json({
+        success: false,
+        error: 'META_REDIRECT_URI or APP_URL must be set for Facebook OAuth.'
+      });
+    }
     const { url, state } = metaService.generateOAuthUrl(clientId, redirectUri);
 
     logger.info(`[Meta Controller] Initiating Facebook OAuth for client: ${clientId}`);

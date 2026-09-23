@@ -24,6 +24,7 @@ import {
 import { Agent, CrmTask, formatDealValue } from '../types';
 import { isAgentAdmin } from '../types';
 import { EmptyState } from '../components/EmptyState';
+import { DateTimePicker, localDateString, type Meridiem } from '../components/DateTimePicker';
 import { formatProperName } from '../utils/formatUtils';
 
 interface TasksViewProps {
@@ -66,10 +67,10 @@ export const TasksPage: React.FC<TasksViewProps> = ({
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
   const [newAssigneeId, setNewAssigneeId] = useState(agents[0]?.id || '');
-  const [newDueDay, setNewDueDay] = useState(() => new Date().toISOString().slice(0, 10));
+  const [newDueDay, setNewDueDay] = useState(() => localDateString());
   const [newHour, setNewHour] = useState('09');
   const [newMinute, setNewMinute] = useState('00');
-  const [newAmPm, setNewAmPm] = useState<'AM' | 'PM'>('AM');
+  const [newAmPm, setNewAmPm] = useState<Meridiem>('AM');
   const [newPriority, setNewPriority] = useState<'High' | 'Medium' | 'Low'>('Medium');
   const [newTaskValue, setNewTaskValue] = useState<number | ''>('');
 
@@ -84,7 +85,7 @@ export const TasksPage: React.FC<TasksViewProps> = ({
   const [editDueDay, setEditDueDay] = useState('');
   const [editHour, setEditHour] = useState('09');
   const [editMinute, setEditMinute] = useState('00');
-  const [editAmPm, setEditAmPm] = useState<'AM' | 'PM'>('AM');
+  const [editAmPm, setEditAmPm] = useState<Meridiem>('AM');
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -150,7 +151,7 @@ export const TasksPage: React.FC<TasksViewProps> = ({
 
     setNewTitle('');
     setNewDesc('');
-    setNewDueDay(new Date().toISOString().slice(0, 10));
+    setNewDueDay(localDateString());
     setNewHour('09');
     setNewMinute('00');
     setNewAmPm('AM');
@@ -172,7 +173,7 @@ export const TasksPage: React.FC<TasksViewProps> = ({
     if (task.dueDate) {
       try {
         const d = new Date(task.dueDate);
-        setEditDueDay(d.toISOString().slice(0, 10));
+        setEditDueDay(localDateString(d));
         let h = d.getHours();
         const period = h >= 12 ? 'PM' : 'AM';
         h = h % 12;
@@ -483,8 +484,8 @@ export const TasksPage: React.FC<TasksViewProps> = ({
 
         {/* MODAL: Create Task */}
         {showCreateModal && isAdmin && (
-          <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 font-sans">
-            <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg shadow-2xl p-6 space-y-4 animate-in fade-in">
+          <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 font-sans">
+            <div className="bg-white border border-slate-200 rounded-t-3xl sm:rounded-2xl w-full sm:max-w-2xl shadow-2xl p-4 sm:p-5 space-y-4 max-h-[94dvh] overflow-y-auto">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2">
                   <Plus className="w-4 h-4 text-indigo-600" />
@@ -551,31 +552,34 @@ export const TasksPage: React.FC<TasksViewProps> = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-slate-700 font-semibold mb-1 uppercase tracking-wider text-[10px]">Priority</label>
-                    <select
-                      value={newPriority}
-                      onChange={(e) => setNewPriority(e.target.value as 'High' | 'Medium' | 'Low')}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-600 cursor-pointer"
-                    >
-                      <option value="High">High</option>
-                      <option value="Medium">Medium</option>
-                      <option value="Low">Low</option>
-                    </select>
-                  </div>
+                <div>
+                  <label className="block text-slate-700 font-semibold mb-1 uppercase tracking-wider text-[10px]">Priority</label>
+                  <select
+                    value={newPriority}
+                    onChange={(e) => setNewPriority(e.target.value as 'High' | 'Medium' | 'Low')}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-600 cursor-pointer"
+                  >
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                  </select>
+                </div>
 
-                  <div>
-                    <label className="block text-slate-700 font-semibold mb-1 uppercase tracking-wider text-[10px]">Due Date *</label>
-                    <input
-                      type="date"
-                      required
-                      value={newDueDay}
-                      min={new Date().toISOString().slice(0, 10)}
-                      onChange={(e) => setNewDueDay(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-slate-700 font-semibold mb-1.5 uppercase tracking-wider text-[10px]">Due date & time *</label>
+                  <DateTimePicker
+                    date={newDueDay}
+                    hour={newHour}
+                    minute={newMinute}
+                    ampm={newAmPm}
+                    minDate={localDateString()}
+                    onChange={(next) => {
+                      setNewDueDay(next.date);
+                      setNewHour(next.hour);
+                      setNewMinute(next.minute);
+                      setNewAmPm(next.ampm);
+                    }}
+                  />
                 </div>
 
                 <div className="flex justify-end space-x-2 pt-3 border-t border-slate-100">
@@ -600,8 +604,8 @@ export const TasksPage: React.FC<TasksViewProps> = ({
 
         {/* MODAL: Edit Task & Task Value */}
         {editingTask && (
-          <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 font-sans">
-            <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg shadow-2xl p-6 space-y-4 animate-in fade-in">
+          <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 font-sans">
+            <div className="bg-white border border-slate-200 rounded-t-3xl sm:rounded-2xl w-full sm:max-w-2xl shadow-2xl p-4 sm:p-5 space-y-4 max-h-[94dvh] overflow-y-auto">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2">
                   <Edit3 className="w-4 h-4 text-indigo-600" />
@@ -664,7 +668,7 @@ export const TasksPage: React.FC<TasksViewProps> = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1 uppercase tracking-wider text-[10px]">Status</label>
                     <select
@@ -690,16 +694,22 @@ export const TasksPage: React.FC<TasksViewProps> = ({
                       <option value="Low">Low</option>
                     </select>
                   </div>
+                </div>
 
-                  <div>
-                    <label className="block text-slate-700 font-semibold mb-1 uppercase tracking-wider text-[10px]">Due Date</label>
-                    <input
-                      type="date"
-                      value={editDueDay}
-                      onChange={(e) => setEditDueDay(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-slate-700 font-semibold mb-1.5 uppercase tracking-wider text-[10px]">Due date & time</label>
+                  <DateTimePicker
+                    date={editDueDay}
+                    hour={editHour}
+                    minute={editMinute}
+                    ampm={editAmPm}
+                    onChange={(next) => {
+                      setEditDueDay(next.date);
+                      setEditHour(next.hour);
+                      setEditMinute(next.minute);
+                      setEditAmPm(next.ampm);
+                    }}
+                  />
                 </div>
 
                 <div className="flex items-center justify-between pt-3 border-t border-slate-100">

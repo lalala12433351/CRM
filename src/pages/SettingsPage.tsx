@@ -45,6 +45,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { UserAvatar } from '../components/UserAvatar';
+import { TimeField } from '../components/DateTimePicker';
 
 const STAGE_COLOR_SWATCHES = [
   '#3d6b60', '#787d77', '#803300', '#ff6600', '#e69900',
@@ -1422,21 +1423,19 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-slate-700">Shift Start Time</label>
-                    <input
-                      type="time"
+                    <TimeField
+                      ariaLabel="Shift start time"
                       value={workingHoursStart}
-                      onChange={(e) => setWorkingHoursStart(e.target.value)}
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      onChange={setWorkingHoursStart}
                     />
                   </div>
 
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-slate-700">Shift End Time</label>
-                    <input
-                      type="time"
+                    <TimeField
+                      ariaLabel="Shift end time"
                       value={workingHoursEnd}
-                      onChange={(e) => setWorkingHoursEnd(e.target.value)}
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                      onChange={setWorkingHoursEnd}
                     />
                   </div>
                 </div>

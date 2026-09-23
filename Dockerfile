@@ -1,7 +1,7 @@
 # ==============================================================================
 # Pixbe CRM - Production Multi-Stage Dockerfile
-# Stage 1: Build Frontend (Vite) & Backend (esbuild bundle)
-# Stage 2: Minimal, secure Alpine runtime with healthcheck
+# Stage 1: Build Frontend (Vite) & Backend (Vite SSR)
+# Stage 2: Minimal Alpine runtime with production dependencies + healthcheck
 # ==============================================================================
 
 # --- Stage 1: Builder ---
@@ -24,9 +24,10 @@ COPY public ./public
 COPY src ./src
 COPY server ./server
 COPY scripts ./scripts
-COPY .data ./.data
+# Runtime data lives in a volume; do not bake local .data into the image
+RUN mkdir -p .data
 
-# Build the Vite SPA and compile server.ts into dist/server.cjs
+# Build the Vite SPA and SSR server bundle (dist/server.js)
 RUN npm run build:docker
 
 # --- Stage 2: Production Runner ---
@@ -39,18 +40,20 @@ ENV NODE_ENV=production
 ENV PORT=8080
 ENV PIXBE_DATA_DIR=/app/.data
 
-# Create application data directory for multi-tenant persistent storage
-RUN mkdir -p /app/.data /app/data-seed && chown -R node:node /app
+RUN apk add --no-cache libc6-compat \
+  && mkdir -p /app/.data /app/data-seed \
+  && chown -R node:node /app
+
+# Install production dependencies for the SSR bundle (express, pg, dotenv, ...)
+COPY package.json package-lock.json* ./
+RUN npm ci --omit=dev || npm install --omit=dev \
+  && chown -R node:node /app/node_modules
 
 # Copy built application distribution from builder
 COPY --from=builder --chown=node:node /app/dist ./dist
 COPY --from=builder --chown=node:node /app/public ./public
-COPY --from=builder --chown=node:node /app/package.json ./package.json
 COPY --from=builder --chown=node:node /app/.data ./data-seed
 COPY --from=builder --chown=node:node /app/.data ./.data
-
-# Copy optional runtime configurations if present
-COPY --from=builder --chown=node:node /app/tsconfig.json ./tsconfig.json
 
 # Use non-root node user for security
 USER node
@@ -63,4 +66,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/api/health || exit 1
 
 # Start the bundled Express server
-CMD ["node", "dist/server.cjs"]
+CMD ["node", "dist/server.js"]

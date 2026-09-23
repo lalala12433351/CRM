@@ -73,6 +73,7 @@ import { getFieldTypeIcon } from './ColumnCustomizerModal';
 import { fetchWithTenantAuth } from '../lib/auth';
 import { validateField, validatePhone, validateCurrencyOrNumber, validateText, validateEmail } from '../lib/validation';
 import { ScheduleFollowUpModal } from './ScheduleFollowUpModal';
+import { DateTimePicker, combineDateTime, dateTimeFromValue, localDateString } from './DateTimePicker';
 
 interface LeadDetailModalProps {
   lead: Lead | null;
@@ -411,7 +412,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   const [followupNote, setFollowupNote] = useState('');
   const [followupAssigneeId, setFollowupAssigneeId] = useState(() => lead?.ownerAgentId || lead?.assignedTo || '');
   const [followupDateTime, setFollowupDateTime] = useState('');
-  const [followupDueDay, setFollowupDueDay] = useState(() => new Date().toISOString().slice(0, 10));
+  const [followupDueDay, setFollowupDueDay] = useState(() => localDateString());
   const [followupHour, setFollowupHour] = useState('09');
   const [followupMinute, setFollowupMinute] = useState('00');
   const [followupAmPm, setFollowupAmPm] = useState<'AM' | 'PM'>('AM');
@@ -513,7 +514,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
       id: `task-${Date.now()}`,
       leadId: lead.id,
       title: taskTitle.trim(),
-      dueDate: taskDueDate || new Date().toISOString().slice(0, 16),
+      dueDate: taskDueDate || combineDateTime(dateTimeFromValue('', new Date(Date.now() + 3600000))).slice(0, 16),
       assigneeId: assignedAgent?.id || lead.ownerAgentId || 'agent-admin',
       assigneeName: assignedAgent?.name || lead.ownerAgentName || 'Admin',
       status: 'Pending',
@@ -2154,53 +2155,15 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                   />
                 </div>
 
-                {/* Due Date & Quick Presets */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[11px] font-semibold text-slate-400 block mb-1 uppercase tracking-wider font-mono">
-                      Due Date & Time
-                    </label>
-                    <input 
-                      type="datetime-local" 
-                      value={taskDueDate}
-                      onChange={(e) => setTaskDueDate(e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 shadow-2xs font-sans"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-semibold text-slate-400 block mb-1 uppercase tracking-wider font-mono">
-                      Quick Shortcuts
-                    </label>
-                    <div className="flex flex-wrap gap-1.5 pt-0.5">
-                      {[
-                        { label: 'In 2 Hours', hours: 2 },
-                        { label: 'Tomorrow 10 AM', tomorrow: true },
-                        { label: 'In 3 Days', days: 3 },
-                      ].map((preset, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => {
-                            const now = new Date();
-                            if (preset.hours) {
-                              now.setHours(now.getHours() + preset.hours);
-                            } else if (preset.tomorrow) {
-                              now.setDate(now.getDate() + 1);
-                              now.setHours(10, 0, 0, 0);
-                            } else if (preset.days) {
-                              now.setDate(now.getDate() + preset.days);
-                              now.setHours(10, 0, 0, 0);
-                            }
-                            setTaskDueDate(now.toISOString().slice(0, 16));
-                          }}
-                          className="px-2 py-1 text-[10px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition-colors cursor-pointer"
-                        >
-                          {preset.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-400 block mb-1.5 uppercase tracking-wider font-mono">
+                    Due Date & Time
+                  </label>
+                  <DateTimePicker
+                    {...dateTimeFromValue(taskDueDate, new Date(Date.now() + 3600000))}
+                    minDate={localDateString()}
+                    onChange={(next) => setTaskDueDate(combineDateTime(next).slice(0, 16))}
+                  />
                 </div>
 
                 <div className="flex items-center justify-end space-x-3 pt-2 border-t border-slate-100">
@@ -2265,73 +2228,19 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                 </div>
                 <div>
                   <label className="text-[11px] font-semibold text-slate-400 block mb-1.5 uppercase tracking-wider font-mono">Date & Time</label>
-                  <div className="space-y-2">
-                    {/* Date picker */}
-                    <div className="relative">
-                      <Calendar className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
-                      <input
-                        type="date"
-                        required
-                        value={followupDueDay}
-                        min={new Date().toISOString().slice(0, 10)}
-                        onChange={(e) => setFollowupDueDay(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-400"
-                      />
-                    </div>
-
-                    {/* Time selector */}
-                    <div className="flex items-center space-x-2">
-                      {/* Hour */}
-                      <div className="flex-1">
-                        <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg overflow-hidden focus-within:border-indigo-400">
-                          <Clock className="w-3.5 h-3.5 text-slate-400 ml-2.5 shrink-0" />
-                          <select
-                            value={followupHour}
-                            onChange={(e) => setFollowupHour(e.target.value)}
-                            className="flex-1 bg-transparent px-2 py-1.5 text-xs text-slate-900 focus:outline-none cursor-pointer"
-                          >
-                            {Array.from({ length: 12 }, (_, i) => {
-                              const v = String(i + 1).padStart(2, '0');
-                              return <option key={v} value={v}>{v}</option>;
-                            })}
-                          </select>
-                        </div>
-                      </div>
-
-                      <span className="text-slate-400 font-bold text-sm">:</span>
-
-                      {/* Minute */}
-                      <div className="flex-1">
-                        <select
-                          value={followupMinute}
-                          onChange={(e) => setFollowupMinute(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-400 cursor-pointer"
-                        >
-                          {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => (
-                            <option key={m} value={m}>{m}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* AM/PM switcher */}
-                      <div className="flex rounded-lg border border-slate-200 overflow-hidden shrink-0">
-                        {(['AM', 'PM'] as const).map((period) => (
-                          <button
-                            key={period}
-                            type="button"
-                            onClick={() => setFollowupAmPm(period)}
-                            className={`px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer ${
-                              followupAmPm === period
-                                ? 'bg-indigo-600 text-white'
-                                : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
-                            }`}
-                          >
-                            {period}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+                  <DateTimePicker
+                    date={followupDueDay}
+                    hour={followupHour}
+                    minute={followupMinute}
+                    ampm={followupAmPm}
+                    minDate={localDateString()}
+                    onChange={(next) => {
+                      setFollowupDueDay(next.date);
+                      setFollowupHour(next.hour);
+                      setFollowupMinute(next.minute);
+                      setFollowupAmPm(next.ampm);
+                    }}
+                  />
                 </div>
                 <div className="flex items-center justify-end space-x-3 pt-1">
                   <button onClick={() => setActiveActionType(null)} className="px-3.5 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer">Cancel</button>

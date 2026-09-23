@@ -1,9 +1,31 @@
+/**
+ * Meta / Facebook app config — values come only from environment variables.
+ * Never hardcode app secrets or verify tokens in source.
+ */
+function requiredEnv(name: string): string {
+  return (process.env[name] || '').trim();
+}
+
 export const metaConfig = {
-  appId: process.env.META_APP_ID || '1785911265462186',
-  appSecret: process.env.META_APP_SECRET || '2499233acf77fa2ce858d5a56a90c04a',
-  webhookVerifyToken: process.env.META_WEBHOOK_VERIFY_TOKEN || 'my_crm_lead_secret_2026',
+  get appId(): string {
+    return requiredEnv('META_APP_ID');
+  },
+  get appSecret(): string {
+    return requiredEnv('META_APP_SECRET');
+  },
+  get webhookVerifyToken(): string {
+    return requiredEnv('META_WEBHOOK_VERIFY_TOKEN') || requiredEnv('META_VERIFY_TOKEN');
+  },
   graphVersion: 'v22.0',
-  defaultRedirectUri: process.env.META_REDIRECT_URI || 'https://d3pcv3wpcxqhl2.cloudfront.net/api/integrations/facebook/callback',
+  get defaultRedirectUri(): string {
+    const explicit = requiredEnv('META_REDIRECT_URI');
+    if (explicit) return explicit;
+    const appUrl = requiredEnv('APP_URL');
+    if (appUrl) {
+      return `${appUrl.replace(/\/$/, '')}/api/integrations/facebook/callback`;
+    }
+    return '';
+  },
 
   /**
    * Resolves the matching redirect URI dynamically to prevent OAuth code mismatch
@@ -18,6 +40,13 @@ export const metaConfig = {
       return `${proto}://${host}${path}`;
     }
     return this.defaultRedirectUri;
+  },
+
+  assertConfigured(forFeature: string = 'Meta integration'): void {
+    if (!this.appId || !this.appSecret) {
+      throw new Error(
+        `${forFeature} is not configured. Set META_APP_ID and META_APP_SECRET in the server environment.`
+      );
+    }
   }
 };
-

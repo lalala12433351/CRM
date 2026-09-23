@@ -31,7 +31,7 @@ services:
       - DB_SSL=${DB_SSL:-false}
       - PIXBE_STORE=${PIXBE_STORE:-postgres}
       - CONTROL_DB_NAME=${CONTROL_DB_NAME:-pixbe_control}
-      - ADMIN_DB_NAME=${ADMIN_DB_NAME:-postgres}
+      - ADMIN_DB_NAME=${ADMIN_DB_NAME:-${AWS_RDS_DATABASE:-postgres}}
       - PIXBE_AUTO_IMPORT_JSON=${PIXBE_AUTO_IMPORT_JSON:-true}
 
       # Remote AWS RDS / Aurora Configuration (optional override)

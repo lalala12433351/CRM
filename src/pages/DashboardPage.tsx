@@ -27,6 +27,7 @@ import { UserAvatar } from '../components/UserAvatar';
 import { toast } from '../context/ToastContext';
 import { formatProperName } from '../utils/formatUtils';
 import { resolveAgentName, resolveAgentAvatar, matchesAgent } from '../utils/agentDisplay';
+import { DateTimePicker, localDateString, type Meridiem } from '../components/DateTimePicker';
 
 function parseLeadCreatedMs(createdAt?: string): number {
   if (!createdAt || createdAt === 'Just Now' || createdAt === 'Just now') return Date.now();
@@ -91,7 +92,7 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
   const [followUpDate, setFollowUpDate] = useState('');
   const [followUpHour, setFollowUpHour] = useState('10');
   const [followUpMinute, setFollowUpMinute] = useState('00');
-  const [followUpAmPm, setFollowUpAmPm] = useState('AM');
+  const [followUpAmPm, setFollowUpAmPm] = useState<Meridiem>('AM');
   const [followUpRemarks, setFollowUpRemarks] = useState('');
 
   // Lead by Stages Widget State
@@ -123,7 +124,7 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
 
   const openFollowUpModal = (lead: Lead) => {
     const defaultDate = new Date(Date.now() + 3600000);
-    setFollowUpDate(defaultDate.toISOString().slice(0, 10));
+    setFollowUpDate(localDateString(defaultDate));
     let h = defaultDate.getHours();
     const period = h >= 12 ? 'PM' : 'AM';
     h = h % 12;
@@ -1162,8 +1163,8 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
 
       {/* SCHEDULE FOLLOW-UP MODAL */}
       {followUpLead && (
-        <div className="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4 font-sans animate-in fade-in">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-5 animate-in zoom-in-95">
+        <div className="fixed inset-0 bg-slate-900/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 font-sans">
+          <div className="bg-white rounded-t-3xl sm:rounded-2xl border border-slate-200 shadow-2xl sm:max-w-2xl w-full p-4 sm:p-5 space-y-4 max-h-[94dvh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900">Schedule Follow-Up</h3>
@@ -1205,46 +1206,20 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">Follow-Up Date</label>
-                <input
-                  type="date"
-                  value={followUpDate}
-                  onChange={(e) => setFollowUpDate(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-medium focus:outline-none focus:border-indigo-600"
+                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">Follow-up date & time</label>
+                <DateTimePicker
+                  date={followUpDate}
+                  hour={followUpHour}
+                  minute={followUpMinute}
+                  ampm={followUpAmPm}
+                  minDate={localDateString()}
+                  onChange={(next) => {
+                    setFollowUpDate(next.date);
+                    setFollowUpHour(next.hour);
+                    setFollowUpMinute(next.minute);
+                    setFollowUpAmPm(next.ampm);
+                  }}
                 />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">Follow-Up Time</label>
-                <div className="flex items-center space-x-2">
-                  <select
-                    value={followUpHour}
-                    onChange={(e) => setFollowUpHour(e.target.value)}
-                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-slate-900 font-medium focus:outline-none focus:border-indigo-600"
-                  >
-                    {['01','02','03','04','05','06','07','08','09','10','11','12'].map(h => (
-                      <option key={h} value={h}>{h}</option>
-                    ))}
-                  </select>
-                  <span className="font-bold text-slate-400">:</span>
-                  <select
-                    value={followUpMinute}
-                    onChange={(e) => setFollowUpMinute(e.target.value)}
-                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-slate-900 font-medium focus:outline-none focus:border-indigo-600 cursor-pointer"
-                  >
-                    {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={followUpAmPm}
-                    onChange={(e) => setFollowUpAmPm(e.target.value)}
-                    className="w-20 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-slate-900 font-medium focus:outline-none focus:border-indigo-600"
-                  >
-                    <option value="AM">AM</option>
-                    <option value="PM">PM</option>
-                  </select>
-                </div>
               </div>
 
               <div>
@@ -1259,16 +1234,16 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-2 border-t border-slate-100 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
               <button
                 onClick={() => setFollowUpLead(null)}
-                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold cursor-pointer text-xs transition-colors"
+                className="h-11 sm:h-10 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold cursor-pointer text-xs transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveFollowUp}
-                className="px-5 py-2 rounded-xl bg-[#5034a8] hover:bg-[#3d2785] text-white font-bold cursor-pointer text-xs transition-colors shadow-2xs"
+                className="h-11 sm:h-10 px-5 rounded-xl bg-[#5034a8] hover:bg-[#3d2785] text-white font-bold cursor-pointer text-xs transition-colors shadow-2xs"
               >
                 Save Follow-Up
               </button>

@@ -10,6 +10,14 @@ coverage/
 .env.*
 !.env.example
 
+# Runtime tenant data, sessions, and local secrets — never commit
+.data/**
+!.data/.gitkeep
+sessions.json
+*.pem
+*.p12
+credentials.json
+service-account*.json
+
 *.zip
 scratch/
-

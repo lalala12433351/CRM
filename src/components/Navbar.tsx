@@ -1,5 +1,5 @@
 import { resolveAgentName } from '../utils/agentDisplay';
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Settings, 
   ChevronDown, 
@@ -36,7 +36,7 @@ import {
 import { Agent, isAgentAdmin } from '../types';
 import { formatArcleName } from '../utils/brandUtils';
 import { UserAvatar } from './UserAvatar';
-import { CrmRole, formatRoleBadge, getCrmRole } from '../utils/roleUtils';
+import { formatRoleBadge } from '../utils/roleUtils';
 
 export interface WorkAccount {
   id: string;
@@ -68,7 +68,6 @@ interface NavbarProps {
   activeAgent: Agent;
   agents: Agent[];
   companyName?: string;
-  onSelectAgent: (agentId: string) => void;
   onOpenLeadModal?: () => void;
   onAddNewLead?: () => void;
   onPushTestLead?: (source?: string) => void;
@@ -95,7 +94,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeAgent,
   agents,
   companyName,
-  onSelectAgent,
   onOpenLeadModal,
   onAddNewLead,
   onPushTestLead = () => {},
@@ -130,23 +128,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const activeCrmRole = formatRoleBadge(activeAgent);
   const showTasksButton = activeCrmRole === 'Manager';
 
-    /** Exactly one selectable account per CRM role that exists in the live tenant store. */
-  const roleAccounts = useMemo(() => {
-    const definitions = [
-      { role: 'Admin' as const, label: 'Admin Account' },
-      { role: 'Manager' as const, label: 'Manager Account' },
-      { role: 'Telecaller' as const, label: 'Telecaller Account' },
-    ];
-    return definitions
-      .map((def) => {
-        const agent = (agents || []).find((a) => getCrmRole(a) === def.role);
-        if (!agent) return null;
-        return { ...def, agent };
-      })
-      .filter(Boolean) as Array<{ role: CrmRole; label: string; agent: Agent }>;
-  }, [agents]);
-
-const accountDropdownRef = useRef<HTMLDivElement>(null);
+  const accountDropdownRef = useRef<HTMLDivElement>(null);
   const settingsDropdownRef = useRef<HTMLDivElement>(null);
   const notificationDropdownRef = useRef<HTMLDivElement>(null);
   const userDropdownRef = useRef<HTMLDivElement>(null);
@@ -690,7 +672,7 @@ const accountDropdownRef = useRef<HTMLDivElement>(null);
           })()}
         </div>
 
-        {/* Role Account Selector (Admin / Manager / Telecaller) */}
+        {/* Logged-in user menu (profile + logout — no account switching) */}
         <div className="relative" ref={userDropdownRef}>
           <button 
             onClick={() => {
@@ -700,22 +682,31 @@ const accountDropdownRef = useRef<HTMLDivElement>(null);
               setIsNotificationMenuOpen(false);
             }}
             className="flex items-center space-x-2 px-2.5 py-1.5 rounded-xl bg-white border border-slate-200/90 shadow-2xs hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer group font-sans font-normal"
-            title="Switch role account"
-            aria-haspopup="listbox"
+            title="Account menu"
+            aria-haspopup="menu"
             aria-expanded={isUserMenuOpen}
           >
             <UserAvatar name={activeAgent.name} avatarUrl={activeAgent.avatar} size="md" rounded="full" />
-            <span className="text-xs font-semibold text-slate-800 hidden sm:inline-block max-w-[180px] truncate">
-              {activeAgent.name}
-            </span>
+            <div className="hidden sm:flex flex-col items-start min-w-0 max-w-[180px]">
+              <span className="text-xs font-semibold text-slate-800 truncate w-full">
+                {activeAgent.name}
+              </span>
+              <span className="text-[10px] font-medium text-slate-500 truncate w-full">
+                {activeCrmRole}
+              </span>
+            </div>
             <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${isUserMenuOpen ? 'rotate-180 text-indigo-600' : ''}`} />
           </button>
 
           {isUserMenuOpen && (
-            <div className="absolute right-0 top-full mt-2 w-[calc(100vw-24px)] max-w-sm glass-dropdown rounded-2xl p-2.5 z-[99999] animate-in fade-in text-xs font-sans font-normal shadow-2xl">
+            <div className="absolute right-0 top-full mt-2 w-[calc(100vw-24px)] max-w-xs glass-dropdown rounded-2xl p-2.5 z-[99999] animate-in fade-in text-xs font-sans font-normal shadow-2xl">
               <div className="flex items-center justify-between px-2 pb-2.5 mb-1 border-b border-slate-100 gap-2">
-                <div className="min-w-0">
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Switch account</p>
+                <div className="min-w-0 flex items-center gap-2.5">
+                  <UserAvatar name={activeAgent.name} avatarUrl={activeAgent.avatar} size="md" rounded="full" />
+                  <div className="min-w-0">
+                    <p className="text-[12px] font-bold text-slate-900 truncate">{activeAgent.name}</p>
+                    <p className="text-[11px] font-medium text-slate-500 truncate">{activeCrmRole}{activeAgent.email ? ` · ${activeAgent.email}` : ''}</p>
+                  </div>
                 </div>
                 {canManageSettings && (
                   <button
@@ -732,47 +723,8 @@ const accountDropdownRef = useRef<HTMLDivElement>(null);
                 )}
               </div>
 
-              <div className="space-y-1" role="listbox" aria-label="Role accounts">
-                {roleAccounts.length === 0 && (
-                  <p className="px-2 py-3 text-[11px] text-slate-500">No role accounts available yet. Create Manager/Telecaller users in Users & Team.</p>
-                )}
-                {roleAccounts.map((account) => {
-                  const selected = getCrmRole(activeAgent) === account.role;
-                  return (
-                    <button
-                      key={account.role}
-                      type="button"
-                      role="option"
-                      aria-selected={selected}
-                      onClick={() => {
-                        if (!selected || account.agent.id !== activeAgent.id) {
-                          onSelectAgent(account.agent.id);
-                        }
-                        setIsUserMenuOpen(false);
-                      }}
-                      className={`w-full flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-left transition-all cursor-pointer border ${
-                        selected
-                          ? 'bg-indigo-50 border-indigo-200 shadow-2xs'
-                          : 'bg-white border-transparent hover:bg-slate-50 hover:border-slate-100'
-                      }`}
-                    >
-                      <UserAvatar name={account.agent.name} avatarUrl={account.agent.avatar} size="md" rounded="full" />
-                      <div className="min-w-0 flex-1">
-                        <p className={`text-[12px] font-bold truncate ${selected ? 'text-indigo-900' : 'text-slate-900'}`}>
-                          {account.label}
-                        </p>
-                        <p className="text-[11px] font-semibold text-slate-700 truncate mt-0.5">
-                          {account.agent.name}
-                        </p>
-                      </div>
-                      {selected && <Check className="w-4 h-4 text-indigo-600 shrink-0" />}
-                    </button>
-                  );
-                })}
-              </div>
-
               {onLogout && (
-                <div className="pt-2 mt-1.5 border-t border-slate-100 font-sans">
+                <div className="pt-1 font-sans">
                   <button
                     onClick={() => {
                       setIsUserMenuOpen(false);

@@ -734,60 +734,6 @@ export function App() {
     }
   };
 
-  const handleSelectAgent = (agentId: string) => {
-    let targetAgent = agents.find((a) => a.id === agentId);
-
-    // Role-preview personas (Switch Account): Admin / Manager / Telecaller
-    if (!targetAgent && String(agentId).startsWith('role-preview-')) {
-      const roleKey = agentId.replace('role-preview-', '');
-      const role = roleKey === 'admin' ? 'Admin' : roleKey === 'manager' ? 'Manager' : 'Telecaller';
-      const brand = companyName || currentUser?.companyName || 'Workspace';
-      targetAgent = {
-        id: agentId,
-        name: `${brand} ${role}`,
-        email: `${role.toLowerCase()}@preview.local`,
-        phone: '',
-        role,
-        permission: role,
-        isAdmin: role === 'Admin',
-        status: 'online',
-        avatar: '',
-        totalCallsToday: 0,
-        talkTimeMinutes: 0,
-        convertedLeadsCount: 0,
-        revenueGenerated: 0,
-        responseTimeMinutes: 0,
-        tenantId: activeTenantId,
-        companyName: brand,
-        managerId: role === 'Telecaller'
-          ? (agents || []).find((a) => getCrmRole(a) === 'Manager')?.id
-          : undefined,
-      };
-    }
-
-    if (targetAgent) {
-      const crmRole = getCrmRole(targetAgent);
-      const withTenant: Agent = {
-        ...targetAgent,
-        tenantId: targetAgent.tenantId || currentUser?.tenantId || activeTenantId,
-        companyName: targetAgent.companyName || currentUser?.companyName || companyName || targetAgent.companyName,
-        role: crmRole,
-        isAdmin: crmRole === 'Admin',
-      };
-      setCurrentUser(withTenant);
-      setActiveAgentId(withTenant.id);
-      if (typeof sessionStorage !== 'undefined') {
-        sessionStorage.setItem('pixbe_auth_user', JSON.stringify(withTenant));
-      }
-      const homeView = getDefaultViewForRole(withTenant);
-      setCurrentView(homeView);
-      showToast(`Switched to ${formatRoleBadge(withTenant)} account: ${withTenant.name}`);
-      loadTenantDomainData(withTenant.tenantId || activeTenantId);
-    } else {
-      setActiveAgentId(agentId);
-    }
-  };
-
   
   // Modals & Overlay Drawers State
   const [detailLead, setDetailLead] = useState<Lead | null>(null);
@@ -933,7 +879,9 @@ export function App() {
     ? companyLeads
     : companyLeads.filter((lead) => lead.ownerAgentId && scopedOwnerIds.has(lead.ownerAgentId));
 
-  const handleAddAgent = (newAgent: Agent) => {
+  const handleAddAgent = async (
+    newAgent: Agent
+  ): Promise<{ success: boolean; error?: string; field?: 'email' | 'phone' }> => {
     const activeCompanyName = companyName || currentUser?.companyName || 'ARCLE Real Estate & Sales';
     const agentWithTenant: Agent = {
       ...newAgent,
@@ -941,27 +889,27 @@ export function App() {
       companyName: activeCompanyName,
     };
     const { password, ...safeAgent } = agentWithTenant;
-    setAgents((prev) => [safeAgent, ...(prev || [])]);
-    fetchWithTenantAuth('/api/agents', {
-      method: 'POST',
-      body: JSON.stringify(agentWithTenant)
-    })
-      .then(async (res) => {
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data?.success) {
-          setAgents((prev) => (prev || []).filter((a) => a.id !== safeAgent.id));
-          showToast(data?.error || 'Failed to save user to database');
-          return;
-        }
-        if (data.agent) {
-          setAgents((prev) => [data.agent, ...(prev || []).filter((a) => a.id !== data.agent.id && a.id !== safeAgent.id)]);
-        }
-        showToast('User account saved: ' + newAgent.name + ' (' + newAgent.role + ')');
-      })
-      .catch(() => {
-        setAgents((prev) => (prev || []).filter((a) => a.id !== safeAgent.id));
-        showToast('Failed to save user to database');
+    try {
+      const res = await fetchWithTenantAuth('/api/agents', {
+        method: 'POST',
+        body: JSON.stringify(agentWithTenant)
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.success) {
+        const error = data?.error || 'Failed to save user to database';
+        showToast(error);
+        return { success: false, error, field: data?.field };
+      }
+      if (data.agent) {
+        setAgents((prev) => [data.agent, ...(prev || []).filter((a) => a.id !== data.agent.id && a.id !== safeAgent.id)]);
+      }
+      showToast('User account saved: ' + newAgent.name + ' (' + newAgent.role + ')');
+      return { success: true };
+    } catch {
+      const error = 'Failed to save user to database';
+      showToast(error);
+      return { success: false, error };
+    }
   };
 
   const handleRemoveAgent = (agentId: string) => {
@@ -1514,52 +1462,14 @@ export function App() {
     );
   }
 
-  const roleSwitcherAgents = useMemo(() => {
-    // Always show Admin / Manager / Telecaller in Switch Account (prefer real users)
-    const roles = ['Admin', 'Manager', 'Telecaller'] as const;
-    const brand = companyName || currentUser?.companyName || 'Workspace';
-    const result: Agent[] = [];
-    for (const role of roles) {
-      const existing = (agents || []).find((a) => getCrmRole(a) === role);
-      if (existing) {
-        result.push({ ...existing, role, isAdmin: role === 'Admin' });
-        continue;
-      }
-      result.push({
-        id: `role-preview-${role.toLowerCase()}`,
-        name: `${brand} ${role}`,
-        email: `${role.toLowerCase()}@preview.local`,
-        phone: '',
-        role,
-        permission: role,
-        isAdmin: role === 'Admin',
-        status: 'online',
-        avatar: '',
-        totalCallsToday: 0,
-        talkTimeMinutes: 0,
-        convertedLeadsCount: 0,
-        revenueGenerated: 0,
-        responseTimeMinutes: 0,
-        tenantId: activeTenantId,
-        companyName: brand,
-        managerId: role === 'Telecaller'
-          ? (agents || []).find((a) => getCrmRole(a) === 'Manager')?.id
-          : undefined,
-      });
-    }
-    return result;
-  }, [agents, activeTenantId, companyName, currentUser?.companyName]);
-
-  
   return (
     <StagesContext.Provider value={activeStages}>
     <div className="h-screen h-[100dvh] max-w-[100vw] overflow-x-hidden glass-mesh-bg text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
       {/* Top Navbar */}
       <Navbar
         activeAgent={activeAgent}
-        agents={roleSwitcherAgents}
+        agents={activeAgentsList}
         companyName={companyName || 'ARCLE Real Estate & Sales'}
-        onSelectAgent={handleSelectAgent}
         onOpenLeadModal={handleOpenAddLead}
         onAddNewLead={handleOpenAddLead}
         onPushTestLead={() => handlePushTestLead('IndiaMart')}
@@ -2068,9 +1978,14 @@ export function App() {
                 const nextIds = new Set(updatedAgents.map((a) => a.id));
                 setAgents(updatedAgents);
                 updatedAgents.filter((a) => !prevIds.has(a.id)).forEach((a) => {
+                  const password = (a as Agent).password;
+                  if (!password || String(password).length < 8) {
+                    showToast(`Skipped ${a.name}: temporary password (8+ chars) is required`);
+                    return;
+                  }
                   fetchWithTenantAuth('/api/agents', {
                     method: 'POST',
-                    body: JSON.stringify({ ...a, password: 'Welcome123', tenantId: activeTenantId })
+                    body: JSON.stringify({ ...a, password, tenantId: activeTenantId })
                   }).catch(console.warn);
                 });
                 prev.filter((a) => !nextIds.has(a.id)).forEach((a) => {

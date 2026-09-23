@@ -136,6 +136,7 @@ import {
   formatDealValue 
 } from '../types';
 import { BulkEditModal } from '../components/BulkEditModal';
+import { DateTimePicker, localDateString } from '../components/DateTimePicker';
 import { ColumnCustomizerModal } from '../components/ColumnCustomizerModal';
 import { StatusBadge } from '../components/StatusBadge';
 import { getStatusStyle } from '../utils/statusStyles';
@@ -757,7 +758,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
 
   const openFollowUpModal = (lead: Lead) => {
     const defaultDate = new Date(Date.now() + 3600000);
-    setFollowUpDate(defaultDate.toISOString().slice(0, 10));
+    setFollowUpDate(localDateString(defaultDate));
     let h = defaultDate.getHours();
     const period = h >= 12 ? 'PM' : 'AM';
     h = h % 12;
@@ -3497,8 +3498,8 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
 
       {/* MODAL: Schedule Lead as Follow-Up */}
       {followUpLead && (
-        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 font-sans">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-xl p-4 space-y-4 font-sans text-xs animate-in fade-in zoom-in-95">
+        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 font-sans">
+          <div className="bg-white border border-slate-200 rounded-t-3xl sm:rounded-2xl w-full sm:max-w-2xl shadow-xl p-4 sm:p-5 space-y-4 font-sans text-xs max-h-[94dvh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 font-sans">
               <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2 font-sans tracking-tight">
                 <CalendarPlus className="w-4 h-4 text-[#5034a8]" />
@@ -3534,93 +3535,20 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-sans uppercase text-slate-600 font-bold mb-2 tracking-wider">SCHEDULED FOLLOW-UP DATE & TIME</label>
-                <div className="space-y-2 font-sans text-xs">
-                  {/* Date picker */}
-                  <div className="relative">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
-                    <input
-                      type="date"
-                      required
-                      value={followUpDate}
-                      min={new Date().toISOString().slice(0, 10)}
-                      onChange={(e) => setFollowUpDate(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#5034a8]"
-                    />
-                  </div>
-
-                  {/* Time selector */}
-                  <div className="flex items-center space-x-2">
-                    {/* Hour */}
-                    <div className="flex-1">
-                      <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl overflow-hidden focus-within:border-[#5034a8] focus-within:ring-1 focus-within:ring-[#5034a8]/20">
-                        <Clock className="w-3.5 h-3.5 text-slate-400 ml-2.5 shrink-0" />
-                        <select
-                          value={followUpHour}
-                          onChange={(e) => setFollowUpHour(e.target.value)}
-                          className="flex-1 bg-transparent px-2 py-2 text-xs text-slate-900 focus:outline-none cursor-pointer"
-                        >
-                          {Array.from({ length: 12 }, (_, i) => {
-                            const v = String(i + 1).padStart(2, '0');
-                            return <option key={v} value={v}>{v}</option>;
-                          })}
-                        </select>
-                      </div>
-                    </div>
-
-                    <span className="text-slate-400 font-bold text-sm">:</span>
-
-                    {/* Minute */}
-                    <div className="flex-1">
-                      <select
-                        value={followUpMinute}
-                        onChange={(e) => setFollowUpMinute(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#5034a8] cursor-pointer"
-                      >
-                        {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map((m) => (
-                          <option key={m} value={m}>{m}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* AM/PM switcher */}
-                    <div className="flex rounded-xl border border-slate-200 overflow-hidden shrink-0">
-                      {(['AM', 'PM'] as const).map((period) => (
-                        <button
-                          key={period}
-                          type="button"
-                          onClick={() => setFollowUpAmPm(period)}
-                          className={`px-3 py-2 text-xs font-bold transition-colors cursor-pointer ${
-                            followUpAmPm === period
-                              ? 'bg-[#5034a8] text-white'
-                              : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
-                          }`}
-                        >
-                          {period}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Formatted Date Preview */}
-                  {followUpDate && (
-                    <div className="mt-1.5 font-sans">
-                      <p className="text-[11px] font-semibold text-[#5034a8] bg-purple-50 border border-purple-200 px-2.5 py-1 rounded-md inline-flex items-center space-x-1">
-                        <Clock className="w-3 h-3 text-[#5034a8]" />
-                        <span>
-                          Scheduled: {new Date(`${followUpDate}T${String(
-                            followUpAmPm === 'PM'
-                              ? (parseInt(followUpHour) === 12 ? 12 : parseInt(followUpHour) + 12)
-                              : (parseInt(followUpHour) === 12 ? 0 : parseInt(followUpHour))
-                          ).padStart(2, '0')}:${followUpMinute}:00`).toLocaleString('en-IN', {
-                            weekday: 'short', day: '2-digit', month: 'short', year: 'numeric',
-                            hour: '2-digit', minute: '2-digit', hour12: true
-                          })}
-                        </span>
-                      </p>
-                    </div>
-                  )}
-                </div>
+                <label className="block text-[11px] font-sans uppercase text-slate-600 font-bold mb-2 tracking-wider">Scheduled follow-up date & time</label>
+                <DateTimePicker
+                  date={followUpDate}
+                  hour={followUpHour}
+                  minute={followUpMinute}
+                  ampm={followUpAmPm}
+                  minDate={localDateString()}
+                  onChange={(next) => {
+                    setFollowUpDate(next.date);
+                    setFollowUpHour(next.hour);
+                    setFollowUpMinute(next.minute);
+                    setFollowUpAmPm(next.ampm);
+                  }}
+                />
               </div>
 
               <div>

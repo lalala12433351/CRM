@@ -31,6 +31,8 @@ import { CallRecordingPlayer } from '../components/CallRecordingPlayer';
 import { StatusBadge } from '../components/StatusBadge';
 import { LeadSummaryModal } from '../components/LeadSummaryModal';
 import { ColumnCustomizerModal } from '../components/ColumnCustomizerModal';
+import { ScheduleFollowUpModal } from '../components/ScheduleFollowUpModal';
+import { DateTimePicker, localDateString } from '../components/DateTimePicker';
 
 interface FollowUpsViewProps {
   leads: Lead[];
@@ -357,15 +359,12 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
   const [modalLeadId, setModalLeadId] = useState('');
   const [modalAssigneeId, setModalAssigneeId] = useState('');
   const [modalDateTime, setModalDateTime] = useState('');
-  const [modalDueDay, setModalDueDay] = useState(() => new Date().toISOString().slice(0, 10));
+  const [modalDueDay, setModalDueDay] = useState(() => localDateString());
   const [modalHour, setModalHour] = useState('09');
   const [modalMinute, setModalMinute] = useState('00');
   const [modalAmPm, setModalAmPm] = useState<'AM' | 'PM'>('AM');
   const [modalRemarks, setModalRemarks] = useState('');
-  
-  // Reschedule inline state
-  const [rescheduleLeadId, setRescheduleLeadId] = useState<string | null>(null);
-  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleLead, setRescheduleLead] = useState<Lead | null>(null);
 
   const now = new Date();
   const todayStr = now.toISOString().slice(0, 10);
@@ -463,24 +462,15 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
     setModalRemarks('');
   };
 
-  const handleQuickReschedule = (leadId: string) => {
-    if (!rescheduleDate) return;
-
-    const selectedDateTime = new Date(rescheduleDate);
-    const now = new Date();
-    if (selectedDateTime < now) {
-      toast.warning('Cannot reschedule a follow-up to a past date/time. Please select a future date and time.', 'Reschedule Time');
-      return;
-    }
-
-    onUpdateLead(leadId, {
+  const handleQuickReschedule = (lead: Lead, combinedDate: string, remarks: string) => {
+    onUpdateLead(lead.id, {
       status: 'Follow Up',
-      followUpAt: rescheduleDate,
+      followUpAt: combinedDate,
+      notes: remarks ? `${lead.notes ? lead.notes + '\n' : ''}[Follow-up Remark]: ${remarks}` : lead.notes,
       updatedAt: new Date().toISOString()
     });
     toast.success('Follow-up rescheduled successfully!', 'Reschedule Complete');
-    setRescheduleLeadId(null);
-    setRescheduleDate('');
+    setRescheduleLead(null);
   };
 
   const handleMarkCompleted = (lead: Lead) => {
@@ -731,10 +721,7 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
                       </button>
 
                       <button
-                        onClick={() => {
-                          setRescheduleLeadId(lead.id);
-                          setRescheduleDate(lead.followUpAt ? lead.followUpAt.slice(0, 16) : new Date().toISOString().slice(0, 16));
-                        }}
+                        onClick={() => setRescheduleLead(lead)}
                         className="py-1.5 px-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-semibold transition-all cursor-pointer flex items-center justify-center space-x-1"
                       >
                         <Calendar className="w-3 h-3 text-slate-500" />
@@ -806,41 +793,14 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
                               <span>Call</span>
                             </button>
 
-                            {rescheduleLeadId === lead.id ? (
-                              <div className="inline-flex items-center space-x-1">
-                                <input
-                                  type="datetime-local"
-                                  value={rescheduleDate}
-                                  min={new Date().toISOString().slice(0, 16)}
-                                  onChange={(e) => setRescheduleDate(e.target.value)}
-                                  className="h-6 bg-slate-50 border border-slate-200 rounded-md px-1 text-[10px] text-slate-900 focus:outline-none"
-                                />
-                                <button
-                                  onClick={() => handleQuickReschedule(lead.id)}
-                                  className="h-6 px-1.5 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] cursor-pointer"
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  onClick={() => setRescheduleLeadId(null)}
-                                  className="h-6 px-1.5 rounded-md bg-slate-100 text-slate-600 text-[10px] cursor-pointer"
-                                >
-                                  ✕
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => {
-                                  setRescheduleLeadId(lead.id);
-                                  setRescheduleDate(lead.followUpAt ? lead.followUpAt.slice(0, 16) : new Date().toISOString().slice(0, 16));
-                                }}
-                                className="h-6 px-1.5 rounded-md bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 hover:border-slate-300 text-[10px] font-semibold transition-all cursor-pointer flex items-center space-x-1"
-                                title="Reschedule Follow-up"
-                              >
-                                <Calendar className="w-2.5 h-2.5 text-slate-500" />
-                                <span>Reschedule</span>
-                              </button>
-                            )}
+                            <button
+                              onClick={() => setRescheduleLead(lead)}
+                              className="h-6 px-1.5 rounded-md bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 hover:border-slate-300 text-[10px] font-semibold transition-all cursor-pointer flex items-center space-x-1"
+                              title="Reschedule Follow-up"
+                            >
+                              <Calendar className="w-2.5 h-2.5 text-slate-500" />
+                              <span>Reschedule</span>
+                            </button>
 
                             <button
                               onClick={() => handleMarkCompleted(lead)}
@@ -886,8 +846,8 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
 
       {/* Schedule / Mark Lead into Follow-Up Modal */}
       {showScheduleModal && (
-        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-3 sm:p-4 font-sans">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-xl p-4 space-y-4 font-sans text-xs max-h-[92vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 font-sans">
+          <div className="bg-white border border-slate-200 rounded-t-3xl sm:rounded-2xl w-full sm:max-w-2xl shadow-xl p-4 sm:p-5 space-y-4 font-sans text-xs max-h-[94dvh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 font-sans">
               <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2 font-sans tracking-tight">
                 <Phone className="w-4 h-4 text-slate-500" />
@@ -963,93 +923,20 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-sans uppercase text-slate-600 font-bold mb-2 tracking-wider">SCHEDULED FOLLOW-UP DATE & TIME</label>
-                <div className="space-y-2 font-sans text-xs">
-                  {/* Date picker */}
-                  <div className="relative">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
-                    <input
-                      type="date"
-                      required
-                      value={modalDueDay}
-                      min={new Date().toISOString().slice(0, 10)}
-                      onChange={(e) => setModalDueDay(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#3a2088]"
-                    />
-                  </div>
-
-                  {/* Time selector */}
-                  <div className="flex items-center space-x-2">
-                    {/* Hour */}
-                    <div className="flex-1">
-                      <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl overflow-hidden focus-within:border-[#3a2088] focus-within:ring-1 focus-within:ring-[#3a2088]/20">
-                        <Clock className="w-3.5 h-3.5 text-slate-400 ml-2.5 shrink-0" />
-                        <select
-                          value={modalHour}
-                          onChange={(e) => setModalHour(e.target.value)}
-                          className="flex-1 bg-transparent px-2 py-2 text-xs text-slate-900 focus:outline-none cursor-pointer"
-                        >
-                          {Array.from({ length: 12 }, (_, i) => {
-                            const v = String(i + 1).padStart(2, '0');
-                            return <option key={v} value={v}>{v}</option>;
-                          })}
-                        </select>
-                      </div>
-                    </div>
-
-                    <span className="text-slate-400 font-bold text-sm">:</span>
-
-                    {/* Minute */}
-                    <div className="flex-1">
-                      <select
-                        value={modalMinute}
-                        onChange={(e) => setModalMinute(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#3a2088] cursor-pointer"
-                      >
-                        {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => (
-                          <option key={m} value={m}>{m}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* AM/PM switcher */}
-                    <div className="flex rounded-xl border border-slate-200 overflow-hidden shrink-0">
-                      {(['AM', 'PM'] as const).map((period) => (
-                        <button
-                          key={period}
-                          type="button"
-                          onClick={() => setModalAmPm(period)}
-                          className={`px-3 py-2 text-xs font-bold transition-colors cursor-pointer ${
-                            modalAmPm === period
-                              ? 'bg-[#3a2088] text-white'
-                              : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
-                          }`}
-                        >
-                          {period}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Formatted Date Preview */}
-                  {modalDueDay && (
-                    <div className="mt-1.5 font-sans">
-                      <p className="text-[11px] font-semibold text-[#3a2088] bg-purple-50 border border-purple-200 px-2.5 py-1 rounded-md inline-flex items-center space-x-1">
-                        <Clock className="w-3 h-3 text-[#3a2088]" />
-                        <span>
-                          Scheduled: {new Date(`${modalDueDay}T${String(
-                            modalAmPm === 'PM'
-                              ? (parseInt(modalHour) === 12 ? 12 : parseInt(modalHour) + 12)
-                              : (parseInt(modalHour) === 12 ? 0 : parseInt(modalHour))
-                          ).padStart(2, '0')}:${modalMinute}:00`).toLocaleString('en-IN', {
-                            weekday: 'short', day: '2-digit', month: 'short', year: 'numeric',
-                            hour: '2-digit', minute: '2-digit', hour12: true
-                          })}
-                        </span>
-                      </p>
-                    </div>
-                  )}
-                </div>
+                <label className="block text-[11px] font-sans uppercase text-slate-600 font-bold mb-2 tracking-wider">Scheduled follow-up date & time</label>
+                <DateTimePicker
+                  date={modalDueDay}
+                  hour={modalHour}
+                  minute={modalMinute}
+                  ampm={modalAmPm}
+                  minDate={localDateString()}
+                  onChange={(next) => {
+                    setModalDueDay(next.date);
+                    setModalHour(next.hour);
+                    setModalMinute(next.minute);
+                    setModalAmPm(next.ampm);
+                  }}
+                />
               </div>
 
               <div>
@@ -1062,17 +949,17 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
               </div>
             </div>
 
-            <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100 font-sans">
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2 border-t border-slate-100 font-sans pb-[max(0.25rem,env(safe-area-inset-bottom))]">
               <button
                 onClick={() => setShowScheduleModal(false)}
-                className="px-3.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 font-sans font-semibold cursor-pointer"
+                className="h-11 sm:h-9 px-3.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-sans font-semibold cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveSchedule}
                 disabled={!modalLeadId}
-                className="px-4 py-1.5 rounded-lg bg-[#3a2088] hover:bg-[#2e196e] text-white font-sans font-bold disabled:opacity-50 shadow-2xs cursor-pointer"
+                className="h-11 sm:h-9 px-4 rounded-xl bg-[#3a2088] hover:bg-[#2e196e] text-white font-sans font-bold disabled:opacity-50 shadow-2xs cursor-pointer"
               >
                 Save & Move to Follow Up
               </button>
@@ -1080,6 +967,15 @@ export const FollowUpsPage: React.FC<FollowUpsViewProps> = ({
           </div>
         </div>
       )}
+
+      <ScheduleFollowUpModal
+        isOpen={!!rescheduleLead}
+        lead={rescheduleLead}
+        title="Reschedule Follow-Up"
+        confirmLabel="Save new time"
+        onClose={() => setRescheduleLead(null)}
+        onConfirm={({ lead, combinedDate, remarks }) => handleQuickReschedule(lead, combinedDate, remarks)}
+      />
     </div>
   );
 };

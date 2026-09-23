@@ -3,7 +3,7 @@ import { logger } from '../../utils/logger';
 import { randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { isCognitoEnabled, allowLegacyAdminLogin } from '../../auth/cognitoConfig';
+import { isCognitoEnabled, allowLegacyAdminLogin, getLegacyAdminPassword } from '../../auth/cognitoConfig';
 import {
   cognitoSignUp,
   cognitoResendConfirmation,
@@ -532,10 +532,10 @@ export class AuthService {
     const ALLOWED_ADMIN_ALT = 'admin@kiteaviation.com';
     const DEFAULT_ADMIN_TENANT = 'company_kite_aviation';
 
-    // 1. Built-in workspace admin (credentials stay the same; display name comes from the tenant store)
+    // 1. Built-in workspace admin (only when ALLOW_LEGACY_ADMIN / Cognito-off, password from env)
     if (allowLegacyAdminLogin() && (targetEmail === ALLOWED_ADMIN || targetEmail === ALLOWED_ADMIN_ALT)) {
-      const isValidAdminPass = inputPass === 'admin' || inputPass === 'admin@123';
-      if (!isValidAdminPass) {
+      const legacyPass = getLegacyAdminPassword();
+      if (!legacyPass || inputPass !== legacyPass) {
         throw new Error('Invalid password. Incorrect password for admin@kiteaviation.');
       }
 
@@ -602,8 +602,8 @@ export class AuthService {
         }
       } else {
         const registeredUser = AUTH_USERS.find((u) => u.email.toLowerCase() === targetEmail);
-        const expectedPass = (registeredUser as any)?.password || 'admin';
-        if (inputPass !== expectedPass && inputPass !== 'admin' && inputPass !== 'admin@123') {
+        const expectedPass = (registeredUser as any)?.password;
+        if (!expectedPass || inputPass !== expectedPass) {
           throw new Error('Invalid password. Ask your administrator to set or reset your temporary password.');
         }
       }
@@ -618,8 +618,8 @@ export class AuthService {
     // 3. Runtime-only registered users (no agent row yet)
     const registeredUser = AUTH_USERS.find((u) => u.email.toLowerCase() === targetEmail);
     if (registeredUser) {
-      const expectedPass = (registeredUser as any).password || 'admin';
-      if (inputPass !== expectedPass && inputPass !== 'admin' && inputPass !== 'admin@123') {
+      const expectedPass = (registeredUser as any).password;
+      if (!expectedPass || inputPass !== expectedPass) {
         throw new Error('Invalid password. Please check your credentials.');
       }
       const token = `pixbe_token_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
