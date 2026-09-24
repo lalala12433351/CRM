@@ -1015,6 +1015,11 @@ export const AddLeadPage: React.FC<AddLeadViewProps> = ({
                               <input
                                 type="date"
                                 value={val}
+                                max={
+                                  field.name.toLowerCase().includes('birth') || field.label.toLowerCase().includes('birth') || field.name.toLowerCase().includes('dob') || field.label.toLowerCase().includes('dob')
+                                    ? new Date().toISOString().split('T')[0]
+                                    : undefined
+                                }
                                 onChange={(e) =>
                                   setCustomFieldValues((prev) => ({
                                     ...prev,
