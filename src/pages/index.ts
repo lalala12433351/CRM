@@ -16,6 +16,7 @@ export * from './CallingLogsPage';
 export * from './DocsAndSignPage';
 export * from './LoginPage';
 export * from './SignUpPage';
+export * from './SetPasswordPage';
 export * from './OmnichannelInboxPage';
 export * from './WhatsAppCrmPage';
 export * from './MarketingPage';

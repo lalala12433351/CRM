@@ -8,6 +8,8 @@ import {
   AdminCreateUserCommand,
   AdminSetUserPasswordCommand,
   AdminGetUserCommand,
+  ForgotPasswordCommand,
+  ConfirmForgotPasswordCommand,
   AuthFlowType,
   MessageActionType
 } from '@aws-sdk/client-cognito-identity-provider';
@@ -62,6 +64,9 @@ function mapCognitoError(err: any): Error {
   }
   if (code === 'UserNotFoundException') {
     return new Error('No account found for this email. Please sign up first.');
+  }
+  if (code === 'LimitExceededException' || code === 'TooManyRequestsException') {
+    return new Error('Too many password reset attempts. Please wait a few minutes and try again.');
   }
   if (code === 'InvalidParameterException') {
     return new Error(message || 'Invalid account details. Check email and password.');
@@ -242,6 +247,51 @@ export type CognitoTokens = {
   refreshToken?: string;
   expiresIn?: number;
 };
+
+/**
+ * Triggers Cognito forgot-password email (code or custom link template).
+ * Configure the User Pool forgot-password message to:
+ *   {APP_URL}/set-password?email={username}&code={####}
+ */
+export async function cognitoForgotPassword(email: string): Promise<void> {
+  if (!isCognitoEnabled()) throw new Error('Cognito is not configured');
+  const { clientId } = getCognitoConfig();
+  const username = email.trim().toLowerCase();
+  try {
+    await getClient().send(
+      new ForgotPasswordCommand({
+        ClientId: clientId,
+        Username: username,
+        SecretHash: cognitoSecretHash(username)
+      })
+    );
+  } catch (err: any) {
+    throw mapCognitoError(err);
+  }
+}
+
+export async function cognitoConfirmForgotPassword(opts: {
+  email: string;
+  code: string;
+  newPassword: string;
+}): Promise<void> {
+  if (!isCognitoEnabled()) throw new Error('Cognito is not configured');
+  const { clientId } = getCognitoConfig();
+  const username = opts.email.trim().toLowerCase();
+  try {
+    await getClient().send(
+      new ConfirmForgotPasswordCommand({
+        ClientId: clientId,
+        Username: username,
+        ConfirmationCode: String(opts.code || '').trim(),
+        Password: opts.newPassword,
+        SecretHash: cognitoSecretHash(username)
+      })
+    );
+  } catch (err: any) {
+    throw mapCognitoError(err);
+  }
+}
 
 export async function cognitoLogin(email: string, password: string): Promise<CognitoTokens> {
   if (!isCognitoEnabled()) throw new Error('Cognito is not configured');

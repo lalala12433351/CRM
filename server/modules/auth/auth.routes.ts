@@ -12,5 +12,10 @@ router.post('/auth/restore', (req, res) => authController.restore(req, res));
 router.get('/auth/me', (req, res) => authController.getMe(req, res));
 router.put('/auth/profile', requireAuthenticated, (req, res) => authController.updateProfile(req, res));
 router.post('/auth/logout', requireAuthenticated, (req, res) => authController.logout(req, res));
+router.post('/auth/password-change/request', requireAuthenticated, (req, res) =>
+  authController.requestPasswordChange(req, res)
+);
+router.post('/auth/password-change/forgot', (req, res) => authController.requestForgotPassword(req, res));
+router.post('/auth/password-change/confirm', (req, res) => authController.confirmPasswordChange(req, res));
 
 export default router;

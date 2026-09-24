@@ -140,6 +140,52 @@ export class AuthController {
       res.status(500).json({ error: e.message || 'Logout failed' });
     }
   }
+
+  public async requestPasswordChange(req: Request, res: Response) {
+    try {
+      const authHeader = req.headers.authorization || '';
+      const token = authHeader.replace('Bearer ', '').trim();
+      const currentSession = token ? await authService.getSessionHydrated(token) : null;
+      if (!currentSession) {
+        return res.status(401).json({ error: 'Unauthorized / Session Expired' });
+      }
+      const result = await authService.requestPasswordChange({
+        sessionUser: currentSession,
+        currentPassword: String(req.body?.currentPassword || '')
+      });
+      res.json({ success: true, message: result.message, email: result.email });
+    } catch (e: any) {
+      logger.warn('[Auth] password-change request failed:', e?.message || e);
+      res.status(400).json({ error: e.message || 'Failed to send password confirmation email' });
+    }
+  }
+
+  public async requestForgotPassword(req: Request, res: Response) {
+    try {
+      const result = await authService.requestForgotPassword(String(req.body?.email || ''));
+      res.json({ success: true, message: result.message, email: result.email });
+    } catch (e: any) {
+      logger.warn('[Auth] forgot-password failed:', e?.message || e);
+      res.status(400).json({ error: e.message || 'Failed to send password reset email' });
+    }
+  }
+
+  public async confirmPasswordChange(req: Request, res: Response) {
+    try {
+      await authService.confirmPasswordChange({
+        email: String(req.body?.email || ''),
+        code: String(req.body?.code || ''),
+        newPassword: String(req.body?.newPassword || '')
+      });
+      res.json({
+        success: true,
+        message: 'Password updated successfully. You can sign in with your new password.'
+      });
+    } catch (e: any) {
+      logger.warn('[Auth] password-change confirm failed:', e?.message || e);
+      res.status(400).json({ error: e.message || 'Failed to update password' });
+    }
+  }
 }
 
 export const authController = new AuthController();

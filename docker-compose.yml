@@ -65,9 +65,12 @@ services:
     volumes:
       # Persistent storage for multi-tenant state and json store
       - pixbe_app_data:/app/.data
+    # Local Postgres is optional. RDS is used when AWS_RDS_HOST is set.
+    # Start the local database only with: docker compose --profile local-db up -d
     depends_on:
       db:
         condition: service_healthy
+        required: false
         restart: true
     networks:
       - pixbe-network
@@ -76,6 +79,7 @@ services:
   # 2. POSTGRESQL DATABASE SERVICE
   # ----------------------------------------------------------------------------
   db:
+    profiles: ["local-db"]
     image: postgres:16-alpine
     container_name: pixbe-crm-db
     restart: unless-stopped

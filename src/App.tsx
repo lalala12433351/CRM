@@ -34,6 +34,7 @@ import {
   TasksPage as TasksView,
   LoginPage as LoginView,
   SignUpPage as SignUpView,
+  SetPasswordPage as SetPasswordView,
   AutomationsSubTab,
   ReportsSubTab,
   SettingsTab,
@@ -202,9 +203,10 @@ export function App() {
     const stored = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pixbe_auth_user') : null;
     return !!stored;
   });
-  const [authScreen, setAuthScreen] = useState<'login' | 'signup'>(() => {
+  const [authScreen, setAuthScreen] = useState<'login' | 'signup' | 'set-password'>(() => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname.toLowerCase().replace(/\/+$/, '');
+      if (path === '/set-password' || path === '/set_password') return 'set-password';
       if (path === '/signup' || path === '/sign-up') return 'signup';
       if (path === '/login') return 'login';
     }
@@ -237,9 +239,20 @@ export function App() {
 
   // Keep navigation states synchronized with browser URL & localStorage
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const currentPath = window.location.pathname.toLowerCase().replace(/\/+$/, '');
+
+    // Public set-password link must keep query string (email/code)
+    if (currentPath === '/set-password' || currentPath === '/set_password') {
+      if (authScreen !== 'set-password') setAuthScreen('set-password');
+      return;
+    }
+
     if (!isAuthenticated) {
+      if (authScreen === 'set-password') {
+        setAuthScreen('login');
+      }
       const targetPath = authScreen === 'signup' ? '/signup' : '/login';
-      const currentPath = typeof window !== 'undefined' ? window.location.pathname.toLowerCase().replace(/\/+$/, '') : '';
       if (currentPath !== targetPath) {
         window.history.replaceState(null, '', targetPath);
       }
@@ -247,15 +260,12 @@ export function App() {
     }
 
     // When authenticated: if the URL is /login or /signup or root /, navigate to the active CRM view
-    if (typeof window !== 'undefined') {
-      const path = window.location.pathname.toLowerCase().replace(/\/+$/, '');
-      if (path === '/login' || path === '/signup' || path === '/sign-up' || path === '') {
-        syncUrlWithView(currentView || 'dashboard');
-        return;
-      }
+    if (currentPath === '/login' || currentPath === '/signup' || currentPath === '/sign-up' || currentPath === '') {
+      syncUrlWithView(currentView || 'dashboard');
+      return;
     }
 
-    const activeSubTab = 
+    const activeSubTab =
       currentView === 'reports' ? reportsSubTab :
       currentView === 'workflows' ? automationsSubTab :
       currentView === 'settings' ? settingsSubTab : undefined;
@@ -269,11 +279,18 @@ export function App() {
       const path = window.location.pathname.toLowerCase().replace(/\/+$/, '');
 
       if (!isAuthenticated) {
-        if (path === '/signup' || path === '/sign-up') {
+        if (path === '/set-password' || path === '/set_password') {
+          setAuthScreen('set-password');
+        } else if (path === '/signup' || path === '/sign-up') {
           setAuthScreen('signup');
         } else if (path === '/login') {
           setAuthScreen('login');
         }
+        return;
+      }
+
+      if (path === '/set-password' || path === '/set_password') {
+        setAuthScreen('set-password');
         return;
       }
 
@@ -420,7 +437,12 @@ export function App() {
   useEffect(() => {
     const brandName = rawCompanyName ? `${formatArcleName('ARCLE CRM', rawCompanyName)}` : 'ARCLE CRM & TeleSales';
     if (!isAuthenticated) {
-      document.title = authScreen === 'signup' ? 'Create Account | ARCLE CRM' : 'Sign In | ARCLE CRM';
+      document.title =
+        authScreen === 'signup'
+          ? 'Create Account | ARCLE CRM'
+          : authScreen === 'set-password'
+            ? 'Set Password | ARCLE CRM'
+            : 'Sign In | ARCLE CRM';
       return;
     }
     const viewTitleMap: Record<string, string> = {
@@ -1351,7 +1373,21 @@ export function App() {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || authScreen === 'set-password') {
+    if (authScreen === 'set-password') {
+      return (
+        <SetPasswordView
+          onDone={() => {
+            if (typeof window !== 'undefined') {
+              window.location.href = '/login';
+              return;
+            }
+            setAuthScreen('login');
+            setIsAuthenticated(false);
+          }}
+        />
+      );
+    }
     if (authScreen === 'signup') {
       return (
         <SignUpView
