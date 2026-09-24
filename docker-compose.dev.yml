@@ -57,13 +57,16 @@ services:
       - /app/node_modules
       # Persist local CRM data
       - pixbe_dev_data:/app/.data
+    # Local Postgres is optional. RDS is used when AWS_RDS_HOST is set.
     depends_on:
       db:
         condition: service_healthy
+        required: false
     networks:
       - pixbe-dev-network
 
   db:
+    profiles: ["local-db"]
     image: postgres:16-alpine
     container_name: pixbe-crm-dev-db
     restart: unless-stopped

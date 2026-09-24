@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from '../context/ToastContext';
-import { fetchWithTenantAuth } from '../lib/auth';
+import { fetchWithTenantAuth, requestPasswordChangeEmail } from '../lib/auth';
 import {
   Settings,
   Building2,
@@ -42,7 +42,11 @@ import {
   Layers,
   Filter,
   ListFilter,
-  RefreshCw
+  RefreshCw,
+  Lock,
+  Eye,
+  EyeOff,
+  Loader2
 } from 'lucide-react';
 import { UserAvatar } from '../components/UserAvatar';
 import { TimeField } from '../components/DateTimePicker';
@@ -255,6 +259,10 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
   const [showProfileConfirmModal, setShowProfileConfirmModal] = useState(false);
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const avatarFileInputRef = React.useRef<HTMLInputElement>(null);
+  const [currentPasswordForChange, setCurrentPasswordForChange] = useState('');
+  const [showCurrentPasswordForChange, setShowCurrentPasswordForChange] = useState(false);
+  const [isRequestingPasswordChange, setIsRequestingPasswordChange] = useState(false);
+  const [passwordChangeNotice, setPasswordChangeNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (activeAgent) {
@@ -2386,6 +2394,78 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
                     onChange={(e) => setEnforceTwoFactor(e.target.checked)}
                     className="w-4 h-4 text-indigo-600 rounded cursor-pointer accent-indigo-600"
                   />
+                </div>
+
+                <div className="mt-4 p-4 rounded-xl border border-slate-200 bg-white space-y-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <Lock className="w-4 h-4 text-slate-500" />
+                      Change admin password
+                    </h3>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Confirm your current password, then we email a one-time link to{' '}
+                      <span className="font-medium text-slate-700">
+                        {profileEmail || activeAgent?.email || 'your admin email'}
+                      </span>
+                      . Open the link to set a new password.
+                    </p>
+                  </div>
+                  <div className="relative max-w-md">
+                    <input
+                      type={showCurrentPasswordForChange ? 'text' : 'password'}
+                      value={currentPasswordForChange}
+                      onChange={(e) => {
+                        setCurrentPasswordForChange(e.target.value);
+                        if (passwordChangeNotice) setPasswordChangeNotice(null);
+                      }}
+                      placeholder="Current password"
+                      autoComplete="current-password"
+                      className="w-full h-10 pl-3 pr-10 rounded-lg border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPasswordForChange((v) => !v)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      aria-label={showCurrentPasswordForChange ? 'Hide password' : 'Show password'}
+                    >
+                      {showCurrentPasswordForChange ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {passwordChangeNotice && (
+                    <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                      {passwordChangeNotice}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    disabled={isRequestingPasswordChange || !currentPasswordForChange.trim()}
+                    onClick={async () => {
+                      setIsRequestingPasswordChange(true);
+                      setPasswordChangeNotice(null);
+                      const result = await requestPasswordChangeEmail(currentPasswordForChange);
+                      setIsRequestingPasswordChange(false);
+                      if (result.success) {
+                        setCurrentPasswordForChange('');
+                        setPasswordChangeNotice(
+                          result.message ||
+                            `A confirmation link was sent to ${result.email || profileEmail || 'your email'}.`
+                        );
+                        toast.success('Confirmation link sent to your admin email.', 'Check your inbox');
+                      } else {
+                        toast.error(result.error || 'Failed to send confirmation email');
+                      }
+                    }}
+                    className="inline-flex items-center gap-2 h-9 px-3.5 rounded-lg bg-[#2563eb] text-white text-xs font-semibold hover:bg-[#1d4ed8] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isRequestingPasswordChange ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Sending…
+                      </>
+                    ) : (
+                      'Send confirmation link'
+                    )}
+                  </button>
                 </div>
               </div>
             </div>

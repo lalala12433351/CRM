@@ -31,6 +31,7 @@ export const VIEW_TO_PATH: Record<string, string> = {
   conversion_tracking: '/conversions',
   login: '/login',
   signup: '/signup',
+  set_password: '/set-password',
   not_found: '/404',
 };
 
@@ -72,6 +73,8 @@ export const PATH_TO_VIEW: Record<string, string> = {
   '/login': 'login',
   '/signup': 'signup',
   '/sign-up': 'signup',
+  '/set-password': 'set_password',
+  '/set_password': 'set_password',
   '/404': 'not_found',
   '/not-found': 'not_found',
 };

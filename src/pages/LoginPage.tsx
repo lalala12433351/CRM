@@ -10,7 +10,7 @@ import {
   X
 } from 'lucide-react';
 import { Agent } from '../types';
-import { loginWithApi } from '../lib/auth';
+import { loginWithApi, requestForgotPasswordEmail } from '../lib/auth';
 import { toast } from '../context/ToastContext';
 
 interface LoginViewProps {
@@ -26,6 +26,8 @@ export const LoginPage: React.FC<LoginViewProps> = ({ agents, onLogin, onSwitchT
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [isSendingReset, setIsSendingReset] = useState(false);
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,7 +180,10 @@ export const LoginPage: React.FC<LoginViewProps> = ({ agents, onLogin, onSwitchT
               <div className="text-center pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowForgotModal(true)}
+                  onClick={() => {
+                    setForgotEmail(email.trim().toLowerCase());
+                    setShowForgotModal(true);
+                  }}
                   className="text-xs text-gray-500 hover:text-gray-800 font-medium transition-colors cursor-pointer"
                 >
                   Forgot Password
@@ -209,7 +214,7 @@ export const LoginPage: React.FC<LoginViewProps> = ({ agents, onLogin, onSwitchT
           <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-sm w-full shadow-2xl border border-gray-100 relative">
             <button
               type="button"
-              onClick={() => setShowForgotModal(false)}
+              onClick={() => !isSendingReset && setShowForgotModal(false)}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 cursor-pointer"
             >
               <X className="w-5 h-5" />
@@ -219,24 +224,55 @@ export const LoginPage: React.FC<LoginViewProps> = ({ agents, onLogin, onSwitchT
             </div>
             <h3 className="text-lg font-bold text-gray-900">Reset Your Password</h3>
             <p className="text-xs text-gray-500 mt-2 leading-relaxed">
-              If you forgot your password, enter your email below or contact your CRM administrator to issue an access reset link.
+              Enter your registered email. We will send a reset link (and code) you can use at
+              {' '}
+              <span className="font-medium text-gray-700">/set-password</span>
+              .
             </p>
             <div className="mt-4 space-y-3">
               <input
                 type="email"
-                defaultValue={email}
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
                 placeholder="Enter your registered email"
-                className="w-full px-4 py-2.5 text-xs rounded-full border border-gray-200 focus:outline-none focus:border-blue-500"
+                disabled={isSendingReset}
+                className="w-full px-4 py-2.5 text-xs rounded-full border border-gray-200 focus:outline-none focus:border-blue-500 disabled:opacity-60"
               />
               <button
                 type="button"
-                onClick={() => {
-                  toast.success('A password reset link has been dispatched to your email address.', 'Reset Link Sent');
-                  setShowForgotModal(false);
+                disabled={isSendingReset || !forgotEmail.trim()}
+                onClick={async () => {
+                  const target = forgotEmail.trim().toLowerCase();
+                  if (!target || !target.includes('@')) {
+                    toast.error('Please enter a valid email address.');
+                    return;
+                  }
+                  setIsSendingReset(true);
+                  const result = await requestForgotPasswordEmail(target);
+                  setIsSendingReset(false);
+                  if (result.success) {
+                    toast.success(
+                      result.message || 'Check your email for the reset link.',
+                      'Reset Link Sent'
+                    );
+                    setShowForgotModal(false);
+                    if (typeof window !== 'undefined') {
+                      window.location.href = `/set-password?email=${encodeURIComponent(target)}`;
+                    }
+                  } else {
+                    toast.error(result.error || 'Failed to send reset email.');
+                  }
                 }}
-                className="w-full py-2.5 rounded-full bg-[#0066f6] hover:bg-[#0057df] text-white text-xs font-semibold transition-all cursor-pointer"
+                className="w-full py-2.5 rounded-full bg-[#0066f6] hover:bg-[#0057df] text-white text-xs font-semibold transition-all cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
               >
-                Send Reset Link
+                {isSendingReset ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Sending…
+                  </>
+                ) : (
+                  'Send Reset Link'
+                )}
               </button>
             </div>
           </div>

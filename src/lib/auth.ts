@@ -279,3 +279,69 @@ export async function fetchWithTenantAuth(url: string, options?: RequestInit): P
   }
   return response;
 }
+
+/** Admin Settings: verify current password and email Cognito confirmation link. */
+export async function requestPasswordChangeEmail(
+  currentPassword: string
+): Promise<{ success: boolean; message?: string; email?: string; error?: string }> {
+  try {
+    const response = await fetchWithTenantAuth('/api/auth/password-change/request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (response.ok && data.success) {
+      return { success: true, message: data.message, email: data.email };
+    }
+    return { success: false, error: data.error || 'Failed to send confirmation email' };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to send confirmation email' };
+  }
+}
+
+/** Public Login: email Cognito reset link/code (no current password). */
+export async function requestForgotPasswordEmail(
+  email: string
+): Promise<{ success: boolean; message?: string; email?: string; error?: string }> {
+  try {
+    const response = await fetch('/api/auth/password-change/forgot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim().toLowerCase() })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (response.ok && data.success) {
+      return { success: true, message: data.message, email: data.email };
+    }
+    return { success: false, error: data.error || 'Failed to send reset email' };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to send reset email' };
+  }
+}
+
+/** Public: complete password change from email link (email + Cognito code + new password). */
+export async function confirmPasswordChangeWithCode(opts: {
+  email: string;
+  code: string;
+  newPassword: string;
+}): Promise<{ success: boolean; message?: string; error?: string }> {
+  try {
+    const response = await fetch('/api/auth/password-change/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: opts.email.trim().toLowerCase(),
+        code: opts.code.trim(),
+        newPassword: opts.newPassword
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (response.ok && data.success) {
+      return { success: true, message: data.message };
+    }
+    return { success: false, error: data.error || 'Failed to update password' };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to update password' };
+  }
+}

@@ -9,6 +9,8 @@ import {
   cognitoResendConfirmation,
   cognitoConfirmSignUp,
   cognitoLogin,
+  cognitoForgotPassword,
+  cognitoConfirmForgotPassword,
   decodeJwtPayload
 } from '../../auth/cognitoClient';
 import { looksLikeJwt, verifyCognitoIdToken } from '../../auth/cognitoJwt';
@@ -810,6 +812,120 @@ export class AuthService {
     }
 
     return merged;
+  }
+
+  /**
+   * Admin-only: verify current password, then email Cognito forgot-password link/code
+   * to the admin's email. Configure Cognito message template to link to /set-password.
+   */
+  public async requestPasswordChange(opts: {
+    sessionUser: UserAccount;
+    currentPassword: string;
+  }): Promise<{ email: string; message: string }> {
+    if (!isCognitoEnabled()) {
+      throw new Error('Password change via email requires Cognito. Configure Cognito and try again.');
+    }
+    const isAdmin = Boolean(opts.sessionUser.isAdmin) || opts.sessionUser.role === 'Admin';
+    if (!isAdmin) {
+      throw new Error('Only workspace admins can change password from Settings.');
+    }
+    const email = (opts.sessionUser.email || '').trim().toLowerCase();
+    if (!email) throw new Error('Admin email is missing on your profile.');
+    const currentPassword = (opts.currentPassword || '').trim();
+    if (!currentPassword) throw new Error('Current password is required.');
+
+    try {
+      await cognitoLogin(email, currentPassword);
+    } catch {
+      throw new Error('Current password is incorrect.');
+    }
+
+    try {
+      await cognitoForgotPassword(email);
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      // Cognito may rate-limit; surface a clear message
+      throw new Error(msg || 'Failed to send password confirmation email.');
+    }
+
+    return {
+      email,
+      message: `A confirmation link was sent to ${email}. Open the link to set your new password.`
+    };
+  }
+
+  /**
+   * Public forgot-password (Login page): email Cognito reset link/code. No current password.
+   * Always returns a generic success message when possible to avoid email enumeration.
+   */
+  public async requestForgotPassword(emailRaw: string): Promise<{ email: string; message: string }> {
+    if (!isCognitoEnabled()) {
+      throw new Error('Password reset requires Cognito. Configure Cognito and try again.');
+    }
+    const email = (emailRaw || '').trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+      throw new Error('Please enter a valid email address.');
+    }
+
+    try {
+      await cognitoForgotPassword(email);
+    } catch (err: any) {
+      const msg = String(err?.message || err || '');
+      // Do not reveal whether the account exists
+      if (/no account found|user not found|UserNotFound/i.test(msg)) {
+        logger.info(`[Auth] forgot-password for unknown email suppressed: ${email}`);
+      } else if (/too many|limit exceeded|LimitExceeded/i.test(msg)) {
+        throw new Error(msg);
+      } else {
+        logger.warn('[Auth] forgot-password Cognito error:', msg);
+        // Still return generic success for most Cognito errors that leak user existence
+        if (/Incorrect email|NotAuthorized|InvalidParameter/i.test(msg)) {
+          // fall through to generic response
+        } else {
+          throw new Error(msg || 'Failed to send password reset email.');
+        }
+      }
+    }
+
+    return {
+      email,
+      message: `If an account exists for ${email}, a reset link was sent. Open the link (or use the code) to set a new password.`
+    };
+  }
+
+  public async confirmPasswordChange(opts: {
+    email: string;
+    code: string;
+    newPassword: string;
+  }): Promise<{ success: true }> {
+    if (!isCognitoEnabled()) {
+      throw new Error('Password change via email requires Cognito. Configure Cognito and try again.');
+    }
+    const email = (opts.email || '').trim().toLowerCase();
+    const code = String(opts.code || '').trim();
+    const newPassword = (opts.newPassword || '').trim();
+    if (!email) throw new Error('Email is required.');
+    if (!code) throw new Error('Confirmation code is required.');
+    if (!newPassword || newPassword.length < 8) {
+      throw new Error('New password must be at least 8 characters.');
+    }
+
+    await cognitoConfirmForgotPassword({ email, code, newPassword });
+
+    // Keep local agent passwordHash in sync for Team / hybrid login paths
+    try {
+      const agent = await multiTenantDb.findAgentByEmail(email);
+      if (agent?.tenantId) {
+        await multiTenantDb.saveAgent(agent.tenantId, {
+          ...agent,
+          passwordHash: hashPassword(newPassword)
+        });
+      }
+    } catch (syncErr: any) {
+      logger.warn('[Auth] passwordHash sync after Cognito confirm failed:', syncErr?.message || syncErr);
+    }
+
+    return { success: true };
   }
 }
 
