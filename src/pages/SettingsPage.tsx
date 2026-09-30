@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from '../context/ToastContext';
-import { fetchWithTenantAuth, requestPasswordChangeEmail } from '../lib/auth';
+import { fetchWithTenantAuth, logoutWithApi, requestPasswordChangeEmail } from '../lib/auth';
+import { isNative } from '../lib/platform';
+import { clearNativeAuth, openPhoneSetup } from '../lib/calling';
 import {
   Settings,
   Building2,
@@ -647,6 +649,29 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
   const [autoNextDial, setAutoNextDial] = useState(true);
   const [sttLanguage, setSttLanguage] = useState('en-IN');
 
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    try {
+      const res = await fetchWithTenantAuth('/api/auth/account', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: 'DELETE' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.success) throw new Error(data?.error || 'Failed to delete account');
+      await logoutWithApi();
+      clearNativeAuth();
+      window.location.href = '/login';
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to delete account');
+      setIsDeletingAccount(false);
+    }
+  };
+
   // Load workspace settings from database
   React.useEffect(() => {
     fetchWithTenantAuth('/api/workspace/settings')
@@ -981,12 +1006,12 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
   };
 
   return (
-    <div className="text-slate-900 font-sans space-y-5 select-none pb-8">
+    <div className="space-y-4 px-3 py-3 font-sans text-slate-900 select-none sm:space-y-5 sm:px-0 sm:py-0 sm:pb-8">
 
       {/* HEADER BAR */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-sans pb-2">
+      <div className="flex flex-col justify-between gap-3 pb-1 font-sans sm:flex-row sm:items-center sm:pb-2">
         <div>
-          <h1 className="text-2xl font-bold font-sans text-slate-900 tracking-tight flex items-center space-x-3">
+          <h1 className="flex flex-wrap items-center gap-2 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
             <span>CRM Settings & Preferences</span>
             <span className="text-[10px] font-sans font-medium bg-blue-50 text-[#2563eb] border border-blue-100 px-2.5 py-0.5 rounded-full tracking-wide">
               System Admin
@@ -994,10 +1019,10 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
           </h1>
         </div>
 
-        <div className="flex items-center space-x-2.5 font-sans shrink-0">
+        <div className="grid grid-cols-2 gap-2.5 font-sans sm:flex sm:items-center sm:shrink-0">
           <button
             onClick={handleResetDefaults}
-            className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium transition-all cursor-pointer font-sans shadow-2xs"
+            className="min-h-11 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 shadow-2xs transition-all hover:bg-slate-50"
           >
             <span>Reset Defaults</span>
           </button>
@@ -1005,7 +1030,7 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
           <button
             onClick={handleSaveSettings}
             disabled={isSaving}
-            className="px-5 py-2 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-medium transition-all cursor-pointer font-sans shadow-sm shadow-blue-500/20 disabled:opacity-50 flex items-center space-x-2"
+            className="flex min-h-11 items-center justify-center space-x-2 rounded-xl bg-[#2563eb] px-5 py-2 text-xs font-medium text-white shadow-sm shadow-blue-500/20 transition-all hover:bg-[#1d4ed8] disabled:opacity-50"
           >
             {isSaving ? (
               <span>Saving...</span>
@@ -1019,11 +1044,11 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
       </div>
 
       {/* TABS & CONTENT LAYOUT */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 font-sans pt-2">
+      <div className="grid grid-cols-1 gap-4 pt-1 font-sans lg:grid-cols-12 lg:gap-6 lg:pt-2">
 
         {/* CONFIGURATION SECTIONS (Navigation Sidebar) */}
-        <div className="lg:col-span-3 space-y-1.5 font-sans">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2">
+        <div className="flex gap-2 overflow-x-auto pb-1 font-sans lg:col-span-3 lg:block lg:space-y-1.5 lg:overflow-visible lg:pb-0 [&>button]:w-auto [&>button]:shrink-0 lg:[&>button]:w-full">
+          <p className="hidden text-[11px] font-bold uppercase tracking-wider text-slate-400 lg:block lg:px-3 lg:mb-2">
             Configuration Sections
           </p>
 
@@ -1183,7 +1208,7 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
         </div>
 
         {/* TAB PANELS CONTAINER */}
-        <div className="lg:col-span-9 bg-white border border-slate-100 rounded-3xl p-6 sm:p-7 shadow-xs font-sans space-y-6">
+        <div className="space-y-5 rounded-2xl border border-slate-100 bg-white p-4 font-sans shadow-xs sm:space-y-6 sm:rounded-3xl sm:p-7 lg:col-span-9">
 
           {/* TAB: MY PROFILE */}
           {activeTab === 'profile' && (
@@ -1323,6 +1348,53 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
                   </button>
                 </div>
               </form>
+
+              <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50/50 p-4 space-y-3">
+                <div>
+                  <p className="text-xs font-bold text-rose-800">Delete account</p>
+                  <p className="text-[11px] text-rose-700/80">
+                    Permanently removes your login and your access to this workspace. If you are the only admin, the
+                    workspace and its data are scheduled for deletion.
+                  </p>
+                </div>
+                {!showDeleteAccount ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteAccount(true)}
+                    className="px-4 py-2 rounded-xl border border-rose-300 bg-white text-rose-700 text-xs font-semibold hover:bg-rose-50"
+                  >
+                    Delete my account
+                  </button>
+                ) : (
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      value={deleteConfirmText}
+                      onChange={(e) => setDeleteConfirmText(e.target.value)}
+                      placeholder="Type DELETE to confirm"
+                      className="flex-1 bg-white border border-rose-300 rounded-xl px-3.5 py-2 text-xs"
+                    />
+                    <button
+                      type="button"
+                      disabled={deleteConfirmText !== 'DELETE' || isDeletingAccount}
+                      onClick={handleDeleteAccount}
+                      className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold disabled:opacity-50"
+                    >
+                      {isDeletingAccount ? 'Deleting...' : 'Permanently delete'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDeleteAccount(false);
+                        setDeleteConfirmText('');
+                      }}
+                      className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-semibold"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -1534,6 +1606,7 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
                 </h3>
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs divide-y divide-slate-100 overflow-hidden text-xs">
                   {/* Location Check-in */}
+                  {!isNative && (
                   <div className="p-3.5 sm:px-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors">
                     <div className="flex items-center space-x-3 text-slate-800 font-medium">
                       <MapPin className="w-4 h-4 text-slate-400" />
@@ -1553,6 +1626,7 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
                       />
                     </button>
                   </div>
+                  )}
 
                   {/* Campaign */}
                   <div className="p-3.5 sm:px-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors">
@@ -2094,6 +2168,19 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
 
               {/* Toggles */}
               <div className="pt-3 border-t border-slate-200 space-y-3">
+                {isNative && (
+                  <button
+                    type="button"
+                    onClick={openPhoneSetup}
+                    className="w-full flex items-center justify-between p-3 rounded-lg bg-indigo-50 border border-indigo-200 text-left"
+                  >
+                    <div>
+                      <p className="text-xs font-bold text-slate-900">Phone & Recording Setup</p>
+                      <p className="text-[11px] text-slate-500">Permissions, recordings folder, and a test call for this phone.</p>
+                    </div>
+                    <span className="text-xs font-semibold text-indigo-700">Open</span>
+                  </button>
+                )}
                 <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-200">
                   <div>
                     <p className="text-xs font-bold text-slate-900">Auto-Record Outbound & Inbound Calls</p>

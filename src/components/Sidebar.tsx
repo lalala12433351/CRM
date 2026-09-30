@@ -44,7 +44,8 @@ export type TabType =
   | 'marketing' 
   | 'integrations'
   | 'team'
-  | 'docs'
+  | 'docs_sign'
+  | 'device_permissions'
   | 'settings';
 
 interface SidebarProps {
@@ -53,7 +54,7 @@ interface SidebarProps {
   automationsSubTab?: AutomationsSubTab;
   reportsSubTab?: ReportsSubTab;
   unassignedLeadsCount: number;
-  missedCallsCount?: number;
+  pendingFollowUpsCount?: number;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
   onOpenVoiceBot?: () => void;
@@ -70,7 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   automationsSubTab = 'workflows',
   reportsSubTab = 'call_logs',
   unassignedLeadsCount,
-  missedCallsCount = 0,
+  pendingFollowUpsCount = 0,
   onOpenVoiceBot,
   globalSavedFilters = [],
   activeFilterId = '',
@@ -106,7 +107,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           id: 'followups' as TabType, 
           label: 'Follow-Ups & Calls', 
           icon: Phone, 
-          badge: missedCallsCount > 0 ? missedCallsCount : undefined,
+          badge: pendingFollowUpsCount > 0 ? pendingFollowUpsCount : undefined,
           badgeColor: 'bg-rose-500 text-white'
         },
         { id: 'add_lead' as TabType, label: 'Add Lead', icon: UserPlus },
@@ -146,7 +147,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         // Users & Team: Admin only (removed from Manager)
         ...(isAdmin ? [{ id: 'team' as TabType, label: 'Users & Team', icon: Users }] : []),
         { id: 'filters' as any, label: 'Saved Filters', icon: Filter, isFilterAction: true },
-        { id: 'calls' as TabType, label: 'My Calls', icon: PhoneCall },
+        // My Calls: Manager + Telecaller call history (Admin uses Performance Reports instead)
+        ...(isAdmin ? [] : [{ id: 'calls' as TabType, label: 'My Calls', icon: PhoneCall }]),
       ]
     }
   ];

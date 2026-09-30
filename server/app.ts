@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 
@@ -22,12 +23,41 @@ import workspaceRoutes from './modules/workspace/workspace.routes';
 import reportsRoutes from './modules/reports/reports.routes';
 import { authMiddleware } from './middleware/auth';
 import { tenantContextMiddleware } from './middleware/tenantContext';
-import { isPostgresStoreEnabled, CONTROL_DB_NAME, resolveDbConfig } from './db/config';
-import { getAdminPool, getControlPool } from './db/tenantPool';
-import { listControlTenants } from './db/provisionTenant';
+import { isPostgresStoreEnabled } from './db/config';
+
+import { webhookLimiter } from './middleware/rateLimits';
+
+function allowedCorsOrigins(): Set<string> {
+  const origins = new Set<string>([
+    'capacitor://localhost',
+    'https://localhost',
+    'http://localhost',
+  ]);
+  const appUrl = String(process.env.APP_URL || '').trim().replace(/\/+$/, '');
+  if (appUrl) origins.add(appUrl);
+  String(process.env.CORS_EXTRA_ORIGINS || '')
+    .split(',')
+    .map((o) => o.trim().replace(/\/+$/, ''))
+    .filter(Boolean)
+    .forEach((o) => origins.add(o));
+  return origins;
+}
 
 export async function createApp() {
   const app = express();
+  // One hop: the AWS load balancer. Without this, every client shares the balancer IP.
+  app.set('trust proxy', 1);
+
+  const corsOrigins = allowedCorsOrigins();
+  app.use(
+    '/api',
+    cors({
+      origin: (origin, callback) => callback(null, !origin || corsOrigins.has(origin)),
+      allowedHeaders: ['Authorization', 'Content-Type', 'x-tenant-id', 'ngrok-skip-browser-warning'],
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      maxAge: 600,
+    })
+  );
   app.use(
     express.json({
       limit: '50mb',
@@ -46,6 +76,14 @@ export async function createApp() {
     })
   );
 
+  // Ensure JSON body-parser failures return JSON (not Express HTML error pages)
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (err instanceof SyntaxError && 'body' in err) {
+      return res.status(400).json({ success: false, error: 'Invalid JSON body' });
+    }
+    return next(err);
+  });
+
   // Health check endpoints
   app.get(['/health', '/api/health'], (req, res) => {
     res.status(200).json({
@@ -56,57 +94,8 @@ export async function createApp() {
     });
   });
 
-  app.get('/api/db/test', async (_req, res) => {
-    try {
-      if (!isPostgresStoreEnabled()) {
-        return res.status(200).json({
-          ok: true,
-          mode: 'json',
-          message: 'PIXBE_STORE is json — Postgres not required'
-        });
-      }
-      const admin = getAdminPool();
-      const ping = await admin.query('SELECT version() AS version, current_database() AS db');
-      const control = await getControlPool();
-      const tenants = await control.query('SELECT COUNT(*)::int AS n FROM tenants');
-      const cfg = resolveDbConfig();
-      return res.status(200).json({
-        ok: true,
-        mode: 'postgres',
-        host: cfg.host,
-        adminDb: ping.rows[0]?.db,
-        controlDb: CONTROL_DB_NAME,
-        tenantCount: tenants.rows[0]?.n ?? 0,
-        version: ping.rows[0]?.version
-      });
-    } catch (err: any) {
-      return res.status(500).json({ ok: false, error: err?.message || String(err) });
-    }
-  });
-
-  app.get('/api/db/tables', async (_req, res) => {
-    try {
-      if (!isPostgresStoreEnabled()) {
-        return res.status(200).json({ mode: 'json', tables: [] });
-      }
-      const control = await getControlPool();
-      const tables = await control.query(
-        `SELECT table_name FROM information_schema.tables
-         WHERE table_schema = 'public' ORDER BY table_name`
-      );
-      const tenants = await listControlTenants();
-      return res.status(200).json({
-        mode: 'postgres',
-        controlDb: CONTROL_DB_NAME,
-        controlTables: tables.rows.map((r) => r.table_name),
-        workspaces: tenants.map((t) => ({ tenantId: t.tenantId, dbName: t.dbName }))
-      });
-    } catch (err: any) {
-      return res.status(500).json({ ok: false, error: err?.message || String(err) });
-    }
-  });
-
   // Global Tenant Authentication & Isolation Context for API
+  app.use('/api/webhooks', webhookLimiter);
   app.use('/api', authMiddleware, tenantContextMiddleware);
 
   // Mount domain modules under /api

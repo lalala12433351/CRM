@@ -15,6 +15,28 @@ function tenantIdOf(req: Request): string {
   );
 }
 
+// GET /api/workspace/webhook-secrets — per-workspace inbound keys (created on first read)
+router.get('/workspace/webhook-secrets', requireAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const tenantId = tenantIdOf(req);
+    const leadSecret = await multiTenantDb.ensureLeadWebhookSecret(tenantId);
+    const googleAdsKey = await multiTenantDb.ensureGoogleAdsWebhookKey(tenantId);
+    res.json({
+      success: true,
+      tenantId,
+      leadSecret,
+      leadWebhookPath: `/api/webhooks/lead/${leadSecret}`,
+      googleAdsKey,
+      googleAdsWebhookPath: '/api/webhooks/google-ads',
+      headerName: 'X-Webhook-Secret'
+    });
+  } catch (err: any) {
+    const missing = String(err?.message || '').toLowerCase().includes('not found');
+    logger.error('Error loading webhook secrets:', err);
+    res.status(missing ? 404 : 500).json({ success: false, error: err.message });
+  }
+});
+
 // GET /api/workspace/settings
 router.get('/workspace/settings', requireAuthenticated, async (req: Request, res: Response) => {
   try {

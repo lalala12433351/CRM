@@ -172,6 +172,7 @@ export const CallingLogsPage: React.FC<CallingLogsViewProps> = ({ callRecords, a
                   <td className="px-3.5 py-2.5">
                     <CallRecordingPlayer
                       recordingUrl={call.recordingUrl}
+                      recordingStatus={call.recordingStatus}
                       durationSeconds={call.durationSeconds}
                       callId={call.id}
                     />
@@ -294,6 +295,7 @@ export const CallingLogsPage: React.FC<CallingLogsViewProps> = ({ callRecords, a
                 </label>
                 <CallRecordingPlayer
                   recordingUrl={selectedCall.recordingUrl}
+                  recordingStatus={selectedCall.recordingStatus}
                   durationSeconds={selectedCall.durationSeconds}
                   callId={selectedCall.id}
                 />

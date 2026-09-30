@@ -36,7 +36,8 @@ export async function startServer() {
     logger.info(`🚀 Server running on http://0.0.0.0:${serverPort}`);
     // Start automated Meta real-time sync engine
     import('./modules/integrations/meta/meta.sync').then(({ metaSyncEngine }) => {
-      metaSyncEngine.startPeriodicSync(15000); // Polls every 15s
+      // Webhooks deliver leads in real time; polling is a backup and counts against Meta's per-page leadgen rate limit
+      metaSyncEngine.startPeriodicSync(Number(process.env.META_POLL_INTERVAL_MS) || 120000);
     }).catch((err) => logger.warn('[Meta Sync Start Notice]:', err?.message));
   });
 

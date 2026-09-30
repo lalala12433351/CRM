@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import { Lead } from '../types';
 import { StatusBadge } from './StatusBadge';
+import { dialNumber } from '../lib/calling';
 
 interface LeadSummaryModalProps {
   lead: Lead | null;
@@ -32,7 +33,7 @@ export const LeadSummaryModal: React.FC<LeadSummaryModalProps> = ({
     if (onCallLead) {
       onCallLead(lead);
     } else {
-      window.location.href = `tel:${lead.phone}`;
+      dialNumber(lead.phone, { leadId: lead.id, leadName: lead.name }).catch(console.warn);
     }
   };
 

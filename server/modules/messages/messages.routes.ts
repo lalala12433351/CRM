@@ -1,8 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { multiTenantDb } from '../../services/multiTenantDb';
 import { logger } from '../../utils/logger';
+import { requireAuthenticated } from '../../middleware/rbac';
 
 const router = Router();
+router.use(['/messages', '/whatsapp-templates', '/whatsapp-campaigns'], requireAuthenticated);
 
 function tenantIdOf(req: Request): string {
   return (

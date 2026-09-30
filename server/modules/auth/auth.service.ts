@@ -9,15 +9,19 @@ import {
   cognitoResendConfirmation,
   cognitoConfirmSignUp,
   cognitoLogin,
+  findCognitoUserByEmail,
+  cognitoSetUserPassword,
   cognitoForgotPassword,
   cognitoConfirmForgotPassword,
+  cognitoAdminDeleteUser,
   decodeJwtPayload
 } from '../../auth/cognitoClient';
 import { looksLikeJwt, verifyCognitoIdToken } from '../../auth/cognitoJwt';
 import {
   findMembershipsByCognitoSub,
   findMembershipsByEmail,
-  bindCognitoSubToMembership
+  bindCognitoSubToMembership,
+  deleteMembership
 } from '../../db/provisionTenant';
 
 export interface UserAccount {
@@ -179,10 +183,14 @@ export class AuthService {
     if (isCognitoEnabled()) {
       if (!targetEmail) throw new Error('Email is required for Cognito verification');
       if (extras?.resend) {
+        const existing = await findCognitoUserByEmail(targetEmail);
+        if (existing?.status === 'CONFIRMED' || existing?.emailVerified) {
+          return { code: undefined as string | undefined, key: targetEmail, via: 'cognito' as const, alreadyConfirmed: true };
+        }
         await cognitoResendConfirmation(targetEmail);
         return { code: undefined as string | undefined, key: targetEmail, via: 'cognito' as const };
       }
-      const password = extras?.password || '';
+      const password = (extras?.password || '').trim();
       const name = (extras?.name || '').trim();
       if (!password || !name) {
         throw new Error('Name and password are required to start Cognito sign-up');
@@ -201,13 +209,13 @@ export class AuthService {
       } catch (err: any) {
         const msg = err?.message || '';
         if (msg.toLowerCase().includes('already exists')) {
-          // Unconfirmed user may need a resent code
-          try {
-            await cognitoResendConfirmation(targetEmail);
-            return { code: undefined, key: targetEmail, via: 'cognito' as const };
-          } catch {
-            throw err;
+          const existing = await findCognitoUserByEmail(targetEmail);
+          if (!existing || existing.status === 'CONFIRMED' || existing.emailVerified) {
+            return { code: undefined, key: targetEmail, via: 'cognito' as const, alreadyConfirmed: true };
           }
+          await cognitoSetUserPassword(existing.username, password);
+          await cognitoResendConfirmation(targetEmail);
+          return { code: undefined, key: targetEmail, via: 'cognito' as const };
         }
         throw err;
       }
@@ -228,8 +236,15 @@ export class AuthService {
     const key = (email || phone || '').trim().toLowerCase();
 
     if (isCognitoEnabled()) {
-      if (!email) throw new Error('Email is required to verify Cognito sign-up');
-      await cognitoConfirmSignUp(email, otp || '');
+      const targetEmail = (email || '').trim().toLowerCase();
+      if (!targetEmail) throw new Error('Email is required to verify Cognito sign-up');
+      try {
+        await cognitoConfirmSignUp(targetEmail, otp || '');
+      } catch (err: any) {
+        const message = String(err?.message || '');
+        if (/already verified/i.test(message)) return true;
+        throw err;
+      }
       return true;
     }
 
@@ -359,7 +374,18 @@ export class AuthService {
       }
 
       // Confirm sign-up must already have succeeded (OTP step). Authenticate to get sub + tokens.
-      const tokens = await cognitoLogin(targetEmail, password);
+      let tokens;
+      try {
+        tokens = await cognitoLogin(targetEmail, password);
+      } catch (err: any) {
+        const message = String(err?.message || '');
+        if (/incorrect email or password/i.test(message)) {
+          throw new Error(
+            'This email is already verified, but that password does not match the one originally used. Sign in with that password, or reset it from the login page.'
+          );
+        }
+        throw err;
+      }
       const payload = decodeJwtPayload(tokens.idToken);
       const cognitoSub = String(payload.sub || '').trim();
       if (!cognitoSub) throw new Error('Cognito login succeeded but token had no sub');
@@ -677,6 +703,58 @@ export class AuthService {
     if (looksLikeJwt(token)) return; // Cognito JWT is stateless; client clears storage
     activeSessions.delete(token);
     persistSessions();
+  }
+
+  /**
+   * Self-service account deletion (required by the App Store). Removes the user from the
+   * current workspace and deletes their login once no other workspace uses it. When the
+   * last admin leaves, the workspace is flagged so its data can be purged.
+   */
+  public async deleteAccount(user: UserAccount): Promise<{ workspaceDeletionRequested: boolean }> {
+    const tenantId = user.tenantId || '';
+    if (!tenantId || !user.id) throw new Error('Session has no workspace');
+    const email = (user.email || '').trim().toLowerCase();
+
+    const agents = await multiTenantDb.getAgents(tenantId);
+    const isAdminAgent = (a: { isAdmin?: boolean; role?: string }) => Boolean(a.isAdmin) || a.role === 'Admin';
+    const lastAdmin =
+      (user.isAdmin || user.role === 'Admin') &&
+      !agents.some((a) => a.id !== user.id && isAdminAgent(a));
+
+    await multiTenantDb.deleteAgent(tenantId, user.id);
+    try {
+      await deleteMembership(tenantId, user.id);
+    } catch {
+      // Postgres control plane not configured; the JSON store removal above is enough.
+    }
+
+    if (lastAdmin) {
+      await multiTenantDb.saveWorkspaceSettings(tenantId, {
+        deletionRequestedAt: new Date().toISOString(),
+        deletionRequestedBy: email || user.id
+      });
+      logger.warn(`[Auth] Last admin ${email || user.id} deleted their account; workspace ${tenantId} flagged for deletion`);
+    }
+
+    if (email) {
+      let otherMemberships = 0;
+      try {
+        otherMemberships = (await findMembershipsByEmail(email)).filter((m) => m.tenantId !== tenantId).length;
+      } catch {
+        otherMemberships = (await multiTenantDb.findAgentByEmail(email)) ? 1 : 0;
+      }
+      if (otherMemberships === 0) await cognitoAdminDeleteUser(email);
+    }
+
+    for (const [token, session] of activeSessions) {
+      if (session.id === user.id && session.tenantId === tenantId) activeSessions.delete(token);
+    }
+    persistSessions();
+    const cached = AUTH_USERS.findIndex((u) => u.id === user.id && u.tenantId === tenantId);
+    if (cached >= 0) AUTH_USERS.splice(cached, 1);
+
+    logger.info(`[Auth] Account deleted: ${email || user.id} from ${tenantId}`);
+    return { workspaceDeletionRequested: lastAdmin };
   }
 
   /** Re-bind a browser token after server restart so API creates/fetches keep working. */

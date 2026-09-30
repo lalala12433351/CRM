@@ -30,10 +30,11 @@ import {
   ShieldCheck,
   Database
 } from 'lucide-react';
-import { Lead, Agent, LeadSource, LeadStatus, CustomFieldDef, ActivityLog } from '../types';
+import { Lead, Agent, LeadSource, LeadStatus, CustomFieldDef } from '../types';
 import { CustomDropdown, DropdownOption } from '../components/CustomDropdown';
 import { StagesContext } from '../App';
 import { validateField, validatePhone, validateCurrencyOrNumber, validateEmail } from '../lib/validation';
+import { AGE_OPTIONS, isAgeField } from '../lib/ageField';
 
 interface AddLeadViewProps {
   leads: Lead[];
@@ -399,16 +400,6 @@ export const AddLeadPage: React.FC<AddLeadViewProps> = ({
     const matchingStage = stages?.find((s) => s.name.toLowerCase() === leadStatus.toLowerCase());
 
     const newLeadId = `lead-${Date.now()}`;
-    const creationAct: ActivityLog = {
-      id: `act-${Date.now()}`,
-      leadId: newLeadId,
-      type: 'creation',
-      title: 'Lead Created',
-      description: `Lead created from ${finalSource || 'Manual Entry'}`,
-      timestamp: new Date().toISOString(),
-      agentId: finalOwnerId,
-      agentName: finalOwnerName
-    };
 
     return {
       id: newLeadId,
@@ -440,7 +431,6 @@ export const AddLeadPage: React.FC<AddLeadViewProps> = ({
       utmMedium: utmMedium || undefined,
       utmCampaign: utmCampaign || campaignName || undefined,
       whatsappOptIn: whatsappOptIn,
-      activities: [creationAct],
     };
   };
 
@@ -965,6 +955,8 @@ export const AddLeadPage: React.FC<AddLeadViewProps> = ({
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-1">
                     {dynamicCustomFields.map((field) => {
                         const val = customFieldValues[field.name] ?? '';
+                        const ageSelect = isAgeField(field);
+                        const selectOptions = ageSelect ? AGE_OPTIONS : (field.options || []);
                         return (
                           <div key={field.id} className="space-y-1">
                             <label className="block text-slate-700 font-semibold truncate flex items-center justify-between">
@@ -978,7 +970,7 @@ export const AddLeadPage: React.FC<AddLeadViewProps> = ({
                               )}
                             </label>
 
-                            {field.type === 'dropdown' ? (
+                            {field.type === 'dropdown' || ageSelect ? (
                               <CustomDropdown<string>
                                 value={val || ''}
                                 onChange={(newVal) =>
@@ -989,7 +981,7 @@ export const AddLeadPage: React.FC<AddLeadViewProps> = ({
                                 }
                                 options={[
                                   { value: '', label: `-- Select ${field.label} --` },
-                                  ...(field.options || []).map((opt) => ({ value: opt, label: opt })),
+                                  ...selectOptions.map((opt) => ({ value: opt, label: opt })),
                                 ]}
                                 placeholder={`-- Select ${field.label} --`}
                                 align="left"

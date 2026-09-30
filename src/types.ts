@@ -279,6 +279,9 @@ export interface CallRecord {
   callStartTime?: string;
   callEndTime?: string;
   recordingUrl?: string;
+  recordingStatus?: 'pending' | 'uploaded' | 'not_found' | 'failed' | 'disabled';
+  simSlot?: number;
+  source?: 'manual' | 'mobile_app';
   disposition: LeadStatus | string;
   notes?: string;
   callNotes?: string;

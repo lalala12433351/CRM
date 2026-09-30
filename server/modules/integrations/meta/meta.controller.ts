@@ -32,7 +32,8 @@ export class MetaController {
         error: 'META_REDIRECT_URI or APP_URL must be set for Facebook OAuth.'
       });
     }
-    const { url, state } = metaService.generateOAuthUrl(clientId, redirectUri);
+    const platform = req.query.platform === 'native' ? 'native' : 'web';
+    const { url, state } = metaService.generateOAuthUrl(clientId, redirectUri, platform);
 
     logger.info(`[Meta Controller] Initiating Facebook OAuth for client: ${clientId}`);
 
@@ -54,27 +55,28 @@ export class MetaController {
    */
   public async handleOAuthCallback(req: any, res: Response) {
     const { code, state, error, error_description } = req.query;
+    const stateValidation = metaService.verifyState(String(state || ''));
+    const native = stateValidation.platform === 'native';
 
     if (error) {
       logger.warn(`[Meta OAuth] OAuth authorization declined or failed: ${error} - ${error_description}`);
       return this.renderPopupResponse(res, false, {
         message: String(error_description || error || 'Facebook Login was cancelled.')
-      });
+      }, native);
     }
 
     if (!code) {
       return this.renderPopupResponse(res, false, {
         message: 'No authorization code received from Facebook.'
-      });
+      }, native);
     }
 
     // 1. Validate CSRF State and extract Tenant/Client ID
-    const stateValidation = metaService.verifyState(String(state || ''));
     if (!stateValidation.valid || !stateValidation.clientId) {
       logger.warn(`[Meta OAuth] State verification failed: ${stateValidation.error}`);
       return this.renderPopupResponse(res, false, {
         message: stateValidation.error || 'Invalid or expired OAuth state. Please try connecting again.'
-      });
+      }, native);
     }
     const clientId = stateValidation.clientId;
 
@@ -125,11 +127,11 @@ export class MetaController {
         pages: connectedPages,
         count: connectedPages.length,
         clientId
-      });
+      }, native);
     } catch (err: any) {
       const errMsg = err.response?.data?.error?.message || err.message || 'Unknown OAuth error';
       logger.error('[Meta Controller] OAuth Token Exchange Error:', errMsg);
-      return this.renderPopupResponse(res, false, { message: errMsg });
+      return this.renderPopupResponse(res, false, { message: errMsg }, native);
     }
   }
 
@@ -311,9 +313,13 @@ export class MetaController {
       return res.status(400).json({ success: false, error: 'pageId parameter is required' });
     }
     try {
-      const forms = await metaService.getPageForms(pageId);
+      const forms = await metaService.getPageForms(pageId, { refresh: req.query?.refresh === '1' });
       return res.json({ success: true, pageId, forms, count: forms.length });
     } catch (err: any) {
+      if (err?.status === 429) {
+        logger.warn(`[Meta Controller] Forms for page ${pageId} rate limited by Meta`);
+        return res.status(429).json({ success: false, error: err.message, rateLimited: true });
+      }
       logger.error(`[Meta Controller] Error fetching forms for page ${pageId}:`, err);
       return res.status(500).json({ success: false, error: err.message });
     }
@@ -359,6 +365,7 @@ export class MetaController {
       campaignHandle,
       fieldMapping,
       leadDistribution,
+      distributeActiveOnly,
       importOption
     } = req.body;
 
@@ -382,6 +389,10 @@ export class MetaController {
       const targetCampHandle = normalizedHandle ? `@${normalizedHandle}` : '@campaign';
       const targetCampName = (campaignName || campaignHandle || '').replace(/^@/, '').trim() || normalizedHandle;
 
+      const previousMapping = campaignMappings[formId];
+      const isNewConnection = !previousMapping;
+      const nowIso = new Date().toISOString();
+
       campaignMappings[formId] = {
         pageId,
         pageName: pageName || 'Facebook Page',
@@ -389,10 +400,13 @@ export class MetaController {
         formName: formName || 'Meta Form',
         campaignName: targetCampName,
         campaignHandle: targetCampHandle,
-        fieldMapping: fieldMapping || [],
-        leadDistribution: leadDistribution || [],
+        fieldMapping: Array.isArray(fieldMapping) ? fieldMapping : [],
+        leadDistribution: Array.isArray(leadDistribution) ? leadDistribution : [],
+        distributeActiveOnly: Boolean(distributeActiveOnly),
         importOption: importOption || 'future_only',
-        updatedAt: new Date().toISOString()
+        // Import cutoffs are measured from the first connection, not from later edits
+        connectedAt: previousMapping?.connectedAt || previousMapping?.updatedAt || nowIso,
+        updatedAt: nowIso
       };
 
       await multiTenantDb.saveIntegration(clientId, {
@@ -425,21 +439,25 @@ export class MetaController {
         logger.warn('[Meta Controller] Could not mirror mapping into workspace campaigns:', campErr);
       }
 
-      // 2. Mark and update all matching leads in the database with campaign name & distribution
+      // 2. Tag existing leads from this form with the campaign. Owners are only distributed on the first
+      //    connection so re-saving the wizard never overrides manual reassignments.
       let updatedLeadCount = 0;
 
       try {
         const allLeads = await multiTenantDb.getLeads(clientId, [], true);
-        const distMembers = Array.isArray(leadDistribution) && leadDistribution.length > 0 ? leadDistribution : [];
+        const agents = await multiTenantDb.getAgents(clientId);
+        const distMembers = isNewConnection && Array.isArray(leadDistribution)
+          ? leadDistribution
+              .map((m: any) => agents.find((a: any) => a.id === m.id))
+              .filter(Boolean) as any[]
+          : [];
         let dIdx = 0;
 
         for (const lead of allLeads) {
           const lFormId = lead.formId || lead.customFields?.meta_form_id || lead.customFields?.form_id;
-          const lFormName = lead.formName || lead.customFields?.meta_form_name || lead.customFields?.form_name;
           const isMatch =
             (lFormId && String(lFormId) === String(formId)) ||
-            (lFormName && formName && lFormName.toLowerCase().trim() === formName.toLowerCase().trim()) ||
-            (lead.notes && typeof lead.notes === 'string' && lead.notes.includes(String(formId)));
+            (lead.notes && typeof lead.notes === 'string' && lead.notes.includes(`Form ID: ${formId}`));
 
           if (isMatch) {
             lead.campaign = targetCampName;
@@ -461,16 +479,19 @@ export class MetaController {
               page_name: pageName || lead.pageName
             };
 
-            // Distribute among selected team members in the database
             if (distMembers.length > 0) {
               const assignedUser = distMembers[dIdx % distMembers.length];
               dIdx++;
               lead.ownerAgentName = assignedUser.name;
               lead.ownerAgentId = assignedUser.id;
-              lead.assignedTo = assignedUser.name;
+              lead.assignedTo = assignedUser.id;
             }
 
-            await multiTenantDb.saveLead(clientId, lead);
+            await multiTenantDb.saveLead(clientId, lead, {
+              actor: req.user?.id
+                ? { id: req.user.id, name: req.user.name || req.user.email || 'User' }
+                : { id: 'bot', name: 'Meta integration' }
+            });
             updatedLeadCount++;
           }
         }
@@ -565,11 +586,20 @@ export class MetaController {
    * Helper to render seamless popup window bridge & redirect fallback
    */
   private renderPopupResponse(
-
     res: Response,
     success: boolean,
-    data: { pages?: any[]; count?: number; clientId?: string; message?: string }
+    data: { pages?: any[]; count?: number; clientId?: string; message?: string },
+    native = false
   ) {
+    if (native) {
+      const params = new URLSearchParams(
+        success
+          ? { status: 'success', count: String(data.count || 0) }
+          : { status: 'error', error: data.message || 'Facebook connection failed' }
+      );
+      return res.redirect(`pixbecrm://oauth/meta?${params.toString()}`);
+    }
+
     if (success) {
       return res.send(`
         <!DOCTYPE html>

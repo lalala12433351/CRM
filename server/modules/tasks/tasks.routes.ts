@@ -1,8 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { multiTenantDb } from '../../services/multiTenantDb';
 import { logger } from '../../utils/logger';
+import { requireAuthenticated } from '../../middleware/rbac';
 
 const router = Router();
+router.use('/tasks', requireAuthenticated);
 
 // GET /api/tasks - Get all tasks for current tenant
 router.get('/tasks', async (req: Request, res: Response) => {

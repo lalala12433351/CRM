@@ -30,7 +30,10 @@ import {
   Unlink
 } from 'lucide-react';
 import { Agent, CustomFieldDef } from '../types';
-import { fetchWithTenantAuth } from '../lib/auth';
+import { LeadFieldEditorModal } from '../components/LeadFieldEditorModal';
+import { fetchWithTenantAuth, readApiJson } from '../lib/auth';
+import { isNative, publicOrigin } from '../lib/platform';
+import { DEEP_LINK_EVENT, openExternal } from '../lib/nativeShell';
 import { formatCampaignHandle } from '../utils/leadFormUtils';
 
 export interface IntegrationItem {
@@ -62,6 +65,7 @@ export interface ConnectedForm {
 export interface IntegrationsViewProps {
   agents?: Agent[];
   customFields?: CustomFieldDef[];
+  onUpdateFields?: (fields: CustomFieldDef[]) => void;
   onNavigateToCampaign?: (campaignHandle: string) => void;
   onOpenGoogleSheets?: () => void;
   /** Called after Meta/Facebook leads are synced into multi_tenant_store */
@@ -80,7 +84,7 @@ const INITIAL_INTEGRATIONS: IntegrationItem[] = [
     isActive: false,
     category: 'social',
     iconType: 'facebook',
-    webhookUrl: `${typeof window !== 'undefined' ? window.location.origin : ''}/api/webhooks/meta`,
+    webhookUrl: `${typeof window !== 'undefined' ? publicOrigin() : ''}/api/webhooks/meta`,
     lastSync: undefined
   },
 
@@ -276,6 +280,7 @@ const INITIAL_INTEGRATIONS: IntegrationItem[] = [
 export const IntegrationsPage: React.FC<IntegrationsViewProps> = ({
   agents = [],
   customFields = [],
+  onUpdateFields,
   onNavigateToCampaign,
   onOpenGoogleSheets,
   onLeadsSynced
@@ -317,8 +322,8 @@ export const IntegrationsPage: React.FC<IntegrationsViewProps> = ({
       .catch(() => { });
   }, [customFields]);
 
-  // Dynamically assemble all available TeleCRM lead fields strictly in database order
-  const telecrmLeadFields = React.useMemo(() => {
+  // Lead fields in database order, used as the mapping dropdown options.
+  const crmLeadFields = React.useMemo(() => {
     const list: string[] = [];
     const seen = new Set<string>();
 
@@ -341,6 +346,7 @@ export const IntegrationsPage: React.FC<IntegrationsViewProps> = ({
 
   // Modal State for activation/webhook
   const [selectedIntegration, setSelectedIntegration] = useState<IntegrationItem | null>(null);
+  const [leadWebhookUrl, setLeadWebhookUrl] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
@@ -379,7 +385,12 @@ export const IntegrationsPage: React.FC<IntegrationsViewProps> = ({
   const [wizardFormId, setWizardFormId] = useState<string>('');
   const [pageForms, setPageForms] = useState<Array<{ id: string; name: string; questions?: any[] }>>([]);
   const [formQuestions, setFormQuestions] = useState<Array<{ label: string; key: string; type?: string }>>([]);
-  const [fieldMapping, setFieldMapping] = useState<Array<{ fbQuestion: string; telecrmField: string; replaceRule: string }>>([]);
+  const [fieldMapping, setFieldMapping] = useState<Array<{ fbQuestion: string; fbKey?: string; crmField: string; replaceRule: string }>>([]);
+  const [fieldEditorRow, setFieldEditorRow] = useState<number | null>(null);
+  const [fbView, setFbView] = useState<'forms' | 'wizard'>('forms');
+  const [wizardFormName, setWizardFormName] = useState<string>('');
+  const [connectedMappings, setConnectedMappings] = useState<any[]>([]);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState<boolean>(false);
   const [wizardCampaignName, setWizardCampaignName] = useState<string>('');
 const [teamMemberRoleFilter, setTeamMemberRoleFilter] = useState<string>('All');
 const [teamMemberSearch, setTeamMemberSearch] = useState<string>('');
@@ -388,108 +399,143 @@ const [distributeActiveOnly, setDistributeActiveOnly] = useState<boolean>(true);
 const [importOption, setImportOption] = useState<string>('future_only');
 const [isLoadingForms, setIsLoadingForms] = useState<boolean>(false);
 
-const fetchPageForms = async (pageId: string) => {
+const fetchPageForms = async (pageId: string, refresh = false) => {
   if (!pageId) {
     setPageForms([]);
-    setWizardFormId('');
     return;
   }
   setIsLoadingForms(true);
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
-    const res = await fetchWithTenantAuth(`/api/integrations/facebook/pages/${pageId}/forms`, { signal: controller.signal });
+    const res = await fetchWithTenantAuth(
+      `/api/integrations/facebook/pages/${pageId}/forms${refresh ? '?refresh=1' : ''}`,
+      { signal: controller.signal }
+    );
     clearTimeout(timeoutId);
     const data = await res.json();
     if (data.success && Array.isArray(data.forms)) {
       setPageForms(data.forms);
-      if (data.forms.length > 0) {
-        setWizardFormId(data.forms[0].id);
-        const defaultHandle = `@${data.forms[0].name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
-        setWizardCampaignName(defaultHandle);
-        fetchFormQuestions(pageId, data.forms[0].id);
-      } else {
-        setWizardFormId('');
+      if (data.forms.length === 0) {
         toast.info('No lead forms found on this Facebook Page. Publish a Lead Ad form in Meta Ads Manager.', 'Meta Forms');
       }
+    } else if (data.rateLimited) {
+      toast.info(data.error, 'Meta Forms');
     } else {
       setPageForms([]);
-      setWizardFormId('');
       if (data.error) {
         toast.error(data.error, 'Meta Forms');
       }
     }
   } catch (err: any) {
     setPageForms([]);
-    setWizardFormId('');
     toast.error(err?.message || 'Failed to load forms from Facebook', 'Meta Forms');
   } finally {
     setIsLoadingForms(false);
   }
 };
 
-const fetchFormQuestions = async (pageId: string, formId: string) => {
+const UNMAPPED_FIELD = '[ Select Telecrm Field To Map ]';
+const ADD_FIELD_OPTION = '__add_crm_field__';
+
+// Meta standard question keys → CRM field-setting names
+const META_KEY_TO_FIELD_NAME: Record<string, string[]> = {
+  full_name: ['name'],
+  first_name: ['name'],
+  phone_number: ['phone'],
+  email: ['email'],
+  city: ['city'],
+  state: ['state'],
+  company_name: ['company'],
+  street_address: ['address'],
+  date_of_birth: ['dob', 'date_of_birth'],
+};
+
+const suggestCrmField = (q: { label?: string; key?: string }, usedLabels: Set<string>): string => {
+  const fields = (dbLeadFields || []).filter((f: any) => (f.label || f.name) && !usedLabels.has(String(f.label || f.name).toLowerCase()));
+  const labelOf = (f: any) => String(f.label || f.name).trim();
+  const key = String(q.key || '').toLowerCase();
+
+  const byKey = META_KEY_TO_FIELD_NAME[key];
+  if (byKey) {
+    const f = fields.find((x: any) => byKey.includes(String(x.name || '').toLowerCase()));
+    if (f) return labelOf(f);
+  }
+
+  const qText = String(q.label || q.key || '').trim().toLowerCase();
+  const exact = fields.find((x: any) => labelOf(x).toLowerCase() === qText || String(x.name || '').toLowerCase() === key);
+  if (exact) return labelOf(exact);
+  const partial = fields.find((x: any) => {
+    const fl = labelOf(x).toLowerCase();
+    return fl.length > 2 && qText.includes(fl);
+  });
+  return partial ? labelOf(partial) : UNMAPPED_FIELD;
+};
+
+const fetchFormQuestions = async (
+  pageId: string,
+  formId: string,
+  savedMapping: Array<{ fbQuestion: string; fbKey?: string; crmField?: string; telecrmField?: string; replaceRule: string }> = []
+) => {
+  setIsLoadingQuestions(true);
+  setFieldMapping([]);
+  setFieldEditorRow(null);
   try {
     const res = await fetchWithTenantAuth(`/api/integrations/facebook/pages/${pageId}/forms/${formId}/questions`);
     const data = await res.json();
     if (data.success && Array.isArray(data.questions)) {
       setFormQuestions(data.questions);
+      const used = new Set<string>();
       const map = data.questions.map((q: any) => {
-        let telecrmField = '[ Select Telecrm Field To Map ]';
         const qText = (q.label || q.key || '').trim();
-        const l = qText.toLowerCase();
-
-        // Match against telecrm lead fields fetched from database
-        const found = telecrmLeadFields.find(f => {
-          const fl = f.toLowerCase();
-          return fl === l || (l.includes(fl) && fl.length > 2);
-        });
-
-        if (found) {
-          telecrmField = found;
-        } else if (l.includes('budget') || l.includes('price') || l.includes('amount') || l.includes('crore')) {
-          telecrmField = 'Deal Value';
-        } else if (l.includes('visit') || l.includes('site')) {
-          telecrmField = 'site visit';
-        } else if (l.includes('when') || l.includes('time') || l.includes('plan') || l.includes('invest')) {
-          telecrmField = 'Investment Timeline';
-        } else if (l.includes('home') || l.includes('bhk') || l.includes('config') || l.includes('suit') || l.includes('require')) {
-          telecrmField = 'Home Configuration';
-        } else if (l.includes('email')) {
-          telecrmField = 'Email';
-        } else if (l.includes('phone') || l.includes('mobile') || l.includes('number')) {
-          telecrmField = 'Number';
-        } else if (l.includes('name')) {
-          telecrmField = 'Name';
-        } else if (l.includes('birth') || l.includes('dob')) {
-          telecrmField = 'Date of Birth';
-        } else if (l.includes('city')) {
-          telecrmField = 'City';
-        } else if (l.includes('state')) {
-          telecrmField = 'State';
-        }
-
+        const saved = savedMapping.find(
+          (m) => (m.fbKey && m.fbKey === q.key) || (m.fbQuestion && (m.fbQuestion === qText || m.fbQuestion === q.key))
+        );
+        const crmField = saved?.crmField || saved?.telecrmField || suggestCrmField(q, used);
+        if (crmField !== UNMAPPED_FIELD) used.add(crmField.toLowerCase());
         return {
           fbQuestion: qText,
-          telecrmField,
-          replaceRule: 'Replace if empty'
+          fbKey: q.key,
+          crmField,
+          replaceRule: saved?.replaceRule || 'Replace if empty'
         };
       });
       setFieldMapping(map);
+    } else if (data.error) {
+      toast.error(data.error, 'Meta Forms');
     }
-  } catch { }
+  } catch (err: any) {
+    toast.error(err?.message || 'Failed to load form questions from Facebook', 'Meta Forms');
+  } finally {
+    setIsLoadingQuestions(false);
+  }
+};
+
+const openFormSetup = (pageId: string, form: { id: string; name?: string }) => {
+  const saved = connectedMappings.find((m) => String(m.formId) === String(form.id));
+  const formName = form.name || saved?.formName || `Form ${form.id}`;
+  setWizardPageId(pageId);
+  setWizardFormId(form.id);
+  setWizardFormName(formName);
+  setWizardCampaignName(saved?.campaignHandle || `@${formName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`);
+  const savedIds = Array.isArray(saved?.leadDistribution) ? saved.leadDistribution.map((m: any) => m.id) : [];
+  setSelectedDistributionUsers(savedIds.filter((id: string) => teamMembers.some((tm) => tm.id === id)));
+  setDistributeActiveOnly(saved ? Boolean(saved.distributeActiveOnly) : true);
+  setImportOption(saved?.importOption || 'future_only');
+  fetchFormQuestions(pageId, form.id, saved?.fieldMapping || []);
+  setWizardStep(2);
+  setFbView('wizard');
 };
 
 // Fetch Meta status on mount & listen for Meta OAuth Login popup postMessage callback
-const fetchConnectedFormMappings = React.useCallback(async (pageId?: string) => {
+const fetchConnectedFormMappings = React.useCallback(async () => {
   try {
-    const qs = pageId ? `?pageId=${encodeURIComponent(pageId)}` : '';
-    const res = await fetchWithTenantAuth(`/api/integrations/facebook/campaign-mappings${qs}`);
+    const res = await fetchWithTenantAuth('/api/integrations/facebook/campaign-mappings');
     const data = await res.json();
     if (data.success && Array.isArray(data.mappings)) {
+      setConnectedMappings(data.mappings.filter((m: any) => m && m.formId));
       const mappedForms: ConnectedForm[] = data.mappings
         .filter((m: any) => m && (m.formId || m.formName))
-        .filter((m: any) => !pageId || String(m.pageId) === String(pageId))
         .map((m: any) => ({
           id: `f-${m.formId}`,
           title: m.formName || `Form ${m.formId}`,
@@ -566,7 +612,7 @@ const fetchConnectedFacebookPages = React.useCallback(async () => {
               : item
           )
         );
-        await fetchConnectedFormMappings(firstPageId);
+        await fetchConnectedFormMappings();
       } else {
         // Not connected — clear fake logged-in state so Activate shows Facebook Login
         setFbUser(null);
@@ -610,21 +656,43 @@ React.useEffect(() => {
         iconType: 'facebook'
       });
       setWizardStep(1);
+      setFbView('forms');
     } else if (event.data && event.data.type === 'META_AUTH_ERROR') {
       toast.error(event.data.error || 'Facebook connection failed', 'Meta Integration');
     }
   };
 
+  const handleMetaDeepLink = (event: Event) => {
+    const url = (event as CustomEvent<{ url: string }>).detail?.url || '';
+    if (!url.startsWith('pixbecrm://oauth/meta')) return;
+    const params = new URL(url.replace('pixbecrm://', 'https://app/')).searchParams;
+    handleFbAuthMessage(
+      new MessageEvent('message', {
+        data: params.get('status') === 'success'
+          ? { type: 'META_AUTH_SUCCESS' }
+          : { type: 'META_AUTH_ERROR', error: params.get('error') || undefined }
+      })
+    );
+  };
+
   window.addEventListener('message', handleFbAuthMessage);
-  return () => window.removeEventListener('message', handleFbAuthMessage);
+  window.addEventListener(DEEP_LINK_EVENT, handleMetaDeepLink);
+  return () => {
+    window.removeEventListener('message', handleFbAuthMessage);
+    window.removeEventListener(DEEP_LINK_EVENT, handleMetaDeepLink);
+  };
 }, [fetchConnectedFacebookPages]);
 
 const handleConnectMeta = async () => {
   setIsLoggingInFb(true);
   try {
-    const res = await fetchWithTenantAuth('/api/integrations/facebook/connect?format=json');
+    const res = await fetchWithTenantAuth(
+      `/api/integrations/facebook/connect?format=json${isNative ? '&platform=native' : ''}`
+    );
     const data = await res.json();
-    if (data.success && data.url) {
+    if (data.success && data.url && isNative) {
+      await openExternal(data.url);
+    } else if (data.success && data.url) {
       const width = 650;
       const height = 750;
       const left = window.screenX + (window.outerWidth - width) / 2;
@@ -634,11 +702,14 @@ const handleConnectMeta = async () => {
         'Facebook OAuth',
         `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,status=yes`
       );
+    } else if (isNative) {
+      toast.error(data.error || 'Could not start Facebook login', 'Meta Integration');
     } else {
       window.location.href = '/api/integrations/facebook/connect';
     }
   } catch {
-    window.location.href = '/api/integrations/facebook/connect';
+    if (isNative) toast.error('Could not reach the server to start Facebook login', 'Meta Integration');
+    else window.location.href = '/api/integrations/facebook/connect';
   } finally {
     setIsLoggingInFb(false);
   }
@@ -693,7 +764,8 @@ const handleUnlinkForm = async (formId: string) => {
         'Meta Integration'
       );
       setFormsList(prev => prev.filter(f => f.formId !== formId));
-      await fetchConnectedFormMappings(wizardPageId || undefined);
+      if (formId === wizardFormId) setFbView('forms');
+      await fetchConnectedFormMappings();
       onLeadsSynced?.();
     } else {
       toast.error(data.error || 'Failed to unlink form', 'Meta Integration');
@@ -819,8 +891,10 @@ const handleFacebookLogout = async () => {
   setFbAvailablePages([]);
   setFormsList([]);
   setPageForms([]);
+  setConnectedMappings([]);
   setWizardFormId('');
   setWizardPageId('');
+  setFbView('forms');
   setFbStep('overview');
   setSelectedManageIntegration(null);
   setIntegrations(prev => prev.map(item => item.id === 'facebook' ? { ...item, isActive: false, lastSync: 'Disconnected' } : item));
@@ -880,6 +954,33 @@ const filteredForms = formsList.filter((f) =>
 
 // Universal Integrations UI State & Handlers
 const [integrationCreds, setIntegrationCreds] = useState<Record<string, string>>({});
+
+React.useEffect(() => {
+  if (!isModalOpen) return;
+  let cancelled = false;
+  fetchWithTenantAuth('/api/workspace/webhook-secrets')
+    .then((res) => res.json())
+    .then((data) => {
+      if (cancelled || !data?.success) return;
+      if (data.leadWebhookPath) {
+        setLeadWebhookUrl(`${publicOrigin()}${data.leadWebhookPath}`);
+      }
+      if (data.googleAdsKey) {
+        setIntegrationCreds((prev) => ({
+          ...prev,
+          webhookKey:
+            prev.webhookKey && prev.webhookKey !== 'pixbe_google_ads_key'
+              ? prev.webhookKey
+              : data.googleAdsKey
+        }));
+      }
+    })
+    .catch(() => {});
+  return () => {
+    cancelled = true;
+  };
+}, [isModalOpen]);
+
 const [modalStatusMsg, setModalStatusMsg] = useState<string | null>(null);
 const [isTestingConn, setIsTestingConn] = useState(false);
 const [isSyncingLeads, setIsSyncingLeads] = useState(false);
@@ -924,6 +1025,10 @@ const handleSaveIntegration = async () => {
     });
     const data = await res.json();
     if (data.success) {
+      const savedKey = data.integration?.credentials?.webhookKey;
+      if (savedKey) {
+        setIntegrationCreds((prev) => ({ ...prev, webhookKey: savedKey }));
+      }
       setModalStatusMsg(`⚡ Successfully connected ${selectedIntegration.name}!`);
       setIntegrations(prev => prev.map(item => item.id === selectedIntegration.id ? { ...item, isActive: true, lastSync: 'Connected' } : item));
     } else {
@@ -986,6 +1091,7 @@ const handleOpenModal = (integration: IntegrationItem) => {
     if (fbAvailablePages.length > 0) {
       setSelectedManageIntegration(integration);
       setWizardStep(1);
+      setFbView('forms');
       return;
     }
     setFbUser(null);
@@ -1197,7 +1303,12 @@ const renderBrandIcon = (iconType: string, name: string) => {
 {/* ========================================================================= */ }
 if (selectedManageIntegration?.id === 'facebook') {
   const activePage = fbAvailablePages.find(p => (p.page_id || p.id) === wizardPageId) || fbAvailablePages[0];
-  const activeForm = pageForms.find(f => f.id === wizardFormId) || pageForms[0];
+  const activeForm = wizardFormId
+    ? (pageForms.find(f => f.id === wizardFormId) || { id: wizardFormId, name: wizardFormName || `Form ${wizardFormId}` })
+    : undefined;
+  const connectedFormIds = new Set(connectedMappings.map((m) => String(m.formId)));
+  const isEditingConnectedForm = !!wizardFormId && connectedFormIds.has(String(wizardFormId));
+  const mappedFieldCount = fieldMapping.filter(m => m.crmField !== UNMAPPED_FIELD).length;
 
   const filteredTeamMembers = teamMembers.filter(tm => {
     const matchesSearch = tm.name.toLowerCase().includes(teamMemberSearch.toLowerCase());
@@ -1210,7 +1321,25 @@ if (selectedManageIntegration?.id === 'facebook') {
 
   const handleFinishIntegration = async () => {
     if (!activePage || !activeForm) {
-      toast.error('Please select both a Facebook Page and Lead Form from the database.', 'Validation');
+      toast.error('Choose a lead form to connect first.', 'Validation');
+      setFbView('forms');
+      return;
+    }
+    if (!wizardCampaignName.replace(/^@/, '').trim()) {
+      toast.error('Enter a campaign name for this form.', 'Validation');
+      setWizardStep(3);
+      return;
+    }
+    if (mappedFieldCount === 0 && fieldMapping.length > 0) {
+      toast.error('Map at least one form question to a CRM field.', 'Validation');
+      setWizardStep(2);
+      return;
+    }
+    if (
+      selectedDistributionUsers.length === 0 &&
+      !window.confirm('No team members selected for lead distribution. All leads from this form will be assigned to the admin. Continue?')
+    ) {
+      setWizardStep(4);
       return;
     }
     setIsSaving(true);
@@ -1224,15 +1353,24 @@ if (selectedManageIntegration?.id === 'facebook') {
         campaignHandle: formatCampaignHandle(wizardCampaignName),
         fieldMapping,
         leadDistribution: teamMembers.filter(tm => selectedDistributionUsers.includes(tm.id)),
+        distributeActiveOnly,
         importOption
       };
 
       const res = await fetchWithTenantAuth('/api/integrations/facebook/campaign-mapping', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          ...payload,
+          leadDistribution: payload.leadDistribution.map((tm) => ({
+            id: tm.id,
+            name: tm.name,
+            email: tm.email,
+            role: tm.role
+          }))
+        })
       });
-      const data = await res.json();
+      const data = await readApiJson<{ success?: boolean; error?: string; updatedLeadCount?: number }>(res);
       if (data.success) {
         toast.success(`Successfully configured campaign "${wizardCampaignName}"! Incoming leads will automatically route to this campaign.`, 'Campaign Configured');
 
@@ -1259,12 +1397,13 @@ if (selectedManageIntegration?.id === 'facebook') {
               : item
           )
         );
-        fetchConnectedFormMappings(payload.pageId);
+        await fetchConnectedFormMappings();
+        setWizardStep(1);
+        setFbView('forms');
 
         if (onNavigateToCampaign) {
           onNavigateToCampaign(payload.campaignHandle);
         } else {
-          setWizardStep(1);
           setSelectedManageIntegration(null);
         }
       } else {
@@ -1342,7 +1481,7 @@ if (selectedManageIntegration?.id === 'facebook') {
             </div>
             {formsList.length === 0 ? (
               <p className="px-3 py-4 text-[11px] text-slate-500 text-center">
-                No forms mapped yet. Finish the wizard to connect a form to a campaign.
+                No forms connected yet. Leads are only imported from forms you connect.
               </p>
             ) : (
               <div className="overflow-x-auto max-h-80 overflow-y-auto">
@@ -1363,15 +1502,11 @@ if (selectedManageIntegration?.id === 'facebook') {
                         <td
                           className="px-2.5 py-2 align-top cursor-pointer"
                           onClick={() => {
-                            if (form.pageId) {
-                              setWizardPageId(form.pageId);
-                              fetchPageForms(form.pageId);
-                            }
-                            if (form.formId) setWizardFormId(form.formId);
-                            if (form.campaignHandle) setWizardCampaignName(form.campaignHandle);
-                            setWizardStep(1);
+                            if (!form.pageId || !form.formId) return;
+                            if (form.pageId !== wizardPageId) fetchPageForms(form.pageId);
+                            openFormSetup(form.pageId, { id: form.formId, name: form.title });
                           }}
-                          title="Open form in wizard"
+                          title="Edit this form's settings"
                         >
                           <div className="text-[11px] font-semibold text-slate-900 leading-snug break-words">
                             {form.title}
@@ -1436,17 +1571,136 @@ if (selectedManageIntegration?.id === 'facebook') {
             </button>
           </div>
 
+          {fbView === 'forms' ? (
+            <div className="space-y-5 animate-in fade-in duration-150">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Choose the lead forms to connect</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Leads are imported only from forms you connect. Pick a form to set up field mapping, lead distribution and import options.
+                </p>
+              </div>
+
+              {/* Page picker */}
+              <div className="space-y-1.5 max-w-xl">
+                <label className="text-xs font-bold text-slate-900 block">Facebook Page</label>
+                <select
+                  value={wizardPageId || activePage?.page_id || activePage?.id || ''}
+                  onChange={(e) => {
+                    const pId = e.target.value;
+                    setWizardPageId(pId);
+                    fetchPageForms(pId);
+                  }}
+                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#6342E8] shadow-2xs cursor-pointer"
+                >
+                  {fbAvailablePages.length === 0 ? (
+                    <option value="">No pages linked</option>
+                  ) : (
+                    fbAvailablePages.map((p: any) => (
+                      <option key={p.page_id || p.id} value={p.page_id || p.id}>
+                        {p.page_name || p.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+                {(wizardPageId || activePage?.page_id || activePage?.id) && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleDisconnectFacebookPage(wizardPageId || activePage?.page_id || activePage?.id || '')
+                    }
+                    className="mt-1.5 text-[11px] font-semibold text-rose-600 hover:text-rose-700 flex items-center space-x-1 cursor-pointer"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    <span>Unlink this page (removes its leads & forms)</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Forms on this page */}
+              <div className="border border-slate-200/80 rounded-xl overflow-hidden">
+                <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">Lead forms on this page</span>
+                  <button
+                    type="button"
+                    onClick={() => fetchPageForms(wizardPageId || activePage?.page_id || activePage?.id || '', true)}
+                    className="text-[11px] font-semibold text-[#6342E8] hover:text-[#5234D0] flex items-center space-x-1 cursor-pointer transition-colors"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isLoadingForms ? 'animate-spin' : ''}`} />
+                    <span>Refresh forms</span>
+                  </button>
+                </div>
+                {isLoadingForms ? (
+                  <p className="px-4 py-6 text-xs text-slate-500 text-center">Loading lead forms from Facebook...</p>
+                ) : pageForms.length === 0 ? (
+                  <p className="px-4 py-6 text-xs text-slate-500 text-center">
+                    No lead forms found on this page. Publish a Lead Ad form in Meta Ads Manager, then refresh.
+                  </p>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {pageForms.map((f: any) => {
+                      const isConnected = connectedFormIds.has(String(f.id));
+                      const pId = wizardPageId || activePage?.page_id || activePage?.id || '';
+                      return (
+                        <div key={f.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold text-slate-900 truncate">{f.name}</div>
+                            <div className="text-[10px] font-mono text-slate-400 truncate">
+                              {f.id}{f.status && f.status !== 'ACTIVE' ? ` · ${String(f.status).toLowerCase()}` : ''}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {isConnected ? (
+                              <>
+                                <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold">Connected</span>
+                                <button
+                                  type="button"
+                                  onClick={() => openFormSetup(pId, f)}
+                                  className="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 text-[11px] font-bold cursor-pointer"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Unlink form"
+                                  onClick={() => handleUnlinkForm(f.id)}
+                                  className="p-1.5 rounded-md text-rose-500 hover:bg-rose-50 cursor-pointer"
+                                >
+                                  <Unlink className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold">Not connected</span>
+                                <button
+                                  type="button"
+                                  onClick={() => openFormSetup(pId, f)}
+                                  className="px-3 py-1.5 rounded-lg bg-[#6342E8] hover:bg-[#5234D0] text-white text-[11px] font-bold cursor-pointer shadow-xs"
+                                >
+                                  Connect
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+          <>
           {/* BACK TO ALL FORMS LINK */}
           <div className="flex items-center justify-between">
             <button
-              onClick={() => {
-                if (wizardStep > 1) setWizardStep(wizardStep - 1);
-                else setSelectedManageIntegration(null);
-              }}
+              onClick={() => setFbView('forms')}
               className="text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center space-x-1 cursor-pointer transition-colors"
             >
               <span>&larr; All forms</span>
             </button>
+            <span className="text-[11px] font-semibold text-slate-500">
+              {isEditingConnectedForm ? 'Editing connected form' : 'Connecting new form'}
+            </span>
           </div>
 
           {/* 6-STEP PROGRESS TRACKER (PIXEL PERFECT AS IN SCREENSHOTS) */}
@@ -1457,7 +1711,7 @@ if (selectedManageIntegration?.id === 'facebook') {
               <div className="absolute top-3.5 left-8 right-8 border-t-2 border-dashed border-[#6342E8]/40 -z-0" />
 
               {[
-                { step: 1, label: 'Step 1', desc: 'Facebook details' },
+                { step: 1, label: 'Step 1', desc: 'Selected form' },
                 { step: 2, label: 'Step 2', desc: 'Map FB questions' },
                 { step: 3, label: 'Step 3', desc: 'Choose campaign' },
                 { step: 4, label: 'Step 4', desc: 'Lead distribution' },
@@ -1501,107 +1755,30 @@ if (selectedManageIntegration?.id === 'facebook') {
           </div>
 
           {/* ========================================================================= */}
-          {/* STEP 1: FACEBOOK DETAILS (SCREENSHOT 1) */}
+          {/* STEP 1: SELECTED FORM */}
           {/* ========================================================================= */}
           {wizardStep === 1 && (
             <div className="space-y-6 pt-4 max-w-xl mx-auto animate-in fade-in duration-150">
-
-              {/* Select FB Page */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-900 block">
-                  Select FB Page
-                </label>
-                <p className="text-[11px] text-slate-500">
-                  Select one of the page linked with FB account
-                </p>
-                <select
-                  value={wizardPageId || activePage?.page_id || activePage?.id || ''}
-                  onChange={(e) => {
-                    const pId = e.target.value;
-                    setWizardPageId(pId);
-                    fetchPageForms(pId);
-                    fetchConnectedFormMappings(pId);
-                  }}
-                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#6342E8] shadow-2xs cursor-pointer"
-                >
-                  {fbAvailablePages.length === 0 ? (
-                    <option value="">Select Option</option>
-                  ) : (
-                    fbAvailablePages.map((p: any) => (
-                      <option key={p.page_id || p.id} value={p.page_id || p.id}>
-                        {p.page_name || p.name}
-                      </option>
-                    ))
-                  )}
-                </select>
-                {(wizardPageId || activePage?.page_id || activePage?.id) && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleDisconnectFacebookPage(wizardPageId || activePage?.page_id || activePage?.id || '')
-                    }
-                    className="mt-1.5 text-[11px] font-semibold text-rose-600 hover:text-rose-700 flex items-center space-x-1 cursor-pointer"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    <span>Unlink this page (removes its leads & forms)</span>
-                  </button>
-                )}
-              </div>
-
-              {/* Select Lead Form */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-900 block">
-                    Select Lead Form
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => fetchPageForms(wizardPageId || activePage?.page_id || activePage?.id || '')}
-                    className="text-[11px] font-semibold text-[#6342E8] hover:text-[#5234D0] flex items-center space-x-1 cursor-pointer transition-colors"
-                  >
-                    <RefreshCw className={`w-3 h-3 ${isLoadingForms ? 'animate-spin' : ''}`} />
-                    <span>Refresh forms</span>
-                  </button>
+              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-2.5 text-xs">
+                <div className="flex justify-between py-1 border-b border-slate-200/60">
+                  <span className="text-slate-500">Facebook Page:</span>
+                  <span className="font-bold text-slate-800">{activePage?.page_name || activePage?.name || 'Facebook Page'}</span>
                 </div>
-                <p className="text-[11px] text-slate-500">
-                  Select one of the lead form published over selected FB Page
-                </p>
-                <select
-                  value={wizardFormId}
-                  onChange={(e) => {
-                    const fId = e.target.value;
-                    setWizardFormId(fId);
-                    const sel = pageForms.find(f => f.id === fId);
-                    if (sel) {
-                      setWizardCampaignName(`@${sel.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`);
-                      fetchFormQuestions(wizardPageId || activePage?.page_id || activePage?.id || '', fId);
-                    }
-                  }}
-                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#6342E8] shadow-2xs cursor-pointer"
-                >
-                  {isLoadingForms ? (
-                    <option value="">Loading lead forms from Facebook Graph API...</option>
-                  ) : pageForms.length === 0 ? (
-                    <option value="">No lead forms on this page</option>
-                  ) : (
-                    pageForms.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.name} ({f.id})
-                      </option>
-                    ))
-                  )}
-                </select>
+                <div className="flex justify-between py-1">
+                  <span className="text-slate-500">Lead Form:</span>
+                  <span className="font-bold text-slate-800 text-right">{activeForm?.name}</span>
+                </div>
               </div>
 
-              {/* Actions */}
-              <div className="flex justify-end pt-4">
+              <div className="flex items-center justify-between pt-4">
                 <button
-                  onClick={() => {
-                    if (!wizardFormId && pageForms.length > 0) {
-                      setWizardFormId(pageForms[0].id);
-                    }
-                    setWizardStep(2);
-                  }}
+                  onClick={() => setFbView('forms')}
+                  className="px-5 py-2 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-bold cursor-pointer transition-all"
+                >
+                  Choose a different form
+                </button>
+                <button
+                  onClick={() => setWizardStep(2)}
                   className="px-6 py-2 rounded-lg bg-[#6342E8] hover:bg-[#5234D0] text-white text-xs font-bold shadow-xs cursor-pointer transition-all"
                 >
                   Next
@@ -1621,9 +1798,20 @@ if (selectedManageIntegration?.id === 'facebook') {
                 </span>
                 <div className="flex items-center space-x-1.5 px-2.5 py-0.5 rounded bg-[#5338B7]/10 text-[#5338B7] text-[10px] font-bold">
                   <span className="w-2 h-2 rounded-full bg-[#5338B7]" />
-                  <span>TELECRM FIELD</span>
+                  <span>CRM FIELD</span>
                 </div>
               </div>
+
+              <p className="text-[11px] text-slate-500">
+                Only questions mapped to a CRM field are imported. Replace rules decide what happens when the lead already exists in the CRM (same phone or email).
+              </p>
+
+              {isLoadingQuestions && (
+                <p className="py-6 text-xs text-slate-500 text-center">Loading form questions from Facebook...</p>
+              )}
+              {!isLoadingQuestions && fieldMapping.length === 0 && (
+                <p className="py-6 text-xs text-slate-500 text-center">This form has no questions to map.</p>
+              )}
 
               {/* Table rows matching Screenshot 2 */}
               <div className="space-y-2.5">
@@ -1655,32 +1843,41 @@ if (selectedManageIntegration?.id === 'facebook') {
                       </select>
                     </div>
 
-                    {/* TeleCRM Target Field (Fetched from Database) */}
+                    {/* CRM lead field */}
                     <div className="col-span-3">
                       <select
-                        value={item.telecrmField}
+                        value={item.crmField}
                         onChange={(e) => {
+                          if (e.target.value === ADD_FIELD_OPTION) {
+                            if (!onUpdateFields) {
+                              toast.error('Lead fields cannot be saved from this screen.', 'Lead Fields');
+                              return;
+                            }
+                            setFieldEditorRow(idx);
+                            return;
+                          }
                           const newMap = [...fieldMapping];
-                          newMap[idx].telecrmField = e.target.value;
+                          newMap[idx].crmField = e.target.value;
                           setFieldMapping(newMap);
                         }}
                         className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#6342E8] shadow-2xs cursor-pointer"
                       >
-                        <option value="[ Select Telecrm Field To Map ]">[ Select Telecrm Field To Map ]</option>
-                        {telecrmLeadFields.map((fName) => {
-                          const isUsed = fieldMapping.some((m, mIdx) => mIdx !== idx && m.telecrmField === fName);
+                        <option value={UNMAPPED_FIELD}>Don't import</option>
+                        {crmLeadFields.map((fName) => {
+                          const isUsed = fieldMapping.some((m, mIdx) => mIdx !== idx && m.crmField === fName);
                           return (
                             <option key={fName} value={fName} disabled={isUsed}>
                               {fName} {isUsed ? '(Already mapped)' : ''}
                             </option>
                           );
                         })}
+                        <option value={ADD_FIELD_OPTION}>Add field</option>
                       </select>
                     </div>
 
                     {/* Status Icon matching user screenshot */}
                     <div className="col-span-1 flex items-center justify-center">
-                      {item.telecrmField !== '[ Select Telecrm Field To Map ]' ? (
+                      {item.crmField !== UNMAPPED_FIELD ? (
                         <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                       ) : (
                         <div className="w-4 h-4 rounded-full border border-slate-300 flex items-center justify-center text-[10px] text-slate-400 font-bold" title="Field unmapped">
@@ -1707,6 +1904,30 @@ if (selectedManageIntegration?.id === 'facebook') {
                   Next
                 </button>
               </div>
+              {fieldEditorRow !== null && (
+                <LeadFieldEditorModal
+                  customFields={dbLeadFields}
+                  isAdmin
+                  onClose={() => setFieldEditorRow(null)}
+                  onUpdateFields={(next) => {
+                    setDbLeadFields(next);
+                    onUpdateFields?.(next);
+                  }}
+                  onFieldSaved={(field) => {
+                    const row = fieldEditorRow;
+                    if (row === null) return;
+                    setFieldMapping((prev) => prev.map((item, i) => (i === row ? { ...item, crmField: field.label } : item)));
+                  }}
+                  onShowToast={(message) => {
+                    const lower = message.toLowerCase();
+                    if (lower.includes('already') || lower.includes('please enter') || lower.includes('restricted')) {
+                      toast.error(message, 'Lead Fields');
+                    } else {
+                      toast.success(message, 'Lead Fields');
+                    }
+                  }}
+                />
+              )}
             </div>
           )}
 
@@ -2011,12 +2232,20 @@ if (selectedManageIntegration?.id === 'facebook') {
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-200/60">
                   <span className="text-slate-500">Mapped Fields:</span>
-                  <span className="font-bold text-slate-800">{fieldMapping.filter(m => m.telecrmField !== '[ Select Telecrm Field To Map ]').length} Fields</span>
+                  <span className="font-bold text-slate-800">{mappedFieldCount} of {fieldMapping.length} questions</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-200/60">
+                  <span className="text-slate-500">Import:</span>
+                  <span className="font-bold text-slate-800">
+                    {importOption === 'all' ? 'All historical leads' : importOption === 'last_30_days' ? 'Last 30 days + new leads' : 'New leads only'}
+                  </span>
                 </div>
                 <div className="flex justify-between py-1">
                   <span className="text-slate-500">Lead Distribution:</span>
                   <span className="font-bold text-slate-800">
-                    {selectedDistributionUsers.length > 0 ? `${selectedDistributionUsers.length} Users Selected` : 'Default Admin'}
+                    {selectedDistributionUsers.length > 0
+                      ? `Round-robin across ${selectedDistributionUsers.length} user${selectedDistributionUsers.length === 1 ? '' : 's'}${distributeActiveOnly ? ' (active only)' : ''}`
+                      : 'Admin (no users selected)'}
                   </span>
                 </div>
               </div>
@@ -2035,10 +2264,12 @@ if (selectedManageIntegration?.id === 'facebook') {
                   className="px-7 py-2 rounded-lg bg-[#6342E8] hover:bg-[#5234D0] text-white text-xs font-bold shadow-md cursor-pointer transition-all flex items-center space-x-1.5"
                 >
                   {isSaving && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-                  <span>Finish Integration</span>
+                  <span>{isEditingConnectedForm ? 'Save Changes' : 'Connect Form'}</span>
                 </button>
               </div>
             </div>
+          )}
+          </>
           )}
 
         </div>
@@ -2372,9 +2603,9 @@ return (
                     <label className="text-[10px] font-bold text-slate-600 block mb-1">Google Ads Webhook Secret Key</label>
                     <input
                       type="text"
-                      value={integrationCreds['webhookKey'] || 'pixbe_google_ads_key'}
+                      value={integrationCreds['webhookKey'] || ''}
                       onChange={(e) => setIntegrationCreds({ ...integrationCreds, webhookKey: e.target.value })}
-                      placeholder="e.g. pixbe_google_ads_key"
+                      placeholder="Generated for this workspace"
                       className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
                     />
                   </div>
@@ -2510,9 +2741,9 @@ return (
                     <label className="text-[10px] font-bold text-slate-600 block mb-1">Google Ads Webhook Secret Key</label>
                     <input
                       type="text"
-                      value={integrationCreds['webhookKey'] || 'pixbe_google_ads_key'}
+                      value={integrationCreds['webhookKey'] || ''}
                       onChange={(e) => setIntegrationCreds({ ...integrationCreds, webhookKey: e.target.value })}
-                      placeholder="e.g. pixbe_google_ads_key"
+                      placeholder="Generated for this workspace"
                       className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
                     />
                   </div>
@@ -2669,8 +2900,10 @@ return (
                   readOnly
                   value={
                     selectedIntegration.id === 'facebook'
-                      ? `${window.location.origin}/api/webhooks/facebook`
-                      : (selectedIntegration.webhookUrl || `${window.location.origin}/api/webhooks/${selectedIntegration.id}`).replace(/https:\/\/api\.telecrm\.in\/v1\/(webhooks|leads\/public)\//g, `${window.location.origin}/api/webhooks/`)
+                      ? `${publicOrigin()}/api/webhooks/facebook`
+                      : selectedIntegration.id === 'google_ads' || selectedIntegration.id === 'google_meet'
+                        ? `${publicOrigin()}/api/webhooks/google-ads`
+                        : leadWebhookUrl || `${publicOrigin()}/api/webhooks/lead`
                   }
                   className="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono text-slate-700 focus:outline-none"
                 />
@@ -2678,8 +2911,10 @@ return (
                   onClick={() =>
                     handleCopyWebhook(
                       selectedIntegration.id === 'facebook'
-                        ? `${window.location.origin}/api/webhooks/facebook`
-                        : (selectedIntegration.webhookUrl || `${window.location.origin}/api/webhooks/${selectedIntegration.id}`).replace(/https:\/\/api\.telecrm\.in\/v1\/(webhooks|leads\/public)\//g, `${window.location.origin}/api/webhooks/`)
+                        ? `${publicOrigin()}/api/webhooks/facebook`
+                        : selectedIntegration.id === 'google_ads' || selectedIntegration.id === 'google_meet'
+                          ? `${publicOrigin()}/api/webhooks/google-ads`
+                          : leadWebhookUrl || `${publicOrigin()}/api/webhooks/lead`
                     )
                   }
                   className="px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center space-x-1.5 cursor-pointer transition-all shrink-0"

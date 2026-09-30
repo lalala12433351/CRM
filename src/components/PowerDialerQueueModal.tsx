@@ -16,6 +16,9 @@ import {
 import { Lead, Agent, LeadStatus, formatDealValue } from '../types';
 import { StatusBadge } from './StatusBadge';
 import { formatArcleName } from '../utils/brandUtils';
+import { dialNumber } from '../lib/calling';
+import { CallTracker } from '../lib/callTracker';
+import { isNative } from '../lib/platform';
 
 interface PowerDialerQueueModalProps {
   isOpen: boolean;
@@ -72,6 +75,19 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
     }
     return () => clearInterval(interval);
   }, [callState]);
+
+  // Native: the real call is tracked (and logged) by the app; advance when it actually ends.
+  useEffect(() => {
+    if (!isNative || !isOpen) return;
+    const handle = CallTracker.addListener('callEnded', (event) => {
+      setCallDuration(event.durationSec || 0);
+      setCallState('ended');
+      if (autoAdvance) setCountdown(3);
+    });
+    return () => {
+      handle.then((h) => h.remove()).catch(() => {});
+    };
+  }, [isOpen, autoAdvance]);
 
   // Countdown timer for auto-advance
   useEffect(() => {
@@ -142,6 +158,13 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
     setCallDuration(0);
     setCountdown(null);
 
+    if (isNative) {
+      dialNumber(currentLead.phone, { leadId: currentLead.id, leadName: currentLead.name }).catch(() => {
+        setCallState('idle');
+      });
+      return;
+    }
+
     setTimeout(() => {
       setCallState('connected');
     }, 1800);
@@ -149,6 +172,10 @@ export const PowerDialerQueueModal: React.FC<PowerDialerQueueModalProps> = ({
 
   const handleEndCall = () => {
     setCallState('ended');
+    if (isNative) {
+      if (autoAdvance) setCountdown(3);
+      return;
+    }
     onSaveCallLog(currentLead.id, currentLead.status || 'Contacted', `Auto-logged power dialer call (${callDuration}s)`, callDuration);
 
     if (autoAdvance) {

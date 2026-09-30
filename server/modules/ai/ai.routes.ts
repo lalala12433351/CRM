@@ -1,7 +1,11 @@
 import { Router } from 'express';
 import { aiController } from './ai.controller';
+import { requireAuthenticated } from '../../middleware/rbac';
+import { aiLimiter } from '../../middleware/rateLimits';
 
 const router = Router();
+
+router.use('/ai', requireAuthenticated, aiLimiter);
 
 router.post('/ai/score-lead', (req, res) => aiController.scoreLead(req, res));
 router.post('/ai/transcribe-call', (req, res) => aiController.transcribeCall(req, res));

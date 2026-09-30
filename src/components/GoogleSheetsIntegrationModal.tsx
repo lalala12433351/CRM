@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Lead, LeadSource, LeadStatus, Agent } from '../types';
 import { formatProperName } from '../utils/formatUtils';
+import { publicOrigin } from '../lib/platform';
 
 interface GoogleSheetsIntegrationModalProps {
   leads: Lead[];
@@ -144,7 +145,7 @@ export const GoogleSheetsIntegrationModal: React.FC<GoogleSheetsIntegrationModal
     document.body.removeChild(link);
   };
 
-  const webhookEndpointUrl = `${window.location.origin}/api/webhook/google-sheets/sync`;
+  const webhookEndpointUrl = `${publicOrigin()}/api/webhook/google-sheets/sync`;
 
   const appsScriptCode = `// Google Apps Script: Auto-send new leads to ARCLE CRM
 function onFormOrSheetSubmit(e) {

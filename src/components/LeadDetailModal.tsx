@@ -71,7 +71,11 @@ import { StagesContext } from '../App';
 import { toast } from '../context/ToastContext';
 import { getFieldTypeIcon } from './ColumnCustomizerModal';
 import { fetchWithTenantAuth } from '../lib/auth';
+import { useBackHandler } from '../lib/backHandler';
+import { dialNumber } from '../lib/calling';
+import { publicOrigin } from '../lib/platform';
 import { validateField, validatePhone, validateCurrencyOrNumber, validateText, validateEmail } from '../lib/validation';
+import { AGE_OPTIONS, isAgeField } from '../lib/ageField';
 import { ScheduleFollowUpModal } from './ScheduleFollowUpModal';
 import { DateTimePicker, combineDateTime, dateTimeFromValue, localDateString } from './DateTimePicker';
 
@@ -121,6 +125,8 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   useEffect(() => {
     setCurrentLead(initialLead);
   }, [initialLead]);
+
+  useBackHandler(!isEmbedded && !!initialLead, onClose);
 
   const stages = useContext(StagesContext);
 
@@ -282,17 +288,6 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
       method: 'POST',
       body: JSON.stringify(updatedLead)
     }).catch((err) => console.warn('Field edit database sync notice:', err));
-
-    onAddActivity({
-      id: `act-${Date.now()}`,
-      leadId: lead.id,
-      agentId: lead.ownerAgentId || 'system',
-      agentName: lead.ownerAgentName || 'User',
-      type: 'edit',
-      title: `Updated ${field.label}`,
-      description: `Changed to "${trimmed || 'Empty'}"`,
-      timestamp: new Date().toISOString()
-    });
   };
 
   const [activeTab, setActiveTab] = useState<'timeline' | 'tasks' | 'whatsapp' | 'calls' | 'notes' | 'attribution'>('timeline');
@@ -739,17 +734,6 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
         method: 'POST',
         body: JSON.stringify(updatedLead)
       }).catch(console.warn);
-
-      onAddActivity({
-        id: `act-${Date.now()}`,
-        leadId: lead.id,
-        agentId: lead.ownerAgentId,
-        agentName: lead.ownerAgentName,
-        type: 'stage_change',
-        title: 'Stage Changed',
-        description: `Lead stage changed to ${newStatus}`,
-        timestamp: new Date().toISOString()
-      });
     }
   };
 
@@ -780,17 +764,14 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
       body: JSON.stringify(updatedLead)
     }).catch(console.warn);
 
-    const formattedDisplay = new Date(combinedDate).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
-    onAddActivity({
-      id: `act-${Date.now()}`,
-      leadId: lead.id,
-      agentId: lead.ownerAgentId,
-      agentName: lead.ownerAgentName,
-      type: 'task',
-      title: 'Follow-Up Scheduled',
-      description: `Follow-up set for ${formattedDisplay}.${schedulerRemarks ? ` Remark: "${schedulerRemarks}"` : ''}`,
-      timestamp: new Date().toISOString()
-    });
+    if (schedulerRemarks) {
+      onAddActivity({
+        leadId: lead.id,
+        type: 'note',
+        title: 'Follow-up remark',
+        description: schedulerRemarks
+      });
+    }
 
     setShowFollowUpScheduler(false);
     setSchedulerRemarks('');
@@ -947,17 +928,11 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
     };
 
     onUpdateLead(updated);
-    onAddActivity({
-      leadId: lead.id,
-      type: 'note',
-      title: 'Lead Information Updated',
-      description: `Updated lead details for ${updated.name}`
-    });
     setIsEditingLead(false);
   };
 
   const handleCallLead = () => {
-    window.location.href = `tel:${lead.phone}`;
+    dialNumber(lead.phone, { leadId: lead.id, leadName: lead.name }).catch(console.warn);
     onAddActivity({
       leadId: lead.id,
       type: 'call',
@@ -999,12 +974,6 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   // Handle rating update
   const handleSetRating = (newRating: number) => {
     onUpdateLead({ ...lead, rating: newRating });
-    onAddActivity({
-      leadId: lead.id,
-      type: 'note',
-      title: 'Lead Star Rating Updated',
-      description: `Rated ${newRating} out of 5 stars`
-    });
   };
 
   // Handle AI Score Recalculation
@@ -1535,7 +1504,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                           <MoreVertical className="w-4 h-4"/>
                           {showMoreOptions && (
                             <div onClick={(e) => e.stopPropagation()} className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 shadow-xl rounded-lg py-1.5 z-20 text-sm font-medium">
-                            <button onClick={(e) => { e.stopPropagation(); setShowMoreOptions(false); navigator.clipboard.writeText(`${window.location.origin}/lead/${lead.id}`); toast.success('Lead link copied to clipboard!', 'Link Copied'); }} className="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-700">Copy Log Link</button>
+                            <button onClick={(e) => { e.stopPropagation(); setShowMoreOptions(false); navigator.clipboard.writeText(`${publicOrigin()}/lead/${lead.id}`); toast.success('Lead link copied to clipboard!', 'Link Copied'); }} className="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-700">Copy Log Link</button>
                             <button onClick={(e) => { e.stopPropagation(); setShowMoreOptions(false); handleToggleInvalidFlag(); }} className="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-700">{lead.isInvalid ? 'Unblock Lead' : 'Block Lead'}</button>
                             <button onClick={(e) => { e.stopPropagation(); setShowMoreOptions(false); if(window.confirm('Are you sure you want to delete this lead?')) { if(onDeleteLead) onDeleteLead(lead.id); onClose(); } }} className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600">Delete Lead</button>
                           </div>
@@ -1591,6 +1560,8 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                     const renderFieldItem = (field: CustomFieldDef) => {
                       const fieldKey = field.name || field.id || field.label;
                       const isEditing = editingFieldKey === fieldKey;
+                      const ageSelect = isAgeField(field);
+                      const selectOptions = ageSelect ? AGE_OPTIONS : (field.options || []);
                       const displayVal = getLeadFieldDisplayValue(field);
                       const isRecentlySaved = saveSuccessFieldKey === fieldKey;
 
@@ -1630,7 +1601,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                               onClick={(e) => e.stopPropagation()}
                             >                              <div className="w-full space-y-1">
                                 <div className="flex items-center space-x-1">
-                                  {field.type === 'dropdown' && field.options && field.options.length > 0 ? (
+                                  {(field.type === 'dropdown' || ageSelect) && selectOptions.length > 0 ? (
                                     <select
                                       autoFocus
                                       value={editingValue}
@@ -1643,7 +1614,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                                       className="w-full text-xs bg-white border border-indigo-500 rounded-md px-2 py-1 focus:outline-none shadow-xs cursor-pointer"
                                     >
                                       <option value="">Select option...</option>
-                                      {field.options.map((opt) => (
+                                      {selectOptions.map((opt) => (
                                         <option key={opt} value={opt}>{opt}</option>
                                       ))}
                                     </select>
@@ -2595,7 +2566,8 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                   </div>
                 ) : (
                   unifiedActivities.map((act) => {
-                    const isFacebook = act.type === 'facebook_form' || (act.title || '').toLowerCase().includes('facebook');
+                    const captureText = `${act.title || ''} ${act.description || ''}`;
+                    const isFacebook = act.type === 'facebook_form' || /\b(facebook|instagram)\b/i.test(captureText);
                     const isCapi = act.type === 'capi' || (act.title || '').toLowerCase().includes('capi');
                     const isEdit = act.type === 'edit';
                     const isTask = act.type === 'task';
@@ -2603,6 +2575,8 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                     const isCall = act.type === 'call';
                     const isWhatsapp = act.type === 'whatsapp';
                     const isNote = act.type === 'note';
+                    const isAssign = act.type === 'assignee_change';
+                    const fullText = [act.title, act.description].filter(Boolean).join(' - ');
 
                     const actAgentLabel = resolveAgentName(agents, {
                       id: act.agentId,
@@ -2649,6 +2623,10 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                             <div className="w-5 h-5 rounded-full bg-green-50 flex items-center justify-center text-green-600">
                               <MessageCircle className="w-3 h-3" />
                             </div>
+                          ) : isAssign ? (
+                            <div className="w-5 h-5 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+                              <UserPlus className="w-3 h-3" />
+                            </div>
                           ) : (
                             <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
                               <FileText className="w-3 h-3" />
@@ -2657,10 +2635,11 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                         </div>
 
                         {/* Activity Description */}
-                        <div className="flex-1 min-w-0 flex items-center pl-2 text-slate-700">
+                        <div className="flex-1 min-w-0 flex items-center pl-2 text-slate-700" title={fullText}>
                           {isFacebook ? (
                             <span className="truncate">
-                              Lead Capture from <span className="font-semibold text-slate-900">Inbound Lead Form</span> & <span className="font-semibold text-slate-900">Connected Social Page</span>
+                              <span className="font-bold text-slate-900 mr-1.5">{act.title || 'Lead created'}</span>
+                              {act.description && <span className="text-slate-600 font-normal">{act.description}</span>}
                             </span>
                           ) : isCapi ? (
                             <span className="truncate">
@@ -2671,6 +2650,10 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                               <span className="font-bold text-slate-900">{act.title}</span> {act.description && <span className="text-slate-600 font-normal"> - {act.description}</span>}
                             </span>
                           ) : isStage ? (
+                            <span className="truncate">
+                              <span className="font-bold text-slate-900">{act.title}:</span> <span className="text-slate-600">{act.description}</span>
+                            </span>
+                          ) : isTask && act.title && act.description ? (
                             <span className="truncate">
                               <span className="font-bold text-slate-900">{act.title}:</span> <span className="text-slate-600">{act.description}</span>
                             </span>
@@ -2800,16 +2783,14 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
             }).catch(console.warn);
 
             const formattedDisplay = new Date(combinedDate).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
-            onAddActivity({
-              id: `act-${Date.now()}`,
-              leadId: confirmedLead.id,
-              agentId: confirmedLead.ownerAgentId,
-              agentName: confirmedLead.ownerAgentName,
-              type: 'stage_change',
-              title: `Scheduled Follow-Up: ${targetStage}`,
-              description: `Set follow-up for ${formattedDisplay}${remarks ? `. Remarks: "${remarks}"` : ''}`,
-              timestamp: new Date().toISOString()
-            });
+            if (remarks) {
+              onAddActivity({
+                leadId: confirmedLead.id,
+                type: 'note',
+                title: 'Follow-up remark',
+                description: remarks
+              });
+            }
 
             toast.success(`Follow-up scheduled for ${formattedDisplay}`);
           }}

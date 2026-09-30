@@ -26,6 +26,8 @@
   "exclude": [
     "scratch",
     "node_modules",
-    "dist"
+    "dist",
+    "android",
+    "ios"
   ]
 }

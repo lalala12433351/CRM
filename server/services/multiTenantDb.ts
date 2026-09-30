@@ -1,6 +1,12 @@
 import fs from 'fs';
 import path from 'path';
 import { logger } from '../utils/logger';
+import {
+  isUsableGoogleAdsKey,
+  newGoogleAdsWebhookKey,
+  newLeadWebhookSecret,
+  secretsMatch,
+} from './webhookKeys';
 import { isPostgresStoreEnabled, workspaceDbName } from '../db/config';
 import { bootstrapPostgres } from '../db/bootstrap';
 import {
@@ -101,6 +107,7 @@ export interface TenantFieldSetting {
   type: string;
   required?: boolean;
   isPrimary?: boolean;
+  isUnique?: boolean;
   primarySlot?: string;
   category?: string;
   options?: string[];
@@ -154,6 +161,12 @@ export interface TenantActivity {
   createdAt?: string;
 }
 
+/** Who made a lead change; 'bot' ids render as automated entries in the activity timeline. */
+export interface LeadActor {
+  id: string;
+  name: string;
+}
+
 export interface TenantCall {
   id: string;
   tenantId: string;
@@ -169,6 +182,10 @@ export interface TenantCall {
   callType?: 'incoming' | 'outgoing' | 'missed' | 'outbound' | string;
   disposition?: string;
   recordingUrl?: string;
+  recordingKey?: string;
+  recordingStatus?: 'pending' | 'uploaded' | 'not_found' | 'failed' | 'disabled';
+  simSlot?: number;
+  source?: 'manual' | 'mobile_app';
   callNotes?: string;
   assigneeRemarks?: string;
   createdAt: string;
@@ -344,22 +361,14 @@ const DEFAULT_STAGES: Omit<TenantStage, 'tenantId'>[] = [
   { id: 'stage-7', name: 'Lost', color: '#EF4444', order: 7, category: 'closed', winProbability: 0, isActive: true },
 ];
 
+const AGE_OPTIONS: string[] = Array.from({ length: 94 }, (_, i) => String(i + 7));
+
+/** Seeded on new workspace create — primary + unique identifiers only. Extra fields are user-added. */
 const DEFAULT_FIELDS: Omit<TenantFieldSetting, 'tenantId'>[] = [
-  { id: 'f-batch', name: 'batch', label: 'Batch', type: 'text', required: false, category: 'General', isHidden: false, createdOn: '2026-04-01T09:00:00.000Z', lastModified: '2026-04-01T09:00:00.000Z' },
-  { id: 'f-doj', name: 'date_of_joining', label: 'Date of Joining', type: 'date', required: false, category: 'General', isHidden: false, createdOn: '2026-04-01T09:00:00.000Z', lastModified: '2026-04-01T09:00:00.000Z' },
-  { id: 'f-city', name: 'city', label: 'City', type: 'text', required: false, category: 'Contact', isHidden: false, createdOn: '2026-04-01T09:00:00.000Z', lastModified: '2026-04-01T09:00:00.000Z' },
-  { id: 'f-addr', name: 'address', label: 'Address', type: 'text', required: false, category: 'Contact', isHidden: false, createdOn: '2026-04-01T09:00:00.000Z', lastModified: '2026-04-01T09:00:00.000Z' },
-  { id: 'f-age', name: 'age', label: 'Age', type: 'text', required: false, category: 'General', isHidden: false, createdOn: '2026-04-01T09:00:00.000Z', lastModified: '2026-04-01T09:00:00.000Z' },
-  { id: 'f-dob', name: 'date_of_birth', label: 'Date of Birth', type: 'date', required: false, category: 'General', isHidden: false, createdOn: '2026-04-01T09:00:00.000Z', lastModified: '2026-04-01T09:00:00.000Z' },
   { id: 'f-h1', name: 'name', label: 'Name', type: 'text', required: true, isPrimary: true, primarySlot: 'H1', category: 'Primary', isHidden: false, createdOn: '2026-04-01T09:00:00.000Z', lastModified: '2026-04-01T09:00:00.000Z' },
-  { id: 'f-h2', name: 'phone', label: 'Number', type: 'phone', required: true, isPrimary: true, primarySlot: 'H2', category: 'Primary', isHidden: false, createdOn: '2026-04-01T09:00:00.000Z', lastModified: '2026-04-01T09:00:00.000Z' },
+  { id: 'f-h2', name: 'phone', label: 'Number', type: 'phone', required: true, isPrimary: true, isUnique: true, primarySlot: 'H2', category: 'Primary', isHidden: false, createdOn: '2026-04-01T09:00:00.000Z', lastModified: '2026-04-01T09:00:00.000Z' },
   { id: 'f-status', name: 'status', label: 'Status', type: 'dropdown', options: ['Fresh', 'Contacted', 'Follow Up', 'Demo Scheduled', 'Proposal Sent', 'Converted', 'Lost'], required: true, isPrimary: true, category: 'Primary', isHidden: false, createdOn: '2026-04-01T09:00:00.000Z', lastModified: '2026-04-01T09:00:00.000Z' },
-  { id: 'f-deal-val', name: 'deal_value', label: 'Deal Value (₹)', type: 'currency', required: false, category: 'General', isHidden: false, createdOn: '2026-04-01T09:00:00.000Z', lastModified: '2026-04-01T09:00:00.000Z' },
   { id: 'f-source', name: 'source', label: 'Lead Source', type: 'dropdown', options: ['Facebook Ads', 'Google Ads', 'Meta Ads', 'IndiaMart', 'JustDial', 'WhatsApp', 'Website Inbound', 'Instagram', 'Referral', 'Direct'], required: false, isPrimary: true, category: 'Primary', isHidden: false, createdOn: '2026-04-01T09:00:00.000Z', lastModified: '2026-04-01T09:00:00.000Z' },
-  { id: 'f-company', name: 'company', label: 'Company', type: 'text', required: false, category: 'General', isHidden: false, createdOn: '2026-04-01T09:00:00.000Z', lastModified: '2026-04-01T09:00:00.000Z' },
-  { id: 'f-email', name: 'email', label: 'Email', type: 'email', required: false, category: 'Contact', isHidden: false, createdOn: '2026-04-01T09:00:00.000Z', lastModified: '2026-04-01T09:00:00.000Z' },
-  { id: 'f-state', name: 'state', label: 'State', type: 'text', required: false, category: 'Contact', isHidden: false, createdOn: '2026-04-01T09:00:00.000Z', lastModified: '2026-04-01T09:00:00.000Z' },
-  { id: 'f-notes', name: 'special_remarks', label: 'Special Remarks / Notes', type: 'textarea', required: false, category: 'General', isHidden: false, createdOn: '2026-04-01T09:00:00.000Z', lastModified: '2026-04-01T09:00:00.000Z' }
 ];
 
 const DEFAULT_LOST_REASONS = [
@@ -1128,7 +1137,12 @@ export class MultiTenantDatabase {
       referralSource: data.referralSource || '',
       referralSourceOther: data.referralSourceOther || '',
       status: 'ACTIVE',
-      settings: { currency: 'INR', autoDialer: true, whatsappCrm: true },
+      settings: {
+        currency: 'INR',
+        autoDialer: true,
+        whatsappCrm: true,
+        webhookSecrets: { lead: newLeadWebhookSecret() },
+      },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -1249,7 +1263,162 @@ export class MultiTenantDatabase {
     return tenantLeads;
   }
 
-  public async saveLead(tenantId: string, leadData: Partial<TenantLead>): Promise<TenantLead> {
+  /**
+   * Builds activity-history entries describing what changed between two versions of a lead.
+   * Notes, calls, messages and tasks are logged explicitly by their own actions, so they are not diffed here.
+   */
+  private buildLeadChangeActivities(
+    tenantId: string,
+    before: Partial<TenantLead>,
+    after: Partial<TenantLead>,
+    actor: LeadActor
+  ): TenantActivity[] {
+    const now = new Date().toISOString();
+    const entries: TenantActivity[] = [];
+    const make = (type: string, title: string, description: string): TenantActivity => ({
+      id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      tenantId,
+      leadId: String(after.id || before.id || ''),
+      type,
+      title,
+      description,
+      agentId: actor.id,
+      agentName: actor.name,
+      timestamp: now
+    });
+    const norm = (v: any) => (v === undefined || v === null ? '' : typeof v === 'string' ? v.trim() : v);
+    const show = (v: any) => {
+      const s = String(norm(v));
+      if (!s) return '—';
+      return s.length > 80 ? `${s.slice(0, 77)}...` : s;
+    };
+    const differs = (a: any, b: any) => String(norm(a)) !== String(norm(b));
+
+    if (differs(before.status, after.status)) {
+      entries.push(make('stage_change', 'Stage changed', `${show(before.status)} → ${show(after.status)}`));
+    }
+
+    if (differs(before.ownerAgentId, after.ownerAgentId)) {
+      entries.push(
+        make('assignee_change', 'Lead reassigned', `${show(before.ownerAgentName || before.ownerAgentId)} → ${show(after.ownerAgentName || after.ownerAgentId)}`)
+      );
+    }
+
+    if (differs(before.followUpAt, after.followUpAt)) {
+      const when = (v: any) => {
+        const d = v ? new Date(v) : null;
+        return d && !isNaN(d.getTime()) ? d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : show(v);
+      };
+      entries.push(
+        after.followUpAt
+          ? make('task', 'Follow-up scheduled', when(after.followUpAt))
+          : make('task', 'Follow-up cleared', `Was ${when(before.followUpAt)}`)
+      );
+    }
+
+    // Keyed by normalized label: the inline editor writes one value under several keys (name, label, lowercased label)
+    const fieldChangeMap = new Map<string, string>();
+    const fieldChanges = {
+      push: (label: string, text: string) => {
+        const k = label.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (!fieldChangeMap.has(k)) fieldChangeMap.set(k, text);
+      }
+    };
+    const tracked: Array<[string, string]> = [
+      ['rating', 'Star rating'],
+      ['name', 'Name'],
+      ['phone', 'Phone'],
+      ['altPhone', 'Alternate phone'],
+      ['email', 'Email'],
+      ['company', 'Company'],
+      ['city', 'City'],
+      ['state', 'State'],
+      ['address', 'Address'],
+      ['source', 'Source'],
+      ['priority', 'Priority'],
+      ['aiRating', 'Rating'],
+      ['lostReason', 'Lost reason'],
+      ['campaignName', 'Campaign']
+    ];
+    for (const [key, label] of tracked) {
+      if (differs(before[key], after[key])) fieldChanges.push(label, `${label}: ${show(before[key])} → ${show(after[key])}`);
+    }
+    const dealBefore = Number(before.dealValue) || 0;
+    const dealAfter = Number(after.dealValue) || 0;
+    if (dealBefore !== dealAfter) fieldChanges.push('Deal value', `Deal value: ${dealBefore || '—'} → ${dealAfter || '—'}`);
+
+    const normKey = (s: string) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    // Covered by their own entries (stage, reassignment, follow-up) or logged explicitly (notes)
+    const dedicatedEntryKeys = new Set([
+      'status', 'leadstatus', 'stage', 'owner', 'leadowner', 'assignee', 'assignedto',
+      'followup', 'followupat', 'followupdate', 'notes', 'remarks', 'tags'
+    ]);
+    const internalCustomKeys = new Set(['form_id', 'form_name', 'campaign_name', 'campaign_handle', 'campaignName', 'page_name', 'deal_value', 'dealValue']);
+    const fieldLabels = new Map((this.store.fields[tenantId] || []).map((f) => [f.name, f.label || f.name]));
+    const cfBefore = before.customFields || {};
+    const cfAfter = after.customFields || {};
+    for (const key of new Set([...Object.keys(cfBefore), ...Object.keys(cfAfter)])) {
+      if (key.startsWith('meta_') || internalCustomKeys.has(key)) continue;
+      const a = cfBefore[key];
+      const b = cfAfter[key];
+      if ((a && typeof a === 'object') || (b && typeof b === 'object')) continue;
+      const label = fieldLabels.get(key) || key;
+      if (dedicatedEntryKeys.has(normKey(key)) || dedicatedEntryKeys.has(normKey(label))) continue;
+      if (differs(a, b)) fieldChanges.push(label, `${label}: ${show(a)} → ${show(b)}`);
+    }
+    const changeLines = [...fieldChangeMap.values()];
+    if (changeLines.length > 0) {
+      entries.push(make('edit', changeLines.length === 1 ? 'Field updated' : `${changeLines.length} fields updated`, changeLines.join('; ')));
+    }
+
+    const tagsBefore = new Set<string>(before.tags || []);
+    const tagsAfter = new Set<string>(after.tags || []);
+    const added = [...tagsAfter].filter((t) => !tagsBefore.has(t));
+    const removed = [...tagsBefore].filter((t) => !tagsAfter.has(t));
+    if (added.length || removed.length) {
+      const parts = [added.length ? `Added: ${added.join(', ')}` : '', removed.length ? `Removed: ${removed.join(', ')}` : ''].filter(Boolean);
+      entries.push(make('edit', 'Tags updated', parts.join('; ')));
+    }
+
+    return entries;
+  }
+
+  /**
+   * Origin lines for a capture or re-submission. Reads whatever the lead actually carries
+   * (source, form, campaign, page) so Facebook, webhooks, and later channels share one format.
+   */
+  private leadOriginParts(lead: Partial<TenantLead>): string[] {
+    const cf = lead.customFields || {};
+    const text = (...values: any[]) => {
+      for (const value of values) {
+        const s = String(value ?? '').trim();
+        if (s) return s;
+      }
+      return '';
+    };
+    const source = text(lead.source, cf.source, cf.lead_source, lead.utmSource);
+    const formName = text(lead.formName, cf.form_name, cf.formName, cf.meta_form_name);
+    const campaign = text(lead.campaignName, lead.campaign, lead.utmCampaign, cf.campaign_name, cf.campaignName);
+    const pageName = text(lead.pageName, cf.page_name, cf.pageName, cf.meta_page_name);
+    const same = (a: string, b: string) => !!a && !!b && a.toLowerCase() === b.toLowerCase();
+
+    const parts: string[] = [];
+    if (source) parts.push(`Source: ${source}`);
+    if (formName && !same(formName, source)) parts.push(`Form: ${formName}`);
+    if (campaign && !same(campaign, source) && !same(campaign, formName)) parts.push(`Campaign: ${campaign}`);
+    if (pageName && !same(pageName, source) && !same(pageName, formName)) parts.push(`Page: ${pageName}`);
+    return parts;
+  }
+
+  public async saveLead(
+    tenantId: string,
+    leadData: Partial<TenantLead>,
+    opts: { actor?: Partial<LeadActor>; event?: 'meta_resubmission' | 'resubmission' } = {}
+  ): Promise<TenantLead> {
+    const actor: LeadActor = {
+      id: opts.actor?.id || 'bot',
+      name: opts.actor?.name || 'System'
+    };
     this.ensureTenantBuckets(tenantId);
     if (!this.store.leads) {
       this.store.leads = {};
@@ -1286,6 +1455,7 @@ export class MultiTenantDatabase {
     const cleanLeadPhone = normalizePhone(leadData.phone);
     const cleanLeadEmail = (leadData.email || '').trim().toLowerCase();
     const metaLeadgenId = leadData.customFields?.meta_leadgen_id || (leadData.id?.startsWith('meta-lead-') ? leadData.id.replace('meta-lead-', '') : null);
+    let matchedByDuplicate = false;
 
     if (existingIndex === -1 && this.store.leads[targetTenantId]) {
       const dupIndex = this.store.leads[targetTenantId].findIndex((l) => {
@@ -1318,6 +1488,7 @@ export class MultiTenantDatabase {
 
       if (dupIndex >= 0) {
         existingIndex = dupIndex;
+        matchedByDuplicate = true;
       }
     }
 
@@ -1390,21 +1561,18 @@ export class MultiTenantDatabase {
         ? existing.createdAt
         : resolvedCreatedAt;
 
-      // Merge tags
-      const mergedTags = Array.from(new Set([...(existing.tags || []), ...(leadData.tags || []), 'Meta Re-submission']));
+      // A repeat inbound capture (Meta, webhook, or any caller that flags it). Manual edits match by id, so they stay ordinary updates.
+      const isResubmission =
+        opts.event === 'meta_resubmission' ||
+        opts.event === 'resubmission' ||
+        (matchedByDuplicate && (actor.id === 'bot' || !!metaLeadgenId));
 
-      // Add re-submission activity record
-      const existingActivities = existing.activities || [];
-      const newActivity = {
-        id: `act-${Date.now()}`,
-        leadId: existing.id,
-        agentId: existing.ownerAgentId || 'agent-admin',
-        agentName: existing.ownerAgentName || 'System',
-        type: 'note' as const,
-        title: 'Meta Lead Form Re-submission',
-        description: `Lead re-submitted form on ${new Date().toLocaleString()}`,
-        timestamp: now
-      };
+      // Re-submissions merge tags; normal updates send the full tag list, so removals must stick
+      const mergedTags = isResubmission
+        ? Array.from(new Set([...(existing.tags || []), ...(leadData.tags || []), 'Re-submission']))
+        : Array.isArray(leadData.tags)
+          ? Array.from(new Set(leadData.tags))
+          : existing.tags || [];
 
       const mergedCf = {
         ...(existing.customFields || {}),
@@ -1419,13 +1587,39 @@ export class MultiTenantDatabase {
         email: leadData.email && !leadData.email.includes('test_lead@') ? leadData.email : existing.email,
         customFields: mergedCf,
         tags: mergedTags,
-        activities: [newActivity, ...existingActivities],
+        activities: existing.activities || [],
         tenantId: targetTenantId,
         createdAt: preservedCreatedAt,
         updatedAt: now
       };
+
+      const newActivities: TenantActivity[] = [];
+      if (isResubmission) {
+        newActivities.push({
+          id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          tenantId: targetTenantId,
+          leadId: existing.id,
+          agentId: actor.id,
+          agentName: actor.name,
+          type: 'creation',
+          title: 'Lead re-submitted',
+          description: this.leadOriginParts({ ...existing, ...leadData, customFields: mergedCf }).join(' · '),
+          timestamp: now
+        });
+      }
+      newActivities.push(
+        ...this.buildLeadChangeActivities(targetTenantId, existing, savedLead, actor).filter(
+          (a) => !(isResubmission && a.title === 'Tags updated')
+        )
+      );
+      if (newActivities.length > 0) {
+        savedLead.activities = [...newActivities, ...(existing.activities || [])];
+      }
+
       this.store.leads[targetTenantId][existingIndex] = savedLead;
-      console.log(`\n🔄 [META DUPLICATE MERGED] -> Name: "${savedLead.name}" | Existing ID: ${savedLead.id} | Phone: ${savedLead.phone}`);
+      if (isResubmission) {
+        console.log(`\n🔄 [LEAD RE-SUBMISSION MERGED] -> Name: "${savedLead.name}" | Existing ID: ${savedLead.id} | Phone: ${savedLead.phone} | Source: "${savedLead.source || leadData.source || ''}"`);
+      }
     } else {
       savedLead = {
         id: leadData.id || `lead-${Date.now()}`,
@@ -1453,6 +1647,29 @@ export class MultiTenantDatabase {
         createdAt: resolvedCreatedAt,
         updatedAt: now
       };
+
+      const providedActivities = Array.isArray(leadData.activities) ? leadData.activities : [];
+      const hasCreationEntry = providedActivities.some((a: any) => a?.type === 'creation' || a?.type === 'facebook_form');
+      if (!hasCreationEntry) {
+        const assignee = savedLead.ownerAgentName && savedLead.ownerAgentName !== 'Unassigned'
+          ? `Assigned to ${savedLead.ownerAgentName}`
+          : '';
+        savedLead.activities = [
+          {
+            id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            tenantId: targetTenantId,
+            leadId: savedLead.id,
+            agentId: actor.id,
+            agentName: actor.name,
+            type: 'creation',
+            title: 'Lead created',
+            description: [...this.leadOriginParts(savedLead), assignee].filter(Boolean).join(' · '),
+            timestamp: now
+          },
+          ...providedActivities
+        ];
+      }
+
       this.store.leads[targetTenantId].unshift(savedLead);
       console.log(`\n📥 [CRM NEW LEAD SAVED] -> Name: "${savedLead.name}" | Phone: ${savedLead.phone} | Source: "${savedLead.source}" | Tenant: ${targetTenantId}`);
     }
@@ -1801,6 +2018,15 @@ export class MultiTenantDatabase {
     if (!this.store.fields[tenantId] || this.store.fields[tenantId].length === 0) {
       this.store.fields[tenantId] = DEFAULT_FIELDS.map((f) => ({ ...f, tenantId }));
       this.saveStore();
+    } else {
+      const age = this.store.fields[tenantId].find((f) => f.id === 'f-age' || f.name === 'age');
+      const hasAgeRange = age?.type === 'dropdown' && (age.options?.length || 0) >= AGE_OPTIONS.length;
+      if (age && !hasAgeRange) {
+        age.type = 'dropdown';
+        age.options = [...AGE_OPTIONS];
+        age.lastModified = new Date().toISOString();
+        this.saveStore();
+      }
     }
     return this.store.fields[tenantId];
   }
@@ -1929,6 +2155,10 @@ export class MultiTenantDatabase {
         callType: callData.callType || (callData as any).type || 'outgoing',
         disposition: callData.disposition || 'Connected',
         recordingUrl: callData.recordingUrl,
+        recordingKey: callData.recordingKey,
+        recordingStatus: callData.recordingStatus,
+        simSlot: callData.simSlot,
+        source: callData.source,
         callNotes: callData.callNotes || (callData as any).notes,
         assigneeRemarks: callData.assigneeRemarks,
         createdAt: now.toISOString(),
@@ -1939,6 +2169,10 @@ export class MultiTenantDatabase {
 
     this.saveStore();
     return call;
+  }
+
+  public async getCall(tenantId: string, callId: string): Promise<TenantCall | null> {
+    return (this.store.calls[tenantId] || []).find((c) => c.id === callId) || null;
   }
 
   public async deleteCall(tenantId: string, callId: string): Promise<boolean> {
@@ -1970,7 +2204,6 @@ export class MultiTenantDatabase {
         tenantId,
         updatedAt: new Date().toISOString()
       };
-      this.store.integrations[tenantId][existingIndex] = item;
     } else {
       item = {
         id: config.id || `integ-${Date.now()}`,
@@ -1982,8 +2215,21 @@ export class MultiTenantDatabase {
         lastSyncAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
-      this.store.integrations[tenantId].push(item);
     }
+
+    if (item.id === 'google_ads' || item.id === 'google_meet') {
+      const current = String(item.credentials?.webhookKey || '').trim();
+      const key = isUsableGoogleAdsKey(current) ? current : newGoogleAdsWebhookKey();
+      const owners = this.webhookSecretOwners(key, 'google-ads');
+      if (owners.some((owner) => owner !== tenantId)) {
+        throw new Error('That Google Ads webhook key is already used by another workspace');
+      }
+      item = { ...item, credentials: { ...(item.credentials || {}), webhookKey: key } };
+      this.setWebhookSecret(tenantId, 'googleAds', key);
+    }
+
+    if (existingIndex >= 0) this.store.integrations[tenantId][existingIndex] = item;
+    else this.store.integrations[tenantId].push(item);
 
     this.saveStore();
     return item;
@@ -2817,6 +3063,88 @@ export class MultiTenantDatabase {
     else list.unshift(saved);
     this.saveStore();
     return saved;
+  }
+
+  // =========================================================================
+  // INBOUND WEBHOOK SECRETS (one key per workspace; lookup never uses headers)
+  // =========================================================================
+  private setWebhookSecret(tenantId: string, scope: 'lead' | 'googleAds', secret: string) {
+    const tenant = this.store.tenants[tenantId];
+    if (!tenant) return;
+    const prev = tenant.settings?.webhookSecrets || {};
+    tenant.settings = {
+      ...(tenant.settings || {}),
+      webhookSecrets: { ...prev, [scope]: secret },
+    };
+    tenant.updatedAt = new Date().toISOString();
+  }
+
+  private webhookSecretOwners(secret: string, scope: 'google-ads' | 'lead'): string[] {
+    const presented = String(secret || '').trim();
+    if (!presented) return [];
+    if (scope === 'google-ads' && !isUsableGoogleAdsKey(presented)) return [];
+
+    const matches: string[] = [];
+    for (const tenantId of Object.keys(this.store.tenants || {})) {
+      if (scope === 'lead') {
+        const stored = String(this.store.tenants[tenantId]?.settings?.webhookSecrets?.lead || '').trim();
+        if (stored && secretsMatch(stored, presented)) matches.push(tenantId);
+        continue;
+      }
+
+      const fromSettings = String(this.store.tenants[tenantId]?.settings?.webhookSecrets?.googleAds || '').trim();
+      const integrations = this.store.integrations[tenantId] || [];
+      const google = integrations.find((i) => i.id === 'google_ads' || i.id === 'google_meet');
+      const fromCreds = String(google?.credentials?.webhookKey || '').trim();
+      const settingsOk = isUsableGoogleAdsKey(fromSettings) && secretsMatch(fromSettings, presented);
+      const credsOk = isUsableGoogleAdsKey(fromCreds) && secretsMatch(fromCreds, presented);
+      if (settingsOk || credsOk) matches.push(tenantId);
+    }
+    return matches;
+  }
+
+  public findTenantByWebhookSecret(secret: string, scope: 'google-ads' | 'lead'): string | null {
+    const matches = this.webhookSecretOwners(secret, scope);
+    return matches.length === 1 ? matches[0] : null;
+  }
+
+  public async ensureLeadWebhookSecret(tenantId: string): Promise<string> {
+    const tenant = this.store.tenants[tenantId];
+    if (!tenant) throw new Error('Workspace not found');
+    const existing = String(tenant.settings?.webhookSecrets?.lead || '').trim();
+    if (existing.length >= 32) return existing;
+    const secret = newLeadWebhookSecret();
+    this.setWebhookSecret(tenantId, 'lead', secret);
+    this.saveStore();
+    return secret;
+  }
+
+  public async ensureGoogleAdsWebhookKey(tenantId: string): Promise<string> {
+    const tenant = this.store.tenants[tenantId];
+    if (!tenant) throw new Error('Workspace not found');
+
+    const fromSettings = String(tenant.settings?.webhookSecrets?.googleAds || '').trim();
+    if (isUsableGoogleAdsKey(fromSettings)) return fromSettings;
+
+    const integrations = this.store.integrations[tenantId] || [];
+    const google = integrations.find((i) => i.id === 'google_ads' || i.id === 'google_meet');
+    const fromCreds = String(google?.credentials?.webhookKey || '').trim();
+    if (isUsableGoogleAdsKey(fromCreds)) {
+      const owners = this.webhookSecretOwners(fromCreds, 'google-ads');
+      if (!owners.some((owner) => owner !== tenantId)) {
+        this.setWebhookSecret(tenantId, 'googleAds', fromCreds);
+        this.saveStore();
+        return fromCreds;
+      }
+    }
+
+    const key = newGoogleAdsWebhookKey();
+    this.setWebhookSecret(tenantId, 'googleAds', key);
+    if (google) {
+      google.credentials = { ...(google.credentials || {}), webhookKey: key };
+    }
+    this.saveStore();
+    return key;
   }
 
   // =========================================================================

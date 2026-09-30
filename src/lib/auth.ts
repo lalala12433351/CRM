@@ -53,7 +53,7 @@ export async function sendVerificationOtp(
   email: string,
   phone: string,
   extras?: { password?: string; name?: string; resend?: boolean }
-): Promise<{ success: boolean; demoOtp?: string; via?: string; error?: string }> {
+): Promise<{ success: boolean; demoOtp?: string; via?: string; alreadyConfirmed?: boolean; error?: string }> {
   try {
     const response = await fetch('/api/auth/send-otp', {
       method: 'POST',
@@ -68,7 +68,7 @@ export async function sendVerificationOtp(
     });
     const data = await response.json();
     if (response.ok && data.success) {
-      return { success: true, demoOtp: data.demoOtp, via: data.via };
+      return { success: true, demoOtp: data.demoOtp, via: data.via, alreadyConfirmed: Boolean(data.alreadyConfirmed) };
     }
     return { success: false, error: data.error || 'Failed to send OTP' };
   } catch (err: any) {
@@ -209,9 +209,31 @@ export function getAuthHeaders(): Record<string, string> {
   }
   return {
     'Content-Type': 'application/json',
+    // Bypass ngrok free-tier interstitial HTML so API clients always get JSON
+    'ngrok-skip-browser-warning': 'true',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     'x-tenant-id': tenantId
   };
+}
+
+/** Parse an API response as JSON; throw a clear error if the body is HTML/non-JSON. */
+export async function readApiJson<T = any>(res: Response): Promise<T> {
+  const contentType = res.headers.get('content-type') || '';
+  const text = await res.text();
+  if (!text) {
+    if (!res.ok) throw new Error(`Request failed (${res.status})`);
+    return {} as T;
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    const looksHtml = contentType.includes('text/html') || /^\s*</.test(text);
+    throw new Error(
+      looksHtml
+        ? `Server returned HTML instead of JSON (${res.status}). If you are using ngrok, ensure API requests include the ngrok-skip-browser-warning header.`
+        : `Invalid JSON response (${res.status})`
+    );
+  }
 }
 
 /** Re-bind browser token to server after restart so creates/fetches keep working. */

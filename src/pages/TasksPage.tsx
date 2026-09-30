@@ -98,10 +98,12 @@ export const TasksPage: React.FC<TasksViewProps> = ({
   }, []);
 
   const visibleTasks = tasks.filter((t) => {
-    if (!isAdmin) {
-      return matchesAgent(agents, activeAgent, { id: t.assigneeAgentId, name: t.assigneeAgentName });
-    }
-    return true;
+    if (isAdmin) return true;
+    // agents is already role-scoped: a manager's team, or just the telecaller themselves
+    return (
+      agents.some((ag) => matchesAgent(agents, ag, { id: t.assigneeAgentId, name: t.assigneeAgentName })) ||
+      matchesAgent(agents, activeAgent, { id: t.assigneeAgentId, name: t.assigneeAgentName })
+    );
   }).filter((t) => {
     const matchesSearch =
       t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||

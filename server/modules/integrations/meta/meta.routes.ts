@@ -3,8 +3,32 @@ import { metaController } from './meta.controller';
 import { authMiddleware } from '../../../middleware/auth';
 import { tenantContextMiddleware } from '../../../middleware/tenantContext';
 import { verifyMetaSignature } from '../../../middleware/webhookVerify';
+import { requireAuthenticated } from '../../../middleware/rbac';
 
 const router = Router();
+
+// OAuth callback and Meta webhooks stay public. Everything else needs a signed-in user.
+router.use(
+  [
+    '/integrations/facebook/connect',
+    '/auth/meta/connect',
+    '/facebook/connect',
+    '/integrations/facebook/pages',
+    '/facebook/pages',
+    '/meta/pages',
+    '/meta/status',
+    '/integrations/facebook/campaign-mapping',
+    '/facebook/campaign-mapping',
+    '/integrations/facebook/campaign-mappings',
+    '/facebook/campaign-mappings',
+    '/meta/disconnect',
+    '/integrations/facebook/disconnect',
+    '/meta/sync',
+    '/facebook/sync-leads',
+    '/integrations/facebook/sync-leads'
+  ],
+  requireAuthenticated
+);
 
 // =========================================================================
 // 1. SELF-SERVE FACEBOOK OAUTH INTEGRATION ENDPOINTS

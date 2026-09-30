@@ -1,4 +1,4 @@
-import { resolveAgentName, matchesAgent, resolveLeadContact } from '../utils/agentDisplay';
+import { resolveAgentName, resolveLeadContact } from '../utils/agentDisplay';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Phone, 
@@ -19,7 +19,6 @@ import {
   X, 
   Plus, 
   Play, 
-  Pause, 
   FileSpreadsheet, 
   Trash2, 
   RefreshCw,
@@ -28,7 +27,10 @@ import {
   Users
 } from 'lucide-react';
 import { CallRecord, Agent, Lead } from '../types';
+import { CallRecordingPlayer } from '../components/CallRecordingPlayer';
 import { CustomDropdown } from '../components/CustomDropdown';
+import { getCrmRole } from '../utils/roleUtils';
+import { callBelongsToAgents, teamIdsForManager } from '../utils/reportScope';
 import { toast } from '../context/ToastContext';
 import { EmptyState } from '../components/EmptyState';
 import { formatProperName } from '../utils/formatUtils';
@@ -56,11 +58,24 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
   onDeleteCallRecord,
   onShowToast
 }) => {
-  const isAdmin = Boolean(activeAgent?.isAdmin) || ['admin', 'owner'].some((r) => String(activeAgent?.role || '').toLowerCase().includes(r));
+  const crmRole = getCrmRole(activeAgent);
+  const isManager = crmRole === 'Manager';
+
+  // A manager covers their own calls plus their telecallers'; everyone else only their own.
+  const allowedIds = useMemo(
+    () => (isManager && activeAgent?.id
+      ? teamIdsForManager(agents, activeAgent.id)
+      : [activeAgent?.id || '']),
+    [isManager, activeAgent?.id, agents]
+  );
+  const allowedAgents = useMemo(
+    () => agents.filter((a) => allowedIds.includes(a.id)),
+    [agents, allowedIds]
+  );
 
   // Search & Filter States
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedAssignee, setSelectedAssignee] = useState<string>(isAdmin ? 'all' : (activeAgent?.id || 'all'));
+  const [selectedAssignee, setSelectedAssignee] = useState<string>('all');
   const [selectedCallType, setSelectedCallType] = useState<string>('all');
   const [selectedDisposition, setSelectedDisposition] = useState<string>('all');
   const [selectedDateRange, setSelectedDateRange] = useState<string>('all');
@@ -76,8 +91,8 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
   // Multi-Selection
   const [selectedCallIds, setSelectedCallIds] = useState<string[]>([]);
 
-  // Audio Playback State
-  const [playingCallId, setPlayingCallId] = useState<string | null>(null);
+  // Row expanded to show the recording player and full remarks
+  const [expandedCallId, setExpandedCallId] = useState<string | null>(null);
 
   // Log Call Modal State
   const [isLogCallModalOpen, setIsLogCallModalOpen] = useState(false);
@@ -154,16 +169,10 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
   // Filtered Calls Calculation
   const filteredCalls = useMemo(() => {
     return callRecords.filter((call) => {
-      // 1. Assignee Scoping
-      if (!isAdmin && activeAgent) {
-        const isMyCall = matchesAgent(agents, activeAgent, { id: call.agentId, name: call.agentName || call.assigneeName });
-        if (!isMyCall) return false;
-      } else if (selectedAssignee !== 'all') {
-        const selectedAg = agents.find((a) => a.id === selectedAssignee);
-        const match = selectedAg
-          ? matchesAgent(agents, selectedAg, { id: call.agentId, name: call.agentName || call.assigneeName })
-          : call.agentId === selectedAssignee;
-        if (!match) return false;
+      // 1. Role Scoping, then optional narrowing to one assignee inside that scope
+      if (!callBelongsToAgents(call, agents, allowedIds)) return false;
+      if (selectedAssignee !== 'all' && !callBelongsToAgents(call, agents, [selectedAssignee])) {
+        return false;
       }
 
       // 2. Search Filter (Lead Name, Phone, Assignee Name, Notes, Disposition)
@@ -229,7 +238,7 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
 
       return true;
     });
-  }, [callRecords, selectedAssignee, selectedCallType, selectedDisposition, selectedDateRange, customStartDate, customEndDate, searchTerm, isAdmin, activeAgent, agents, leads]);
+  }, [callRecords, selectedAssignee, selectedCallType, selectedDisposition, selectedDateRange, customStartDate, customEndDate, searchTerm, allowedIds, agents, leads]);
 
   // Paginated List
   const totalCallsCount = filteredCalls.length;
@@ -378,26 +387,26 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 bg-[#fafafa] overflow-y-auto font-sans pb-12">
+    <div className="min-w-0 flex-1 bg-[#fafafa] font-sans">
       
       {/* 1. TOP HEADER & METRICS BAR */}
-      <div className="px-4 sm:px-6 py-4 space-y-4 max-w-full">
+      <div className="max-w-full space-y-3 px-3 py-3 sm:space-y-4 sm:px-6 sm:py-4">
         
         {/* Main Title & Action Buttons */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/80">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center space-x-2">
-              <span>{isAdmin ? 'All Calls' : 'My Calls'}</span>
+              <span>{isManager ? 'Team Calls' : 'My Calls'}</span>
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
               Comprehensive telecaller call histories, start/end timestamps, talk-times, and recording dispositions.
             </p>
           </div>
 
-          <div className="flex items-center space-x-2 self-start sm:self-auto shrink-0">
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center sm:self-auto sm:shrink-0">
             <button
               onClick={() => setIsLogCallModalOpen(true)}
-              className="px-3.5 py-2 rounded-xl bg-[#5034a8] hover:bg-[#432993] text-white text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 shadow-sm shadow-indigo-900/15"
+              className="flex min-h-11 items-center justify-center space-x-1.5 rounded-xl bg-[#5034a8] px-3.5 py-2 text-xs font-bold text-white shadow-sm shadow-indigo-900/15 transition-all hover:bg-[#432993]"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Log Call</span>
@@ -405,7 +414,7 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
 
             <button
               onClick={handleExportCsv}
-              className="px-3 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-medium transition-all cursor-pointer flex items-center space-x-1.5 shadow-2xs"
+              className="flex min-h-11 items-center justify-center space-x-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-2xs transition-all hover:bg-slate-50"
               title="Export filtered call records to CSV"
             >
               <Download className="w-3.5 h-3.5 text-slate-500" />
@@ -415,7 +424,7 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
         </div>
 
         {/* Top Summary Cards (Matching LeadsView Stats Theme) */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-5">
           <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-2xs space-y-1">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-mono">Total Calls</span>
             <div className="flex items-baseline justify-between">
@@ -472,7 +481,7 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-3">
             
             {/* Search Input */}
-            <div className="relative flex-1 min-w-[240px] max-w-md">
+            <div className="relative min-w-0 flex-1 sm:min-w-[240px] sm:max-w-md">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
               <input
                 type="text"
@@ -497,8 +506,8 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
             {/* Filter Pills */}
             <div className="flex flex-wrap items-center gap-2">
               
-              {/* Assignee Filter (if Admin) */}
-              {isAdmin && (
+              {/* Assignee Filter: managers can narrow to one of their telecallers */}
+              {isManager && (
                 <div className="w-40">
                   <CustomDropdown<string>
                     value={selectedAssignee}
@@ -507,8 +516,8 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
                       setCurrentPage(1);
                     }}
                     options={[
-                      { value: 'all', label: 'All Assignees' },
-                      ...agents.map((a) => ({ value: a.id, label: a.name })),
+                      { value: 'all', label: 'All Team Members' },
+                      ...allowedAgents.map((a) => ({ value: a.id, label: a.name })),
                     ]}
                     align="left"
                     wrapperClassName="w-full"
@@ -657,7 +666,7 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
                     setSelectedCallType('all');
                     setSelectedDisposition('all');
                     setSelectedDateRange('all');
-                    setSelectedAssignee(isAdmin ? 'all' : (activeAgent?.id || 'all'));
+                    setSelectedAssignee('all');
                     setCurrentPage(1);
                   }}
                   className="px-2.5 py-1.5 rounded-xl text-xs font-medium text-rose-600 hover:bg-rose-50 transition-all cursor-pointer"
@@ -811,15 +820,15 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
                     const avatar = getAgentAvatar(assigneeName);
                     const startFormatted = formatDateTime(call.callStartTime || call.timestamp);
                     const endFormatted = formatDateTime(getCallEndTime(call));
-                    const isPlaying = playingCallId === call.id;
+                    const isExpanded = expandedCallId === call.id;
 
                     // Match Lead record if available
                     const matchedLead = leads.find((l) => l.id === call.leadId || l.phone === call.leadPhone);
                     const contact = resolveLeadContact(leads, { id: call.leadId, name: call.leadName, phone: call.leadPhone });
 
                     return (
+                      <React.Fragment key={call.id}>
                       <tr
-                        key={call.id}
                         className={`hover:bg-slate-50/70 transition-colors ${isSelected ? 'bg-indigo-50/30' : ''}`}
                       >
                         {/* Checkbox */}
@@ -928,26 +937,19 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
                         {/* 8. Remarks & Recording */}
                         <td className="px-3.5 py-2.5 whitespace-nowrap text-right">
                           <div className="flex items-center justify-end space-x-2">
-                            {/* Audio Player Button */}
+                            {/* Expand for the recording player and the untruncated remarks */}
                             <button
-                              onClick={() => {
-                                if (isPlaying) {
-                                  setPlayingCallId(null);
-                                } else {
-                                  setPlayingCallId(call.id);
-                                  setTimeout(() => setPlayingCallId(null), 3000);
-                                  if (onShowToast) onShowToast(`Playing recording for ${call.leadName}...`);
-                                }
-                              }}
+                              onClick={() => setExpandedCallId(isExpanded ? null : call.id)}
                               className={`p-1.5 rounded-lg border text-xs font-medium transition-colors cursor-pointer flex items-center space-x-1 ${
-                                isPlaying
+                                isExpanded
                                   ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
                                   : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
                               }`}
-                              title={isPlaying ? 'Pause Audio' : 'Play Call Recording'}
+                              title={isExpanded ? 'Hide call details' : 'Show recording and full remarks'}
                             >
-                              {isPlaying ? <Pause className="w-3 h-3 text-white" /> : <Play className="w-3 h-3 text-indigo-600" />}
-                              <span className="text-[10px] font-mono">{isPlaying ? 'Playing' : 'Audio'}</span>
+                              <Play className={`w-3 h-3 ${isExpanded ? 'text-white' : 'text-indigo-600'}`} />
+                              <span className="text-[10px] font-mono">Audio</span>
+                              <ChevronDown className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                             </button>
 
                             {/* Remarks Tooltip / Text */}
@@ -964,6 +966,28 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
                           </div>
                         </td>
                       </tr>
+
+                      {isExpanded && (
+                        <tr className="bg-slate-50/60">
+                          <td colSpan={9} className="px-3.5 pb-3 pt-0">
+                            <div className="max-w-2xl space-y-2">
+                              <CallRecordingPlayer
+                                recordingUrl={call.recordingUrl}
+                                recordingStatus={(call as any).recordingStatus}
+                                durationSeconds={call.durationSeconds}
+                                callId={call.id}
+                              />
+                              <div>
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Remarks</p>
+                                <p className="text-[11px] text-slate-700 whitespace-pre-wrap">
+                                  {call.callNotes || call.notes || call.assigneeRemarks || 'No remarks recorded for this call.'}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      </React.Fragment>
                     );
                   })
                 )}
@@ -1071,7 +1095,7 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
                     onChange={(e) => setLogAssigneeId(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
                   >
-                    {agents.map((ag) => (
+                    {allowedAgents.map((ag) => (
                       <option key={ag.id} value={ag.id}>
                         {ag.name} ({ag.role || 'Telecaller'})
                       </option>

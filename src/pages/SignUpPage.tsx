@@ -208,14 +208,19 @@ export const SignUpPage: React.FC<SignUpViewProps> = ({ onSignUpSuccess, onSwitc
         password,
         name: name.trim()
       });
-      setIsSendingOtp(false);
-
       if (otpResult.success) {
+        if (otpResult.alreadyConfirmed) {
+          await finishWorkspaceRegistration(targetEmail, targetPhone);
+          setIsSendingOtp(false);
+          return;
+        }
+        setIsSendingOtp(false);
         setDemoOtpCode(otpResult.via === 'cognito' ? undefined : otpResult.demoOtp);
         setOtpCode('');
         setShowOtpModal(true);
         setResendTimer(30);
       } else {
+        setIsSendingOtp(false);
         setErrorMessage(otpResult.error || 'Failed to dispatch verification code. Please check your contact details.');
       }
     } catch (err: any) {
@@ -260,13 +265,17 @@ export const SignUpPage: React.FC<SignUpViewProps> = ({ onSignUpSuccess, onSwitc
     const targetPhone = phone.trim();
 
     const verifyRes = await verifyRegistrationOtp(targetEmail, targetPhone, cleanOtp);
-    if (!verifyRes.success) {
+    const alreadyVerified = /already verified/i.test(verifyRes.error || '');
+    if (!verifyRes.success && !alreadyVerified) {
       setIsVerifyingOtp(false);
       setOtpError(verifyRes.error || 'Invalid verification code. Please check and try again.');
       return;
     }
 
-    // OTP verified successfully -> Provision account
+    await finishWorkspaceRegistration(targetEmail, targetPhone);
+  };
+
+  const finishWorkspaceRegistration = async (targetEmail: string, targetPhone: string) => {
     const payload: RegisterPayload = {
       name: name.trim(),
       email: targetEmail,
@@ -288,11 +297,15 @@ export const SignUpPage: React.FC<SignUpViewProps> = ({ onSignUpSuccess, onSwitc
         setShowOtpModal(false);
         onSignUpSuccess(result.user, result.tenantId);
       } else {
-        setOtpError(result.error || 'Failed to finalize account setup. Please try again.');
+        const message = result.error || 'Failed to finalize account setup. Please try again.';
+        setOtpError(message);
+        setErrorMessage(message);
       }
     } catch (err: any) {
       setIsVerifyingOtp(false);
-      setOtpError(err.message || 'An unexpected error occurred during account creation.');
+      const message = err.message || 'An unexpected error occurred during account creation.';
+      setOtpError(message);
+      setErrorMessage(message);
     }
   };
 

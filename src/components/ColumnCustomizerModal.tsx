@@ -198,7 +198,8 @@ export const ColumnCustomizerModal: React.FC<ColumnCustomizerModalProps> = ({
               onDrop={(e) => handleDrop(e, index)}
               onDragEnd={handleDragEnd}
               onClick={() => {
-                if (isNameField) return; // Name is locked
+                // Name is always-on: allow selecting if missing, block deselect
+                if (isNameField && isSelected) return;
                 if (!isSelected && !canSelectMore) return;
                 onToggleField(field.name || field.id);
               }}
@@ -213,6 +214,7 @@ export const ColumnCustomizerModal: React.FC<ColumnCustomizerModalProps> = ({
                   ? 'hover:bg-slate-50 text-slate-700'
                   : 'opacity-50 cursor-not-allowed text-slate-400'
               }`}
+              title={isNameField && isSelected ? 'Name column is always visible' : undefined}
             >
               {/* Drag Handle */}
               <div 

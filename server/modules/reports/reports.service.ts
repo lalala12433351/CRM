@@ -14,6 +14,7 @@ export type ReportCallRecord = {
   callStartTime?: string;
   callEndTime?: string;
   recordingUrl?: string;
+  recordingStatus?: string;
   disposition: string;
   notes?: string;
   callNotes?: string;
@@ -89,6 +90,7 @@ export function mapCallRecord(call: TenantCall): ReportCallRecord {
     callStartTime: call.callStart,
     callEndTime: call.callEnd,
     recordingUrl: call.recordingUrl,
+    recordingStatus: call.recordingStatus,
     disposition: call.disposition || 'Connected',
     notes: call.callNotes || '',
     callNotes: call.callNotes,
@@ -193,29 +195,24 @@ export async function buildCallLogsReport(tenantId: string, scope: AccessScope, 
   });
   const peak = hourly.reduce((best, row) => (row.calls > best.calls ? row : best), hourly[0]);
 
-  const rankedAgents = users.map((agent) => {
-    const agentCalls = scopedCalls.filter((call) => callMatchesAgents(call, [agent], [agent.id]));
-    const agentLeads = scopedLeads.filter(
-      (lead) =>
-        lead.ownerAgentId === agent.id ||
-        (lead.ownerAgentName && lead.ownerAgentName.toLowerCase() === (agent.name || '').toLowerCase())
-    );
-    const converted = agentLeads.filter((lead) => {
-      const status = (lead.status || '').toLowerCase();
-      return status === 'converted' || status === 'won';
-    });
-    const talkSecs = agentCalls.reduce((sum, call) => sum + (Number(call.durationSeconds) || 0), 0);
-    const revenue = converted.reduce((sum, lead) => sum + (Number(lead.dealValue) || 0), 0);
-    const totalCalls = agentCalls.length;
-    return {
-      ...publicAgent(agent),
-      calculatedCalls: totalCalls,
-      calculatedConverted: converted.length,
-      calculatedTalkTimeSecs: talkSecs,
-      calculatedRevenue: revenue,
-      winRate: totalCalls > 0 ? Math.round((converted.length / totalCalls) * 100) : converted.length > 0 ? 100 : 0
-    };
-  }).sort((a, b) => b.calculatedConverted - a.calculatedConverted || b.calculatedRevenue - a.calculatedRevenue || b.calculatedCalls - a.calculatedCalls);
+  const rankedAgents = rankAgents(users, scopedCalls, scopedLeads).map(({ agent, stats }) => ({
+    ...publicAgent(agent),
+    ...stats
+  }));
+
+  const tenantCalls = allCalls.filter((call) => isDateInRange(call.callStart || call.createdAt, filters.from, filters.to));
+  const tenantLeads = (allLeads as TenantLead[]).filter((lead) =>
+    isDateInRange(lead.createdAt || lead.updatedAt, filters.from, filters.to)
+  );
+  // Shared across every role: ranking stats only, no contact details or call rows.
+  const leaderboard = rankAgents(allAgents, tenantCalls, tenantLeads).map(({ agent, stats }) => ({
+    id: agent.id,
+    name: agent.name,
+    role: agent.role,
+    crmRole: publicAgent(agent).crmRole,
+    avatar: agent.avatar || '',
+    ...stats
+  }));
 
   return {
     users: users.map(publicAgent),
@@ -230,8 +227,41 @@ export async function buildCallLogsReport(tenantId: string, scope: AccessScope, 
     },
     hourly,
     peakHour: peak && peak.calls > 0 ? `${peak.hour}` : null,
-    rankedAgents
+    rankedAgents,
+    leaderboard
   };
+}
+
+function rankAgents(agents: TenantAgent[], calls: TenantCall[], leads: TenantLead[]) {
+  return agents.map((agent) => {
+    const agentCalls = calls.filter((call) => callMatchesAgents(call, [agent], [agent.id]));
+    const agentLeads = leads.filter(
+      (lead) =>
+        lead.ownerAgentId === agent.id ||
+        (lead.ownerAgentName && lead.ownerAgentName.toLowerCase() === (agent.name || '').toLowerCase())
+    );
+    const converted = agentLeads.filter((lead) => {
+      const status = (lead.status || '').toLowerCase();
+      return status === 'converted' || status === 'won';
+    });
+    const talkSecs = agentCalls.reduce((sum, call) => sum + (Number(call.durationSeconds) || 0), 0);
+    const revenue = converted.reduce((sum, lead) => sum + (Number(lead.dealValue) || 0), 0);
+    const totalCalls = agentCalls.length;
+    return {
+      agent,
+      stats: {
+        calculatedCalls: totalCalls,
+        calculatedConverted: converted.length,
+        calculatedTalkTimeSecs: talkSecs,
+        calculatedRevenue: revenue,
+        winRate: totalCalls > 0 ? Math.round((converted.length / totalCalls) * 100) : converted.length > 0 ? 100 : 0
+      }
+    };
+  }).sort((a, b) =>
+    b.stats.calculatedConverted - a.stats.calculatedConverted ||
+    b.stats.calculatedRevenue - a.stats.calculatedRevenue ||
+    b.stats.calculatedCalls - a.stats.calculatedCalls
+  );
 }
 
 export function filterCallsForScope(calls: TenantCall[], agents: TenantAgent[], scope: AccessScope): TenantCall[] {

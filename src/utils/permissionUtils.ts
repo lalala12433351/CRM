@@ -60,7 +60,7 @@ export function getAgentPermissionRights(
     billings: false,
     integrations: false,
     aiAgents: false,
-    tasks: false,
+    tasks: true,
     dashboardView: true,
     whatsappTemplates: true,
     smsTemplates: false,
