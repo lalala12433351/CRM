@@ -1,0 +1,275 @@
+/* ========================================================================== */
+/* CAPACITOR MOBILE WEBVIEW LAYER                                             */
+/* Safe areas, native-feel resets, and keyboard-aware layout primitives.      */
+/* --keyboard-inset and html.keyboard-open are driven by installKeyboardInsets */
+/* (src/lib/nativeShell.ts); html.native-app is set by initNativeShell.       */
+/* ========================================================================== */
+
+:root {
+  /* Capacitor's SystemBars injects --safe-area-inset-* on <html> because Android WebView < 140 reports env() as 0. */
+  --safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --safe-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+  --safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --safe-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+
+  /* Portion of the layout viewport covered by the on-screen keyboard (iOS overlays; Android usually resizes). */
+  --keyboard-inset: 0px;
+  /* The home indicator sits behind the keyboard while it is open, so its inset stops mattering. */
+  --safe-bottom-live: var(--safe-bottom);
+
+  --app-height: 100vh;
+  --header-height: 3.5rem;
+  --footer-height: 4rem;
+
+  --kb-duration: 250ms;
+  --kb-easing: cubic-bezier(0.17, 0.59, 0.4, 0.77);
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --app-height: 100dvh;
+  }
+}
+
+html.keyboard-open {
+  --safe-bottom-live: 0px;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Native-feel resets                                                          */
+/* -------------------------------------------------------------------------- */
+
+html {
+  /* Removes the legacy 300ms double-tap-zoom delay while keeping scroll/pan. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+a,
+button,
+input,
+select,
+textarea,
+label,
+summary,
+[role='button'],
+[tabindex] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.native-app,
+html.native-app body {
+  /* Kills rubber-banding / pull-to-refresh glow on the document (iOS 16+, Android WebView 63+). */
+  overscroll-behavior: none;
+}
+
+html.native-app body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+html.native-app img,
+html.native-app a,
+html.native-app svg {
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+}
+
+/* Editable and explicitly copyable content must stay selectable. */
+html.native-app input,
+html.native-app textarea,
+html.native-app [contenteditable]:not([contenteditable='false']),
+html.native-app .selectable,
+html.native-app .selectable * {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+html.native-app :focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Existing native shell behaviour                                             */
+/* -------------------------------------------------------------------------- */
+
+/* The WebView draws under the status bar / notch, so push the app shell below it. */
+html.native-app body {
+  padding-top: var(--safe-top);
+  background-color: #ffffff;
+}
+html.native-app .h-screen {
+  height: calc(var(--app-height) - var(--safe-top));
+}
+
+/* -------------------------------------------------------------------------- */
+/* Safe-area atoms                                                             */
+/* -------------------------------------------------------------------------- */
+
+.pt-safe { padding-top: var(--safe-top); }
+.pb-safe { padding-bottom: var(--safe-bottom-live); }
+.pl-safe { padding-left: var(--safe-left); }
+.pr-safe { padding-right: var(--safe-right); }
+.px-safe { padding-left: var(--safe-left); padding-right: var(--safe-right); }
+.py-safe { padding-top: var(--safe-top); padding-bottom: var(--safe-bottom-live); }
+.p-safe {
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom-live) var(--safe-left);
+}
+
+.mt-safe { margin-top: var(--safe-top); }
+.mb-safe { margin-bottom: var(--safe-bottom-live); }
+
+/* Spacers for status bar / home indicator areas that need a painted background. */
+.safe-top-spacer { flex: none; height: var(--safe-top); }
+.safe-bottom-spacer { flex: none; height: var(--safe-bottom-live); }
+
+/* iOS momentum scrolling (no-op on modern engines, harmless on old ones). */
+.ios-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Layout primitives                                                           */
+/* -------------------------------------------------------------------------- */
+
+@layer components {
+  /* Full-height, non-scrolling frame: header / .scroll-area / footer stacked in a column. */
+  .app-shell {
+    display: flex;
+    flex-direction: column;
+    height: var(--app-height);
+    width: 100%;
+    overflow: hidden;
+  }
+  html.native-app .app-shell {
+    height: calc(var(--app-height) - var(--safe-top));
+  }
+
+  /* Viewport-pinned header. Pads itself under the notch/status bar and side cutouts. */
+  .fixed-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    min-height: calc(var(--header-height) + var(--safe-top));
+    padding-top: var(--safe-top);
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
+  }
+  /* body already reserves the top inset in native-app, so a fixed header only needs its own height. */
+  html.native-app .fixed-header {
+    min-height: var(--header-height);
+    top: var(--safe-top);
+    padding-top: 0;
+  }
+
+  /* Header that sticks to the top of its nearest scroll container. */
+  .sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+
+  /* Reserve space for a .fixed-header in the content underneath it. */
+  .header-offset {
+    padding-top: calc(var(--header-height) + var(--safe-top));
+  }
+  html.native-app .header-offset {
+    padding-top: var(--header-height);
+  }
+
+  /* In-flow footer at the bottom of .app-shell or a scroll container; rides above the keyboard. */
+  .sticky-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 30;
+    flex: none;
+    padding-bottom: var(--safe-bottom-live);
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
+    transform: translate3d(0, calc(-1 * var(--keyboard-inset)), 0);
+    transition:
+      transform var(--kb-duration) var(--kb-easing),
+      padding-bottom var(--kb-duration) var(--kb-easing);
+  }
+
+  /* Viewport-pinned footer (composer bars, action bars) that lifts with the keyboard. */
+  .fixed-footer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    padding-bottom: var(--safe-bottom-live);
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
+    transform: translate3d(0, calc(-1 * var(--keyboard-inset)), 0);
+    transition:
+      transform var(--kb-duration) var(--kb-easing),
+      padding-bottom var(--kb-duration) var(--kb-easing);
+    will-change: transform;
+  }
+
+  /* Reserve space for a .fixed-footer / bottom nav in the content above it. */
+  .footer-offset {
+    padding-bottom: calc(var(--footer-height) + var(--safe-bottom-live) + var(--keyboard-inset));
+  }
+
+  /* Bottom tab bars and FABs: get out of the way while typing. */
+  html.keyboard-open .hide-on-keyboard {
+    display: none !important;
+  }
+  .show-on-keyboard {
+    display: none !important;
+  }
+  html.keyboard-open .show-on-keyboard {
+    display: revert !important;
+  }
+
+  /* Primary scroll region. Contains its own overscroll so the shell never bounces,
+     and keeps the focused field clear of the keyboard and any sticky footer. */
+  .scroll-area {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: var(--keyboard-inset);
+    scroll-padding-top: 0.75rem;
+    scroll-padding-bottom: calc(var(--footer-height) + var(--keyboard-inset) + 0.75rem);
+    transition: padding-bottom var(--kb-duration) var(--kb-easing);
+  }
+
+  /* Horizontal swipe strip that never chains into back-swipe / page scroll. */
+  .scroll-area-x {
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .scroll-area-x::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Full-screen sheet/modal body that stays inside safe areas and above the keyboard. */
+  .sheet-safe {
+    max-height: calc(var(--app-height) - var(--safe-top) - var(--keyboard-inset));
+    padding-bottom: var(--safe-bottom-live);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sticky-footer,
+  .fixed-footer,
+  .scroll-area {
+    transition: none;
+  }
+}

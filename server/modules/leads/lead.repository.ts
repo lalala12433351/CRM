@@ -5,8 +5,8 @@ export class LeadRepository {
     return await multiTenantDb.getLeads(tenantId, agentIds, isAdmin);
   }
 
-  public async saveLead(tenantId: string, leadData: any) {
-    return await multiTenantDb.saveLead(tenantId, leadData);
+  public async saveLead(tenantId: string, leadData: any, actor?: { id: string; name: string }) {
+    return await multiTenantDb.saveLead(tenantId, leadData, { actor });
   }
 
   public async deleteLead(tenantId: string, leadId: string) {

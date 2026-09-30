@@ -1,8 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { multiTenantDb } from '../../services/multiTenantDb';
 import { logger } from '../../utils/logger';
+import { requireAuthenticated } from '../../middleware/rbac';
 
 const router = Router();
+router.use('/actions', requireAuthenticated);
 
 // GET /api/actions - Retrieve all workflow actions for tenant
 router.get('/actions', async (req: Request, res: Response) => {

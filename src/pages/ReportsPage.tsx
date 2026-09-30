@@ -843,10 +843,11 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
                         </div>
 
                         {/* Audio Recording */}
-                        {call.durationSeconds > 0 && (
+                        {(call.durationSeconds > 0 || Boolean(call.recordingUrl)) && (
                           <div className="pt-1">
                             <CallRecordingPlayer
                               recordingUrl={call.recordingUrl}
+                              recordingStatus={(call as any).recordingStatus}
                               durationSeconds={call.durationSeconds}
                               callId={call.id}
                             />

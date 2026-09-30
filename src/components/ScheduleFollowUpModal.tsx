@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, X } from 'lucide-react';
 import { Lead } from '../types';
 import { toast } from '../context/ToastContext';
+import { useBackHandler } from '../lib/backHandler';
 import {
   DateTimePicker,
   DateTimeParts,
@@ -53,6 +54,8 @@ export const ScheduleFollowUpModal: React.FC<ScheduleFollowUpModalProps> = ({
       setSchedulerRemarks('');
     }
   }, [isOpen, lead]);
+
+  useBackHandler(isOpen && !!lead, onClose);
 
   if (!isOpen || !lead) return null;
 

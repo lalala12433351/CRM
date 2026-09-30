@@ -1,8 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { pipelineController } from './pipeline.controller';
 import { multiTenantDb } from '../../services/multiTenantDb';
+import { requireAuthenticated } from '../../middleware/rbac';
 
 const router = Router();
+router.use(['/pipelines', '/conversions', '/analytics'], requireAuthenticated);
 
 // GET /api/pipelines - Fetch pipeline stages scoped to tenantId
 router.get('/pipelines', async (req: Request, res: Response) => {

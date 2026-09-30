@@ -26,6 +26,10 @@ Procfile
 .env.local
 .env.*.local
 
+# Native mobile projects (built locally, never part of the server image)
+android
+ios
+
 # IDE & agent metadata
 .gemini
 .agents

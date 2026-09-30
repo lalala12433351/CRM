@@ -9,10 +9,10 @@ export class MetaService {
   /**
    * Generates a tamper-proof signed CSRF state token linked to the authenticated tenant/user
    */
-  public generateState(clientId: string): string {
+  public generateState(clientId: string, platform: 'web' | 'native' = 'web'): string {
     const timestamp = Date.now();
     const nonce = crypto.randomBytes(8).toString('hex');
-    const rawData = `${clientId}:${timestamp}:${nonce}`;
+    const rawData = `${clientId}:${timestamp}:${nonce}:${platform}`;
     const signature = crypto
       .createHmac('sha256', metaConfig.appSecret)
       .update(rawData)
@@ -23,7 +23,12 @@ export class MetaService {
   /**
    * Validates state integrity, freshness (< 15 mins), and extracts the client/tenant ID
    */
-  public verifyState(stateStr: string): { valid: boolean; clientId: string; error?: string } {
+  public verifyState(stateStr: string): {
+    valid: boolean;
+    clientId: string;
+    platform?: 'web' | 'native';
+    error?: string;
+  } {
     if (!stateStr) {
       return { valid: false, clientId: '', error: 'State parameter missing' };
     }
@@ -42,15 +47,16 @@ export class MetaService {
         return { valid: false, clientId: '', error: 'State HMAC signature mismatch' };
       }
 
-      const [clientId, timestampStr] = rawData.split(':');
+      const [clientId, timestampStr, , platformRaw] = rawData.split(':');
+      const platform = platformRaw === 'native' ? 'native' : 'web';
       const timestamp = parseInt(timestampStr, 10);
       const MAX_AGE_MS = 15 * 60 * 1000; // 15 minutes
 
       if (Date.now() - timestamp > MAX_AGE_MS) {
-        return { valid: false, clientId, error: 'State token expired' };
+        return { valid: false, clientId, platform, error: 'State token expired' };
       }
 
-      return { valid: true, clientId };
+      return { valid: true, clientId, platform };
     } catch (err: any) {
       return { valid: false, clientId: '', error: `Invalid state format: ${err.message}` };
     }
@@ -59,8 +65,12 @@ export class MetaService {
   /**
    * Builds the Meta OAuth Dialog URL with required permission scopes
    */
-  public generateOAuthUrl(clientId: string, redirectUri: string): { url: string; state: string } {
-    const state = this.generateState(clientId);
+  public generateOAuthUrl(
+    clientId: string,
+    redirectUri: string,
+    platform: 'web' | 'native' = 'web'
+  ): { url: string; state: string } {
+    const state = this.generateState(clientId, platform);
     const scopes = 'leads_retrieval,pages_show_list,pages_read_engagement,pages_manage_metadata';
     const url = `https://www.facebook.com/${metaConfig.graphVersion}/dialog/oauth?client_id=${encodeURIComponent(
       metaConfig.appId
@@ -602,7 +612,17 @@ export class MetaService {
   /**
    * Fetch lead forms published under a Facebook Page from Graph API (live only — no mocks).
    */
-  public async getPageForms(pageId: string): Promise<Array<{ id: string; name: string; status: string; questions?: any[] }>> {
+  private pageFormsCache = new Map<string, { at: number; forms: Array<{ id: string; name: string; status: string; questions?: any[] }> }>();
+
+  public async getPageForms(
+    pageId: string,
+    opts: { refresh?: boolean } = {}
+  ): Promise<Array<{ id: string; name: string; status: string; questions?: any[] }>> {
+    const cached = this.pageFormsCache.get(pageId);
+    if (cached && !opts.refresh && Date.now() - cached.at < 5 * 60 * 1000) {
+      return cached.forms;
+    }
+
     const pageObj = await this.getPageToken(pageId);
     if (!pageObj || !pageObj.page_access_token) {
       throw new Error(`No active access token found for Facebook Page ID ${pageId}`);
@@ -617,14 +637,24 @@ export class MetaService {
         },
         timeout: 8000
       });
-      const forms = res.data?.data || [];
-      return forms.map((f: any) => ({
+      const forms = (res.data?.data || []).map((f: any) => ({
         id: f.id,
         name: f.name || `Form ${f.id}`,
         status: f.status || 'ACTIVE',
         questions: f.questions || []
       }));
+      this.pageFormsCache.set(pageId, { at: Date.now(), forms });
+      return forms;
     } catch (err: any) {
+      const { isMetaRateLimitError } = await import('./meta.sync');
+      if (isMetaRateLimitError(err)) {
+        if (cached) return cached.forms;
+        const rateErr: any = new Error(
+          'Facebook is temporarily limiting requests for this Page. Please wait a few minutes and try again.'
+        );
+        rateErr.status = 429;
+        throw rateErr;
+      }
       await this.handleAuthError(pageId, err);
       const msg = err?.response?.data?.error?.message || err.message;
       logger.warn(`[Meta Service] Graph API getPageForms failed for ${pageId}: ${msg}`);

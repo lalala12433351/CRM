@@ -1,21 +1,20 @@
 import { Router, Request, Response } from 'express';
 import { logger } from '../../../utils/logger';
 import { multiTenantDb } from '../../../services/multiTenantDb';
+import { requireGoogleAdsWebhookKey, requireLeadWebhookSecret } from '../../../middleware/webhookAuth';
 
 const router = Router();
 
 /**
  * POST /api/webhooks/google-ads
+ * Workspace is chosen from the per-workspace key, not from x-tenant-id.
  */
-router.post('/webhooks/google-ads', async (req: Request, res: Response) => {
+router.post('/webhooks/google-ads', requireGoogleAdsWebhookKey, async (req: Request, res: Response) => {
   try {
     const payload = req.body;
-    logger.info('[Google Ads Webhook] Payload received:', JSON.stringify(payload));
-
-    const expectedKey = process.env.GOOGLE_ADS_WEBHOOK_KEY || 'pixbe_google_ads_key';
-    if (payload.google_key && payload.google_key !== expectedKey) {
-      return res.status(403).json({ status: 'error', message: 'Invalid Google Ads Webhook Key' });
-    }
+    const logged = { ...(payload || {}) };
+    delete logged.google_key;
+    logger.info('[Google Ads Webhook] Payload received:', JSON.stringify(logged));
 
     let leadName = 'Google Ads Lead';
     let leadPhone = '';
@@ -47,8 +46,8 @@ router.post('/webhooks/google-ads', async (req: Request, res: Response) => {
       phone: leadPhone || '+91 98450 00000',
       email: leadEmail,
       company: leadCompany,
-      formName: payload.form_name || payload.form_title || 'Google Lead Form',
-      campaignName: payload.campaign_name || payload.campaign_id || 'Google Search Campaign',
+      ...(payload.form_name || payload.form_title ? { formName: payload.form_name || payload.form_title } : {}),
+      ...(payload.campaign_name || payload.campaign_id ? { campaignName: payload.campaign_name || payload.campaign_id } : {}),
       city: leadCity,
       state: payload.state || 'Maharashtra',
       source: 'Google Ads Lead Form',
@@ -63,17 +62,20 @@ router.post('/webhooks/google-ads', async (req: Request, res: Response) => {
       ownerAgentId: 'agent-us',
       ownerAgentName: 'Ummema Sufiya BM',
       customFields: { 
-        form_name: payload.form_name || payload.form_title || 'Google Lead Form',
-        gclid: payload.gclid || 'gclid-demo-123', 
-        campaign_id: payload.campaign_id || 'g-camp-101' 
+        ...(payload.form_name || payload.form_title ? { form_name: payload.form_name || payload.form_title } : {}),
+        ...(payload.gclid ? { gclid: payload.gclid } : {}),
+        ...(payload.campaign_id ? { campaign_id: payload.campaign_id } : {}),
       },
-      tags: Array.from(new Set(['Google Ads', payload.form_name || 'Google Lead Form', 'Search Lead Form'])),
+      tags: Array.from(new Set(['Google Ads', payload.form_name, payload.form_title].filter(Boolean))),
       notes: `Google Campaign ID: ${payload.campaign_id || 'N/A'}, Form ID: ${payload.form_id || 'N/A'}`,
       gclid: payload.gclid || 'gclid-demo-123'
     };
 
-    const tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string) || process.env.DEFAULT_TENANT_ID || 'default_tenant';
-    await multiTenantDb.saveLead(tenantId, newLead as any);
+    const tenantId = (req as Request & { tenantId?: string }).tenantId;
+    if (!tenantId) {
+      return res.status(403).json({ status: 'error', message: 'Invalid Google Ads webhook key' });
+    }
+    await multiTenantDb.saveLead(tenantId, newLead as any, { actor: { id: 'bot', name: 'Google Ads' } });
 
     logger.info(`✅ [Google Ads] Lead Saved to Database: ${newLead.name} (${newLead.phone})`);
     res.status(200).json({ status: 'success', message: 'Google Ads Lead captured into CRM Database', leadId });
@@ -84,9 +86,10 @@ router.post('/webhooks/google-ads', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/webhooks/lead (Generic & Zapier)
+ * POST /api/webhooks/lead and /api/webhooks/lead/:tenantKey (Generic & Zapier)
+ * :tenantKey is the workspace secret, not the tenant id.
  */
-router.post('/webhooks/lead', async (req: Request, res: Response) => {
+async function ingestLeadWebhook(req: Request, res: Response) {
   try {
     const payload = req.body || {};
     const leadId = `lead-webhook-${Date.now()}`;
@@ -94,14 +97,14 @@ router.post('/webhooks/lead', async (req: Request, res: Response) => {
     const leadName =
       payload.name ||
       payload.full_name ||
-      (payload.first_name ? `${payload.first_name} ${payload.last_name || ''}`.trim() : 'Meta Facebook Lead');
-    const leadPhone = payload.phone || payload.phone_number || payload.mobile || payload.contact || '+91 0000000000';
+      (payload.first_name ? `${payload.first_name} ${payload.last_name || ''}`.trim() : 'Inbound Lead');
+    const leadPhone = payload.phone || payload.phone_number || payload.mobile || payload.contact || '';
     const leadEmail = payload.email || payload.email_address || '';
-    const leadCity = payload.city || payload.location || payload.branch || 'Kerala';
-    const leadCompany = payload.company || payload.company_name || 'Individual';
+    const leadCity = payload.city || payload.location || payload.branch || '';
+    const leadCompany = payload.company || payload.company_name || '';
     const leadSource = payload.source || payload.lead_source || 'Inbound Webhook';
-    const formName = payload.form_name || payload.formName || payload.form || payload.campaign_name || payload.campaign || 'Web Form';
-    const formHandle = `@${formName.toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-')}`;
+    const formName = payload.form_name || payload.formName || payload.form || '';
+    const campaignName = payload.campaign_name || payload.campaignName || payload.campaign || '';
 
     const newLead = {
       id: leadId,
@@ -109,10 +112,10 @@ router.post('/webhooks/lead', async (req: Request, res: Response) => {
       phone: leadPhone,
       email: leadEmail,
       company: leadCompany,
-      formName,
-      campaignName: formName,
+      ...(formName ? { formName } : {}),
+      ...(campaignName ? { campaignName } : {}),
       city: leadCity,
-      state: payload.state || 'Karnataka',
+      state: payload.state || '',
       source: leadSource,
       status: 'Fresh',
       pipelineStageId: payload.pipelineStageId || 'stage-1',
@@ -126,17 +129,20 @@ router.post('/webhooks/lead', async (req: Request, res: Response) => {
       ownerAgentName: payload.ownerAgentName || 'Unassigned',
       customFields: {
         ...payload.customFields,
-        form_name: formName,
-        meta_form_name: formName,
+        ...(formName ? { form_name: formName } : {}),
+        ...(campaignName ? { campaign_name: campaignName } : {}),
       },
-      tags: Array.from(new Set([leadSource, formName, formHandle, 'Webhook Live'])),
-      notes: payload.notes || payload.ad_name || `Live inbound lead captured via ${leadSource} (${formName}).`,
+      tags: Array.from(new Set([leadSource, formName, campaignName, 'Webhook'].filter(Boolean))),
+      notes: payload.notes || payload.ad_name || `Live inbound lead captured via ${leadSource}${formName ? ` (${formName})` : ''}.`,
       gclid: payload.gclid || null,
       fbclid: payload.fbclid || null
     };
 
-    const tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string) || process.env.DEFAULT_TENANT_ID || 'default_tenant';
-    await multiTenantDb.saveLead(tenantId, newLead as any);
+    const tenantId = (req as Request & { tenantId?: string }).tenantId;
+    if (!tenantId) {
+      return res.status(403).json({ status: 'error', message: 'Invalid webhook secret' });
+    }
+    await multiTenantDb.saveLead(tenantId, newLead as any, { actor: { id: 'bot', name: 'Website / API webhook' } });
 
     logger.info(`[Zapier Webhook] ✅ Live lead captured: ${newLead.name} (${newLead.phone})`);
     res.status(201).json({ status: 'success', message: 'Lead captured live into CRM', leadId, lead: newLead });
@@ -144,6 +150,9 @@ router.post('/webhooks/lead', async (req: Request, res: Response) => {
     logger.error('[Webhook Error]:', error);
     res.status(500).json({ status: 'error', error: error.message });
   }
-});
+}
+
+router.post('/webhooks/lead', requireLeadWebhookSecret, ingestLeadWebhook);
+router.post('/webhooks/lead/:tenantKey', requireLeadWebhookSecret, ingestLeadWebhook);
 
 export default router;

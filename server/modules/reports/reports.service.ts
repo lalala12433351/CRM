@@ -14,6 +14,7 @@ export type ReportCallRecord = {
   callStartTime?: string;
   callEndTime?: string;
   recordingUrl?: string;
+  recordingStatus?: string;
   disposition: string;
   notes?: string;
   callNotes?: string;
@@ -89,6 +90,7 @@ export function mapCallRecord(call: TenantCall): ReportCallRecord {
     callStartTime: call.callStart,
     callEndTime: call.callEnd,
     recordingUrl: call.recordingUrl,
+    recordingStatus: call.recordingStatus,
     disposition: call.disposition || 'Connected',
     notes: call.callNotes || '',
     callNotes: call.callNotes,

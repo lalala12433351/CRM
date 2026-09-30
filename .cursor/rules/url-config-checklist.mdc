@@ -1,0 +1,21 @@
+---
+description: When changing APP_URL or redirect URIs, remind to check configchanges.txt
+alwaysApply: true
+---
+
+# URL / domain config checklist
+
+Whenever you change (or the user asks to change) any of:
+
+- `APP_URL`
+- `COGNITO_REDIRECT_URI`
+- `META_REDIRECT_URI` / Meta OAuth callback
+- Public domain / subdomain (e.g. `crm.pixbe.in`)
+- Cognito callback / sign-out URLs
+- ECS task env URLs vs local `.env` URLs
+
+You MUST:
+
+1. **Remind the user** to open and follow **`configchanges.txt`** at the repo root.
+2. Read `configchanges.txt` yourself and apply or call out every relevant checklist item (local `.env`, ECS task definition, Cognito console, Meta console, Cloudflare, etc.).
+3. Do not treat updating only `.env` or only ECS as complete until that file’s steps are acknowledged.

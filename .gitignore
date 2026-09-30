@@ -9,6 +9,12 @@ coverage/
 .env
 .env.*
 !.env.example
+!.env.mobile
+
+# Android release signing
+*.jks
+*.keystore
+keystore.properties
 
 # Runtime tenant data, sessions, and local secrets — never commit
 .data/**

@@ -1,4 +1,5 @@
 import { resolveAgentName, resolveAgentAvatar, matchesAgent, isUnassignedOwner } from '../utils/agentDisplay';
+import { dialNumber } from '../lib/calling';
 
 import React, { useState, useMemo, useRef, useEffect, useContext } from 'react';
 import { 
@@ -44,7 +45,6 @@ import {
   CalendarPlus,
   Clock,
   UserCheck,
-  LayoutGrid,
   Timer,
   ToggleLeft,
   ThumbsDown,
@@ -110,7 +110,7 @@ const FreshLeadTimerBadge: React.FC<{ lead: { createdAt: string }; timerMinutes:
   const isUrgent = minutesLeft <= 5;
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm ml-1.5 ${
+      className={`inline-flex shrink-0 items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold leading-none shadow-sm ${
         isUrgent
           ? 'bg-red-500 text-white animate-pulse shadow-red-300/50'
           : 'bg-orange-500 text-white shadow-orange-300/40'
@@ -396,20 +396,27 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
     return [...ordered, ...remaining];
   }, [customFields, fieldOrderKeys]);
 
-  // Selected column keys state (persisted in localStorage)
+  // Selected column keys state (persisted in localStorage). Name is always included.
   const [selectedColumnKeys, setSelectedColumnKeys] = useState<string[]>(() => {
+    const ensureName = (keys: string[]) => (keys.includes('name') ? keys : ['name', ...keys]);
     try {
       const saved = localStorage.getItem('crm_selected_columns');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) return ensureName(parsed);
       }
     } catch (e) {}
-    return (customFields || [])
-      .filter((f) => !f.isHidden && f.id !== TIMER_SENTINEL_ID)
-      .slice(0, 6)
-      .map((f) => f.name || f.id);
+    return ensureName(
+      (customFields || [])
+        .filter((f) => !f.isHidden && f.id !== TIMER_SENTINEL_ID)
+        .slice(0, 6)
+        .map((f) => f.name || f.id)
+    );
   });
+
+  useEffect(() => {
+    setSelectedColumnKeys((prev) => (prev.includes('name') ? prev : ['name', ...prev]));
+  }, []);
 
   useEffect(() => {
     try {
@@ -420,7 +427,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
   const handleToggleColumnField = (fieldKey: string) => {
     setSelectedColumnKeys((prev) => {
       if (prev.includes(fieldKey)) {
-        if (fieldKey === 'name') return prev; // Name is locked
+        if (fieldKey === 'name') return prev; // Name cannot be hidden
         return prev.filter((k) => k !== fieldKey);
       } else {
         if (prev.length >= 12) return prev;
@@ -708,7 +715,6 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
   };
 
   // Mobile View Style: Cards (default on phone) vs Horizontal Table
-  const [mobileViewStyle, setMobileViewStyle] = useState<'cards' | 'table'>('cards');
 
   // Follow-Up Scheduling Modal State
   const [followUpLead, setFollowUpLead] = useState<Lead | null>(null);
@@ -933,22 +939,27 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
         if (!isMine) return false;
       }
 
-      // 3. Active View Filter (All Leads = all stages, All Active Leads = all stages except closed, Followup Leads = follow ups)
+      // 3. Active View Filter (All Leads = all stages, All Active Leads = only Active-category stages, My Leads = owned by signed-in user, Followup Leads = follow ups)
       if (activeFilterId === 'all_leads') {
         // Show leads at ALL stages (no stage filtering)
       } else if (activeFilterId === 'active_leads') {
-        // Show all leads other than closed stages
-        const matchedStage = stages.find(s => 
-          s.id === lead.pipelineStageId || 
-          s.name.toLowerCase() === (lead.status || '').toLowerCase()
-        );
-        if (matchedStage && matchedStage.category === 'closed') {
-          return false;
-        }
         const cleanStatus = (lead.status || '').toLowerCase().trim();
-        if (cleanStatus === 'lost' || cleanStatus === 'converted' || cleanStatus === 'closed' || cleanStatus.startsWith('lost') || cleanStatus.startsWith('converted')) {
-          return false;
+        // status is authoritative; pipelineStageId is often left stale (e.g. 'stage-1') when status changes
+        const matchedStage = cleanStatus
+          ? stages.find(s => s.name.toLowerCase().trim() === cleanStatus)
+          : stages.find(s => s.id === lead.pipelineStageId);
+        if (matchedStage) {
+          if (matchedStage.category && matchedStage.category !== 'active') return false;
+        } else {
+          if (!cleanStatus) return false;
+          const isFresh = cleanStatus.includes('fresh') || cleanStatus === 'new' || cleanStatus.startsWith('new ');
+          const isClosed = ['lost', 'convert', 'closed', 'won', 'junk'].some(k => cleanStatus.includes(k)) || cleanStatus.startsWith('not ');
+          if (isFresh || isClosed) return false;
         }
+      } else if (activeFilterId === 'my_leads') {
+        if (!activeAgent) return false;
+        const isMine = matchesAgent(agents, activeAgent, { id: lead.ownerAgentId, name: lead.ownerAgentName });
+        if (!isMine) return false;
       } else if (activeFilterId === 'followup_leads') {
         const isFollowUp = (lead.status || '').toLowerCase().includes('follow') || !!lead.followUpAt;
         if (!isFollowUp) return false;
@@ -1047,7 +1058,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
     });
 
     return result;
-  }, [leads, activeFilterId, selectedAssignee, selectedStatus, selectedDateFilter, searchTerm, searchField, sortField, sortOrder, leadRatings, activeConditions, agents, customFields, stages, lostReasons]);
+  }, [leads, activeFilterId, activeAgent, selectedAssignee, selectedStatus, selectedDateFilter, searchTerm, searchField, sortField, sortOrder, leadRatings, activeConditions, agents, customFields, stages, lostReasons]);
 
   // Paginated leads
   const actualFilteredCount = filteredAndSortedLeads.length;
@@ -1637,10 +1648,10 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
   ];
 
   return (
-    <div className="w-full bg-[#f8fafc] min-h-screen text-slate-800 font-sans pb-16">
+    <div className="min-h-0 w-full bg-[#f8fafc] font-sans text-slate-800">
       
       {/* 1. TOP VIEW HEADER ROW */}
-      <div className="px-4 sm:px-6 pt-4 pb-3 flex items-center justify-between relative z-10">
+      <div className="relative z-10 flex items-center justify-between px-3 pb-3 pt-3 sm:px-6 sm:pt-4">
         {/* Left: View title dropdown button + Edit + Refresh + Add */}
         <div className="flex items-center space-x-2 relative">
           
@@ -1711,42 +1722,20 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
           <button
             type="button"
             onClick={() => setIsAddConditionModalOpen(true)}
-            className="w-7 h-7 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 hover:border-purple-300 text-purple-700 flex items-center justify-center transition-all cursor-pointer shadow-2xs shrink-0 group ml-0.5"
+            className="group ml-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-purple-200 bg-purple-50 text-purple-700 shadow-2xs transition-all hover:border-purple-300 hover:bg-purple-100 sm:h-8 sm:w-8"
             title="Add Condition Filter"
           >
             <Plus className="w-4 h-4 text-purple-600 group-hover:scale-110 transition-transform duration-150" />
           </button>
         </div>
 
-        {/* Right: View Toggle (Analytics / Chart View & List View Switcher) */}
+        {/* Chart stays available. The lead list is cards on the phone, so there is no table switch there. */}
         <div className="flex items-center space-x-1.5">
-          {/* Mobile Card / Table Toggle */}
-          <div className="flex md:hidden items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 mr-1">
-            <button
-              onClick={() => setMobileViewStyle('cards')}
-              className={`p-1.5 rounded-md text-xs font-semibold flex items-center space-x-1 cursor-pointer transition-all ${
-                mobileViewStyle === 'cards' ? 'bg-white text-indigo-600 shadow-2xs font-bold' : 'text-slate-500'
-              }`}
-              title="Mobile Cards View"
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setMobileViewStyle('table')}
-              className={`p-1.5 rounded-md text-xs font-semibold flex items-center space-x-1 cursor-pointer transition-all ${
-                mobileViewStyle === 'table' ? 'bg-white text-indigo-600 shadow-2xs font-bold' : 'text-slate-500'
-              }`}
-              title="Table View"
-            >
-              <List className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
           <button 
-            onClick={() => setViewMode('chart')}
+            onClick={() => setViewMode(viewMode === 'chart' ? 'table' : 'chart')}
             className={`p-2 rounded-lg flex items-center justify-center cursor-pointer transition-all ${
               viewMode === 'chart' 
-                ? 'bg-[#3a2088] text-white shadow-xs' 
+                ? 'bg-slate-800 text-white' 
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
             title="Analytics Chart View"
@@ -1756,9 +1745,9 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
           
           <button 
             onClick={() => setViewMode('table')}
-            className={`p-2 rounded-lg flex items-center justify-center cursor-pointer transition-all ${
+            className={`hidden md:flex p-2 rounded-lg items-center justify-center cursor-pointer transition-all ${
               viewMode === 'table' 
-                ? 'bg-[#3a2088] text-white shadow-xs' 
+                ? 'bg-slate-800 text-white' 
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
             title="Data Table View"
@@ -1779,21 +1768,21 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
       </div>
 
       {/* 2. FILTER PILLS ROW (Assignee | Status | Creation Date) */}
-      <div className="px-4 sm:px-6 mb-3 relative z-0">
-        <div className="flex items-center gap-2 flex-wrap">
+      <div className="relative z-0 mb-3 px-3 sm:px-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           
           {/* In Table view, show the full unified search bar. In Chart view, show the clean filter pills as shown in screenshot */}
           {viewMode === 'table' && (
-            <div className="flex-1 min-w-[280px] bg-white border border-slate-200 rounded-full px-3 py-1.5 flex items-center shadow-2xs focus-within:border-indigo-400 focus-within:ring-1 focus-within:ring-indigo-400 transition-all">
+            <div className="flex min-h-11 w-full min-w-0 items-center rounded-2xl border border-slate-200 bg-white px-3 py-1.5 shadow-2xs transition-all focus-within:border-slate-400 sm:w-auto sm:min-w-[280px] sm:flex-1 sm:rounded-full">
               
               {/* Search Field Dropdown Selector */}
               <div className="relative shrink-0 pr-2 border-r border-slate-200" ref={searchDropdownRef}>
                 <button
                   onClick={() => setIsSearchFieldOpen(!isSearchFieldOpen)}
-                  className="flex items-center space-x-1.5 text-xs text-slate-700 font-semibold hover:text-indigo-600 cursor-pointer"
+                  className="flex min-w-0 items-center space-x-1.5 text-xs text-slate-700 font-semibold hover:text-slate-900 cursor-pointer"
                 >
                   <Search className="w-3.5 h-3.5 text-indigo-600" />
-                  <span className="capitalize">{searchField === 'auto' ? 'Auto (Smart)' : searchField}</span>
+                  <span className="max-w-[6.5rem] truncate capitalize sm:max-w-none">{searchField === 'auto' ? 'Auto (Smart)' : searchField}</span>
                   <ChevronDown className="w-3 h-3 text-slate-400" />
                 </button>
 
@@ -1843,7 +1832,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                   setCurrentPage(1);
                 }}
                 placeholder="Search by name, number or email"
-                className="flex-1 bg-transparent px-3 py-0.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none"
+                className="min-w-0 flex-1 bg-transparent px-3 py-0.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none"
               />
 
               {searchTerm && (
@@ -1857,28 +1846,28 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
             </div>
           )}
 
-          {/* Quick Filter Buttons: Assignee | Status | Creation Date */}
-          <div className="flex items-center space-x-2">
+          {/* Quick Filter Buttons: Assignee | Status sit on their own row on the phone */}
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center sm:gap-2">
             
             {/* Assignee Filter Dropdown */}
-            <div className="relative" ref={assigneeDropdownRef}>
+            <div className="relative min-w-0" ref={assigneeDropdownRef}>
               <button
                 onClick={() => setIsAssigneeDropdownOpen(!isAssigneeDropdownOpen)}
-                className={`border rounded-full px-3 py-1.5 text-xs font-medium flex items-center space-x-1.5 shadow-2xs cursor-pointer transition-colors ${
+                className={`w-full justify-between border rounded-full px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 shadow-2xs cursor-pointer transition-colors sm:w-auto sm:justify-start ${
                   selectedAssignee !== 'all'
-                    ? 'bg-indigo-50 border-indigo-300 text-indigo-900 font-bold'
+                    ? 'bg-slate-100 border-slate-300 text-slate-900 font-bold'
                     : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700'
                 }`}
               >
-                <User className="w-3.5 h-3.5 text-slate-400" />
-                <span>
+                <User className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+                <span className="min-w-0 flex-1 truncate text-left">
                   {selectedAssignee === 'all' 
                     ? 'Assignee' 
                     : selectedAssignee === 'unassigned'
                     ? 'Unassigned'
                     : (agents.find(a => a.id === selectedAssignee)?.name.split(' ')[0] || 'Assignee')}
                 </span>
-                <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${isAssigneeDropdownOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-3 h-3 shrink-0 text-slate-400 transition-transform duration-200 ${isAssigneeDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {isAssigneeDropdownOpen && (
@@ -1962,7 +1951,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
             </div>
 
             {/* Status Filter Dropdown (Compact & Flush Right) */}
-            <div className="relative" ref={statusDropdownRef}>
+            <div className="relative min-w-0" ref={statusDropdownRef}>
               {(() => {
                 const stageConfig = selectedStatus !== 'all' ? stages.find(s => s.name.toLowerCase() === selectedStatus.toLowerCase()) : null;
                 const color = stageConfig?.color || (selectedStatus !== 'all' ? getStatusStyle(selectedStatus).hex : null);
@@ -1973,7 +1962,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                   <button
                     onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
                     style={selectedStatus !== 'all' ? inlineStyles : undefined}
-                    className={`border rounded-full px-3 py-1.5 text-xs font-medium flex items-center space-x-1.5 shadow-2xs cursor-pointer transition-colors ${
+                    className={`w-full justify-between border rounded-full px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 shadow-2xs cursor-pointer transition-colors sm:w-auto sm:justify-start ${
                       selectedStatus === 'all'
                         ? 'bg-white border-slate-200 hover:border-slate-300 text-slate-700'
                         : 'font-bold'
@@ -1982,7 +1971,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                     {selectedStatus !== 'all' && (
                       <span style={dotStyles} className="w-2 h-2 rounded-full shrink-0" />
                     )}
-                    <span className="truncate max-w-[120px]">
+                    <span className="min-w-0 flex-1 truncate text-left">
                       {selectedStatus === 'all' 
                         ? 'Status' 
                         : selectedStatus === 'Lost' && selectedLostReason !== 'all'
@@ -2823,10 +2812,10 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
 
           
           {/* PAGINATION & ACTIONS SUB-BAR */}
-          <div className="px-4 sm:px-6 mb-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+          <div className="px-3 sm:px-6 mb-2 flex flex-wrap items-center justify-between gap-2">
             
             {/* Left: Pagination Controls `< 1-20 of 11100 >` and Column Button */}
-            <div className="flex items-center space-x-3">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
               
               {/* Pagination Navigation: `< 1-20 of 11100 >` */}
               <div className="flex items-center space-x-1.5 text-xs text-slate-600">
@@ -2880,7 +2869,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
             </div>
 
             {/* Right: Bulk Edit & More Actions */}
-            <div className="flex items-center space-x-2 self-end sm:self-auto h-[28px]">
+            <div className="flex items-center gap-2 h-[28px]">
               {selectedLeadIds.length > 0 ? (
                 <div className="flex items-center bg-[#f8fafc] border border-slate-200 rounded-md overflow-visible shadow-xs h-full text-xs">
                   <div className="px-3 text-slate-500 font-medium whitespace-nowrap bg-slate-50 border-r border-slate-200 h-full flex items-center">
@@ -3016,7 +3005,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
           </div>
 
           {/* MOBILE LEADS CARDS LIST (Visible on < md when mobileViewStyle === 'cards') */}
-          <div className={`space-y-2.5 px-3 sm:px-4 ${mobileViewStyle === 'table' ? 'hidden' : 'block md:hidden'}`}>
+          <div className="block space-y-2.5 px-3 sm:px-4 md:hidden">
             {currentPaginatedLeads.length === 0 ? (
               <EmptyState 
                 title="No Leads Found" 
@@ -3036,7 +3025,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                   >
                     {/* Header Row: Checkbox, Name, Status Badge, Deal Value */}
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-start space-x-2.5 min-w-0">
+                      <div className="flex flex-1 items-start gap-2.5 min-w-0">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -3054,10 +3043,10 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                         </button>
                         <div 
                           onClick={() => onOpenLeadDetail(lead)}
-                          className="cursor-pointer min-w-0"
+                          className="cursor-pointer flex-1 min-w-0"
                         >
-                          <h4 className="font-bold text-slate-900 text-sm truncate tracking-tight hover:text-indigo-600 flex items-center flex-wrap gap-1">
-                            <span className="truncate">{formatProperName(lead.name || 'Unnamed Lead')}</span>
+                          <h4 className="font-bold text-slate-900 text-sm leading-5 tracking-tight hover:text-indigo-600 flex items-center gap-1.5 min-w-0">
+                            <span className="truncate min-w-0">{formatProperName(lead.name || 'Unnamed Lead')}</span>
                             {(() => {
                               const timerRecord = customFields.find(f => f.id === TIMER_SENTINEL_ID);
                               const freshTimerMins = timerRecord?.freshLeadTimerMinutes ?? 0;
@@ -3144,7 +3133,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
           </div>
 
           {/* MAIN DATA TABLE */}
-          <div className={`px-4 sm:px-6 ${mobileViewStyle === 'cards' ? 'hidden md:block' : 'block'}`}>
+          <div className="hidden px-4 sm:px-6 md:block">
             <div className="bg-white rounded-lg border border-slate-200 shadow-2xs overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs text-slate-700">
@@ -3257,8 +3246,8 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
                                     key={field.id}
                                     className="px-3.5 py-2.5 font-medium text-slate-700 hover:text-slate-900 hover:underline cursor-pointer whitespace-nowrap"
                                   >
-                                    <span className="flex items-center">
-                                      <span className="truncate max-w-[200px] inline-block">{formatProperName(val) || '—'}</span>
+                                    <span className="flex items-center gap-1.5">
+                                      <span className="truncate min-w-0 max-w-[200px]">{formatProperName(val) || '—'}</span>
                                       {freshTimerMins > 0 && (
                                         <FreshLeadTimerBadge lead={lead} timerMinutes={freshTimerMins} />
                                       )}
@@ -3420,7 +3409,7 @@ export const LeadsPage: React.FC<LeadsViewProps> = ({
         <LeadSummaryModal
           lead={summaryLead}
           onClose={() => setSummaryLead(null)}
-          onCallLead={(l) => { window.location.href = `tel:${l.phone}`; }}
+          onCallLead={(l) => { dialNumber(l.phone, { leadId: l.id, leadName: l.name }).catch(console.warn); }}
           onScheduleFollowUp={(l) => openFollowUpModal(l)}
         />
       )}

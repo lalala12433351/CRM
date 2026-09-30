@@ -44,7 +44,8 @@ export type TabType =
   | 'marketing' 
   | 'integrations'
   | 'team'
-  | 'docs'
+  | 'docs_sign'
+  | 'device_permissions'
   | 'settings';
 
 interface SidebarProps {

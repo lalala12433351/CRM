@@ -1,6 +1,8 @@
 import { multiTenantDb, TenantWorkflow, TenantLead, TenantAgent, TenantTask } from './multiTenantDb';
 import { logger } from '../utils/logger';
 
+const WORKFLOW_ACTOR = { id: 'bot', name: 'Workflow automation' };
+
 export interface WorkflowNodeExecutionLog {
   timestamp: string;
   nodeId: string;
@@ -418,7 +420,7 @@ export class WorkflowEngine {
           id: lead.id,
           ownerAgentId: targetAgent.id,
           ownerAgentName: targetAgent.name
-        });
+        }, { actor: WORKFLOW_ACTOR });
         return {
           message: `Assigned lead "${lead.name || lead.id}" to ${targetAgent.name}`,
           data: { agentId: targetAgent.id, agentName: targetAgent.name }
@@ -435,7 +437,7 @@ export class WorkflowEngine {
         await multiTenantDb.saveLead(tenantId, {
           id: lead.id,
           status: newStatus
-        });
+        }, { actor: WORKFLOW_ACTOR });
         return {
           message: `Moved lead "${lead.name || lead.id}" status to "${newStatus}"`,
           data: { status: newStatus }
@@ -455,7 +457,7 @@ export class WorkflowEngine {
         await multiTenantDb.saveLead(tenantId, {
           id: lead.id,
           customFields: lead.customFields
-        });
+        }, { actor: WORKFLOW_ACTOR });
         return {
           message: `Updated field "${fieldName}" = "${fieldValue}" on lead`,
           data: { fieldName, fieldValue }
@@ -472,7 +474,7 @@ export class WorkflowEngine {
         await multiTenantDb.saveLead(tenantId, {
           id: lead.id,
           aiRating: rating
-        });
+        }, { actor: WORKFLOW_ACTOR });
         return {
           message: `Set lead qualification rating to "${rating}"`,
           data: { rating }
@@ -489,7 +491,7 @@ export class WorkflowEngine {
         await multiTenantDb.saveLead(tenantId, {
           id: lead.id,
           tags: lead.tags
-        });
+        }, { actor: WORKFLOW_ACTOR });
         return {
           message: `Added tag "${tag}" to lead`,
           data: { tags: lead.tags }
@@ -506,7 +508,7 @@ export class WorkflowEngine {
         await multiTenantDb.saveLead(tenantId, {
           id: lead.id,
           tags: lead.tags
-        });
+        }, { actor: WORKFLOW_ACTOR });
         return {
           message: `Removed tag "${tag}" from lead`,
           data: { tags: lead.tags }

@@ -164,7 +164,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
     onChange({ ...parts, ...patch });
   };
 
-  const minuteOptions = [...MINUTE_STEPS];
+  const minuteOptions: string[] = [...MINUTE_STEPS];
   const exactMinute = minuteOptions.includes(selectedMinute) ? null : selectedMinute;
 
   const applyQuick = (kind: 'soon' | 'tomorrow' | 'two' | 'week') => {

@@ -5,8 +5,8 @@ export class LeadService {
     return await leadRepository.getLeads(tenantId, agentIds, isAdmin);
   }
 
-  public async saveLead(tenantId: string, leadData: any) {
-    return await leadRepository.saveLead(tenantId, leadData);
+  public async saveLead(tenantId: string, leadData: any, actor?: { id: string; name: string }) {
+    return await leadRepository.saveLead(tenantId, leadData, actor);
   }
 
   public async deleteLead(tenantId: string, leadId: string) {

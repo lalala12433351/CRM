@@ -1,8 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { multiTenantDb } from '../../services/multiTenantDb';
 import { logger } from '../../utils/logger';
+import { requireAuthenticated } from '../../middleware/rbac';
 
 const router = Router();
+router.use('/templates', requireAuthenticated);
 
 // GET /api/templates - Retrieve all templates for current tenant
 router.get('/templates', async (req: Request, res: Response) => {

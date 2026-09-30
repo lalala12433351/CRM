@@ -90,7 +90,10 @@ export class LeadController {
         } : {}),
         tenantId
       };
-      const result = await leadService.saveLead(tenantId, leadData);
+      const actor = authReq.user
+        ? { id: authReq.user.id, name: authReq.user.name || authReq.user.email }
+        : undefined;
+      const result = await leadService.saveLead(tenantId, leadData, actor);
       return res.status(201).json({ success: true, tenantId, lead: result });
     } catch (err: any) {
       logger.error('Error saving lead into database:', err);

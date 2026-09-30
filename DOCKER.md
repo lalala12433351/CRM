@@ -190,15 +190,13 @@ The application includes built-in endpoints for container orchestration (Kuberne
 | Endpoint | Method | Description |
 | :--- | :--- | :--- |
 | `/api/health` | `GET` | Container liveness probe used by Docker `HEALTHCHECK`. Returns `200 OK`. |
-| `/api/db/test` | `GET` | Tests active SQL connection to Postgres / AWS RDS and returns database version. |
-| `/api/db/seed` | `GET` | Seeds mock leads, agents, and pipelines into the SQL database. |
-| `/api/db/tables` | `GET` | Inspects all provisioned tables and row counts in PostgreSQL. |
 
 Example test:
 ```bash
-# Check database connectivity
-curl http://localhost:8080/api/db/test
+curl http://localhost:8080/api/health
 ```
+
+To confirm the database connection, check the startup log for `[MultiTenantDB] Loaded N workspace(s) from Postgres`.
 
 ---
 

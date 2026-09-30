@@ -48,6 +48,18 @@ import { saveWorkflowToDb, getWorkflowsFromDb, fetchWorkflowsFromApi } from './u
 import { executeWorkflowTriggers } from './utils/workflowEngine';
 import { PhoneCall, X, Users } from 'lucide-react';
 import { verifyCurrentSession, logoutWithApi, fetchWithTenantAuth, clearLocalStorageAuth, ensureServerSession } from './lib/auth';
+import {
+  OPEN_PHONE_SETUP_EVENT,
+  clearNativeAuth,
+  dialNumber,
+  phoneTail,
+  setRecordingEnabled,
+} from './lib/calling';
+import { useCallTracker, type TrackedCall } from './hooks/useCallTracker';
+import { type RecordingUploadedEvent } from './lib/callTracker';
+import { isNative } from './lib/platform';
+import { requestInitialAndroidPermissions } from './lib/devicePermissions';
+import { PermissionsSetupPage } from './pages/PermissionsSetupPage';
 import { formatArcleName } from './utils/brandUtils';
 import { toast, useToast, ToastType } from './context/ToastContext';
 
@@ -86,6 +98,35 @@ import { resolveAgentName, resolveLeadContact, matchesAgent } from './utils/agen
 import { ShieldCheck } from 'lucide-react';
 
 export const StagesContext = React.createContext<PipelineStage[]>([]);
+
+function mapServerCall(c: any): CallRecord {
+  return {
+    id: c.id,
+    leadId: c.leadId || '',
+    leadName: c.leadName || 'Contact',
+    leadPhone: c.leadPhone || '',
+    agentId: c.agentId || '',
+    agentName: c.agentName || c.assigneeName || '',
+    assigneeName: c.assigneeName,
+    type: c.type || c.callType || 'outgoing',
+    durationSeconds: c.durationSeconds || 0,
+    callStartTime: c.callStart || c.callStartTime,
+    callEndTime: c.callEnd || c.callEndTime,
+    recordingUrl: c.recordingUrl,
+    recordingStatus: c.recordingStatus,
+    simSlot: c.simSlot,
+    source: c.source,
+    disposition: c.disposition || 'Connected',
+    notes: c.notes || c.callNotes,
+    callNotes: c.callNotes || c.notes,
+    assigneeRemarks: c.assigneeRemarks,
+    timestamp: c.timestamp || c.callStart || c.createdAt || new Date().toISOString(),
+    transcript: c.transcript,
+    aiSummary: c.aiSummary,
+    sentiment: c.sentiment,
+    tags: c.tags
+  };
+}
 
 export function App() {
   // Navigation & Active View State (synchronized with browser URL and history)
@@ -261,7 +302,7 @@ export function App() {
 
     // When authenticated: if the URL is /login or /signup or root /, navigate to the active CRM view
     if (currentPath === '/login' || currentPath === '/signup' || currentPath === '/sign-up' || currentPath === '') {
-      syncUrlWithView(currentView || 'dashboard');
+      syncUrlWithView(currentView || 'dashboard', undefined, true);
       return;
     }
 
@@ -291,6 +332,11 @@ export function App() {
 
       if (path === '/set-password' || path === '/set_password') {
         setAuthScreen('set-password');
+        return;
+      }
+
+      if (path === '/login' || path === '/signup' || path === '/sign-up' || path === '') {
+        syncUrlWithView(currentView, undefined, true);
         return;
       }
 
@@ -333,6 +379,7 @@ export function App() {
   const globalSavedFilters = [
     { id: 'all_leads', name: 'All Leads', iconType: 'arrow' },
     { id: 'active_leads', name: 'All Active Leads', iconType: 'arrow' },
+    { id: 'my_leads', name: 'My Leads', iconType: 'arrow' },
     { id: 'followup_leads', name: 'Followup Leads', iconType: 'filter' },
   ];
 
@@ -561,29 +608,7 @@ export function App() {
         setActivities(activitiesRes.activities);
       }
       if (callsRes?.success && Array.isArray(callsRes.calls)) {
-        setCallRecords(callsRes.calls.map((c: any) => ({
-          id: c.id,
-          leadId: c.leadId || '',
-          leadName: c.leadName || 'Contact',
-          leadPhone: c.leadPhone || '',
-          agentId: c.agentId || '',
-          agentName: c.agentName || c.assigneeName || '',
-          assigneeName: c.assigneeName,
-          type: c.type || c.callType || 'outgoing',
-          durationSeconds: c.durationSeconds || 0,
-          callStartTime: c.callStart || c.callStartTime,
-          callEndTime: c.callEnd || c.callEndTime,
-          recordingUrl: c.recordingUrl,
-          disposition: c.disposition || 'Connected',
-          notes: c.notes || c.callNotes,
-          callNotes: c.callNotes || c.notes,
-          assigneeRemarks: c.assigneeRemarks,
-          timestamp: c.timestamp || c.callStart || c.createdAt || new Date().toISOString(),
-          transcript: c.transcript,
-          aiSummary: c.aiSummary,
-          sentiment: c.sentiment,
-          tags: c.tags
-        })));
+        setCallRecords(callsRes.calls.map(mapServerCall));
       }
       if (messagesRes?.success && Array.isArray(messagesRes.messages)) {
         setMessages(messagesRes.messages);
@@ -600,6 +625,7 @@ export function App() {
       void campaignsRes;
       if (workspaceRes?.success && workspaceRes.settings) {
         const ws = workspaceRes.settings;
+        setRecordingEnabled(ws.general?.autoRecordCalls !== false);
         if (ws.companyName) {
           setWorkspaceProfile([{ id: 'default_workspace', name: ws.companyName }]);
           setCurrentUser((prev) => {
@@ -749,6 +775,7 @@ export function App() {
       } catch (e) {}
     }
     logoutWithApi().catch(() => {});
+    clearNativeAuth();
     
     // Clean full navigation to /login to ensure the login page and subsequent logins render cleanly
     if (typeof window !== 'undefined') {
@@ -1091,6 +1118,13 @@ export function App() {
     }
   };
 
+  // The server records change history on save; pull it back so the timeline updates without a reload
+  const applyServerActivities = (saved?: Lead) => {
+    if (!saved?.id || !Array.isArray(saved.activities)) return;
+    setLeads((prev) => prev.map((l) => (l.id === saved.id ? { ...l, activities: saved.activities } : l)));
+    setDetailLead((prev) => (prev && prev.id === saved.id ? { ...prev, activities: saved.activities } : prev));
+  };
+
   const handleUpdateLead = (updated: Lead) => {
     const existing = leads.find((l) => l.id === updated.id);
     const stageChanged = existing && existing.status !== updated.status;
@@ -1108,6 +1142,7 @@ export function App() {
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data?.success) showToast(data?.error || 'Failed to save lead to database');
+        else applyServerActivities(data.lead);
       })
       .catch(() => showToast('Failed to save lead to database'));
     
@@ -1138,7 +1173,12 @@ export function App() {
     fetchWithTenantAuth('/api/leads', {
       method: 'POST',
       body: JSON.stringify({ id: leadId, ...updates })
-    }).catch((err) => console.warn('Lead DB update notice:', err));
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data?.success) applyServerActivities(data.lead);
+      })
+      .catch((err) => console.warn('Lead DB update notice:', err));
     
     if (updates.status) {
       triggerConversionDispatch(leadId, updates.status);
@@ -1273,8 +1313,18 @@ export function App() {
     showToast(`🔄 Pushing simulated webhook from ${chosenSource}...`);
     
     try {
-      const res = await fetchWithTenantAuth('/api/webhooks/lead', {
+      const secretRes = await fetchWithTenantAuth('/api/workspace/webhook-secrets');
+      const secretData = await secretRes.json();
+      if (!secretRes.ok || !secretData?.leadSecret) {
+        showToast(`❌ Failed: ${secretData?.error || 'Could not load the workspace webhook secret'}`);
+        return;
+      }
+      const res = await fetchWithTenantAuth(secretData.leadWebhookPath || '/api/webhooks/lead', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Webhook-Secret': secretData.leadSecret
+        },
         body: JSON.stringify({
           name: `Vikramaditya Rao (${chosenSource})`,
           phone: `+91 ${Math.floor(9000000000 + Math.random() * 999999999)}`,
@@ -1316,20 +1366,122 @@ export function App() {
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, []);
 
+  const handleTrackedCall = ({ event, leadId, leadName, phone, recordingEnabled }: TrackedCall) => {
+    const tail = phoneTail(phone);
+    const lead =
+      (leadId && leads.find((l) => l.id === leadId)) ||
+      (tail ? leads.find((l) => phoneTail(l.phone) === tail) : undefined);
+    const connected = event.durationSec > 0;
+    const recordingStatus: CallRecord['recordingStatus'] = !recordingEnabled
+      ? 'disabled'
+      : event.recordingFound
+        ? 'pending'
+        : 'not_found';
+
+    const record: CallRecord = {
+      id: event.callId,
+      leadId: lead?.id || leadId || '',
+      leadName: lead?.name || leadName || phone || 'Unknown',
+      leadPhone: lead?.phone || phone,
+      agentId: activeAgent.id,
+      agentName: activeAgent.name,
+      type: event.type === 'incoming' ? 'incoming' : connected ? 'outgoing' : 'missed',
+      durationSeconds: event.durationSec,
+      callStartTime: event.startedAt,
+      callEndTime: event.endedAt,
+      disposition: connected ? 'Connected' : 'Not Connected',
+      recordingStatus,
+      simSlot: event.simSlot,
+      source: 'mobile_app',
+      timestamp: event.startedAt || new Date().toISOString()
+    };
+
+    setCallRecords((prev) => [record, ...prev.filter((c) => c.id !== record.id)]);
+    fetchWithTenantAuth('/api/calls', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...record,
+        callType: record.type,
+        callStart: record.callStartTime,
+        callEnd: record.callEndTime,
+        assigneeName: record.agentName
+      })
+    }).catch(console.warn);
+
+    if (record.leadId) {
+      const act: ActivityLog = {
+        id: `act-${Date.now()}`,
+        leadId: record.leadId,
+        agentId: activeAgent.id,
+        agentName: activeAgent.name,
+        type: 'call',
+        title: connected ? 'Outgoing Call - Connected' : 'Outgoing Call - Not Connected',
+        description: `Talk time: ${event.durationSec}s (logged from mobile app)`,
+        timestamp: new Date().toISOString()
+      };
+      setActivities((prev) => [act, ...prev]);
+      fetchWithTenantAuth('/api/activities', { method: 'POST', body: JSON.stringify(act) }).catch(console.warn);
+    }
+
+    setAgents((prev) => prev.map((a) => (a.id === activeAgent.id ? { ...a, totalCallsToday: (a.totalCallsToday || 0) + 1 } : a)));
+    const mins = Math.floor(event.durationSec / 60);
+    const secs = event.durationSec % 60;
+    showToast(
+      connected ? `Call logged (${mins}m ${secs}s). Add the outcome for ${record.leadName}.` : `Call to ${record.leadName} not connected`,
+      connected ? 'success' : 'info',
+      'Call Tracking'
+    );
+    if (lead && !isPowerDialerQueueOpen) setDetailLead(lead);
+  };
+
+  const handleRecordingUploaded = ({ callId, status }: RecordingUploadedEvent) => {
+    if (status === 'uploaded') {
+      fetchWithTenantAuth('/api/calls')
+        .then((r) => r.json())
+        .then((data) => {
+          const fresh = (data?.calls || []).find((c: any) => c.id === callId);
+          if (fresh) setCallRecords((prev) => prev.map((c) => (c.id === callId ? mapServerCall(fresh) : c)));
+        })
+        .catch(() => {});
+      return;
+    }
+    const next: CallRecord['recordingStatus'] =
+      status === 'disabled' ? 'disabled' : status === 'failed' ? 'failed' : 'not_found';
+    setCallRecords((prev) => prev.map((c) => (c.id === callId ? { ...c, recordingStatus: next } : c)));
+  };
+
+  useCallTracker(isAuthenticated, handleTrackedCall, handleRecordingUploaded);
+
+  useEffect(() => {
+    if (!isNative) return;
+    const open = () => {
+      if (currentView !== 'device_permissions') setPreviousView(currentView);
+      setCurrentView('device_permissions');
+    };
+    window.addEventListener(OPEN_PHONE_SETUP_EVENT, open);
+    return () => window.removeEventListener(OPEN_PHONE_SETUP_EVENT, open);
+  }, [currentView]);
+
+  useEffect(() => {
+    if (!isNative || !isAuthenticated) return;
+    requestInitialAndroidPermissions().catch((err) => {
+      console.warn('[permissions] initial Android request failed', err);
+    });
+  }, [isAuthenticated]);
+
   const handlePowerDialerSaveCallLog = (leadId: string, disposition: LeadStatus, notes: string, durationSec: number) => {
     const targetLead = leads.find(l => l.id === leadId);
     const newRecord: CallRecord = {
       id: `call-${Date.now()}`,
       leadId: leadId,
       leadName: targetLead?.name || 'Prospect',
-      leadPhone: targetLead?.phone || '+91 90000 00000',
+      leadPhone: targetLead?.phone || '',
       agentId: activeAgent.id,
       agentName: activeAgent.name,
       type: 'outgoing',
-      durationSeconds: durationSec || 45,
+      durationSeconds: durationSec || 0,
       timestamp: new Date().toISOString(),
       disposition: disposition,
-      recordingUrl: 'https://actions.google.com/sounds/v1/telecom/phone_dial_tone.ogg',
       callNotes: notes || `Call logged via Power Dialer queue.`,
       tags: [disposition]
     };
@@ -1555,7 +1707,7 @@ export function App() {
         />
 
         {/* View Router */}
-        <main className="flex-1 overflow-y-auto bg-transparent p-3 md:p-5 pb-24 md:pb-5 ios-scroll min-h-0">
+        <main className="app-main-content min-h-0 flex-1 overflow-y-auto bg-transparent p-0 md:p-5 ios-scroll">
           {currentView === 'add_lead' && (
             <AddLeadView
               leads={liveLeads}
@@ -1635,7 +1787,7 @@ export function App() {
                   setMessages((prev) => [...prev, autoMsg]);
                 }
                 showToast(`Saved Lead & Calling ${newLead.name}`);
-                window.location.href = `tel:${newLead.phone}`;
+                dialNumber(newLead.phone, { leadId: newLead.id, leadName: newLead.name }).catch(console.warn);
               }}
               onImportBulkLeads={(bulkLeads) => {
                 handleImportCsv(bulkLeads);
@@ -1741,7 +1893,7 @@ export function App() {
               activeAgent={activeAgent}
               onUpdateLead={handlePartialUpdateLead}
               onOpenLeadDetail={(lead) => setDetailLead(lead)}
-              onCallLead={(lead) => { window.location.href = `tel:${lead.phone}`; }}
+              onCallLead={(lead) => { dialNumber(lead.phone, { leadId: lead.id, leadName: lead.name }).catch(console.warn); }}
               onSendMessage={handleSendMessage}
             />
           )}
@@ -1770,7 +1922,7 @@ export function App() {
               agents={agents}
               onSendMessage={handleSendMessage}
               onOpenLeadDetail={(lead) => setDetailLead(lead)}
-              onCallLead={(lead) => { window.location.href = `tel:${lead.phone}`; }}
+              onCallLead={(lead) => { dialNumber(lead.phone, { leadId: lead.id, leadName: lead.name }).catch(console.warn); }}
             />
           )}
 
@@ -1910,7 +2062,6 @@ export function App() {
               onSendMessage={handleSendMessage}
               onOpenPowerDialerForLead={(ld) => {
                 showToast(`Dialing ${ld.name} (${ld.phone})...`);
-                window.location.href = `tel:${ld.phone}`;
               }}
               onDeleteLead={handleDeleteLead}
               onUpdateCallRecord={handleUpdateCallRecord}
@@ -1931,6 +2082,7 @@ export function App() {
               <IntegrationsView 
                 agents={agents}
                 customFields={activeCustomFields}
+                onUpdateFields={handleSaveFieldsToDb}
                 onNavigateToCampaign={(handle) => {
                   loadTenantDomainData(activeTenantId);
                   setSelectedCampaignHandle(handle);
@@ -1962,6 +2114,10 @@ export function App() {
               activeAgent={activeAgent}
               onShowToast={(msg) => showToast(msg)}
             /> : renderAccessRestricted('Call Feedback Settings')
+          )}
+
+          {currentView === 'device_permissions' && (
+            <PermissionsSetupPage onClose={() => setCurrentView(previousView || 'dashboard')} />
           )}
 
           {currentView === 'settings' && (
@@ -2210,6 +2366,9 @@ export function App() {
       <MobileBottomNav
         activeTab={currentView as any}
         setActiveTab={(tab, subTab) => {
+          if (tab === 'device_permissions' && currentView !== 'device_permissions') {
+            setPreviousView(currentView);
+          }
           setCurrentView(tab);
           if (subTab) {
             if (tab === 'reports') setReportsSubTab(subTab as ReportsSubTab);
@@ -2227,6 +2386,7 @@ export function App() {
         onOpenPowerDialer={() => setIsPowerDialerQueueOpen(true)}
         onOpenAiCopilot={() => setIsAiCopilotOpen(true)}
       />
+
     </div>
     </StagesContext.Provider>
   );

@@ -8,6 +8,8 @@ import {
   AdminCreateUserCommand,
   AdminSetUserPasswordCommand,
   AdminGetUserCommand,
+  AdminDeleteUserCommand,
+  ListUsersCommand,
   ForgotPasswordCommand,
   ConfirmForgotPasswordCommand,
   AuthFlowType,
@@ -59,6 +61,9 @@ function mapCognitoError(err: any): Error {
       return new Error(
         'Cognito app client has a client secret. Add COGNITO_CLIENT_SECRET to .env (Client secrets tab), then restart.'
       );
+    }
+    if (/current status is confirmed/i.test(message)) {
+      return new Error('This email is already verified.');
     }
     return new Error('Incorrect email or password.');
   }
@@ -120,7 +125,8 @@ export async function cognitoSignUp(opts: {
 export async function cognitoResendConfirmation(email: string): Promise<void> {
   if (!isCognitoEnabled()) throw new Error('Cognito is not configured');
   const { clientId } = getCognitoConfig();
-  const username = email.trim().toLowerCase();
+  const emailUsername = email.trim().toLowerCase();
+  const username = (await lookupCognitoUsername(emailUsername)) || emailUsername;
   try {
     await getClient().send(
       new ResendConfirmationCodeCommand({
@@ -134,20 +140,104 @@ export async function cognitoResendConfirmation(email: string): Promise<void> {
   }
 }
 
-export async function cognitoConfirmSignUp(email: string, code: string): Promise<void> {
-  if (!isCognitoEnabled()) throw new Error('Cognito is not configured');
+function isAlreadyConfirmedError(err: any): boolean {
+  const message = String(err?.message || '');
+  return err?.name === 'NotAuthorizedException' && /current status is confirmed/i.test(message);
+}
+
+async function confirmSignUpWithUsername(username: string, code: string): Promise<void> {
   const { clientId } = getCognitoConfig();
-  const username = email.trim().toLowerCase();
+  await getClient().send(
+    new ConfirmSignUpCommand({
+      ClientId: clientId,
+      Username: username,
+      ConfirmationCode: code,
+      SecretHash: cognitoSecretHash(username)
+    })
+  );
+}
+
+export type CognitoDirectoryUser = {
+  username: string;
+  status: string;
+  emailVerified: boolean;
+};
+
+/** Email-alias pools store a UUID username. Sign-up and confirm must use that, not the email. */
+export async function findCognitoUserByEmail(email: string): Promise<CognitoDirectoryUser | null> {
+  const { userPoolId } = getCognitoConfig();
+  const normalized = email.trim().toLowerCase();
   try {
-    await getClient().send(
-      new ConfirmSignUpCommand({
-        ClientId: clientId,
-        Username: username,
-        ConfirmationCode: code.trim(),
-        SecretHash: cognitoSecretHash(username)
+    const listed = await getClient().send(
+      new ListUsersCommand({
+        UserPoolId: userPoolId,
+        Filter: `email = "${normalized}"`,
+        Limit: 5
       })
     );
+    const match = (listed.Users || []).find((user) =>
+      (user.Attributes || []).some(
+        (attr) => attr.Name === 'email' && (attr.Value || '').trim().toLowerCase() === normalized
+      )
+    );
+    const username = (match?.Username || '').trim();
+    if (!username) return null;
+    const emailVerified = (match?.Attributes || []).some(
+      (attr) => attr.Name === 'email_verified' && attr.Value === 'true'
+    );
+    return {
+      username,
+      status: match?.UserStatus || '',
+      emailVerified
+    };
   } catch (err: any) {
+    logger.warn('[Cognito] Could not resolve signup username:', err?.name || err?.message || err);
+    return null;
+  }
+}
+
+async function lookupCognitoUsername(email: string): Promise<string | undefined> {
+  const user = await findCognitoUserByEmail(email);
+  return user?.username;
+}
+
+/** Requires IAM permission cognito-idp:AdminDeleteUser. A missing user counts as deleted. */
+export async function cognitoAdminDeleteUser(email: string): Promise<void> {
+  if (!isCognitoEnabled()) return;
+  const { userPoolId } = getCognitoConfig();
+  const normalized = email.trim().toLowerCase();
+  const username = (await lookupCognitoUsername(normalized)) || normalized;
+  try {
+    await getClient().send(new AdminDeleteUserCommand({ UserPoolId: userPoolId, Username: username }));
+  } catch (err: any) {
+    if (err?.name === 'UserNotFoundException') return;
+    throw mapCognitoError(err);
+  }
+}
+
+export async function cognitoSetUserPassword(username: string, password: string): Promise<void> {
+  if (!isCognitoEnabled()) throw new Error('Cognito is not configured');
+  const { userPoolId } = getCognitoConfig();
+  await getClient().send(
+    new AdminSetUserPasswordCommand({
+      UserPoolId: userPoolId,
+      Username: username,
+      Password: password,
+      Permanent: true
+    })
+  );
+}
+
+export async function cognitoConfirmSignUp(email: string, code: string): Promise<void> {
+  if (!isCognitoEnabled()) throw new Error('Cognito is not configured');
+  const emailUsername = email.trim().toLowerCase();
+  const confirmationCode = String(code || '').replace(/\s+/g, '').trim();
+  const storedUsername = await lookupCognitoUsername(emailUsername);
+  const username = storedUsername || emailUsername;
+  try {
+    await confirmSignUpWithUsername(username, confirmationCode);
+  } catch (err: any) {
+    if (isAlreadyConfirmedError(err)) return;
     throw mapCognitoError(err);
   }
 }

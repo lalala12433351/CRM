@@ -1,4 +1,5 @@
 import { resolveAgentName } from '../utils/agentDisplay';
+import { dialNumber } from '../lib/calling';
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Settings, 
@@ -199,7 +200,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const currentWorkspaceName = formatArcleName(activeAccount.name || 'Workspace', companyName);
 
   return (
-    <header className="h-14 glass-panel border-b border-slate-200 px-3 md:px-5 flex items-center justify-between sticky top-0 z-30 text-slate-900 font-sans select-none relative shadow-xs">
+    <header className="min-h-14 glass-panel border-b border-slate-200 px-2 md:px-5 flex items-center justify-between sticky top-0 z-30 text-slate-900 font-sans select-none relative shadow-xs">
       
       {/* LEFT: Institute / Workspace Selector & Settings Flyout Trigger Pill */}
       <div className="flex items-center min-w-0">
@@ -207,11 +208,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Workspace Dropdown Trigger */}
           <div className="relative" ref={accountDropdownRef}>
             <button
+              type="button"
               onClick={() => {
                 setIsAccountMenuOpen(!isAccountMenuOpen);
                 setIsSettingsMenuOpen(false);
               }}
-              className="flex items-center space-x-1.5 px-1.5 py-1 rounded-full hover:bg-slate-50 transition-colors cursor-pointer group text-left min-w-0"
+              className="touch-target pressable flex items-center space-x-1.5 px-1.5 md:py-1 rounded-full active:bg-slate-100 md:hover:bg-slate-50 transition-colors cursor-pointer group text-left min-w-0"
               title="Switch Workspace"
             >
               <div className="w-6 h-6 rounded-full bg-[#5034a8] text-white flex items-center justify-center font-bold text-xs shadow-2xs shrink-0">
@@ -298,11 +300,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Settings Gear Button with Popover Flyout */}
           {isAgentAdmin(activeAgent) && <div className="relative shrink-0" ref={settingsDropdownRef}>
             <button
+              type="button"
               onClick={() => {
                 setIsSettingsMenuOpen(!isSettingsMenuOpen);
                 setIsAccountMenuOpen(false);
               }}
-              className={`p-1.5 rounded-full transition-all cursor-pointer flex items-center justify-center ${
+              className={`touch-target pressable md:w-7 md:h-7 rounded-full transition-all cursor-pointer flex items-center justify-center ${
                 isSettingsMenuOpen || currentView === 'fields' || currentView === 'settings'
                   ? 'bg-purple-50 text-[#5034a8]'
                   : 'text-slate-500 hover:text-[#5034a8] hover:bg-slate-50'
@@ -432,6 +435,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Power Dialer Queue Button */}
         <button
+          type="button"
           onClick={onOpenPowerDialer}
           className="hidden md:flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-[#5034a8] hover:bg-[#432993] text-white font-semibold text-xs shadow-xs cursor-pointer transition-all shrink-0 mr-1.5 active:scale-95"
           title="Launch Power Dialer Call Queue"
@@ -443,8 +447,9 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Tasks button — Manager only (Admin / Telecaller do not use Tasks) */}
         {showTasksButton && (
         <button
+          type="button"
           onClick={() => { if (onNavigateToTab) onNavigateToTab('tasks'); }}
-          className={`p-2 rounded-xl border transition-all cursor-pointer relative shadow-2xs ${
+          className={`touch-target pressable md:w-9 md:h-9 rounded-xl border transition-all cursor-pointer relative shadow-2xs flex items-center justify-center ${
             currentView === 'tasks' 
               ? 'bg-indigo-50 border-indigo-200 text-indigo-700' 
               : 'bg-white/70 border-white/80 text-slate-600 hover:bg-white hover:text-slate-900'
@@ -463,8 +468,9 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Notification Bell Button & Flyout */}
         <div className="relative" ref={notificationDropdownRef}>
           <button
+            type="button"
             onClick={() => setIsNotificationMenuOpen(!isNotificationMenuOpen)}
-            className={`p-2 rounded-xl border transition-all cursor-pointer relative shadow-2xs ${
+            className={`touch-target pressable md:w-9 md:h-9 rounded-xl border transition-all cursor-pointer relative shadow-2xs flex items-center justify-center ${
               isNotificationMenuOpen 
                 ? 'bg-purple-50 border-purple-200 text-[#3a2088]' 
                 : 'border-white/80 bg-white/70 hover:bg-white text-slate-600 hover:text-slate-900'
@@ -581,7 +587,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  window.location.href = `tel:${lead.phone}`;
+                                  dialNumber(lead.phone, { leadId: lead.id, leadName: lead.name }).catch(console.warn);
                                 }}
                                 className="px-2 py-0.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-[10px] flex items-center space-x-1 cursor-pointer transition-all shadow-2xs"
                               >
@@ -675,13 +681,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Logged-in user menu (profile + logout — no account switching) */}
         <div className="relative" ref={userDropdownRef}>
           <button 
+            type="button"
             onClick={() => {
               setIsUserMenuOpen(!isUserMenuOpen);
               setIsAccountMenuOpen(false);
               setIsSettingsMenuOpen(false);
               setIsNotificationMenuOpen(false);
             }}
-            className="flex items-center space-x-2 px-2.5 py-1.5 rounded-xl bg-white border border-slate-200/90 shadow-2xs hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer group font-sans font-normal"
+            className="touch-target pressable flex items-center space-x-2 px-2 md:px-2.5 md:py-1.5 rounded-xl bg-white border border-slate-200/90 shadow-2xs active:bg-slate-100 md:hover:bg-slate-50 md:hover:border-slate-300 transition-all cursor-pointer group font-sans font-normal"
             title="Account menu"
             aria-haspopup="menu"
             aria-expanded={isUserMenuOpen}

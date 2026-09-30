@@ -14,7 +14,8 @@ export class AuthController {
             ? `Verification code sent to ${email || phone}. Check your email.`
             : `6-digit verification code sent to ${email || phone}`,
         demoOtp: result.via === 'cognito' ? undefined : result.code,
-        via: result.via
+        via: result.via,
+        alreadyConfirmed: Boolean((result as { alreadyConfirmed?: boolean }).alreadyConfirmed)
       });
     } catch (e: any) {
       res.status(400).json({ error: e.message || 'Failed to send OTP' });
@@ -125,6 +126,24 @@ export class AuthController {
       res.json({ success: true, token: result.token, user: result.user });
     } catch (e: any) {
       res.status(401).json({ success: false, error: e.message || 'Session restore failed' });
+    }
+  }
+
+  public async deleteAccount(req: Request, res: Response) {
+    try {
+      const authHeader = req.headers.authorization || '';
+      const token = authHeader.replace('Bearer ', '').trim();
+      const tenantId = (req as any).tenantId || (req.headers['x-tenant-id'] as string) || undefined;
+      const currentSession = token ? await authService.getSessionHydrated(token, tenantId) : null;
+      if (!currentSession) return res.status(401).json({ error: 'Unauthorized / Session Expired' });
+      if (String(req.body?.confirm || '') !== 'DELETE') {
+        return res.status(400).json({ error: 'Type DELETE to confirm account deletion' });
+      }
+      const result = await authService.deleteAccount(currentSession);
+      res.json({ success: true, ...result });
+    } catch (e: any) {
+      logger.error('Error deleting account:', e);
+      res.status(500).json({ error: e.message || 'Failed to delete account' });
     }
   }
 

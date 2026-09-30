@@ -378,10 +378,10 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 bg-[#fafafa] overflow-y-auto font-sans pb-12">
+    <div className="min-w-0 flex-1 bg-[#fafafa] font-sans">
       
       {/* 1. TOP HEADER & METRICS BAR */}
-      <div className="px-4 sm:px-6 py-4 space-y-4 max-w-full">
+      <div className="max-w-full space-y-3 px-3 py-3 sm:space-y-4 sm:px-6 sm:py-4">
         
         {/* Main Title & Action Buttons */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/80">
@@ -394,10 +394,10 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center space-x-2 self-start sm:self-auto shrink-0">
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center sm:self-auto sm:shrink-0">
             <button
               onClick={() => setIsLogCallModalOpen(true)}
-              className="px-3.5 py-2 rounded-xl bg-[#5034a8] hover:bg-[#432993] text-white text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 shadow-sm shadow-indigo-900/15"
+              className="flex min-h-11 items-center justify-center space-x-1.5 rounded-xl bg-[#5034a8] px-3.5 py-2 text-xs font-bold text-white shadow-sm shadow-indigo-900/15 transition-all hover:bg-[#432993]"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Log Call</span>
@@ -405,7 +405,7 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
 
             <button
               onClick={handleExportCsv}
-              className="px-3 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-medium transition-all cursor-pointer flex items-center space-x-1.5 shadow-2xs"
+              className="flex min-h-11 items-center justify-center space-x-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-2xs transition-all hover:bg-slate-50"
               title="Export filtered call records to CSV"
             >
               <Download className="w-3.5 h-3.5 text-slate-500" />
@@ -415,7 +415,7 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
         </div>
 
         {/* Top Summary Cards (Matching LeadsView Stats Theme) */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-5">
           <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-2xs space-y-1">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-mono">Total Calls</span>
             <div className="flex items-baseline justify-between">
@@ -472,7 +472,7 @@ export const MyCallsPage: React.FC<MyCallsViewProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-3">
             
             {/* Search Input */}
-            <div className="relative flex-1 min-w-[240px] max-w-md">
+            <div className="relative min-w-0 flex-1 sm:min-w-[240px] sm:max-w-md">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
               <input
                 type="text"

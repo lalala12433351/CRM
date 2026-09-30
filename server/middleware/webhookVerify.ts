@@ -71,3 +71,42 @@ export function verifyMetaSignature(req: Request, res: Response, next: NextFunct
 
   next();
 }
+
+const LEGACY_RAZORPAY_WEBHOOK_SECRET = 'rzp_webhook_secret_crm_2026';
+
+/**
+ * Razorpay signs the raw body with X-Razorpay-Signature.
+ * The built-in placeholder secret is never treated as configured.
+ * When RAZORPAY_WEBHOOK_SECRET is unset, production rejects the call;
+ * local development still accepts it so unpaid test setups keep working.
+ */
+export function verifyRazorpaySignature(req: Request, res: Response, next: NextFunction) {
+  const configured = String(process.env.RAZORPAY_WEBHOOK_SECRET || '').trim();
+  const secret = configured && configured !== LEGACY_RAZORPAY_WEBHOOK_SECRET ? configured : '';
+  const isProd = process.env.NODE_ENV === 'production';
+  const signature = String(req.headers['x-razorpay-signature'] || '').trim();
+
+  if (!secret) {
+    if (isProd) {
+      console.warn('⚠️ [Razorpay Webhook] RAZORPAY_WEBHOOK_SECRET is not configured — rejected');
+      return res.status(503).json({ error: 'RAZORPAY_WEBHOOK_SECRET is not configured' });
+    }
+    return next();
+  }
+
+  if (!signature) {
+    return res.status(403).json({ error: 'Missing webhook signature' });
+  }
+
+  const rawPayload = (req as Request & { rawBody?: Buffer }).rawBody;
+  if (!rawPayload) {
+    return res.status(500).json({ error: 'Server misconfiguration: raw payload required' });
+  }
+
+  if (!verifyHmacSha256(rawPayload, signature, secret)) {
+    console.warn('⚠️ [Razorpay Webhook] Invalid signature');
+    return res.status(403).json({ error: 'Invalid webhook signature' });
+  }
+
+  next();
+}
