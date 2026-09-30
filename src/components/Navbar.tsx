@@ -37,7 +37,7 @@ import {
 import { Agent, isAgentAdmin } from '../types';
 import { formatArcleName } from '../utils/brandUtils';
 import { UserAvatar } from './UserAvatar';
-import { formatRoleBadge } from '../utils/roleUtils';
+import { canAccessView, formatRoleBadge } from '../utils/roleUtils';
 
 export interface WorkAccount {
   id: string;
@@ -127,7 +127,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [showLicenseBanner, setShowLicenseBanner] = useState(true);
   const canManageSettings = isAgentAdmin(activeAgent);
   const activeCrmRole = formatRoleBadge(activeAgent);
-  const showTasksButton = activeCrmRole === 'Manager';
+  const showTaskNotifications = canAccessView(activeAgent, 'tasks');
 
   const accountDropdownRef = useRef<HTMLDivElement>(null);
   const settingsDropdownRef = useRef<HTMLDivElement>(null);
@@ -444,8 +444,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           <span>Power Dialer</span>
         </button>
 
-        {/* Tasks button — Manager only (Admin / Telecaller do not use Tasks) */}
-        {showTasksButton && (
+        {/* Tasks button — Manager + Telecaller (Admin does not use Tasks) */}
+        {showTaskNotifications && (
         <button
           type="button"
           onClick={() => { if (onNavigateToTab) onNavigateToTab('tasks'); }}
@@ -487,9 +487,17 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Notifications Dropdown Popover */}
           {isNotificationMenuOpen && (() => {
-            const followupsList = (leads || []).filter((l: any) => l.followUpAt || l.status === 'Follow Up').slice(0, 5);
-            const pendingTasksList = (tasks || []).filter((t: any) => t.status === 'Pending' || !t.status).slice(0, 5);
-            const totalActiveAlerts = pendingFollowUpsCount + pendingTasksCount;
+            const todayStr = new Date().toISOString().slice(0, 10);
+            const followupsList = (leads || []).filter((l: any) => {
+              const st = (l.status || '').toLowerCase();
+              if (st === 'converted' || st === 'won' || st === 'lost') return false;
+              if (l.followUpAt) return l.followUpAt.slice(0, 10) <= todayStr;
+              return st.includes('follow');
+            }).slice(0, 5);
+            const pendingTasksList = showTaskNotifications
+              ? (tasks || []).filter((t: any) => t.status === 'Pending' || !t.status).slice(0, 5)
+              : [];
+            const totalActiveAlerts = pendingFollowUpsCount + (showTaskNotifications ? pendingTasksCount : 0);
 
             return (
               <div className="absolute right-0 top-full mt-2.5 w-96 max-w-[calc(100vw-24px)] rounded-2xl bg-white/95 backdrop-blur-xl border border-slate-200/90 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.18),0_10px_20px_-5px_rgba(0,0,0,0.08)] p-0 z-[99999] animate-in fade-in slide-in-from-top-2 duration-150 text-xs font-sans overflow-hidden">
@@ -539,6 +547,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   >
                     Follow-Ups ({pendingFollowUpsCount})
                   </button>
+                  {showTaskNotifications && (
                   <button
                     type="button"
                     onClick={() => setNotificationTab('tasks')}
@@ -550,6 +559,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   >
                     Tasks ({pendingTasksCount})
                   </button>
+                  )}
                 </div>
 
                 {/* Content List */}
@@ -662,6 +672,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   >
                     Open Follow-Ups
                   </button>
+                  {showTaskNotifications && (
                   <button
                     type="button"
                     onClick={() => {
@@ -672,6 +683,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   >
                     View All Tasks
                   </button>
+                  )}
                 </div>
               </div>
             );

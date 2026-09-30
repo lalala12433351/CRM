@@ -49,11 +49,17 @@ export const ADMIN_ONLY_VIEWS = [
   'conversion_tracking',
 ] as const;
 
+/** Views the Admin does not use (Tasks plus the per-agent call history). */
+export const ADMIN_BLOCKED_VIEWS = [
+  'tasks',
+  'calls',
+  'calling_logs',
+] as const;
+
 /** Views only Admin may open (Managers blocked too). */
 export const MANAGER_BLOCKED_VIEWS = [
   ...ADMIN_ONLY_VIEWS,
   'team',
-  'tasks',
 ] as const;
 
 /** Extra views telecallers cannot open (managers may still use these). */
@@ -65,14 +71,12 @@ export const TELECALLER_BLOCKED_VIEWS = [
   'analytics',
   'pipeline',
   'marketing',
-  'tasks',
 ] as const;
 
 export function canAccessView(agent: Agent | null | undefined, view: string): boolean {
   const role = getCrmRole(agent);
   if (role === 'Admin') {
-    // Admin does not use Tasks
-    return view !== 'tasks';
+    return !(ADMIN_BLOCKED_VIEWS as readonly string[]).includes(view);
   }
   if (role === 'Manager') {
     return !(MANAGER_BLOCKED_VIEWS as readonly string[]).includes(view);

@@ -1572,25 +1572,28 @@ export function App() {
 
   const pendingTasksCount = useMemo(() => {
     // Admin does not use Tasks
-    if (isAdmin || crmRole === 'Telecaller') return 0;
+    if (isAdmin) return 0;
 
-    const pendingFromTasks = (liveCrmTasks || []).filter(t => t.status === 'Pending' || !t.status);
-    if (crmRole === 'Manager') {
-      const teamIds = new Set(visibleAgents.map((a) => a.id));
-      return pendingFromTasks.filter(
-        (t) => teamIds.has(t.assigneeAgentId) || t.assigneeAgentId === activeAgent?.id
+    // visibleAgents is the manager's team, or just the telecaller themselves
+    const teamIds = new Set(visibleAgents.map((a) => a.id));
+    return (liveCrmTasks || [])
+      .filter((t) => t.status === 'Pending' || !t.status)
+      .filter(
+        (t) =>
+          teamIds.has(t.assigneeAgentId) ||
+          matchesAgent(agents, activeAgent, { id: t.assigneeAgentId, name: t.assigneeAgentName })
       ).length;
-    }
-    return pendingFromTasks.filter(
-      (t) => matchesAgent(agents, activeAgent, { id: t.assigneeAgentId, name: t.assigneeAgentName })
-    ).length;
-  }, [liveCrmTasks, activeAgent, isAdmin, crmRole, visibleAgents, agents]);
+  }, [liveCrmTasks, activeAgent, isAdmin, visibleAgents, agents]);
 
   const pendingFollowUpsCount = useMemo(() => {
     // Use role-scoped leads so Manager sees team follow-ups and Telecaller only their own
-    return (visibleLeads || []).filter(
-      (l) => l.followUpAt || l.status === 'Follow Up' || (l.status || '').toLowerCase().includes('follow')
-    ).length;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    return (visibleLeads || []).filter((l) => {
+      const st = (l.status || '').toLowerCase();
+      if (st === 'converted' || st === 'won' || st === 'lost') return false;
+      if (l.followUpAt) return l.followUpAt.slice(0, 10) <= todayStr;
+      return st.includes('follow');
+    }).length;
   }, [visibleLeads]);
 
   if (currentView === 'workflow_builder') {
@@ -1698,7 +1701,7 @@ export function App() {
           automationsSubTab={automationsSubTab}
           reportsSubTab={reportsSubTab}
           unassignedLeadsCount={leads.filter((l) => !l.ownerAgentId).length}
-          missedCallsCount={callRecords.filter((c) => c.type === 'missed').length}
+          pendingFollowUpsCount={pendingFollowUpsCount}
           globalSavedFilters={globalSavedFilters}
           activeFilterId={activeFilterId}
           setActiveFilterId={setActiveFilterId}
@@ -1899,7 +1902,7 @@ export function App() {
           )}
 
           {currentView === 'tasks' && (
-            isAdmin || crmRole === 'Telecaller' ? (
+            !activeAgentRights.tasks ? (
               renderAccessRestricted('Tasks & Reminders')
             ) : (
             <TasksView
@@ -1969,7 +1972,7 @@ export function App() {
           )}
 
 
-          {(currentView === 'calls' || currentView === 'calling_logs') && (
+          {(currentView === 'calls' || currentView === 'calling_logs') && !isAdmin && (
             <MyCallsView
               callRecords={liveCallRecords}
               agents={agents}

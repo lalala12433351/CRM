@@ -98,7 +98,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       items: [
         { id: 'whatsapp' as TabType, label: 'WhatsApp CRM', icon: MessageSquare, desc: 'Chat sync & template broadcasts' },
         { id: 'workflows' as TabType, label: 'Automations', icon: GitBranch, desc: 'Drips & webhook triggers' },
-        { id: 'reports' as TabType, label: 'Reports & Rankings', icon: Trophy, desc: 'Leaderboard & call recordings' }
+        { id: 'reports' as TabType, label: 'Reports & Rankings', icon: Trophy, desc: 'Leaderboard & call recordings' },
+        { id: 'calls' as TabType, label: 'My Calls', icon: PhoneCall, desc: 'Call history & recordings' }
       ]
     },
     {
@@ -124,6 +125,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     items: cat.items.filter(item => {
       if (['workflows', 'integrations', 'settings'].includes(item.id) && !isAdmin) return false;
       if (item.id === 'team' && !isAdmin) return false;
+      if (item.id === 'calls' && isAdmin) return false;
       if (isTelecaller && ['pipeline', 'reports', 'analytics', 'campaigns', 'marketing'].includes(item.id)) return false;
       return (
         item.label.toLowerCase().includes(mobileSearchQuery.toLowerCase()) ||

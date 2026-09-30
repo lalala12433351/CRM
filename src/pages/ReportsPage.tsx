@@ -35,6 +35,14 @@ import {
 
 export type ReportsSubTab = 'call_logs' | 'leaderboard' | 'user_report';
 
+type LeaderboardRow = Pick<Agent, 'id' | 'name' | 'role' | 'avatar'> & {
+  calculatedCalls: number;
+  calculatedConverted: number;
+  calculatedTalkTimeSecs: number;
+  calculatedRevenue: number;
+  winRate: number;
+};
+
 interface ReportsViewProps {
   initialSubTab?: ReportsSubTab;
   callRecords: CallRecord[];
@@ -81,6 +89,7 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
   const [remoteCalls, setRemoteCalls] = useState<CallRecord[] | null>(null);
   const [remoteUsers, setRemoteUsers] = useState<Agent[] | null>(null);
   const [remoteManagers, setRemoteManagers] = useState<Agent[] | null>(null);
+  const [remoteLeaderboard, setRemoteLeaderboard] = useState<LeaderboardRow[] | null>(null);
 
   // Leaderboard Sorting State - Comprehensive sorting options
   type LeaderboardSortOption = 
@@ -197,6 +206,7 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
         if (Array.isArray(data.calls)) setRemoteCalls(data.calls);
         if (Array.isArray(data.users)) setRemoteUsers(data.users);
         if (Array.isArray(data.managers)) setRemoteManagers(data.managers);
+        if (Array.isArray(data.leaderboard)) setRemoteLeaderboard(data.leaderboard);
       })
       .catch(() => {
         if (!cancelled) setRemoteCalls(null);
@@ -251,7 +261,8 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
       };
     });
   }, [sourceCalls, reportUsers, leads]);
-  const scopedAgentIds = resolveReportAgentIds(reportUsers, userFilter, managerFilter);
+  const scopedAgentIds = resolveReportAgentIds(reportUsers, userFilter, managerFilter)
+    ?? (viewerRole === 'Admin' ? null : reportUsers.map((agent) => agent.id));
 
   // Date + user/manager scoped records (stats, charts, leaderboard)
   const scopedCalls = liveSourceCalls.filter((call) =>
@@ -365,7 +376,15 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
         calculatedRevenue: revenue,
         winRate
       };
-    }).sort((a, b) => {
+    }).sort(compareLeaderboardRows);
+  }, [selectableUsers, scopedCalls, scopedLeads, leaderboardSortBy]);
+
+  const leaderboardRows = useMemo<LeaderboardRow[]>(
+    () => (remoteLeaderboard ? [...remoteLeaderboard].sort(compareLeaderboardRows) : rankedAgents),
+    [remoteLeaderboard, rankedAgents, leaderboardSortBy]
+  );
+
+  function compareLeaderboardRows(a: LeaderboardRow, b: LeaderboardRow): number {
       switch (leaderboardSortBy) {
         case 'deals_desc':
           return b.calculatedConverted - a.calculatedConverted || b.calculatedRevenue - a.calculatedRevenue || b.calculatedCalls - a.calculatedCalls;
@@ -390,8 +409,7 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
         default:
           return b.calculatedConverted - a.calculatedConverted;
       }
-    });
-  }, [selectableUsers, scopedCalls, scopedLeads, leaderboardSortBy]);
+  }
 
   // Individual Agent Selection & Calls
   const currentAgentReport = rankedAgents.find(a => a.id === selectedAgentId) || rankedAgents[0];
@@ -414,7 +432,7 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
       });
     } else if (activeSubTab === 'leaderboard') {
       csvRows.push(['Rank', 'Telecaller', 'Calls', 'Talk Time (s)', 'Deals Converted', 'Revenue Won', 'Win Rate %'].join(','));
-      rankedAgents.forEach((a, i) => {
+      leaderboardRows.forEach((a, i) => {
         csvRows.push([i + 1, `"${a.name}"`, a.calculatedCalls, a.calculatedTalkTimeSecs, a.calculatedConverted, a.calculatedRevenue, `${a.winRate}%`].join(','));
       });
     }
@@ -458,7 +476,7 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
   const peakHourLabel = peakHour && peakHour.calls > 0 ? `Peak: ${peakHour.hour}` : 'No calls in range';
 
   // Common Reusable Mobile-Optimized Date Range Control Bar Component
-  const renderDateRangeControlBar = () => (
+  const renderDateRangeControlBar = (showUserFilters = true) => (
     <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3">
       {/* Top Row: Preset Buttons (Smooth Horizontal Scroll on Mobile) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
@@ -546,6 +564,7 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
         )}
       </div>
 
+      {showUserFilters && (
       <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center gap-2">
         {canPickManager && (
           <CustomDropdown<string>
@@ -570,7 +589,7 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
           value={userFilter}
           onChange={(val) => setUserFilter(val)}
           options={[
-            { value: 'ALL', label: managerFilter === 'ALL' ? 'All Users' : 'All Users In Team' },
+            { value: 'ALL', label: managerFilter === 'ALL' && canPickManager ? 'All Users' : 'All Users In Team' },
             ...selectableUsers.map((agent) => ({
               value: agent.id,
               label: `${formatProperName(agent.name)} (${roleLabel(agent)})`
@@ -581,6 +600,7 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
           wrapperClassName="w-full sm:w-56"
         />
       </div>
+      )}
     </div>
   );
 
@@ -888,7 +908,7 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
         <div className="space-y-6">
           
           {/* COMMON DATE RANGE FILTER BAR */}
-          {renderDateRangeControlBar()}
+          {renderDateRangeControlBar(false)}
 
           {/* LEADERBOARD SORTING OPTIONS BAR (Mobile-Optimized) */}
           <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono">
@@ -928,20 +948,24 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 text-xs font-mono">
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
               <span className="text-[10px] text-slate-500 font-bold">Active Telecallers</span>
-              <p className="text-sm font-bold text-slate-900 mt-0.5">{rankedAgents.length}</p>
+              <p className="text-sm font-bold text-slate-900 mt-0.5">{leaderboardRows.length}</p>
             </div>
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
               <span className="text-[10px] text-slate-500 font-bold">Period Calls Made</span>
-              <p className="text-sm font-bold text-slate-900 mt-0.5">{totalCalls}</p>
+              <p className="text-sm font-bold text-slate-900 mt-0.5">
+                {leaderboardRows.reduce((sum, a) => sum + a.calculatedCalls, 0)}
+              </p>
             </div>
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
               <span className="text-[10px] text-slate-500 font-bold">Period Talk Time</span>
-              <p className="text-sm font-bold text-slate-900 mt-0.5">{formatSecs(totalTalkTimeSecs)}</p>
+              <p className="text-sm font-bold text-slate-900 mt-0.5">
+                {formatSecs(leaderboardRows.reduce((sum, a) => sum + a.calculatedTalkTimeSecs, 0))}
+              </p>
             </div>
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
               <span className="text-[10px] text-slate-500 font-bold">Period Deals Won</span>
               <p className="text-sm font-bold text-purple-700 mt-0.5">
-                {rankedAgents.reduce((sum, a) => sum + a.calculatedConverted, 0)}
+                {leaderboardRows.reduce((sum, a) => sum + a.calculatedConverted, 0)}
               </p>
             </div>
           </div>
@@ -1020,7 +1044,7 @@ export const ReportsPage: React.FC<ReportsViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {rankedAgents.map((ag, index) => (
+                  {leaderboardRows.map((ag, index) => (
                     <tr key={ag.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-4 py-3 font-bold">
                         <span className={`w-6 h-6 rounded inline-flex items-center justify-center text-xs font-bold ${

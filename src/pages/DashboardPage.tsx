@@ -97,7 +97,7 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
   const [followUpRemarks, setFollowUpRemarks] = useState('');
 
   // Lead by Stages Widget State
-  const [stagesTimeframe, setStagesTimeframe] = useState<'today' | 'yesterday' | 'week' | 'month' | 'all' | 'custom'>('today');
+  const [stagesTimeframe, setStagesTimeframe] = useState<'today' | 'yesterday' | 'week' | 'month' | 'all' | 'custom'>('all');
   const [stagesCustomStartDate, setStagesCustomStartDate] = useState<string>(() => {
     return new Date().toISOString().slice(0, 10);
   });
@@ -383,29 +383,33 @@ export const DashboardPage: React.FC<DashboardViewProps> = ({
       allAgentEntries.unshift(activeAgent);
     }
 
+    const stageBucket = (status?: string): 'fresh' | 'active' | 'won' | 'lost' => {
+      const st = (status || '').trim().toLowerCase();
+      if (!st || st === 'fresh' || st === 'new lead' || st === 'new') return 'fresh';
+      if (st === 'converted' || st === 'won') return 'won';
+      if (st === 'lost') return 'lost';
+      return 'active';
+    };
+
+    const buildRow = (ag: Agent, agLeads: Lead[]) => {
+      const counts = { fresh: 0, active: 0, won: 0, lost: 0 };
+      agLeads.forEach((l) => { counts[stageBucket(l.status)] += 1; });
+      return { agent: ag, name: ag.name, ...counts, total: agLeads.length };
+    };
+
+    const assignedLeadIds = new Set<string>();
     const rows = allAgentEntries.map(ag => {
       const agLeads = timeframeFilteredLeads.filter((l) =>
         matchesAgent(agents, ag, { id: l.ownerAgentId, name: l.ownerAgentName })
       );
-
-      const freshCount = agLeads.filter(l => l.status === 'Fresh' || l.status === 'New Lead').length;
-      const activeCount = agLeads.filter(l => {
-        const st = (l.status || '').toLowerCase();
-        return st !== 'fresh' && st !== 'new lead' && st !== 'converted' && st !== 'won' && st !== 'lost';
-      }).length;
-      const wonCount = agLeads.filter(l => l.status === 'Converted' || l.status === 'Won').length;
-      const lostCount = agLeads.filter(l => l.status === 'Lost').length;
-
-      return {
-        agent: ag,
-        name: ag.name,
-        fresh: freshCount,
-        active: activeCount,
-        won: wonCount,
-        lost: lostCount,
-        total: agLeads.length
-      };
+      agLeads.forEach((l) => assignedLeadIds.add(l.id));
+      return buildRow(ag, agLeads);
     });
+
+    const unassignedLeads = timeframeFilteredLeads.filter((l) => !assignedLeadIds.has(l.id));
+    if (unassignedLeads.length > 0) {
+      rows.push(buildRow({ id: 'UNASSIGNED', name: 'Unassigned', avatar: '' } as Agent, unassignedLeads));
+    }
 
     const filtered = rows.filter(r => 
       !stagesAssigneeSearch || r.name.toLowerCase().includes(stagesAssigneeSearch.toLowerCase())
