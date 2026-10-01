@@ -110,6 +110,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           badge: pendingFollowUpsCount > 0 ? pendingFollowUpsCount : undefined,
           badgeColor: 'bg-rose-500 text-white'
         },
+        // Call history: telecaller sees their own calls, manager sees the team. Admin uses reports.
+        ...(isAdmin ? [] : [{ id: 'calls' as TabType, label: 'My Calls', icon: PhoneCall }]),
         { id: 'add_lead' as TabType, label: 'Add Lead', icon: UserPlus },
         { 
           id: 'inbox' as TabType, 
@@ -147,8 +149,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         // Users & Team: Admin only (removed from Manager)
         ...(isAdmin ? [{ id: 'team' as TabType, label: 'Users & Team', icon: Users }] : []),
         { id: 'filters' as any, label: 'Saved Filters', icon: Filter, isFilterAction: true },
-        // My Calls: Manager + Telecaller call history (Admin uses Performance Reports instead)
-        ...(isAdmin ? [] : [{ id: 'calls' as TabType, label: 'My Calls', icon: PhoneCall }]),
       ]
     }
   ];

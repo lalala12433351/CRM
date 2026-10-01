@@ -87,6 +87,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     {
       title: 'Core CRM & Leads',
       items: [
+        { id: 'calls' as TabType, label: 'My Calls', icon: PhoneCall, desc: 'Your call history and recordings' },
+        { id: 'inbox' as TabType, label: 'Unified Inbox', icon: Inbox, desc: 'Messages across every channel' },
         { id: 'pipeline' as TabType, label: 'Pipeline Deals', icon: Kanban, desc: 'Kanban stages & deal flow' },
         { id: 'add_lead' as TabType, label: 'Add Lead Page', icon: UserPlus, desc: 'Quick lead capture form' },
         { id: 'campaigns' as TabType, label: 'Campaigns', icon: Megaphone, desc: 'WhatsApp & Meta ad campaigns' },
@@ -98,8 +100,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       items: [
         { id: 'whatsapp' as TabType, label: 'WhatsApp CRM', icon: MessageSquare, desc: 'Chat sync & template broadcasts' },
         { id: 'workflows' as TabType, label: 'Automations', icon: GitBranch, desc: 'Drips & webhook triggers' },
-        { id: 'reports' as TabType, label: 'Reports & Rankings', icon: Trophy, desc: 'Leaderboard & call recordings' },
-        { id: 'calls' as TabType, label: 'My Calls', icon: PhoneCall, desc: 'Call history & recordings' }
+        { id: 'reports' as TabType, label: 'Reports & Rankings', icon: Trophy, desc: 'Leaderboard & call recordings' }
       ]
     },
     {
@@ -126,6 +127,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       if (['workflows', 'integrations', 'settings'].includes(item.id) && !isAdmin) return false;
       if (item.id === 'team' && !isAdmin) return false;
       if (item.id === 'calls' && isAdmin) return false;
+      if (item.id === 'inbox' && isAdmin) return false;
       if (isTelecaller && ['pipeline', 'reports', 'analytics', 'campaigns', 'marketing'].includes(item.id)) return false;
       return (
         item.label.toLowerCase().includes(mobileSearchQuery.toLowerCase()) ||
@@ -188,7 +190,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             <span className="text-[10px] mt-0.5 tracking-tight font-noto">Leads</span>
           </button>
 
-          {/* Tab 3: Unified Inbox (replacing WhatsApp for mobile devices) */}
+          {/* Tab 3: My Calls for telecaller and manager. Admin keeps Inbox. */}
+          {isAdmin ? (
           <button
             type="button"
             onClick={() => handleSelectNavTab('inbox')}
@@ -205,6 +208,24 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             </div>
             <span className="text-[10px] mt-0.5 tracking-tight font-noto">Inbox</span>
           </button>
+          ) : (
+          <button
+            type="button"
+            onClick={() => handleSelectNavTab('calls')}
+            aria-current={activeTab === 'calls' ? 'page' : undefined}
+            className={`touch-target pressable flex flex-col items-center justify-center rounded-xl py-1 select-none cursor-pointer ${
+              activeTab === 'calls' ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-500 active:bg-slate-100'
+            }`}
+          >
+            <div className="relative">
+              <PhoneCall className="w-5 h-5" />
+              {activeTab === 'calls' && (
+                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-indigo-600" />
+              )}
+            </div>
+            <span className="text-[10px] mt-0.5 tracking-tight font-noto">My Calls</span>
+          </button>
+          )}
 
           {/* Tab 4: Follow-Ups */}
           <button
@@ -226,7 +247,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                 <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-indigo-600" />
               )}
             </div>
-            <span className="text-[10px] mt-0.5 tracking-tight font-noto">Calls</span>
+            <span className="text-[10px] mt-0.5 tracking-tight font-noto">Follow-Ups</span>
           </button>
 
           {/* Tab 5: All Views / Drawer Menu */}
