@@ -237,6 +237,16 @@ export interface TenantApiTemplate {
   updatedAt: string;
 }
 
+export interface TenantApiToken {
+  id: string;
+  name: string;
+  recapturePreference: string;
+  apiType: 'async' | 'sync';
+  createdAt: string;
+  lastUsedAt?: string;
+  createdBy?: string;
+}
+
 export interface TenantAction {
   id: string;
   tenantId: string;
@@ -3222,6 +3232,89 @@ export class MultiTenantDatabase {
     tenant.updatedAt = new Date().toISOString();
     this.saveStore();
     return this.getWorkspaceSettings(tenantId);
+  }
+
+  // ----------------------------------------------------------------------------
+  // API TOKEN FUNCTIONS
+  // ----------------------------------------------------------------------------
+
+  public generateApiToken(tenantId: string, payload: { name: string; recapturePreference: string; apiType: 'async' | 'sync'; createdBy?: string }): TenantApiToken {
+    const t = this.store.tenants[tenantId];
+    if (!t) throw new Error('Tenant not found');
+
+    if (!t.settings.apiTokens) {
+      t.settings.apiTokens = [];
+    }
+
+    const cryptoToken = 'pixbe_' + payload.apiType + '_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    
+    const tokenRecord: TenantApiToken = {
+      id: cryptoToken,
+      name: payload.name,
+      recapturePreference: payload.recapturePreference,
+      apiType: payload.apiType,
+      createdAt: new Date().toISOString(),
+      createdBy: payload.createdBy
+    };
+
+    t.settings.apiTokens.push(tokenRecord);
+    this.saveStore();
+    return tokenRecord;
+  }
+
+  public updateApiToken(tenantId: string, tokenId: string, payload: { name?: string; recapturePreference?: string; apiType?: 'async' | 'sync' }): TenantApiToken | null {
+    const t = this.store.tenants[tenantId];
+    if (!t || !t.settings.apiTokens) return null;
+
+    const token = t.settings.apiTokens.find((tk: TenantApiToken) => tk.id === tokenId);
+    if (token) {
+      if (payload.name) token.name = payload.name;
+      if (payload.recapturePreference) token.recapturePreference = payload.recapturePreference;
+      if (payload.apiType) token.apiType = payload.apiType;
+      this.saveStore();
+      return token;
+    }
+    return null;
+  }
+
+  public getApiTokens(tenantId: string): TenantApiToken[] {
+    const t = this.store.tenants[tenantId];
+    if (!t) return [];
+    return t.settings.apiTokens || [];
+  }
+
+  public revokeApiToken(tenantId: string, tokenId: string): void {
+    const t = this.store.tenants[tenantId];
+    if (!t) throw new Error('Tenant not found');
+
+    if (t.settings.apiTokens) {
+      t.settings.apiTokens = t.settings.apiTokens.filter((token: TenantApiToken) => token.id !== tokenId);
+      this.saveStore();
+    }
+  }
+
+  public findTenantByApiToken(tokenId: string): { tenantId: string; token: TenantApiToken } | null {
+    for (const tenantId of Object.keys(this.store.tenants)) {
+      const t = this.store.tenants[tenantId];
+      if (t.settings.apiTokens) {
+        const found = t.settings.apiTokens.find((token: TenantApiToken) => token.id === tokenId);
+        if (found) {
+          return { tenantId, token: found };
+        }
+      }
+    }
+    return null;
+  }
+
+  public updateApiTokenLastUsed(tenantId: string, tokenId: string): void {
+    const t = this.store.tenants[tenantId];
+    if (!t || !t.settings.apiTokens) return;
+
+    const token = t.settings.apiTokens.find((tk: TenantApiToken) => tk.id === tokenId);
+    if (token) {
+      token.lastUsedAt = new Date().toISOString();
+      this.saveStore();
+    }
   }
 
 }

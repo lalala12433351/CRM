@@ -35,6 +35,8 @@ import { fetchWithTenantAuth, readApiJson } from '../lib/auth';
 import { isNative, publicOrigin } from '../lib/platform';
 import { DEEP_LINK_EVENT, openExternal } from '../lib/nativeShell';
 import { formatCampaignHandle } from '../utils/leadFormUtils';
+import { CreateApiTokenModal } from '../components/CreateApiTokenModal';
+import { ApiTokensTable } from '../components/ApiTokensTable';
 
 export interface IntegrationItem {
   id: string;
@@ -392,6 +394,9 @@ export const IntegrationsPage: React.FC<IntegrationsViewProps> = ({
   const [connectedMappings, setConnectedMappings] = useState<any[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState<boolean>(false);
   const [wizardCampaignName, setWizardCampaignName] = useState<string>('');
+const [isCreateTokenModalOpen, setIsCreateTokenModalOpen] = useState(false);
+const [tokenToEdit, setTokenToEdit] = useState<any>(null);
+const [tokenRefreshTrigger, setTokenRefreshTrigger] = useState(0);
 const [teamMemberRoleFilter, setTeamMemberRoleFilter] = useState<string>('All');
 const [teamMemberSearch, setTeamMemberSearch] = useState<string>('');
 const [selectedDistributionUsers, setSelectedDistributionUsers] = useState<string[]>([]);
@@ -2878,13 +2883,22 @@ return (
                   <div>
                     <label className="text-[10px] font-bold text-slate-600 block mb-1">API Key / Access Token</label>
                     <input
-                      type="password"
+                      type={selectedIntegration.id === 'website_api' ? "text" : "password"}
                       value={integrationCreds['apiKey'] || ''}
                       onChange={(e) => setIntegrationCreds({ ...integrationCreds, apiKey: e.target.value })}
                       placeholder="Enter API Key / Token"
                       className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
                     />
                   </div>
+                  {selectedIntegration.id === 'website_api' && (
+                    <div className="mt-8 border-t border-slate-100 pt-6">
+                      <ApiTokensTable 
+                        onOpenCreate={() => setIsCreateTokenModalOpen(true)} 
+                        onEditToken={(token) => setTokenToEdit(token)}
+                        refreshTrigger={tokenRefreshTrigger}
+                      />
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -2899,7 +2913,9 @@ return (
                   type="text"
                   readOnly
                   value={
-                    selectedIntegration.id === 'facebook'
+                    selectedIntegration.id === 'website_api'
+                      ? `${publicOrigin()}/api/webhookconnection/leads`
+                      : selectedIntegration.id === 'facebook'
                       ? `${publicOrigin()}/api/webhooks/facebook`
                       : selectedIntegration.id === 'google_ads' || selectedIntegration.id === 'google_meet'
                         ? `${publicOrigin()}/api/webhooks/google-ads`
@@ -2910,7 +2926,9 @@ return (
                 <button
                   onClick={() =>
                     handleCopyWebhook(
-                      selectedIntegration.id === 'facebook'
+                      selectedIntegration.id === 'website_api'
+                        ? `${publicOrigin()}/api/webhookconnection/leads`
+                        : selectedIntegration.id === 'facebook'
                         ? `${publicOrigin()}/api/webhooks/facebook`
                         : selectedIntegration.id === 'google_ads' || selectedIntegration.id === 'google_meet'
                           ? `${publicOrigin()}/api/webhooks/google-ads`
@@ -2977,6 +2995,42 @@ return (
 
         </div>
       </div>
+    )}
+
+    { (isCreateTokenModalOpen || tokenToEdit) && (
+      <CreateApiTokenModal
+        initialData={tokenToEdit}
+        onClose={() => {
+          setIsCreateTokenModalOpen(false);
+          setTokenToEdit(null);
+        }}
+        onGenerate={async (payload) => {
+          try {
+            const isEdit = !!tokenToEdit;
+            const url = isEdit ? `/api/workspace/api-tokens/${tokenToEdit.id}` : '/api/workspace/api-tokens';
+            const method = isEdit ? 'PUT' : 'POST';
+            const res = await fetchWithTenantAuth(url, {
+              method,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            const data = await readApiJson<{ success: boolean; token?: any; error?: string }>(res);
+            if (data.success && data.token) {
+              toast.success(`Successfully ${isEdit ? 'updated' : 'generated'} API token: ${data.token.name}`, 'API Token');
+              if (!isEdit) {
+                setIntegrationCreds({ ...integrationCreds, apiKey: data.token.id });
+              }
+              setTokenRefreshTrigger(prev => prev + 1);
+              setIsCreateTokenModalOpen(false);
+              setTokenToEdit(null);
+            } else {
+              toast.error(data.error || `Failed to ${isEdit ? 'update' : 'generate'} token`, 'API Token');
+            }
+          } catch (err: any) {
+            toast.error(err.message || `Error ${tokenToEdit ? 'updating' : 'generating'} API token`, 'API Token');
+          }
+        }}
+      />
     )}
 
   </div>

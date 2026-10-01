@@ -12,7 +12,7 @@ export function apiUrl(path: string): string {
 
 /** Public origin for URLs shown to users (webhooks, share links); the app's own origin is capacitor/localhost. */
 export function publicOrigin(): string {
-  return API_BASE || window.location.origin;
+  return 'https://crm.pixbe.in';
 }
 
 let fetchPatched = false;

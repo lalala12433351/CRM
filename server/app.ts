@@ -21,6 +21,7 @@ import campaignsRoutes from './modules/campaigns/campaigns.routes';
 import messagesRoutes from './modules/messages/messages.routes';
 import workspaceRoutes from './modules/workspace/workspace.routes';
 import reportsRoutes from './modules/reports/reports.routes';
+import webhookConnectionRoutes from './modules/api/webhookConnection.routes';
 import { authMiddleware } from './middleware/auth';
 import { tenantContextMiddleware } from './middleware/tenantContext';
 import { isPostgresStoreEnabled } from './db/config';
@@ -117,6 +118,7 @@ export async function createApp() {
   app.use('/api', messagesRoutes);
   app.use('/api', workspaceRoutes);
   app.use('/api', reportsRoutes);
+  app.use('/api/webhookconnection', webhookConnectionRoutes);
 
   // Serve static files in production or Vite middleware in development
   const distPath = path.join(process.cwd(), 'dist');
