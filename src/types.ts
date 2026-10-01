@@ -385,6 +385,8 @@ export interface Agent {
   responseTimeMinutes: number;
   currentActiveCallLeadId?: string;
   permissionTemplateId?: string;
+  /** Saved copy of the permission template toggles for this assignee. */
+  permissionRights?: PermissionRights;
   isAdmin?: boolean;
   tenantId?: string;
   companyName?: string;

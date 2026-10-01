@@ -91,7 +91,7 @@ import {
   isAgentAdmin
 } from './types';
 
-import { getAgentPermissionRights } from './utils/permissionUtils';
+import { getAgentPermissionRights, mergeDefaultTemplates, seedAssigneeAccess, isCompleteRights } from './utils/permissionUtils';
 import { getInitialViewFromUrl, syncUrlWithView, pathToView } from './utils/navigation';
 import { canAccessView, getCrmRole, getDefaultViewForRole, formatRoleBadge } from './utils/roleUtils';
 import { resolveAgentName, resolveLeadContact, matchesAgent } from './utils/agentDisplay';
@@ -403,6 +403,8 @@ export function App() {
   const [workflows, setWorkflows] = useSyncState<WorkflowRule>('workflows', activeTenantId);
   const [customFields, setCustomFields] = useSyncState<CustomFieldDef>('customFields', activeTenantId);
   const [permissionTemplates, setPermissionTemplates] = useSyncState<PermissionTemplate>('permissionTemplates', activeTenantId);
+  const [workspaceSettingsLoaded, setWorkspaceSettingsLoaded] = useState(false);
+  const backfilledAgentIdsRef = React.useRef<Set<string>>(new Set());
   const [taskCategories, setTaskCategories] = useSyncState<TaskTypeCategory>('taskCategories', activeTenantId);
   const [workspaceProfile, setWorkspaceProfile] = useSyncState<{ id: string; name: string }>('workspaceProfile', activeTenantId);
   const [workspaceEmail, setWorkspaceEmail] = useSyncState<{ id: string; email: string }>('workspaceEmail', activeTenantId);
@@ -639,9 +641,8 @@ export function App() {
         }
         if (ws.supportEmail) setWorkspaceEmail([{ id: 'default_email', email: ws.supportEmail }]);
         if (ws.currency) setWorkspaceCurrency([{ id: 'default_currency', code: ws.currency }]);
-        if (Array.isArray(ws.permissionTemplates) && ws.permissionTemplates.length > 0) {
-          setPermissionTemplates(ws.permissionTemplates);
-        }
+        setPermissionTemplates(Array.isArray(ws.permissionTemplates) ? ws.permissionTemplates : []);
+        setWorkspaceSettingsLoaded(true);
         try {
           if (ws.workspaceFeatures && typeof window !== 'undefined') {
             localStorage.setItem('pixbe_workspace_features', JSON.stringify(ws.workspaceFeatures));
@@ -650,6 +651,8 @@ export function App() {
             localStorage.setItem('pixbe_call_feedback_statuses', JSON.stringify(ws.callFeedbackStatuses));
           }
         } catch {}
+      } else {
+        setWorkspaceSettingsLoaded(true);
       }
     } catch (err) {
       console.warn('Tenant data loading notice:', err);
@@ -823,6 +826,21 @@ export function App() {
       }
     : (currentUser || activeAgentsList.find((a) => a.id === activeAgentId) || activeAgentsList[0]);
   const activeAgentRights = getAgentPermissionRights(activeAgent, activeTemplates);
+  const allow = (view: string) => canAccessView(activeAgent, view, activeAgentRights);
+  const openPowerDialer = () => {
+    if (!activeAgentRights.calling) {
+      showToast('Access denied for the power dialer.');
+      return;
+    }
+    setIsPowerDialerQueueOpen(true);
+  };
+  const openAiCopilot = () => {
+    if (!activeAgentRights.aiAgents) {
+      showToast('Access denied for AI Copilot.');
+      return;
+    }
+    setIsAiCopilotOpen(true);
+  };
   const isAdmin = isAgentAdmin(activeAgent);
   const activeSupportEmail = workspaceEmail?.[0]?.email || activeAgent?.email || currentUser?.email || 'admin@company.com';
   const activeCurrency = workspaceCurrency?.[0]?.code || 'INR';
@@ -830,12 +848,42 @@ export function App() {
   // RBAC Frontend Route Guards
   useEffect(() => {
     if (!isAuthenticated || !activeAgent) return;
-    if (!canAccessView(activeAgent, currentView)) {
+    if (!canAccessView(activeAgent, currentView, activeAgentRights)) {
       const homeView = getDefaultViewForRole(activeAgent);
-      setCurrentView(homeView);
-      showToast(`Access denied for ${formatRoleBadge(activeAgent)}. Redirected.`);
+      if (homeView !== currentView && canAccessView(activeAgent, homeView, activeAgentRights)) {
+        setCurrentView(homeView);
+        showToast(`Access denied for ${formatRoleBadge(activeAgent)}. Redirected.`);
+      }
     }
-  }, [currentView, activeAgent, isAuthenticated]);
+  }, [currentView, activeAgent, activeAgentRights, isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !workspaceSettingsLoaded) return;
+    const merged = mergeDefaultTemplates(permissionTemplates);
+    if (!merged.added) return;
+    setPermissionTemplates(merged.templates);
+    saveWorkspaceSettings({ permissionTemplates: merged.templates });
+  }, [isAuthenticated, workspaceSettingsLoaded, permissionTemplates]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !workspaceSettingsLoaded || !isAdmin) return;
+    const templates = mergeDefaultTemplates(permissionTemplates).templates;
+    const pending = (agents || []).filter((agent) => !isCompleteRights(agent.permissionRights) && !backfilledAgentIdsRef.current.has(agent.id));
+    if (pending.length === 0) return;
+    const updates = pending.map((agent) => {
+      backfilledAgentIdsRef.current.add(agent.id);
+      return { ...agent, ...seedAssigneeAccess(agent, templates) };
+    });
+    setAgents((prev) => prev.map((agent) => updates.find((item) => item.id === agent.id) || agent));
+    updates.forEach((agent) => {
+      fetchWithTenantAuth(`/api/agents/${agent.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(agent)
+      }).catch(() => {
+        backfilledAgentIdsRef.current.delete(agent.id);
+      });
+    });
+  }, [isAuthenticated, workspaceSettingsLoaded, isAdmin, agents, permissionTemplates]);
 
   // Strict Database Agents Scoping: Use live agents from database (or active logged in admin user)
   const crmRole = getCrmRole(activeAgent);
@@ -1596,7 +1644,7 @@ export function App() {
     }).length;
   }, [visibleLeads]);
 
-  if (currentView === 'workflow_builder') {
+  if (currentView === 'workflow_builder' && allow('workflow_builder')) {
     return (
       <StagesContext.Provider value={activeStages}>
         <WorkflowBuilderPage
@@ -1665,8 +1713,8 @@ export function App() {
         onAddNewLead={handleOpenAddLead}
         onPushTestLead={() => handlePushTestLead('IndiaMart')}
         onOpenVoiceBot={() => setVoiceBotLead(leads[0])}
-        onOpenPowerDialer={() => setIsPowerDialerQueueOpen(true)}
-        onOpenAiCopilot={() => setIsAiCopilotOpen(true)}
+        onOpenPowerDialer={openPowerDialer}
+        onOpenAiCopilot={openAiCopilot}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         pendingFollowUpsCount={pendingFollowUpsCount}
         pendingTasksCount={pendingTasksCount}
@@ -1707,11 +1755,12 @@ export function App() {
           setActiveFilterId={setActiveFilterId}
           isAdmin={isAdmin}
           activeAgentRole={activeAgent?.role}
+          activeAgent={activeAgent}
         />
 
         {/* View Router */}
         <main className="app-main-content min-h-0 flex-1 overflow-y-auto bg-transparent p-0 md:p-5 ios-scroll">
-          {currentView === 'add_lead' && (
+          {currentView === 'add_lead' && allow('add_lead') && (
             <AddLeadView
               leads={liveLeads}
               agents={agents}
@@ -1801,7 +1850,7 @@ export function App() {
           )}
 
           {currentView === 'dashboard' && (
-            activeAgentRights.dashboardView ? (
+            allow('dashboard') ? (
               <DashboardView
                 leads={visibleLeads}
                 agents={isAdmin ? activeAgentsList : visibleAgents}
@@ -1820,7 +1869,7 @@ export function App() {
             ) : renderAccessRestricted('Executive Dashboard')
           )}
 
-          {currentView === 'pipeline' && (
+          {currentView === 'pipeline' && allow('pipeline') && (
             <PipelineView
               leads={visibleLeads}
               agents={visibleAgents}
@@ -1860,7 +1909,7 @@ export function App() {
             />
           )}
 
-          {currentView === 'leads' && (
+          {currentView === 'leads' && allow('leads') && (
             <LeadsView
               leads={visibleLeads}
               agents={visibleAgents}
@@ -1887,7 +1936,7 @@ export function App() {
             />
           )}
 
-          {currentView === 'followups' && (
+          {currentView === 'followups' && allow('followups') && (
             <FollowUpsView
               leads={visibleLeads}
               agents={visibleAgents}
@@ -1902,7 +1951,7 @@ export function App() {
           )}
 
           {currentView === 'tasks' && (
-            !activeAgentRights.tasks ? (
+            !allow('tasks') ? (
               renderAccessRestricted('Tasks & Reminders')
             ) : (
             <TasksView
@@ -1918,7 +1967,7 @@ export function App() {
             )
           )}
 
-          {currentView === 'inbox' && (
+          {currentView === 'inbox' && allow('inbox') && (
             <OmnichannelInboxView
               leads={visibleLeads}
               messages={messages}
@@ -1930,7 +1979,7 @@ export function App() {
           )}
 
           {currentView === 'whatsapp' && (
-            activeAgentRights.whatsappTemplates ? (
+            allow('whatsapp') ? (
               <WhatsAppCrmView
                 templates={templates}
                 campaigns={campaigns}
@@ -1948,7 +1997,7 @@ export function App() {
           )}
 
           {currentView === 'workflows' && (
-            isAdmin ? (
+            allow('workflows') ? (
               <WorkflowsView
                 workflows={workflows}
                 initialSubTab={automationsSubTab}
@@ -1972,7 +2021,7 @@ export function App() {
           )}
 
 
-          {(currentView === 'calls' || currentView === 'calling_logs') && !isAdmin && (
+          {(currentView === 'calls' || currentView === 'calling_logs') && allow('calls') && (
             <MyCallsView
               callRecords={liveCallRecords}
               agents={agents}
@@ -2002,7 +2051,7 @@ export function App() {
           )}
 
           {currentView === 'reports' && (
-            activeAgentRights.reports ? (
+            allow('reports') ? (
               <ReportsView
                 initialSubTab={reportsSubTab}
                 callRecords={liveCallRecords}
@@ -2016,12 +2065,12 @@ export function App() {
             ) : renderAccessRestricted('Performance Reports & Analytics')
           )}
 
-          {currentView === 'analytics' && (
+          {currentView === 'analytics' && allow('analytics') && (
             <AnalyticsView leads={visibleLeads} hourlyMetrics={HOURLY_METRICS} />
           )}
 
           {currentView === 'team' && (
-            isAdmin ? <TeamView
+            allow('team') ? <TeamView
               agents={agents}
               activeAgent={activeAgent}
               onToggleAgentStatus={(id, st) => setAgents((prev) => prev.map((a) => a.id === id ? { ...a, status: st } : a))}
@@ -2030,17 +2079,18 @@ export function App() {
               onToggleAdminPower={handleToggleAdminPower}
               onUpdateAgentRole={handleUpdateAgentRole}
               onUpdateAgent={handleUpdateAgent}
+              permissionTemplates={activeTemplates}
             /> : renderAccessRestricted('Users & Team')
           )}
 
           {currentView === 'marketing' && (
-            isAdmin ? (
+            allow('marketing') ? (
               <MarketingView onSimulateWebhookLead={(src) => handlePushTestLead(src)} />
             ) : renderAccessRestricted('Marketing Webhooks')
           )}
 
           {currentView === 'campaigns' && (
-            crmRole === 'Telecaller' ? renderAccessRestricted('Campaigns & Tags') : (
+            !allow('campaigns') ? renderAccessRestricted('Campaigns & Tags') : (
             <CampaignsView
               activeTenantId={activeTenantId}
               leads={visibleLeads}
@@ -2081,7 +2131,7 @@ export function App() {
           )}
 
           {currentView === 'integrations' && (
-            isAdmin ? (
+            allow('integrations') ? (
               <IntegrationsView 
                 agents={agents}
                 customFields={activeCustomFields}
@@ -2096,12 +2146,12 @@ export function App() {
             ) : renderAccessRestricted('Integrations & Webhook Connections (Admin Only)')
           )}
 
-          {currentView === 'docs_sign' && (
+          {currentView === 'docs_sign' && allow('docs_sign') && (
             <DocsAndSignView leads={visibleLeads} />
           )}
 
           {currentView === 'fields' && (
-            isAdmin ? <FieldsSettingsView
+            allow('fields') ? <FieldsSettingsView
               customFields={activeCustomFields}
               activeAgent={activeAgent}
               onUpdateFields={(updatedFields) => {
@@ -2113,7 +2163,7 @@ export function App() {
           )}
 
           {currentView === 'call_feedback' && (
-            isAdmin ? <CallFeedbackSettingsView
+            allow('call_feedback') ? <CallFeedbackSettingsView
               activeAgent={activeAgent}
               onShowToast={(msg) => showToast(msg)}
             /> : renderAccessRestricted('Call Feedback Settings')
@@ -2124,7 +2174,7 @@ export function App() {
           )}
 
           {currentView === 'settings' && (
-            isAdmin ? <SettingsView
+            allow('settings') ? <SettingsView
               companyName={rawCompanyName || 'ARCLE Real Estate & Sales'}
               onUpdateCompanyName={(newName) => {
                 setWorkspaceProfile([{ id: 'default_workspace', name: newName }]);
@@ -2228,6 +2278,38 @@ export function App() {
                 setPermissionTemplates(updatedTemplates);
                 saveWorkspaceSettings({ permissionTemplates: updatedTemplates }, 'Permission templates saved to database');
               }}
+              canManageBilling={activeAgentRights.billings}
+              onApplyAssigneeAccess={(updates) => {
+                const nextAgents = (agents || []).map((agent) => {
+                  const update = updates.find((item) => item.id === agent.id);
+                  if (!update) return agent;
+                  if (update.permissionTemplateId === null) {
+                    const { permissionTemplateId: _removed, ...rest } = agent;
+                    return rest;
+                  }
+                  return {
+                    ...agent,
+                    permissionTemplateId: update.permissionTemplateId,
+                    permissionRights: update.permissionRights || agent.permissionRights,
+                  };
+                });
+                setAgents(nextAgents);
+                updates.forEach((update) => {
+                  const agent = (agents || []).find((item) => item.id === update.id);
+                  if (!agent) return;
+                  const payload = update.permissionTemplateId === null
+                    ? { ...agent, permissionTemplateId: null }
+                    : {
+                        ...agent,
+                        permissionTemplateId: update.permissionTemplateId,
+                        permissionRights: update.permissionRights || agent.permissionRights,
+                      };
+                  fetchWithTenantAuth(`/api/agents/${agent.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(payload)
+                  }).catch(console.warn);
+                });
+              }}
               lostReasons={lostReasons}
               onUpdateLostReasons={handleUpdateLostReasons}
               initialTab={settingsSubTab}
@@ -2247,7 +2329,7 @@ export function App() {
       </div>
 
       {/* MODAL 1: Lead Details Drawer */}
-      {detailLead && (
+      {detailLead && activeAgentRights.leadView && (
         <LeadDetailModal
           lead={liveDetailLead || detailLead}
           allLeads={visibleLeads}
@@ -2332,8 +2414,8 @@ export function App() {
         onSelectLead={(lead) => setDetailLead(lead)}
         onNavigate={(view) => setCurrentView(view)}
         onAddNewLead={handleOpenAddLead}
-        onOpenPowerDialer={() => setIsPowerDialerQueueOpen(true)}
-        onOpenAiCopilot={() => setIsAiCopilotOpen(true)}
+        onOpenPowerDialer={openPowerDialer}
+        onOpenAiCopilot={openAiCopilot}
         onOpenVoiceBot={() => setVoiceBotLead(leads[0])}
         onOpenGoogleSheets={() => setIsGoogleSheetsModalOpen(true)}
       />
@@ -2386,8 +2468,8 @@ export function App() {
         onSelectAgent={(agentId) => setActiveAgentId(agentId)}
         onOpenAddLeadModal={handleOpenAddLead}
         onOpenGoogleSheets={() => setIsGoogleSheetsModalOpen(true)}
-        onOpenPowerDialer={() => setIsPowerDialerQueueOpen(true)}
-        onOpenAiCopilot={() => setIsAiCopilotOpen(true)}
+        onOpenPowerDialer={openPowerDialer}
+        onOpenAiCopilot={openAiCopilot}
       />
 
     </div>

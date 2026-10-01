@@ -1,4 +1,4 @@
-import { Agent, isAgentAdmin } from '../types';
+import { Agent, isAgentAdmin, PermissionRights } from '../types';
 
 export type CrmRole = 'Admin' | 'Manager' | 'Telecaller';
 
@@ -73,7 +73,7 @@ export const TELECALLER_BLOCKED_VIEWS = [
   'marketing',
 ] as const;
 
-export function canAccessView(agent: Agent | null | undefined, view: string): boolean {
+function viewAllowedByRole(agent: Agent | null | undefined, view: string): boolean {
   const role = getCrmRole(agent);
   if (role === 'Admin') {
     return !(ADMIN_BLOCKED_VIEWS as readonly string[]).includes(view);
@@ -82,6 +82,70 @@ export function canAccessView(agent: Agent | null | undefined, view: string): bo
     return !(MANAGER_BLOCKED_VIEWS as readonly string[]).includes(view);
   }
   return !(TELECALLER_BLOCKED_VIEWS as readonly string[]).includes(view);
+}
+
+/** Allow or deny a view from the assignee's saved rights. */
+export function viewAllowedByRights(rights: PermissionRights, view: string, agent?: Agent | null): boolean {
+  switch (view) {
+    case 'dashboard':
+      return rights.dashboardView;
+    case 'leads':
+      return rights.leads && rights.leadsTableView;
+    case 'followups':
+    case 'inbox':
+    case 'add_lead':
+      return rights.leads;
+    case 'salesform':
+      return rights.salesform;
+    case 'pipeline':
+    case 'campaigns':
+      return rights.leads && rights.reports;
+    case 'reports':
+    case 'analytics':
+      return rights.reports;
+    case 'tasks':
+      return rights.tasks;
+    case 'calls':
+    case 'calling_logs':
+      if (getCrmRole(agent) === 'Admin') return false;
+      return rights.calling;
+    case 'whatsapp':
+      return rights.whatsappTemplates;
+    case 'team':
+      return rights.team;
+    case 'workflows':
+    case 'workflow_builder':
+      return rights.automations;
+    case 'integrations':
+    case 'marketing':
+      return rights.integrations;
+    case 'settings':
+      return rights.permissions || rights.billings;
+    case 'fields':
+    case 'call_feedback':
+    case 'permissions':
+    case 'conversions':
+    case 'conversion_tracking':
+      return rights.permissions;
+    case 'docs_sign':
+      return rights.embeddedApps;
+    case 'device_permissions':
+      return true;
+    default:
+      return true;
+  }
+}
+
+export function canAccessView(
+  agent: Agent | null | undefined,
+  view: string,
+  rights?: PermissionRights | null
+): boolean {
+  if (rights) return viewAllowedByRights(rights, view, agent);
+  if (agent?.permissionRights && typeof agent.permissionRights.leads === 'boolean') {
+    return viewAllowedByRights(agent.permissionRights, view, agent);
+  }
+  return viewAllowedByRole(agent, view);
 }
 
 export function getDefaultViewForRole(agent?: Agent | null): string {

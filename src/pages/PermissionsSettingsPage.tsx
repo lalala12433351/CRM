@@ -33,6 +33,7 @@ interface PermissionsSettingsViewProps {
   onUpdateTemplates: (templates: PermissionTemplate[]) => void;
   agents: Agent[];
   onUpdateAgents?: (agents: Agent[]) => void;
+  onApplyAssigneeAccess?: (updates: Array<{ id: string; permissionTemplateId?: string | null; permissionRights?: PermissionRights }>) => void;
   onShowToast?: (msg: string) => void;
 }
 
@@ -41,6 +42,7 @@ export const PermissionsSettingsPage: React.FC<PermissionsSettingsViewProps> = (
   onUpdateTemplates,
   agents,
   onUpdateAgents,
+  onApplyAssigneeAccess,
   onShowToast,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'all' | 'defaults'>('all');
@@ -114,16 +116,36 @@ export const PermissionsSettingsPage: React.FC<PermissionsSettingsViewProps> = (
     }
     onUpdateTemplates(updated);
 
-    // Update agents' permissionTemplateId if attached
-    if (onUpdateAgents) {
-      const updatedAgents = agents.map(ag => {
-        if (editingTemplate.assignedAgents.includes(ag.id)) {
-          return { ...ag, permissionTemplateId: editingTemplate.id };
+    const previous = permissionTemplates.find((template) => template.id === editingTemplate.id);
+    const previouslyAssigned = new Set(previous?.assignedAgents || []);
+    const accessUpdates: Array<{ id: string; permissionTemplateId?: string | null; permissionRights?: PermissionRights }> = [];
+    editingTemplate.assignedAgents.forEach((id) => {
+      accessUpdates.push({
+        id,
+        permissionTemplateId: editingTemplate.id,
+        permissionRights: { ...editingTemplate.rights },
+      });
+    });
+    previouslyAssigned.forEach((id: string) => {
+      if (!editingTemplate.assignedAgents.includes(id)) {
+        accessUpdates.push({ id, permissionTemplateId: null });
+      }
+    });
+    if (onApplyAssigneeAccess) {
+      onApplyAssigneeAccess(accessUpdates);
+    } else if (onUpdateAgents) {
+      const updatedAgents = agents.map((ag) => {
+        const update = accessUpdates.find((item) => item.id === ag.id);
+        if (!update) return ag;
+        if (update.permissionTemplateId === null) {
+          const { permissionTemplateId: _removed, ...rest } = ag;
+          return rest;
         }
-        if (ag.permissionTemplateId === editingTemplate.id && !editingTemplate.assignedAgents.includes(ag.id)) {
-          return { ...ag, permissionTemplateId: undefined };
-        }
-        return ag;
+        return {
+          ...ag,
+          permissionTemplateId: update.permissionTemplateId,
+          permissionRights: update.permissionRights || ag.permissionRights,
+        };
       });
       onUpdateAgents(updatedAgents);
     }

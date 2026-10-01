@@ -34,10 +34,11 @@ import {
   Sparkles,
   ExternalLink
 } from 'lucide-react';
-import { Agent, isAgentAdmin } from '../types';
+import { Agent } from '../types';
 import { formatArcleName } from '../utils/brandUtils';
 import { UserAvatar } from './UserAvatar';
 import { canAccessView, formatRoleBadge } from '../utils/roleUtils';
+import { getAgentPermissionRights } from '../utils/permissionUtils';
 
 export interface WorkAccount {
   id: string;
@@ -125,9 +126,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [notificationTab, setNotificationTab] = useState<'all' | 'followups' | 'tasks'>('all');
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [showLicenseBanner, setShowLicenseBanner] = useState(true);
-  const canManageSettings = isAgentAdmin(activeAgent);
+  const rights = getAgentPermissionRights(activeAgent);
+  const allow = (view: string) => canAccessView(activeAgent, view, rights);
+  const canManageSettings = rights.permissions;
+  const showSettingsMenu = canManageSettings || allow('fields') || allow('call_feedback') || allow('workflows') || allow('team') || rights.billings;
   const activeCrmRole = formatRoleBadge(activeAgent);
-  const showTaskNotifications = canAccessView(activeAgent, 'tasks');
+  const showTaskNotifications = allow('tasks');
 
   const accountDropdownRef = useRef<HTMLDivElement>(null);
   const settingsDropdownRef = useRef<HTMLDivElement>(null);
@@ -274,7 +278,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
 
                 {/* Manage Workspaces Bottom Button (Admin Only) */}
-                {isAgentAdmin(activeAgent) && <div className="pt-2 border-t border-slate-100">
+                {canManageSettings && <div className="pt-2 border-t border-slate-100">
                   <button
                     onClick={() => {
                       setIsAccountMenuOpen(false);
@@ -298,7 +302,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="w-[1px] h-4 bg-slate-200 mx-1.5 shrink-0" />
 
           {/* Settings Gear Button with Popover Flyout */}
-          {isAgentAdmin(activeAgent) && <div className="relative shrink-0" ref={settingsDropdownRef}>
+          {showSettingsMenu && <div className="relative shrink-0" ref={settingsDropdownRef}>
             <button
               type="button"
               onClick={() => {
@@ -324,7 +328,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   WORKSPACE
                 </div>
                 <div className="space-y-0.5 mb-2">
-                  {isAgentAdmin(activeAgent) && (
+                  {allow('fields') && (
                     <button
                       onClick={() => handleMenuClick('settings', 'Lead Fields Settings', 'fields')}
                       className={`w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left cursor-pointer transition-all ${
@@ -338,15 +342,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </button>
                   )}
 
-                  <button
+                  {canManageSettings && <button
                     onClick={() => handleMenuClick('settings', 'Pipeline Stages & Colors', 'pipeline')}
                     className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
                   >
                     <Layers className="w-4 h-4 text-slate-500" />
                     <span>Lead Stage</span>
-                  </button>
+                  </button>}
 
-                  <button
+                  {allow('call_feedback') && <button
                     onClick={() => handleMenuClick('call_feedback', 'Call Feedback Statuses & Dispositions')}
                     className={`w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left cursor-pointer transition-all ${
                       currentView === 'call_feedback'
@@ -356,23 +360,23 @@ export const Navbar: React.FC<NavbarProps> = ({
                   >
                     <PhoneCall className="w-4 h-4 text-slate-500" />
                     <span>Call Feedback</span>
-                  </button>
+                  </button>}
 
-                  <button
+                  {allow('workflows') && <button
                     onClick={() => handleMenuClick('workflows', 'Custom Automation Actions')}
                     className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
                   >
                     <Zap className="w-4 h-4 text-slate-500" />
                     <span>Custom Actions</span>
-                  </button>
+                  </button>}
 
-                  <button
+                  {canManageSettings && <button
                     onClick={() => handleMenuClick('settings', 'System Preferences', 'general')}
                     className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
                   >
                     <Sliders className="w-4 h-4 text-slate-500" />
                     <span>Preferences</span>
-                  </button>
+                  </button>}
                 </div>
 
                 {/* TEAM SECTION */}
@@ -380,15 +384,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                   TEAM
                 </div>
                 <div className="space-y-0.5 mb-2">
-                  <button
+                  {allow('team') && <button
                     onClick={() => handleMenuClick('team', 'Managing Users & Representatives')}
                     className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
                   >
                     <Users className="w-4 h-4 text-slate-500" />
                     <span>Users & Team</span>
-                  </button>
+                  </button>}
 
-                  {isAgentAdmin(activeAgent) && (
+                  {allow('permissions') && (
                     <button
                       onClick={() => handleMenuClick('settings', 'Permission Templates & Roles', 'permissions')}
                       className="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
@@ -400,7 +404,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
 
                 {/* BILLING SECTION (Admin Only) */}
-                {isAgentAdmin(activeAgent) && (
+                {rights.billings && (
                   <>
                     <div className="px-2.5 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider font-sans border-t border-slate-100 pt-2">
                       BILLING & PAYMENTS
@@ -434,7 +438,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="flex items-center space-x-2 sm:space-x-3 ml-auto">
 
         {/* Power Dialer Queue Button */}
-        <button
+        {rights.calling && <button
           type="button"
           onClick={onOpenPowerDialer}
           className="hidden md:flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-[#5034a8] hover:bg-[#432993] text-white font-semibold text-xs shadow-xs cursor-pointer transition-all shrink-0 mr-1.5 active:scale-95"
@@ -442,7 +446,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         >
           <PhoneCall className="w-3.5 h-3.5 text-white shrink-0" />
           <span>Power Dialer</span>
-        </button>
+        </button>}
 
         {/* Tasks button — Manager + Telecaller (Admin does not use Tasks) */}
         {showTaskNotifications && (

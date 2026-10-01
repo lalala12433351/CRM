@@ -25,7 +25,9 @@ import {
   Kanban
 } from 'lucide-react';
 import { ReportsSubTab, AutomationsSubTab } from '../pages';
-import { getCrmRole } from '../utils/roleUtils';
+import { Agent } from '../types';
+import { canAccessView } from '../utils/roleUtils';
+import { getAgentPermissionRights } from '../utils/permissionUtils';
 
 export type TabType = 
   | 'dashboard' 
@@ -63,6 +65,7 @@ interface SidebarProps {
   setActiveFilterId?: (id: string) => void;
   isAdmin?: boolean;
   activeAgentRole?: string;
+  activeAgent?: Agent;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
@@ -77,7 +80,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeFilterId = '',
   setActiveFilterId,
   isAdmin = false,
-  activeAgentRole = 'Telecaller'
+  activeAgentRole = 'Telecaller',
+  activeAgent
 }) => {
   const [isReportsOpen, setIsReportsOpen] = useState(activeTab === 'reports');
   const [isAutomationsOpen, setIsAutomationsOpen] = useState(activeTab === 'workflows');
@@ -93,15 +97,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }, [activeTab]);
 
   // Grouped Navigation matching reference layout (MAIN MENU, TOOLS, WORKSPACE)
-  const crmRole = isAdmin ? 'Admin' : getCrmRole({ role: activeAgentRole } as any);
-  const isTelecaller = crmRole === 'Telecaller';
+  const menuAgent = activeAgent || ({ role: activeAgentRole, isAdmin } as Agent);
+  const menuRights = getAgentPermissionRights(menuAgent);
+  const allowMenu = (view: string) => canAccessView(menuAgent, view, menuRights);
 
   const menuSections = [
     {
       title: 'MAIN MENU',
       items: [
         { id: 'dashboard' as TabType, label: 'Dashboard', icon: LayoutDashboard },
-        ...(isTelecaller ? [] : [{ id: 'pipeline' as TabType, label: 'Pipeline & Deals', icon: Kanban }]),
+        { id: 'pipeline' as TabType, label: 'Pipeline & Deals', icon: Kanban },
         { id: 'leads' as TabType, label: 'Leads Database', icon: Users },
         { 
           id: 'followups' as TabType, 
@@ -110,46 +115,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
           badge: pendingFollowUpsCount > 0 ? pendingFollowUpsCount : undefined,
           badgeColor: 'bg-rose-500 text-white'
         },
-        // Call history: telecaller sees their own calls, manager sees the team. Admin uses reports.
-        ...(isAdmin ? [] : [{ id: 'calls' as TabType, label: 'My Calls', icon: PhoneCall }]),
+        { id: 'calls' as TabType, label: 'My Calls', icon: PhoneCall },
         { id: 'add_lead' as TabType, label: 'Add Lead', icon: UserPlus },
         { 
           id: 'inbox' as TabType, 
           label: 'Unified Inbox', 
           icon: AtSign
         },
-      ]
+      ].filter((item) => allowMenu(item.id))
     },
     {
       title: 'TOOLS',
       items: [
         { id: 'whatsapp' as TabType, label: 'WhatsApp CRM', icon: MessageSquare },
-        ...(isAdmin ? [{
+        {
           id: 'workflows' as TabType, 
           label: 'AI Automations', 
           icon: Bot, 
           hasSubmenu: true,
           submenuType: 'workflows'
-        }] : []),
-        ...(isTelecaller ? [] : [{ 
+        },
+        { 
           id: 'reports' as TabType, 
           label: 'Performance Reports', 
           icon: TrendingUp, 
           hasSubmenu: true,
           submenuType: 'reports'
-        }]),
-        ...(isAdmin ? [{ id: 'integrations' as TabType, label: 'Integrations', icon: Link2 }] : []),
-      ]
+        },
+        { id: 'integrations' as TabType, label: 'Integrations', icon: Link2 },
+      ].filter((item) => allowMenu(item.id))
     },
     {
       title: 'WORKSPACE',
       items: [
-        // Campaigns: Admin + Manager only (hidden from Telecaller)
-        ...(isTelecaller ? [] : [{ id: 'campaigns' as TabType, label: 'Campaigns & Tags', icon: Tag }]),
-        // Users & Team: Admin only (removed from Manager)
-        ...(isAdmin ? [{ id: 'team' as TabType, label: 'Users & Team', icon: Users }] : []),
+        { id: 'campaigns' as TabType, label: 'Campaigns & Tags', icon: Tag },
+        { id: 'team' as TabType, label: 'Users & Team', icon: Users },
         { id: 'filters' as any, label: 'Saved Filters', icon: Filter, isFilterAction: true },
-      ]
+      ].filter((item) => item.isFilterAction || allowMenu(item.id))
     }
   ];
 
@@ -183,7 +185,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         { id: 'api_templates', label: 'API Templates', icon: Code },
                         { id: 'webhooks', label: 'Webhooks', icon: Webhook },
                         { id: 'apps', label: 'Apps', icon: LayoutGrid },
-                      ];
+                      ].filter((sub) => sub.id !== 'salesform' || allowMenu('salesform')) as { id: AutomationsSubTab; label: string; icon: React.FC<{ className?: string }> }[];
 
                       return (
                         <div key={item.id} className="space-y-0.5">

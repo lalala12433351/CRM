@@ -27,7 +27,9 @@ import {
 } from 'lucide-react';
 import { TabType } from './Sidebar';
 import { ReportsSubTab, AutomationsSubTab } from '../pages';
-import { Agent, isAgentAdmin } from '../types';
+import { Agent } from '../types';
+import { canAccessView } from '../utils/roleUtils';
+import { getAgentPermissionRights } from '../utils/permissionUtils';
 import { UserAvatar } from './UserAvatar';
 import { formatArcleName } from '../utils/brandUtils';
 import { isNative, nativePlatform } from '../lib/platform';
@@ -116,19 +118,11 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     }
   ];
 
-  const isAdmin = isAgentAdmin(activeAgent);
-  const activeRole = (activeAgent.role || '').toLowerCase();
-  const isManager = activeRole === 'manager' || activeRole.includes('manager');
-  const isTelecaller = !isAdmin && !isManager;
-
+  const rights = getAgentPermissionRights(activeAgent);
   const filteredCategories = navigationCategories.map(cat => ({
     ...cat,
     items: cat.items.filter(item => {
-      if (['workflows', 'integrations', 'settings'].includes(item.id) && !isAdmin) return false;
-      if (item.id === 'team' && !isAdmin) return false;
-      if (item.id === 'calls' && isAdmin) return false;
-      if (item.id === 'inbox' && isAdmin) return false;
-      if (isTelecaller && ['pipeline', 'reports', 'analytics', 'campaigns', 'marketing'].includes(item.id)) return false;
+      if (item.id !== 'device_permissions' && !canAccessView(activeAgent, item.id, rights)) return false;
       return (
         item.label.toLowerCase().includes(mobileSearchQuery.toLowerCase()) ||
         item.desc.toLowerCase().includes(mobileSearchQuery.toLowerCase())
@@ -191,7 +185,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           </button>
 
           {/* Tab 3: My Calls for telecaller and manager. Admin keeps Inbox. */}
-          {isAdmin ? (
+          {!canAccessView(activeAgent, 'calls', rights) ? (
           <button
             type="button"
             onClick={() => handleSelectNavTab('inbox')}
@@ -359,9 +353,9 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             <div className="overflow-y-auto p-4 space-y-4 flex-1 ios-scroll">
               
               {/* Quick AI & Call Tools Banner */}
-              {(onOpenPowerDialer || onOpenAiCopilot) && (
+              {((onOpenPowerDialer && rights.calling) || (onOpenAiCopilot && rights.aiAgents)) && (
                 <div className="grid grid-cols-2 gap-2">
-                  {onOpenAiCopilot && (
+                  {onOpenAiCopilot && rights.aiAgents && (
                     <button
                       type="button"
                       onClick={() => {
@@ -380,7 +374,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                     </button>
                   )}
 
-                  {onOpenPowerDialer && (
+                  {onOpenPowerDialer && rights.calling && (
                     <button
                       type="button"
                       onClick={() => {
@@ -402,7 +396,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               )}
 
               {/* Active Telecaller Switcher Strip */}
-              {isAdmin && <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+              {rights.team && <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Active Telecaller</span>
                   <span className="text-[9px] text-slate-600 font-semibold">{activeAgent.name}</span>

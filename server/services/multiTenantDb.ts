@@ -75,6 +75,8 @@ export interface TenantAgent {
   phone: string;
   role: UserRole | string; // Keep string to support legacy roles temporarily
   permission?: string;
+  permissionTemplateId?: string;
+  permissionRights?: Record<string, boolean>;
   companyName: string;
   isAdmin: boolean;
   status: string;
@@ -1818,6 +1820,8 @@ export class MultiTenantDatabase {
         avatar: agentData.avatar || '',
         managerId: resolvedManagerId,
         passwordHash: agentData.passwordHash,
+        permissionTemplateId: agentData.permissionTemplateId,
+        permissionRights: agentData.permissionRights,
         totalCallsToday: 0,
         talkTimeMinutes: 0,
         convertedLeadsCount: 0,

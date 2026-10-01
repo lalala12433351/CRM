@@ -124,7 +124,7 @@ const ColorPickerDropdown: React.FC<ColorPickerDropdownProps> = ({ color, onChan
     </div>
   );
 };
-import { PipelineStage, Agent, CustomFieldDef, PermissionTemplate } from '../types';
+import { PipelineStage, Agent, CustomFieldDef, PermissionTemplate, PermissionRights } from '../types';
 
 import { FieldsSettingsView } from './FieldsSettingsPage';
 import { PermissionsSettingsView } from './PermissionsSettingsPage';
@@ -147,6 +147,8 @@ interface SettingsViewProps {
   onUpdateFields?: (fields: CustomFieldDef[]) => void;
   permissionTemplates?: PermissionTemplate[];
   onUpdatePermissionTemplates?: (templates: PermissionTemplate[]) => void;
+  onApplyAssigneeAccess?: (updates: Array<{ id: string; permissionTemplateId?: string | null; permissionRights?: PermissionRights }>) => void;
+  canManageBilling?: boolean;
   lostReasons?: string[];
   onUpdateLostReasons?: (reasons: string[]) => void;
   initialTab?: SettingsTab;
@@ -248,6 +250,8 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
   onUpdateFields,
   permissionTemplates,
   onUpdatePermissionTemplates,
+  onApplyAssigneeAccess,
+  canManageBilling = true,
   onUpdateCurrentUser,
   lostReasons: initialLostReasons,
   onUpdateLostReasons,
@@ -1122,7 +1126,7 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
             </div>
           </button>
 
-          <button
+          {canManageBilling && <button
             onClick={() => setActiveTab('billing')}
             className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-sans transition-all cursor-pointer ${
               activeTab === 'billing'
@@ -1134,7 +1138,7 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
               <CreditCard className={`w-4 h-4 shrink-0 ${activeTab === 'billing' ? 'text-[#2563eb]' : 'text-slate-400'}`} />
               <span className="truncate">Buy Licenses & Billing</span>
             </div>
-          </button>
+          </button>}
 
           <button
             onClick={() => setActiveTab('telephony')}
@@ -1413,9 +1417,22 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
               permissionTemplates={localTemplates}
               onUpdateTemplates={handleTemplatesChange}
               agents={localAgents}
-              onUpdateAgents={(updatedAgents) => {
+              onApplyAssigneeAccess={(updates) => {
+                const updatedAgents = localAgents.map((agent) => {
+                  const update = updates.find((item) => item.id === agent.id);
+                  if (!update) return agent;
+                  if (update.permissionTemplateId === null) {
+                    const { permissionTemplateId: _removed, ...rest } = agent;
+                    return rest;
+                  }
+                  return {
+                    ...agent,
+                    permissionTemplateId: update.permissionTemplateId,
+                    permissionRights: update.permissionRights || agent.permissionRights,
+                  };
+                });
                 setLocalAgents(updatedAgents);
-                if (onUpdateAgents) onUpdateAgents(updatedAgents);
+                if (onApplyAssigneeAccess) onApplyAssigneeAccess(updates);
               }}
               onShowToast={onShowToast}
             />
@@ -2559,7 +2576,7 @@ export const SettingsPage: React.FC<SettingsViewProps> = ({
           )}
 
           {/* TAB: PAYMENTS & LICENSES (BUY LICENSES & BILLING) */}
-          {activeTab === 'billing' && (
+          {activeTab === 'billing' && canManageBilling && (
             <div className="space-y-4">
               {/* Header Title Bar */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-200 pb-3">

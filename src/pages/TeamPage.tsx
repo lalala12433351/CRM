@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { 
   UserCheck, 
   Shield, 
@@ -20,7 +20,8 @@ import {
   ChevronDown,
   Loader2
 } from 'lucide-react';
-import { Agent, isAgentAdmin } from '../types';
+import { Agent, PermissionTemplate, isAgentAdmin } from '../types';
+import { accessForPermission, templateNameForAgent } from '../utils/permissionUtils';
 import { UserAvatar } from '../components/UserAvatar';
 import { toast } from '../context/ToastContext';
 import { EmptyState } from '../components/EmptyState';
@@ -37,6 +38,7 @@ interface TeamViewProps {
   onToggleAdminPower?: (agentId: string) => void;
   onUpdateAgentRole?: (agentId: string, newRole: string) => void;
   onUpdateAgent?: (updatedAgent: Agent) => void;
+  permissionTemplates?: PermissionTemplate[];
 }
 
 const getInitials = (name: string = '') => {
@@ -57,7 +59,8 @@ export const TeamPage: React.FC<TeamViewProps> = ({
   onRemoveAgent,
   onToggleAdminPower,
   onUpdateAgentRole,
-  onUpdateAgent
+  onUpdateAgent,
+  permissionTemplates = []
 }) => {
   const isAdmin = isAgentAdmin(activeAgent);
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
@@ -88,6 +91,7 @@ export const TeamPage: React.FC<TeamViewProps> = ({
   const [editManagerId, setEditManagerId] = useState('');
   const [editRole, setEditRole] = useState<'Admin' | 'Manager' | 'Telecaller'>('Telecaller');
   const [editPermission, setEditPermission] = useState<'Admin' | 'Manager' | 'Telecaller'>('Telecaller');
+  const editPermissionBaselineRef = useRef<'Admin' | 'Manager' | 'Telecaller'>('Telecaller');
   const [editAvatar, setEditAvatar] = useState('');
   const [editIsAdmin, setEditIsAdmin] = useState(false);
   const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({});
@@ -186,6 +190,7 @@ export const TeamPage: React.FC<TeamViewProps> = ({
     }
 
     setEditPermission(initialPerm);
+    editPermissionBaselineRef.current = initialPerm;
     setEditAvatar(agent.avatar || '');
     setEditIsAdmin(initialPerm === 'Admin' || isAgentAdmin(agent));
     setEditFormErrors({});
@@ -259,6 +264,7 @@ export const TeamPage: React.FC<TeamViewProps> = ({
       responseTimeMinutes: 1.0,
       managerId: newRole === 'Telecaller' ? newManagerId : undefined,
       password: newPassword,
+      ...accessForPermission(newPermission, permissionTemplates),
     };
 
     if (onAddAgent) {
@@ -483,16 +489,7 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                   const normalizedRole = roleDisplay === 'Super Admin' || roleDisplay === 'Master Admin' || roleDisplay === 'Root' ? 'Admin' : roleDisplay;
                   const reportingManager = ag.managerId ? agents.find((manager) => manager.id === ag.managerId) : undefined;
 
-                  // Format permission nicely (Admin, Manager, Marketer, Caller)
-                  let permDisplay = ag.permission;
-                  if (!permDisplay) {
-                    if (agIsAdmin) permDisplay = 'Admin';
-                    else if (roleDisplay === 'Manager') permDisplay = 'Manager';
-                    else if (roleDisplay === 'Marketing') permDisplay = 'Marketer';
-                    else permDisplay = 'Caller';
-                  }
-
-                  const permissionTemplateDisplay = `Default ${permDisplay} Permissions`;
+                  const permissionTemplateDisplay = templateNameForAgent(ag, permissionTemplates);
 
                   return (
                     <tr
@@ -915,6 +912,13 @@ export const TeamPage: React.FC<TeamViewProps> = ({
 
                 const formattedPhone = `+91 ${cleanPhone.slice(0, 5)} ${cleanPhone.slice(5)}`;
 
+                const permissionChanged = editPermission !== editPermissionBaselineRef.current;
+                const nextAccess = permissionChanged || !editingAgent.permissionRights
+                  ? accessForPermission(editPermission, permissionTemplates)
+                  : {
+                      permissionTemplateId: editingAgent.permissionTemplateId,
+                      permissionRights: editingAgent.permissionRights,
+                    };
                 const updatedAgent: Agent = {
                   ...editingAgent,
                   name: trimmedName,
@@ -925,6 +929,7 @@ export const TeamPage: React.FC<TeamViewProps> = ({
                   avatar: editAvatar || editingAgent.avatar,
                   isAdmin: editPermission === 'Admin' || editRole === 'Admin',
                   managerId: editRole === 'Telecaller' ? editManagerId : undefined,
+                  ...nextAccess,
                   ...(editPassword ? { password: editPassword } : {}),
                 };
 
